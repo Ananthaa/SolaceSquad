@@ -1,0 +1,114 @@
+<footer class="bg-gray-900 text-gray-300">
+    <div class="container-custom py-12">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <!-- Brand Section -->
+            <div>
+                <a href="/" class="flex items-center gap-2 mb-4">
+                    <img src="/static/images/logo.png" alt="SolaceSquad" class="h-10 w-auto bg-white rounded-lg p-1">
+                </a>
+                <p class="text-sm text-gray-400 mb-4">
+                    Professional wellbeing consultants trained to support you with empathy, care, and love.
+                </p>
+                <div class="flex gap-3">
+                    <a href="#" class="p-2 bg-gray-800 rounded-lg hover:bg-primary-600 transition-colors">
+                        <i data-lucide="facebook" class="w-4 h-4"></i>
+                    </a>
+                    <a href="#" class="p-2 bg-gray-800 rounded-lg hover:bg-primary-600 transition-colors">
+                        <i data-lucide="twitter" class="w-4 h-4"></i>
+                    </a>
+                    <a href="#" class="p-2 bg-gray-800 rounded-lg hover:bg-primary-600 transition-colors">
+                        <i data-lucide="instagram" class="w-4 h-4"></i>
+                    </a>
+                    <a href="#" class="p-2 bg-gray-800 rounded-lg hover:bg-primary-600 transition-colors">
+                        <i data-lucide="linkedin" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div>
+                <h3 class="text-white font-semibold mb-4">Quick Links</h3>
+                <ul class="space-y-2">
+                    <li>
+                        <a href="/#services" class="text-sm hover:text-primary-400 transition-colors">
+                            Services
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/#why-us" class="text-sm hover:text-primary-400 transition-colors">
+                            Why Us
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/#testimonials" class="text-sm hover:text-primary-400 transition-colors">
+                            Testimonials
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/app" class="text-sm hover:text-primary-400 transition-colors">
+                            User Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/consultant" class="text-sm hover:text-primary-400 transition-colors">
+                            Consultant Portal
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Services -->
+            <div>
+                <h3 class="text-white font-semibold mb-4">Our Services</h3>
+                <ul class="space-y-2">
+                    <li class="text-sm">Virtual Consultation</li>
+                    <li class="text-sm">Wellness Planning</li>
+                    <li class="text-sm">Professional Coaching</li>
+                    <li class="text-sm">Family Workshops</li>
+                    <li class="text-sm">Corporate Sessions</li>
+                </ul>
+            </div>
+
+            <!-- Contact Info -->
+            <div>
+                <h3 class="text-white font-semibold mb-4">Contact Us</h3>
+                <ul class="space-y-3">
+                    <li class="flex items-start gap-2 text-sm">
+                        <i data-lucide="mail" class="w-4 h-4 mt-0.5 text-primary-400"></i>
+                        <span>support@soulsquad.com</span>
+                    </li>
+                    <li class="flex items-start gap-2 text-sm">
+                        <i data-lucide="phone" class="w-4 h-4 mt-0.5 text-primary-400"></i>
+                        <span>+91 1234 567 890</span>
+                    </li>
+                    <li class="flex items-start gap-2 text-sm">
+                        <i data-lucide="map-pin" class="w-4 h-4 mt-0.5 text-primary-400"></i>
+                        <span>Bangalore, India</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p class="text-sm text-gray-400">
+                © <span id="current-year"></span> SolaceSquad. All rights reserved.
+            </p>
+            <div class="flex gap-6">
+                <a href="#" class="text-sm text-gray-400 hover:text-primary-400 transition-colors">
+                    Privacy Policy
+                </a>
+                <a href="#" class="text-sm text-gray-400 hover:text-primary-400 transition-colors">
+                    Terms of Service
+                </a>
+                <a href="#" class="text-sm text-gray-400 hover:text-primary-400 transition-colors">
+                    Cookie Policy
+                </a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    document.getElementById('current-year').textContent = new Date().getFullYear();
+</script>

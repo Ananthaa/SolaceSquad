@@ -1,0 +1,279 @@
+{% extends "layouts/protected.html" %}
+
+{# user_name, user_initials, and user_type are now passed directly from the route #}
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/consultant', 'key': 'dashboard'},
+{'icon': 'users', 'label': 'My Clients', 'href': '/consultant/clients', 'key': 'clients'},
+{'icon': 'calendar', 'label': 'Schedule', 'href': '/consultant/schedule', 'key': 'schedule'},
+{'icon': 'message-square', 'label': 'Messages', 'href': '/consultant/messages', 'key': 'messages'},
+{'icon': 'file-text', 'label': 'Reports', 'href': '/consultant/reports', 'key': 'reports'},
+{'icon': 'user', 'label': 'Profile', 'href': '/consultant/profile', 'key': 'profile'}
+] %}
+
+{% block dashboard_content %}
+<!-- Welcome Section -->
+<div class="mb-8">
+    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+        Welcome back, {{ consultant.name }}! 👋
+    </h1>
+    <p class="text-gray-600">
+        You have 3 sessions scheduled today
+    </p>
+</div>
+
+<!-- Quick Stats -->
+<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-primary-100 p-3 rounded-xl">
+                <i data-lucide="users" class="w-6 h-6 text-primary-700"></i>
+            </div>
+            <span class="text-xs text-green-600 font-medium">+3 this week</span>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1">{{ consultant.stats.active_clients }}</div>
+        <div class="text-sm text-gray-600">Active Clients</div>
+    </div>
+
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-secondary-100 p-3 rounded-xl">
+                <i data-lucide="calendar" class="w-6 h-6 text-secondary-700"></i>
+            </div>
+            <span class="text-xs text-gray-600">This week</span>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1">{{ consultant.stats.sessions_scheduled }}</div>
+        <div class="text-sm text-gray-600">Sessions Scheduled</div>
+    </div>
+
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-accent-100 p-3 rounded-xl">
+                <i data-lucide="dollar-sign" class="w-6 h-6 text-accent-700"></i>
+            </div>
+            <span class="text-xs text-green-600 font-medium">+12% vs last month</span>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1">{{ consultant.stats.earnings }}</div>
+        <div class="text-sm text-gray-600">This Month</div>
+    </div>
+
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-green-100 p-3 rounded-xl">
+                <i data-lucide="star" class="w-6 h-6 text-green-700"></i>
+            </div>
+            <span class="text-xs text-gray-600">From 18 reviews</span>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1">{{ consultant.stats.rating }}</div>
+        <div class="text-sm text-gray-600">Average Rating</div>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
+<div class="grid lg:grid-cols-3 gap-6">
+    <!-- Left Column -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Today's Schedule -->
+        <div class="card">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-display font-semibold text-gray-900">
+                    Today's Schedule
+                </h2>
+                <a href="/consultant/schedule" class="text-primary-600 text-sm font-medium hover:text-primary-700">
+                    View Calendar
+                </a>
+            </div>
+            <div id="todaySchedule" class="space-y-3">
+                <div class="text-center py-4 text-gray-500">
+                    Loading schedule...
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Load today's appointments
+            window.addEventListener('DOMContentLoaded', function () {
+                loadTodaySchedule();
+            });
+
+            function loadTodaySchedule() {
+                fetch('/api/appointments/consultant')
+                    .then(response => response.json())
+                    .then(data => {
+                        const container = document.getElementById('todaySchedule');
+
+                        if (data.success && data.appointments.length > 0) {
+                            // Filter for today's scheduled appointments (including in-progress)
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const tomorrow = new Date(today);
+                            tomorrow.setDate(tomorrow.getDate() + 1);
+                            const now = new Date();
+
+                            const todayAppts = data.appointments.filter(appt => {
+                                const apptDate = new Date(appt.appointment_date);
+                                const apptEnd = new Date(apptDate.getTime() + appt.duration_minutes * 60000);
+                                // Show if appointment is today and hasn't ended yet
+                                return appt.status === 'scheduled' && apptDate >= today && apptDate < tomorrow && apptEnd > now;
+                            }).sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
+
+                            if (todayAppts.length > 0) {
+                                container.innerHTML = todayAppts.map(appt => {
+                                    const date = new Date(appt.appointment_date);
+                                    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                    const initials = getInitials(appt.client_name);
+
+                                    // Check if appointment is currently in progress
+                                    const now = new Date();
+                                    const apptEnd = new Date(date.getTime() + appt.duration_minutes * 60000);
+                                    const isInProgress = now >= date && now < apptEnd;
+                                    const statusText = isInProgress ? 'In Progress' : 'Confirmed';
+                                    const statusColor = isInProgress ? 'text-orange-600' : 'text-green-600';
+
+                                    return `
+                                        <div class="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-10 h-10 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                                        ${initials}
+                                                    </div>
+                                                    <div>
+                                                        <div class="font-semibold text-gray-900">${appt.client_name}</div>
+                                                        <div class="text-sm text-gray-600">${appt.duration_minutes} min session</div>
+                                                    </div>
+                                                </div>
+                                                <div class="text-right">
+                                                    <div class="flex items-center gap-2 text-sm font-medium text-gray-900">
+                                                        <i data-lucide="clock" class="w-4 h-4"></i>
+                                                        ${timeStr}
+                                                    </div>
+                                                    <span class="text-xs ${statusColor}">${statusText}</span>
+                                                </div>
+                                            </div>
+                                            ${appt.notes ? `<div class="text-sm text-gray-600 mt-2 pl-13">Note: ${appt.notes}</div>` : ''}
+                                            <a href="/app/call/${appt.id}" class="btn btn-primary text-xs w-full flex items-center justify-center gap-1 mt-3">
+                                                <i data-lucide="phone" class="w-3 h-3"></i>
+                                                <span>Join Call</span>
+                                            </a>
+                                        </div>
+                                    `;
+                                }).join('');
+
+                                // Re-initialize lucide icons
+                                if (typeof lucide !== 'undefined') {
+                                    lucide.createIcons();
+                                }
+                            } else {
+                                container.innerHTML = `
+                                    <div class="text-center py-8 text-gray-500">
+                                        <i data-lucide="calendar-off" class="w-12 h-12 mx-auto mb-2 text-gray-400"></i>
+                                        <p class="font-medium">No sessions scheduled for today</p>
+                                        <p class="text-sm mt-1">Enjoy your day off!</p>
+                                    </div>
+                                `;
+                                if (typeof lucide !== 'undefined') {
+                                    lucide.createIcons();
+                                }
+                            }
+                        } else {
+                            container.innerHTML = `
+                                <div class="text-center py-8 text-gray-500">
+                                    <p>No appointments found</p>
+                                </div>
+                            `;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading schedule:', error);
+                        document.getElementById('todaySchedule').innerHTML = `
+                            <div class="text-center py-4 text-red-500">
+                                Error loading schedule
+                            </div>
+                        `;
+                    });
+            }
+
+            function getInitials(name) {
+                const parts = name.split(' ');
+                if (parts.length >= 2) {
+                    return parts[0][0] + parts[parts.length - 1][0];
+                }
+                return name.substring(0, 2);
+            }
+        </script>
+    </div>
+
+    <!-- Right Column -->
+    <div class="space-y-6">
+        <!-- Messages -->
+        <div class="card">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-display font-semibold text-gray-900">
+                    Messages
+                </h2>
+                <span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                    3
+                </span>
+            </div>
+            <div class="space-y-3">
+                {% set messages = [
+                {'client': 'Priya S.', 'message': 'Thank you for the session yesterday...', 'time': '10m ago'},
+                {'client': 'Rahul M.', 'message': 'Can we reschedule tomorrow\'s...', 'time': '1h ago'}
+                ] %}
+
+                {% for msg in messages %}
+                <div class="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                    <div class="flex items-center gap-2 mb-1">
+                        <div class="font-medium text-gray-900 text-sm">{{ msg.client }}</div>
+                        <div class="text-xs text-gray-500">{{ msg.time }}</div>
+                    </div>
+                    <p class="text-sm text-gray-600 line-clamp-1">{{ msg.message }}</p>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="/consultant/messages" class="btn btn-secondary text-sm mt-3 w-full">
+                <i data-lucide="message-square" class="w-4 h-4"></i>
+                View All Messages
+            </a>
+        </div>
+
+        <!-- Performance -->
+        <div class="card bg-gradient-to-br from-primary-600 to-secondary-600 text-white">
+            <h2 class="text-lg font-display font-semibold mb-4">
+                This Month's Performance
+            </h2>
+            <div class="space-y-4">
+                <div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-primary-100">Sessions Completed</span>
+                        <span class="font-semibold">28/30</span>
+                    </div>
+                    <div class="w-full bg-white/20 rounded-full h-2">
+                        <div class="bg-white rounded-full h-2" style="width: 93%"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-primary-100">Client Satisfaction</span>
+                        <span class="font-semibold">96%</span>
+                    </div>
+                    <div class="w-full bg-white/20 rounded-full h-2">
+                        <div class="bg-white rounded-full h-2" style="width: 96%"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-primary-100">Response Time</span>
+                        <span class="font-semibold">
+                            < 2 hours</span>
+                    </div>
+                    <div class="w-full bg-white/20 rounded-full h-2">
+                        <div class="bg-white rounded-full h-2" style="width: 88%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

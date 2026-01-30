@@ -1,0 +1,161 @@
+{% extends "layouts/protected.html" %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/consultant', 'key': 'dashboard'},
+{'icon': 'users', 'label': 'My Clients', 'href': '/consultant/clients', 'key': 'clients'},
+{'icon': 'calendar', 'label': 'Schedule', 'href': '/consultant/schedule', 'key': 'schedule'},
+{'icon': 'message-square', 'label': 'Messages', 'href': '/consultant/messages', 'key': 'messages'},
+{'icon': 'file-text', 'label': 'Reports', 'href': '/consultant/reports', 'key': 'reports'},
+{'icon': 'user', 'label': 'Profile', 'href': '/consultant/profile', 'key': 'profile'}
+] %}
+
+{% block dashboard_content %}
+<!-- Header -->
+<div class="mb-8">
+    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+        My Schedule 📅
+    </h1>
+    <p class="text-gray-600">
+        Manage your availability and view upcoming appointments
+    </p>
+</div>
+
+<!-- Schedule Management -->
+<div class="grid lg:grid-cols-3 gap-6">
+    <!-- Availability Settings -->
+    <div class="lg:col-span-2">
+        <div class="card">
+            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4">
+                Set Your Availability
+            </h2>
+
+            <div id="scheduleForm" class="space-y-4">
+                <p class="text-sm text-gray-600 mb-4">
+                    Define your working hours for each day of the week
+                </p>
+
+                {% set days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+
+                {% for day in days %}
+                <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div class="flex-1">
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" class="day-toggle" data-day="{{ loop.index0 }}" {% if schedules and
+                                schedules|selectattr('day_of_week', 'equalto' , loop.index0)|list %}checked{% endif %}>
+                            <span class="font-medium text-gray-900">{{ day }}</span>
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="time" class="start-time px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            data-day="{{ loop.index0 }}"
+                            value="{% if schedules %}{% for s in schedules %}{% if s.day_of_week == loop.index0 %}{{ s.start_time }}{% endif %}{% endfor %}{% else %}09:00{% endif %}">
+                        <span class="text-gray-500">to</span>
+                        <input type="time" class="end-time px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            data-day="{{ loop.index0 }}"
+                            value="{% if schedules %}{% for s in schedules %}{% if s.day_of_week == loop.index0 %}{{ s.end_time }}{% endif %}{% endfor %}{% else %}17:00{% endif %}">
+                    </div>
+                </div>
+                {% endfor %}
+
+                <button onclick="saveSchedule()" class="btn btn-primary w-full mt-4">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Save Availability
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Appointments -->
+    <div>
+        <div class="card">
+            <h2 class="text-lg font-display font-semibold text-gray-900 mb-4">
+                Upcoming Sessions
+            </h2>
+            <div id="upcomingAppointments">
+                <div class="text-center py-4 text-gray-500">
+                    Loading...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load upcoming appointments
+    window.addEventListener('DOMContentLoaded', function () {
+        loadUpcomingAppointments();
+        lucide.createIcons();
+    });
+
+    function loadUpcomingAppointments() {
+        fetch('/api/appointments/consultant')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('upcomingAppointments');
+
+                if (data.success && data.appointments.length > 0) {
+                    const now = new Date();
+                    const upcoming = data.appointments.filter(appt => {
+                        const appointmentDate = new Date(appt.appointment_date);
+                        const appointmentEnd = new Date(appointmentDate.getTime() + appt.duration_minutes * 60000);
+                        // Show if appointment hasn't ended yet (upcoming or in progress)
+                        return appt.status === 'scheduled' && appointmentEnd > now;
+                    }).sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
+
+                    if (upcoming.length > 0) {
+                        container.innerHTML = upcoming.slice(0, 5).map(appt => {
+                            const date = new Date(appt.appointment_date);
+                            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                            const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+                            return `
+                                <div class="p-3 bg-primary-50 rounded-lg mb-3">
+                                    <div class="font-medium text-gray-900 text-sm">${appt.client_name}</div>
+                                    <div class="text-xs text-gray-600 mt-1 mb-2">
+                                        <i data-lucide="calendar" class="w-3 h-3 inline"></i>
+                                        ${dateStr} at ${timeStr}
+                                    </div>
+                                    <a href="/app/call/${appt.id}" class="btn btn-primary text-xs w-full flex items-center justify-center gap-1">
+                                        <i data-lucide="phone" class="w-3 h-3"></i>
+                                        <span>Join Call</span>
+                                    </a>
+                                </div>
+                            `;
+                        }).join('');
+                        lucide.createIcons();
+                    } else {
+                        container.innerHTML = '<div class="text-center py-4 text-gray-500 text-sm">No upcoming sessions</div>';
+                    }
+                } else {
+                    container.innerHTML = '<div class="text-center py-4 text-gray-500 text-sm">No appointments yet</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading appointments:', error);
+            });
+    }
+
+    function saveSchedule() {
+        const schedules = [];
+        const dayToggles = document.querySelectorAll('.day-toggle');
+
+        dayToggles.forEach(toggle => {
+            if (toggle.checked) {
+                const day = toggle.dataset.day;
+                const startTime = document.querySelector(`.start-time[data-day="${day}"]`).value;
+                const endTime = document.querySelector(`.end-time[data-day="${day}"]`).value;
+
+                schedules.push({
+                    day_of_week: parseInt(day),
+                    start_time: startTime,
+                    end_time: endTime
+                });
+            }
+        });
+
+        // TODO: Implement API endpoint to save schedule
+        console.log('Saving schedule:', schedules);
+        alert('Schedule saved successfully! (API endpoint to be implemented)');
+    }
+</script>
+{% endblock %}

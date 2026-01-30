@@ -1,0 +1,20 @@
+{
+    "name": "Soul Squad",
+    "short_name": "SoulSquad",
+    "start_url": "/app",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#e11d48",
+    "icons": [
+        {
+            "src": "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/heart-pulse.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/heart-pulse.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

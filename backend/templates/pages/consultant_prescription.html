@@ -1,0 +1,204 @@
+{% extends "layouts/protected.html" %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/consultant', 'key': 'dashboard'},
+{'icon': 'users', 'label': 'My Clients', 'href': '/consultant/clients', 'key': 'clients'},
+{'icon': 'calendar', 'label': 'Schedule', 'href': '/consultant/schedule', 'key': 'schedule'},
+{'icon': 'file-plus', 'label': 'Wellness Summary Report', 'href': '/consultant/prescriptions', 'key': 'prescriptions'},
+{'icon': 'message-square', 'label': 'Messages', 'href': '/consultant/messages', 'key': 'messages'},
+{'icon': 'file-text', 'label': 'Reports', 'href': '/consultant/reports', 'key': 'reports'},
+{'icon': 'user', 'label': 'Profile', 'href': '/consultant/profile', 'key': 'profile'}
+] %}
+
+{% block dashboard_content %}
+<div class="max-w-4xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-3xl font-display font-bold text-gray-900">Create Prescription</h1>
+    </div>
+
+    <!-- Active Wellness Summary Reports List Logic could go here, but for now just the create form -->
+
+    <div class="card bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <form id="prescriptionForm" class="space-y-6">
+            <!-- Client Selection -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Client</label>
+                <select name="user_id" id="clientSelect"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    required>
+                    <option value="">Choose a client...</option>
+                    {% for client in clients %}
+                    <option value="{{ client.id }}" {% if selected_client_id==client.id %}selected{% endif %}>{{
+                        client.name }}</option>
+                    {% endfor %}
+                </select>
+                {% if not clients %}
+                <p class="text-sm text-yellow-600 mt-1">No clients found from your appointments.</p>
+                {% endif %}
+            </div>
+
+            <!-- Diagnosis -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Diagnosis / Conditions</label>
+                <textarea name="diagnosis" rows="2"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="e.g. Mild Anxiety, vitamin D deficiency"></textarea>
+            </div>
+
+            <!-- Medications -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">Medications</label>
+                    <button type="button" onclick="addMedicationRow()"
+                        class="text-primary-600 text-sm font-medium hover:text-primary-700 flex items-center gap-1">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Add Item
+                    </button>
+                </div>
+                <div id="medicationsList" class="space-y-4">
+                    <!-- Rows will be added here -->
+                    <div
+                        class="medication-row grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 relative">
+                        <div class="md:col-span-4">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Medication Name</label>
+                            <input type="text" name="medication_name[]"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                placeholder="e.g. Paracetamol" required>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Dosage</label>
+                            <input type="text" name="dosage[]"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="500mg">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Frequency</label>
+                            <input type="text" name="frequency[]"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                placeholder="Twice daily">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Duration</label>
+                            <input type="text" name="duration[]"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="5 days">
+                        </div>
+                        <div class="md:col-span-12">
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Instructions</label>
+                            <input type="text" name="instructions[]"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                placeholder="After food">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
+                <textarea name="notes" rows="3"
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Lifestyle recommendations, follow-up instructions..."></textarea>
+            </div>
+
+            <div class="flex justify-end pt-4">
+                <button type="submit" id="submitBtn" class="btn btn-primary px-8 py-2.5">
+                    Create Prescription
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function addMedicationRow() {
+        const container = document.getElementById('medicationsList');
+        const row = document.createElement('div');
+        row.className = 'medication-row grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 relative animate-in fade-in slide-in-from-top-2';
+        row.innerHTML = `
+            <button type="button" onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-gray-400 hover:text-red-500">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <div class="md:col-span-4">
+                <label class="block text-xs font-medium text-gray-500 mb-1">Medication Name</label>
+                <input type="text" name="medication_name[]" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="e.g. Paracetamol" required>
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs font-medium text-gray-500 mb-1">Dosage</label>
+                <input type="text" name="dosage[]" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="500mg">
+            </div>
+            <div class="md:col-span-3">
+                <label class="block text-xs font-medium text-gray-500 mb-1">Frequency</label>
+                <input type="text" name="frequency[]" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="Twice daily">
+            </div>
+            <div class="md:col-span-3">
+                <label class="block text-xs font-medium text-gray-500 mb-1">Duration</label>
+                <input type="text" name="duration[]" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="5 days">
+            </div>
+             <div class="md:col-span-12">
+                <label class="block text-xs font-medium text-gray-500 mb-1">Instructions</label>
+                <input type="text" name="instructions[]" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="After food">
+            </div>
+        `;
+        container.appendChild(row);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    document.getElementById('prescriptionForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = 'Creating...';
+
+        // Gather Data
+        const formData = new FormData(this);
+        const data = {
+            user_id: formData.get('user_id'),
+            diagnosis: formData.get('diagnosis'),
+            notes: formData.get('notes'),
+            items: []
+        };
+
+        const names = formData.getAll('medication_name[]');
+        const dosages = formData.getAll('dosage[]');
+        const frequencies = formData.getAll('frequency[]');
+        const durations = formData.getAll('duration[]');
+        const instructions = formData.getAll('instructions[]');
+
+        for (let i = 0; i < names.length; i++) {
+            if (names[i]) {
+                data.items.push({
+                    medication_name: names[i],
+                    dosage: dosages[i],
+                    frequency: frequencies[i],
+                    duration: durations[i],
+                    instructions: instructions[i]
+                });
+            }
+        }
+
+        try {
+            const response = await fetch('/api/consultant/prescriptions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                alert('Prescription created successfully!');
+                // Optionally clear form
+                document.getElementById('prescriptionForm').reset();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Failed to submit prescription');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+</script>
+{% endblock %}

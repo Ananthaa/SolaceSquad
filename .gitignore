@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+.eggs/
+*.egg
+
+# Environment variables
+.env
+.env.local
+.env.production
+*.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+soul_squad.db
+solacesquad.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+ollama_trace.log
+vertex_ai_trace.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build
+build/
+dist/
+
+# Temporary files
+*.bak
+*.tmp
+
+# Local development scripts
+backend/test_*.py
+backend/*_test.py
+backend/migrate_*.py
+backend/check_*.py
+backend/fix_*.py
+backend/dump_*.py
+backend/seed_*.py
+backend/add_*.py
+backend/update_*.py
+backend/rebuild_*.py
+backend/reset_*.py
+backend/debug_*.py
+backend/save_*.py
+backend/rebrand_*.py
+
+# Documentation (keep main ones)
+*.md
+!README.md
+!backend/README.md

@@ -1,0 +1,59 @@
+# GCP Cloud Run Deployment Configuration
+# This file defines how your app will run on Google Cloud Run
+
+runtime: python311
+
+# Environment variables (set these in GCP Console or via gcloud)
+env_variables:
+  # Database
+  DATABASE_URL: "postgresql://USER:PASSWORD@/DB_NAME?host=/cloudsql/PROJECT:REGION:INSTANCE"
+  
+  # Session secret (generate a random string)
+  SECRET_KEY: "your-secret-key-here-change-in-production"
+  
+  # GCP Configuration
+  GCP_PROJECT_ID: "your-project-id"
+  GCP_LOCATION: "us-central1"
+  
+  # Firebase (optional - for OTP)
+  FIREBASE_CREDENTIALS_PATH: "/app/firebase-credentials.json"
+  
+  # Application settings
+  ENVIRONMENT: "production"
+  DEBUG: "False"
+
+# Automatic scaling
+automatic_scaling:
+  min_instances: 0  # Scale to zero when not in use (save costs!)
+  max_instances: 10
+  target_cpu_utilization: 0.6
+
+# Resource limits
+resources:
+  cpu: 1
+  memory_gb: 0.5
+  disk_size_gb: 10
+
+# Health check
+liveness_check:
+  path: "/health"
+  check_interval_sec: 30
+  timeout_sec: 4
+  failure_threshold: 2
+
+readiness_check:
+  path: "/health"
+  check_interval_sec: 5
+  timeout_sec: 4
+  failure_threshold: 2
+  app_start_timeout_sec: 300
+
+# Handlers
+handlers:
+  - url: /static
+    static_dir: static
+    secure: always
+    
+  - url: /.*
+    script: auto
+    secure: always

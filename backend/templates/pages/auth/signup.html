@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div
+    class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-secondary-50 py-12 px-4">
+    <div class="max-w-md w-full">
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <a href="/" class="inline-flex items-center gap-2 mb-4">
+                <div class="bg-gradient-to-br from-primary-600 to-secondary-600 p-2 rounded-xl">
+                    <i data-lucide="heart" class="w-6 h-6 text-white fill-white"></i>
+                </div>
+                <span class="text-2xl font-display font-bold gradient-text">SolaceSquad</span>
+            </a>
+            <h2 class="text-3xl font-display font-bold text-gray-900 mt-4">Get Started</h2>
+            <p class="text-gray-600 mt-2">Create your account and begin your wellbeing journey</p>
+        </div>
+
+        <!-- Signup Form -->
+        <div class="card">
+            <form method="POST" action="/signup" class="space-y-6">
+                <!-- Error Messages -->
+                {% if error %}
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                    <div class="flex items-center">
+                        <i data-lucide="alert-circle" class="w-5 h-5 text-red-500 mr-2"></i>
+                        <p class="text-sm text-red-700">{{ error }}</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+                        Full Name
+                    </label>
+                    <input type="text" id="name" name="name" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                        placeholder="John Doe">
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                        Email Address
+                    </label>
+                    <input type="email" id="email" name="email" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                        placeholder="you@example.com">
+                </div>
+
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                        Password
+                    </label>
+                    <input type="password" id="password" name="password" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                        placeholder="••••••••">
+                </div>
+
+                <div>
+                    <label for="user_type" class="block text-sm font-medium text-gray-700 mb-2">
+                        I am a
+                    </label>
+                    <select id="user_type" name="user_type" required
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition">
+                        <option value="user">User seeking support</option>
+                        <option value="consultant">Wellbeing Consultant</option>
+                    </select>
+                </div>
+
+                <div class="flex items-start">
+                    <input type="checkbox" required
+                        class="w-4 h-4 mt-1 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                    <label class="ml-2 text-sm text-gray-600">
+                        I agree to the
+                        <a href="#" class="text-primary-600 hover:text-primary-700">Terms of Service</a>
+                        and
+                        <a href="#" class="text-primary-600 hover:text-primary-700">Privacy Policy</a>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full text-lg">
+                    Create Account
+                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                </button>
+            </form>
+
+            <div class="mt-6 text-center">
+                <p class="text-sm text-gray-600">
+                    Already have an account?
+                    <a href="/login" class="text-primary-600 hover:text-primary-700 font-medium">
+                        Sign in
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div
+    class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-secondary-50 py-12 px-4">
+    <div class="max-w-md w-full">
+        <div class="sm:mx-auto sm:w-full sm:max-w-md">
+            <div class="text-center">
+                <a href="/" class="inline-block">
+                    <span
+                        class="text-3xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-secondary-600">
+                        SolaceSquad
+                    </span>
+                </a>
+                <h2 class="mt-4 text-3xl font-display font-bold text-gray-900" id="step-title">
+                    Sign up with Phone 📱
+                </h2>
+                <p class="mt-2 text-sm text-gray-600">
+                    Already have an account?
+                    <a href="/login" class="font-medium text-primary-600 hover:text-primary-500">
+                        Sign in
+                    </a>
+                </p>
+            </div>
+        </div>
+
+        <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+            <div class="bg-white py-8 px-4 shadow-xl shadow-gray-100 sm:rounded-2xl sm:px-10 border border-gray-100">
+
+                <div id="error-message" class="hidden rounded-md bg-red-50 p-4 mb-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i data-lucide="x-circle" class="h-5 w-5 text-red-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800" id="error-text"></h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1: Phone Entry -->
+                <form id="step1-form" class="space-y-6">
+                    <div>
+                        <label for="phone" class="block text-sm font-medium text-gray-700">Mobile Number</label>
+                        <div class="mt-1 relative rounded-md shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span class="text-gray-500 sm:text-sm">🇮🇳 +91</span>
+                            </div>
+                            <input type="tel" name="phone" id="phone" required pattern="[0-9]{10}"
+                                class="focus:ring-primary-500 focus:border-primary-500 block w-full pl-16 sm:text-sm border-gray-300 rounded-lg placeholder-gray-400 py-3"
+                                placeholder="98765 43210">
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="submit" id="send-otp-btn"
+                            class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
+                            Send OTP
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Step 2: Details & OTP -->
+                <form id="step2-form" class="space-y-6 hidden" method="POST" action="/signup">
+                    <input type="hidden" name="phone_number" id="hidden_phone">
+
+                    <div>
+                        <label for="otp" class="block text-sm font-medium text-gray-700">Enter OTP</label>
+                        <div class="mt-1">
+                            <input type="text" name="otp" id="otp" required maxlength="6"
+                                class="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm tracking-widest text-center text-lg font-mono">
+                        </div>
+                        <p class="mt-1 text-xs text-green-600" id="otp-sent-msg">OTP sent to your mobile</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-y-6 gap-x-4">
+                        <div>
+                            <label for="name" class="block text-sm font-medium text-gray-700">Full Name</label>
+                            <div class="mt-1">
+                                <input id="name" name="name" type="text" autocomplete="name" required
+                                    class="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+                            <div class="mt-1">
+                                <input id="email" name="email" type="email" autocomplete="email" required
+                                    class="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-700">Create
+                                Password</label>
+                            <div class="mt-1">
+                                <input id="password" name="password" type="password" required
+                                    class="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="submit" id="signup-btn"
+                            class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
+                            Verify & Create Account
+                        </button>
+                    </div>
+
+                    <div class="text-center">
+                        <button type="button" onclick="resetForm()" class="text-sm text-gray-500 hover:text-gray-700">
+                            Change Phone Number
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script>
+            document.getElementById('step1-form').addEventListener('submit', function (e) {
+                e.preventDefault();
+                const phone = document.getElementById('phone').value;
+                if (!phone || phone.length !== 10) {
+                    showError('Please enter a valid 10-digit phone number');
+                    return;
+                }
+
+                const btn = document.getElementById('send-otp-btn');
+                const originalText = btn.innerText;
+                btn.innerText = 'Sending...';
+                btn.disabled = true;
+
+                fetch('/api/auth/otp/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone_number: phone })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Success: Switch to Step 2
+                            document.getElementById('step1-form').classList.add('hidden');
+                            document.getElementById('step2-form').classList.remove('hidden');
+                            document.getElementById('hidden_phone').value = phone;
+                            document.getElementById('step-title').innerText = 'Complete Verification';
+
+                            // Show OTP (simulated for now)
+                            if (data.otp_debug) {
+                                console.log("OTP:", data.otp_debug);
+                                // alert("Debug OTP: " + data.otp_debug); // Uncomment for easier testing if needed
+                            }
+                        } else {
+                            showError(data.error || 'Failed to send OTP');
+                            if (data.code === 'ACCOUNT_EXISTS') {
+                                // Maybe show a Login button
+                            }
+                        }
+                    })
+                    .catch(err => showError('Network error occurred'))
+                    .finally(() => {
+                        btn.innerText = originalText;
+                        btn.disabled = false;
+                    });
+            });
+
+            document.getElementById('step2-form').addEventListener('submit', function (e) {
+                // Form submits naturally to /signup, but we could intercept to verify OTP first if we wanted decoupled flows.
+                // For now, let it submit to backend which will handle OTP verification + creation atomically.
+            });
+
+            function showError(msg) {
+                const errDiv = document.getElementById('error-message');
+                const errText = document.getElementById('error-text');
+                errText.innerText = msg;
+                errDiv.classList.remove('hidden');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            function resetForm() {
+                document.getElementById('step2-form').classList.add('hidden');
+                document.getElementById('step1-form').classList.remove('hidden');
+                document.getElementById('error-message').classList.add('hidden');
+                document.getElementById('step-title').innerText = 'Sign up with Phone 📱';
+            }
+        </script>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,712 @@
+{% extends "layouts/protected.html" %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
+{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
+{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
+{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
+{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
+{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
+{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
+{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
+{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
+{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'},
+{'icon': 'user', 'label': 'Profile', 'href': '/app/profile', 'key': 'profile'}
+] %}
+
+{% block dashboard_content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+        Find Consultants
+    </h1>
+    <p class="text-gray-600">
+        Book a session with our expert wellbeing consultants
+    </p>
+</div>
+
+<div class="consultants-grid">
+    {% if consultants %}
+    {% for consultant in consultants %}
+    <div class="consultant-card" data-consultant-id="{{ consultant.id }}">
+        <div class="consultant-header">
+            <div class="consultant-avatar">
+                {{ consultant.name[0] }}{{ consultant.name.split()[-1][0] if consultant.name.split()|length > 1
+                else consultant.name[1] }}
+            </div>
+            <div class="consultant-info">
+                <h3 class="consultant-name">{{ consultant.name }}</h3>
+                <p class="consultant-specialization">{{ consultant.specialization }}</p>
+            </div>
+            <div class="consultant-rating">
+                <span class="rating-star">⭐</span>
+                <span class="rating-value">{{ "%.1f"|format(consultant.rating) }}</span>
+            </div>
+        </div>
+
+        <div class="consultant-body">
+            <p class="consultant-bio">{{ consultant.bio }}</p>
+
+            <div class="consultant-details">
+                <div class="detail-item">
+                    <span class="detail-icon">💼</span>
+                    <span class="detail-text">{{ consultant.experience_years }} years experience</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-icon">💰</span>
+                    <span class="detail-text">₹{{ consultant.hourly_rate }}/hour</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="consultant-footer">
+            <button class="btn btn-primary book-appointment-btn" data-consultant-id="{{ consultant.id }}"
+                data-consultant-name="{{ consultant.name }}">
+                Book Appointment
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">👥</div>
+        <h3>No Consultants Available</h3>
+        <p>There are currently no consultants available. Please check back later.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Booking Modal -->
+<div id="bookingModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📅 Book Appointment</h2>
+            <button class="modal-close">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <div class="booking-info">
+                <div class="consultant-badge">
+                    <span class="badge-icon">👤</span>
+                    <div>
+                        <h3 id="modalConsultantName"></h3>
+                        <p id="modalConsultantSpec"></p>
+                    </div>
+                </div>
+            </div>
+
+            <form id="bookingForm">
+                <input type="hidden" id="consultantId" name="consultant_id">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="appointmentDate">
+                            <span class="label-icon">📆</span>
+                            Date & Time
+                        </label>
+                        <input type="datetime-local" id="appointmentDate" name="appointment_date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="duration">
+                            <span class="label-icon">⏱️</span>
+                            Duration
+                        </label>
+                        <select id="duration" name="duration_minutes">
+                            <option value="30">30 minutes</option>
+                            <option value="60" selected>1 hour</option>
+                            <option value="90">1.5 hours</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">
+                        <span class="label-icon">📝</span>
+                        Notes (Optional)
+                    </label>
+                    <textarea id="notes" name="notes" rows="4"
+                        placeholder="Share any specific concerns or topics you'd like to discuss..."></textarea>
+                </div>
+
+                <div id="availabilityInfo" class="availability-info"></div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary cancel-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span class="btn-icon">✓</span>
+                        Confirm Booking
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Success Message -->
+<div id="successMessage" class="success-overlay">
+    <div class="success-content">
+        <div class="success-icon">✓</div>
+        <h3>Appointment Booked!</h3>
+        <p>Your appointment has been confirmed. Redirecting to dashboard...</p>
+    </div>
+</div>
+
+<style>
+    .consultants-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 2rem;
+        padding: 1rem 0;
+    }
+
+    .consultant-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .consultant-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .consultant-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .consultant-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .consultant-info {
+        flex: 1;
+    }
+
+    .consultant-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1a202c;
+        margin: 0 0 0.25rem 0;
+    }
+
+    .consultant-specialization {
+        color: #667eea;
+        font-size: 0.875rem;
+        margin: 0;
+    }
+
+    .consultant-rating {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-weight: 600;
+        color: #f59e0b;
+    }
+
+    .consultant-body {
+        margin-bottom: 1.5rem;
+    }
+
+    .consultant-bio {
+        color: #4a5568;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+    }
+
+    .consultant-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #4a5568;
+        font-size: 0.875rem;
+    }
+
+    .detail-icon {
+        font-size: 1rem;
+    }
+
+    .consultant-footer {
+        border-top: 1px solid #e2e8f0;
+        padding-top: 1rem;
+    }
+
+    .book-appointment-btn {
+        width: 100%;
+        padding: 0.75rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+
+    .book-appointment-btn:hover {
+        transform: scale(1.02);
+    }
+
+    .empty-state {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+
+    .empty-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        color: #1a202c;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+        color: #718096;
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        color: #1a202c;
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #718096;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .booking-info {
+        margin-bottom: 1.5rem;
+        padding: 1.25rem;
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .consultant-badge {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .badge-icon {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+        color: white;
+    }
+
+    .booking-info h3 {
+        margin: 0 0 0.25rem 0;
+        color: #1a202c;
+        font-size: 1.125rem;
+        font-weight: 600;
+    }
+
+    .booking-info p {
+        margin: 0;
+        color: #667eea;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+        color: #4a5568;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+
+    .label-icon {
+        font-size: 1rem;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.875rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .availability-info {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: #f0f9ff;
+        border-left: 4px solid #3b82f6;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        color: #1e40af;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        padding-top: 1rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .btn {
+        padding: 0.875rem 1.75rem;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9375rem;
+    }
+
+    .btn-icon {
+        font-size: 1.125rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+        background: #f7fafc;
+        color: #4a5568;
+        border: 2px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+        background: #edf2f7;
+        border-color: #cbd5e0;
+    }
+
+    /* Success Overlay */
+    .success-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .success-overlay.active {
+        display: flex;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .success-content {
+        background: white;
+        border-radius: 20px;
+        padding: 3rem 2.5rem;
+        text-align: center;
+        max-width: 400px;
+        animation: scaleIn 0.4s ease;
+    }
+
+    .success-icon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: white;
+        margin: 0 auto 1.5rem;
+        animation: checkmark 0.6s ease;
+    }
+
+    .success-content h3 {
+        color: #1a202c;
+        margin: 0 0 0.5rem 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .success-content p {
+        color: #718096;
+        margin: 0;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes scaleIn {
+        from {
+            transform: scale(0.8);
+            opacity: 0;
+        }
+
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    @keyframes checkmark {
+        0% {
+            transform: scale(0) rotate(-45deg);
+        }
+
+        50% {
+            transform: scale(1.2) rotate(5deg);
+        }
+
+        100% {
+            transform: scale(1) rotate(0deg);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('bookingModal');
+        const bookButtons = document.querySelectorAll('.book-appointment-btn');
+        const closeButton = document.querySelector('.modal-close');
+        const cancelButton = document.querySelector('.cancel-btn');
+        const bookingForm = document.getElementById('bookingForm');
+
+        // Open modal
+        bookButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const consultantId = this.dataset.consultantId;
+                const consultantName = this.dataset.consultantName;
+                const card = this.closest('.consultant-card');
+                const specialization = card.querySelector('.consultant-specialization').textContent;
+
+                document.getElementById('consultantId').value = consultantId;
+                document.getElementById('modalConsultantName').textContent = consultantName;
+                document.getElementById('modalConsultantSpec').textContent = specialization;
+
+                // Set minimum date to today
+                const now = new Date();
+                const minDate = now.toISOString().slice(0, 16);
+                document.getElementById('appointmentDate').min = minDate;
+
+                // Load consultant schedule
+                loadConsultantSchedule(consultantId);
+
+                modal.classList.add('active');
+            });
+        });
+
+        // Close modal
+        function closeModal() {
+            modal.classList.remove('active');
+            bookingForm.reset();
+        }
+
+        closeButton.addEventListener('click', closeModal);
+        cancelButton.addEventListener('click', closeModal);
+
+        // Close on outside click
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Load consultant schedule
+        async function loadConsultantSchedule(consultantId) {
+            try {
+                const response = await fetch(`/api/consultants/${consultantId}/schedule`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayAvailability(data.schedule, data.booked_slots);
+                }
+            } catch (error) {
+                console.error('Error loading schedule:', error);
+            }
+        }
+
+        function displayAvailability(schedule, bookedSlots) {
+            const availabilityInfo = document.getElementById('availabilityInfo');
+
+            if (schedule.length === 0) {
+                availabilityInfo.innerHTML = '<p>⚠️ This consultant has not set their availability yet.</p>';
+                return;
+            }
+
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            let html = '<strong>Available Hours:</strong><ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
+
+            schedule.forEach(slot => {
+                html += `<li>${days[slot.day_of_week]}: ${slot.start_time} - ${slot.end_time}</li>`;
+            });
+
+            html += '</ul>';
+            availabilityInfo.innerHTML = html;
+        }
+
+        // Handle form submission
+        bookingForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = {
+                consultant_id: parseInt(document.getElementById('consultantId').value),
+                appointment_date: document.getElementById('appointmentDate').value,
+                duration_minutes: parseInt(document.getElementById('duration').value),
+                notes: document.getElementById('notes').value
+            };
+
+            try {
+                const response = await fetch('/api/appointments/book', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Show success overlay
+                    const successOverlay = document.getElementById('successMessage');
+                    successOverlay.classList.add('active');
+                    closeModal();
+
+                    // Redirect after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/app';
+                    }, 2000);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error booking appointment:', error);
+                alert('An error occurred while booking the appointment.');
+            }
+        });
+    });
+</script>
+{% endblock %}

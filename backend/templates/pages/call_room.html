@@ -1,0 +1,1417 @@
+﻿{% extends "layouts/protected.html" %}
+
+{% block title %}Voice Call - SolaceSquad{% endblock %}
+
+{% block extra_head %}
+<!-- Socket.IO Client -->
+<script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+
+<!-- Chart.js for health charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+    .call-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .call-status {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 1rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .call-timer {
+        font-size: 3rem;
+        font-weight: bold;
+        margin: 1rem 0;
+        font-family: 'Courier New', monospace;
+    }
+
+    .connection-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    .status-connecting {
+        background-color: #fbbf24;
+    }
+
+    .status-connected {
+        background-color: #10b981;
+    }
+
+    .status-disconnected {
+        background-color: #ef4444;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    .participant-info {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .health-dashboard {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .health-card {
+        background: #f9fafb;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        border: 1px solid #e5e7eb;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-top: 1rem;
+    }
+
+    .chart-container.loaded {
+        display: block;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .call-controls {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+
+    .call-btn {
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 0.75rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-mute {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-mute:hover {
+        background: #2563eb;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-mute.muted {
+        background: #ef4444;
+    }
+
+    .btn-end {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-end:hover {
+        background: #dc2626;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .grid {
+        display: grid;
+    }
+
+    .md\:grid-cols-2 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gap-4 {
+        gap: 1rem;
+    }
+
+    .mb-4 {
+        margin-bottom: 1rem;
+    }
+
+    /* Modals & Overlays */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 1rem;
+        max-width: 500px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        animation: scaleIn 0.3s ease-out;
+    }
+
+    @keyframes scaleIn {
+        from {
+            transform: scale(0.95);
+            opacity: 0;
+        }
+
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .recording-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(220, 38, 38, 0.1);
+        border: 1px solid rgba(220, 38, 38, 0.2);
+        color: #dc2626;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        animation: pulse-red 2s infinite;
+        margin-left: 1rem;
+        vertical-align: middle;
+    }
+
+    @keyframes pulse-red {
+        0% {
+            box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+        }
+
+        70% {
+            box-shadow: 0 0 0 6px rgba(220, 38, 38, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="call-container">
+    <!-- Call Status -->
+    <div class="call-status">
+        <div class="flex items-center justify-center gap-2 mb-2">
+            <h1 class="text-2xl font-bold">Voice Call</h1>
+            <div id="recording-badge" class="recording-indicator hidden">
+                <div class="w-2 h-2 bg-red-600 rounded-full"></div>
+                REC
+            </div>
+        </div>
+        <p class="text-lg mb-4">
+            {% if user.user_type == 'user' %}
+            Consultation with {{ consultant.specialization if consultant else 'Consultant' }}
+            {% else %}
+            Session with {{ patient.name if patient else 'Patient' }}
+            {% endif %}
+        </p>
+
+        <div class="call-timer" id="timer">
+            --:--
+        </div>
+
+        <div class="connection-status">
+            <span class="status-indicator status-connecting" id="status-indicator"></span>
+            <span id="status-text">Connecting...</span>
+        </div>
+    </div>
+
+    <!-- Participant Info -->
+    <div class="participant-info">
+        <h3 class="text-lg font-semibold mb-3">Call Information</h3>
+        <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+                <span class="text-gray-600">Scheduled Time:</span>
+                <span class="font-medium">{{ appointment.appointment_date.strftime("%B %d, %Y at %I:%M %p") }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600">Duration:</span>
+                <span class="font-medium">{{ appointment.duration_minutes }} minutes</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600">Room ID:</span>
+                <span class="font-mono text-xs">{{ call_session.room_id }}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if user.user_type == 'consultant' %}
+    <!-- Patient Health Dashboard (Consultant Only) -->
+    <div class="health-dashboard">
+        <h3 class="text-xl font-semibold mb-4 text-gray-900">{{ patient.name if patient else 'Patient' }}&#39;s Health
+            Overview</h3>
+
+        <div class="grid md:grid-cols-2 gap-4 mb-4">
+            <!-- Individual Vitals Rows -->
+            <div id="vitals-dashboard-rows" class="space-y-4 mb-6">
+                <!-- Heart Rate -->
+                <div
+                    class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
+                    <div class="flex items-center gap-3 w-48">
+                        <div class="bg-red-50 p-2.5 rounded-lg flex-shrink-0">
+                            <i data-lucide="heart" class="w-5 h-5 text-red-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wide">Heart Rate</div>
+                            <div class="text-2xl font-bold text-gray-900 leading-none mt-0.5" id="val-hr">--</div>
+                            <div class="text-[10px] text-gray-400">BPM</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow h-[60px] ml-4 relative">
+                        <canvas id="chart-hr"></canvas>
+                    </div>
+                </div>
+
+                <!-- Blood Pressure -->
+                <div
+                    class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
+                    <div class="flex items-center gap-3 w-48">
+                        <div class="bg-purple-50 p-2.5 rounded-lg flex-shrink-0">
+                            <i data-lucide="activity" class="w-5 h-5 text-purple-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wide">Blood Pressure</div>
+                            <div class="text-2xl font-bold text-gray-900 leading-none mt-0.5" id="val-bp">--/--</div>
+                            <div class="text-[10px] text-gray-400">mmHg</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow h-[60px] ml-4 relative">
+                        <canvas id="chart-bp"></canvas>
+                    </div>
+                </div>
+
+                <!-- Temperature -->
+                <div
+                    class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
+                    <div class="flex items-center gap-3 w-48">
+                        <div class="bg-orange-50 p-2.5 rounded-lg flex-shrink-0">
+                            <i data-lucide="thermometer" class="w-5 h-5 text-orange-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wide">Temperature</div>
+                            <div class="text-2xl font-bold text-gray-900 leading-none mt-0.5" id="val-temp">--</div>
+                            <div class="text-[10px] text-gray-400">°F</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow h-[60px] ml-4 relative">
+                        <canvas id="chart-temp"></canvas>
+                    </div>
+                </div>
+
+                <!-- SpO2 -->
+                <div
+                    class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
+                    <div class="flex items-center gap-3 w-48">
+                        <div class="bg-blue-50 p-2.5 rounded-lg flex-shrink-0">
+                            <i data-lucide="droplet" class="w-5 h-5 text-blue-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wide">SpO2</div>
+                            <div class="text-2xl font-bold text-gray-900 leading-none mt-0.5" id="val-spo2">--</div>
+                            <div class="text-[10px] text-gray-400">%</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow h-[60px] ml-4 relative">
+                        <canvas id="chart-spo2"></canvas>
+                    </div>
+                </div>
+
+                <!-- Resp Rate -->
+                <div
+                    class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
+                    <div class="flex items-center gap-3 w-48">
+                        <div class="bg-teal-50 p-2.5 rounded-lg flex-shrink-0">
+                            <i data-lucide="wind" class="w-5 h-5 text-teal-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wide">Resp. Rate</div>
+                            <div class="text-2xl font-bold text-gray-900 leading-none mt-0.5" id="val-resp">--</div>
+                            <div class="text-[10px] text-gray-400">br/min</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow h-[60px] ml-4 relative">
+                        <canvas id="chart-resp"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div id="vitals-loading" class="hidden"></div>
+            <div id="vitals-chart-container" class="hidden"></div>
+
+            <!-- Mood Chart -->
+            <div class="health-card">
+                <h4 class="text-md font-semibold mb-3 text-gray-800">Mood Trend (Last 7 Entries)</h4>
+                <div id="mood-chart-container">
+                    <canvas id="moodChart"></canvas>
+                </div>
+                <div id="mood-loading" class="text-center py-4 text-gray-500">
+                    Loading mood data...
+                </div>
+            </div>
+        </div>
+
+        <!-- Health Report Summary Placeholder -->
+        <div class="health-card">
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="text-md font-semibold text-gray-800">Health Report Summary</h4>
+                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Coming Soon</span>
+            </div>
+            <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <i data-lucide="file-text" class="w-12 h-12 mx-auto mb-3 text-gray-400"></i>
+                <p class="text-gray-600 mb-2">AI-Generated Health Report</p>
+                <p class="text-sm text-gray-500">
+                    Comprehensive health analysis and recommendations will be available in the next update.
+                </p>
+            </div>
+        </div>
+
+        <!-- Consultation Notes -->
+        <div class="health-card mt-4">
+            <h4 class="text-md font-semibold mb-3 text-gray-800">Consultation Notes</h4>
+            <div class="relative">
+                <textarea id="consultation-notes"
+                    class="w-full p-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[120px] text-sm text-gray-700 resize-y shadow-sm"
+                    placeholder="Type your observations and notes for this session...">{{ appointment.notes or '' }}</textarea>
+                <div class="absolute bottom-3 right-3">
+                    <button onclick="saveNotes()" id="save-notes-btn"
+                        class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm">
+                        <i data-lucide="save" class="w-4 h-4"></i> Save
+                    </button>
+                </div>
+            </div>
+            <p id="save-status" class="text-xs text-gray-400 mt-2 ml-1 h-4 transition-all opacity-0"></p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Call Controls -->
+    <div class="call-controls">
+        <button class="call-btn btn-mute" id="mute-btn" onclick="toggleMute()">
+            <i data-lucide="mic" id="mic-icon"></i>
+            <span id="mute-text">Mute</span>
+        </button>
+
+        {% if user.user_type == 'consultant' %}
+        <button class="call-btn" style="background: #10b981; color: white;" onclick="openPrescriptionModal()">
+            <i data-lucide="file-text"></i>
+            <span>Write Prescription</span>
+        </button>
+
+        <button class="call-btn" style="background: #8b5cf6; color: white;" onclick="openHistoryModal()">
+            <i data-lucide="history"></i>
+            <span>Patient History</span>
+        </button>
+        {% endif %}
+
+        <button class="call-btn btn-end" onclick="endCall()">
+            <i data-lucide="phone-off"></i>
+            <span>End Call</span>
+        </button>
+    </div>
+</div>
+</div>
+
+<!-- Join Call Lobby Overlay -->
+<div id="lobby-overlay" class="modal-overlay">
+    <div class="modal-content">
+        <div class="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="phone" class="w-8 h-8 text-blue-600"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Ready to join?</h2>
+        <p class="text-gray-600 mb-8">
+            Please make sure you are in a quiet environment.
+        </p>
+        <button onclick="showConsentModal()"
+            class="btn btn-primary w-full py-3 text-lg flex items-center justify-center gap-2">
+            <i data-lucide="video"></i> Join Call
+        </button>
+    </div>
+</div>
+
+<!-- Consent Modal -->
+<div id="consent-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="bg-yellow-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="shield" class="w-8 h-8 text-yellow-600"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Call Recording Consent</h2>
+        <p class="text-gray-600 mb-6 text-left bg-gray-50 p-4 rounded-lg text-sm">
+            To ensure the highest quality of care and for compliance purposes, this session will be recorded.
+            The recording will be stored securely and is strictly confidential in accordance with HIPAA regulations.
+        </p>
+        <div class="flex gap-4">
+            <button onclick="hideConsentModal()" class="btn btn-secondary flex-1">Cancel</button>
+            <button onclick="acceptAndJoin()" class="btn btn-primary flex-1">I Agree & Join</button>
+        </div>
+    </div>
+</div>
+
+</div>
+</div>
+
+<!-- History Modal -->
+<div id="history-modal" class="modal-overlay hidden">
+    <div class="modal-content text-left max-w-2xl w-full max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">Patient History: <span id="hist-patient-name">Loading...</span>
+            </h2>
+            <button onclick="closeHistoryModal()" class="text-gray-500 hover:text-gray-700">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <div id="history-content" class="space-y-6">
+            <!-- Content will be loaded dynamically -->
+            <div class="text-center py-8">
+                <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto">
+                </div>
+                <p class="text-gray-500 mt-2">Loading history...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Prescription Modal -->
+<div id="prescription-modal" class="modal-overlay hidden">
+    <div class="modal-content text-left max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-2xl font-bold text-gray-900">Write Prescription</h2>
+            <button onclick="closePrescriptionModal()" class="text-gray-500 hover:text-gray-700">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <form id="callPrescriptionForm" class="space-y-4">
+            <input type="hidden" name="user_id" id="rx-user-id" value="">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Diagnosis</label>
+                    <textarea name="diagnosis" rows="2"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Diagnosis..."
+                        required></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea name="notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        placeholder="Notes..."></textarea>
+                </div>
+            </div>
+
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">Medications</label>
+                    <button type="button" onclick="addRxItem()"
+                        class="text-primary-600 text-xs font-medium flex items-center gap-1">
+                        <i data-lucide="plus" class="w-3 h-3"></i> Add Medication
+                    </button>
+                </div>
+                <div id="rx-items-list" class="space-y-2 max-h-60 overflow-y-auto p-1">
+                    <!-- Default Row -->
+                    <div class="rx-row grid grid-cols-12 gap-2 p-2 bg-gray-50 rounded border border-gray-200">
+                        <div class="col-span-4">
+                            <input type="text" name="medication_name[]" class="w-full px-2 py-1 border rounded text-xs"
+                                placeholder="Medication" required>
+                        </div>
+                        <div class="col-span-2">
+                            <input type="text" name="dosage[]" class="w-full px-2 py-1 border rounded text-xs"
+                                placeholder="Dosage">
+                        </div>
+                        <div class="col-span-2">
+                            <input type="text" name="frequency[]" class="w-full px-2 py-1 border rounded text-xs"
+                                placeholder="Freq">
+                        </div>
+                        <div class="col-span-2">
+                            <input type="text" name="duration[]" class="w-full px-2 py-1 border rounded text-xs"
+                                placeholder="Dur">
+                        </div>
+                        <div class="col-span-2">
+                            <input type="text" name="instructions[]" class="w-full px-2 py-1 border rounded text-xs"
+                                placeholder="Instr">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button type="submit" class="btn btn-primary text-sm px-6 py-2">Issue Prescription</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- WebRTC & Socket.IO Logic -->
+<script>
+    // Configuration
+    const ROOM_ID = '{{ call_session.room_id }}';
+    const USER_TYPE = '{{ user.user_type }}';
+    const USER_NAME = '{{ user.name }}';
+    const APPOINTMENT_ID = {{ appointment.id }};
+    const DURATION_MINUTES = {{ appointment.duration_minutes }};
+    const APPOINTMENT = {
+        id: {{ appointment.id }},
+    user_id: {{ appointment.user_id }}
+    };
+
+    // WebRTC Configuration
+    const ICE_SERVERS = {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+    };
+
+    // Global variables
+    let socket;
+    let peerConnection;
+    let localStream;
+    let isMuted = false;
+    let callStartTime;
+    let timerInterval;
+    let vitalsChart = null;
+    let moodChart = null;
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', async function () {
+        // Load patient health data if consultant
+        if (USER_TYPE === 'consultant') {
+            loadPatientHealthData();
+        }
+
+        // Removed auto-init. Waiting for user to click Join.
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+
+    // Lobby & Consent Logic
+    function showConsentModal() {
+        document.getElementById('lobby-overlay').classList.add('hidden');
+        document.getElementById('consent-modal').classList.remove('hidden');
+    }
+
+    function hideConsentModal() {
+        document.getElementById('consent-modal').classList.add('hidden');
+        document.getElementById('lobby-overlay').classList.remove('hidden');
+    }
+
+    async function acceptAndJoin() {
+        document.getElementById('consent-modal').classList.add('hidden');
+        // Start the call
+        await initializeCall();
+    }
+
+    // Load patient health data
+    async function loadPatientHealthData() {
+        console.log("Loading patient data...");
+        const patientId = {{ appointment.user_id }};
+
+
+
+    try {
+        const response = await fetch(`/api/patient/${patientId}/health-data`);
+        const data = await response.json();
+
+        if (data.success) {
+            // Render vitals
+            if (data.vitals && data.vitals.length > 0) {
+                renderIndividualCharts(data.vitals);
+
+            } else {
+                document.getElementById('vitals-loading').textContent = 'No vitals data';
+            }
+
+            // Render mood chart
+            if (data.moods && data.moods.length > 0) {
+                renderMoodChart(data.moods);
+            } else {
+                document.getElementById('mood-loading').textContent = 'No mood data available';
+            }
+        } else {
+            console.error('Error loading health data:', data.error);
+            document.getElementById('vitals-loading').textContent = 'Error loading data';
+            document.getElementById('mood-loading').textContent = 'Error loading data';
+        }
+    } catch (error) {
+        console.error('Error fetching health data:', error);
+        document.getElementById('vitals-loading').textContent = 'Error loading data';
+        document.getElementById('mood-loading').textContent = 'Error loading data';
+    }
+    }
+
+    // Render Individual Vitals Charts (Row Layout)
+    let vitalCharts = {};
+
+    function renderIndividualCharts(vitals) {
+        // Fix: Hide loading indicator
+        const loader = document.getElementById('vitals-loading');
+        if (loader) loader.classList.add('hidden');
+
+        // Show dashboard container if hidden (though it shouldn't be)
+        const rows = document.getElementById('vitals-dashboard-rows');
+        if (rows) rows.classList.remove('hidden');
+
+        // Set Latest Values
+        const current = vitals[0] || {};
+        // Note: vitals array from API is sorted reversed(oldest first) in py, 
+        // wait... API Step 1254:
+        // for vital in reversed(vitals): vitals_data.append(...)
+        // API returns REVERSED of descending query. 
+        // Query: order_by(Timestamp.desc()).limit(7).
+        // vitals[0] is Oldest. vitals[vitals.length-1] is Newest.
+
+        const latest = vitals[vitals.length - 1] || {};
+
+        if (latest) {
+            const hrVal = document.getElementById('val-hr');
+            if (hrVal) hrVal.textContent = latest.heart_rate || '--';
+
+            const bpVal = document.getElementById('val-bp');
+            if (bpVal) bpVal.textContent = (latest.blood_pressure_systolic && latest.blood_pressure_diastolic) ?
+                `${latest.blood_pressure_systolic}/${latest.blood_pressure_diastolic}` : '--/--';
+
+            const tempVal = document.getElementById('val-temp');
+            if (tempVal && latest.temperature) {
+                tempVal.textContent = ((latest.temperature * 9.0 / 5.0) + 32).toFixed(1);
+            } else if (tempVal) {
+                tempVal.textContent = '--';
+            }
+
+            const spo2Val = document.getElementById('val-spo2');
+            if (spo2Val) spo2Val.textContent = latest.oxygen_saturation || '--';
+
+            const respVal = document.getElementById('val-resp');
+            if (respVal) respVal.textContent = latest.respiratory_rate || '--';
+        }
+
+        // Helper to create sparkline
+        const createSparkline = (id, label, data, color, min, max) => {
+            const ctx = document.getElementById(id);
+            if (!ctx) return;
+
+            if (vitalCharts[id]) {
+                vitalCharts[id].destroy();
+            }
+
+            vitalCharts[id] = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: vitals.map(v => v.date),
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        borderColor: color,
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function (c) { return c.parsed.y + (id === 'chart-temp' ? ' °F' : ''); }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            display: false,
+                            min: min,
+                            max: max
+                        }
+                    },
+                    layout: { padding: 0 }
+                }
+            });
+        };
+
+        // Render Charts
+        createSparkline('chart-hr', 'Heart Rate', vitals.map(v => v.heart_rate), '#ef4444', 40, 140);
+
+        // BP Dual Line
+        const ctxBP = document.getElementById('chart-bp');
+        if (ctxBP) {
+            if (vitalCharts['chart-bp']) vitalCharts['chart-bp'].destroy();
+            vitalCharts['chart-bp'] = new Chart(ctxBP.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: vitals.map(v => v.date),
+                    datasets: [
+                        { label: 'Sys', data: vitals.map(v => v.blood_pressure_systolic), borderColor: '#3b82f6', borderWidth: 2, tension: 0.4, pointRadius: 0 },
+                        { label: 'Dia', data: vitals.map(v => v.blood_pressure_diastolic), borderColor: '#8b5cf6', borderWidth: 2, tension: 0.4, pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, min: 50, max: 200 } } }
+            });
+        }
+
+        createSparkline('chart-temp', 'Temp', vitals.map(v => v.temperature ? (v.temperature * 9.0 / 5.0) + 32 : null), '#f97316', 96, 104);
+        createSparkline('chart-spo2', 'SpO2', vitals.map(v => v.oxygen_saturation), '#06b6d4', 85, 100);
+        createSparkline('chart-resp', 'Resp Rate', vitals.map(v => v.respiratory_rate), '#10b981', 10, 40);
+    }
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+
+    // Render mood chart (Emoji View)
+    function renderMoodChart(moods) {
+        const container = document.getElementById('mood-chart-container');
+        const loading = document.getElementById('mood-loading');
+        if (loading) loading.classList.add('hidden');
+
+        if (!moods || moods.length === 0) {
+            container.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">No mood entries available</div>';
+            return;
+        }
+
+        const moodEmojis = {
+            'happy': '😊', 'excited': '🤩', 'calm': '😌', 'content': '🙂', 'good': '🙂',
+            'neutral': '😐', 'okay': '😐', 'tired': '😴', 'sad': '😢', 'anxious': '😰',
+            'stressed': '😫', 'angry': '😠', 'joy': '😂', 'grateful': '🙏'
+        };
+
+        const moodColors = {
+            'happy': 'text-green-600', 'excited': 'text-yellow-600', 'calm': 'text-blue-500',
+            'content': 'text-purple-500', 'good': 'text-green-500', 'neutral': 'text-gray-500',
+            'okay': 'text-gray-500', 'tired': 'text-orange-500', 'sad': 'text-red-400',
+            'anxious': 'text-red-600', 'stressed': 'text-red-700', 'angry': 'text-red-900'
+        };
+
+        let html = '<div class="flex gap-2 overflow-x-auto pb-4 pt-2 items-center justify-start lg:justify-center no-scrollbar" style="scrollbar-width: none; -ms-overflow-style: none;">';
+
+        moods.forEach(m => {
+            const moodKey = (m.mood || '').toLowerCase();
+            const emoji = moodEmojis[moodKey] || '😐';
+            const colorClass = moodColors[moodKey] || 'text-gray-500';
+
+            // Format Date assumes "Jan 15, 14:30"
+            const dateParts = m.date.split(',');
+            const dateStr = dateParts[0].trim();
+            const timeStr = (dateParts[1] || '').trim();
+
+            html += `
+                <div class="flex flex-col items-center min-w-[50px] p-2 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all transform hover:-translate-y-1">
+                    <span class="text-[9px] text-gray-400 font-semibold uppercase tracking-wider">${dateStr}</span>
+                    <span class="text-[8px] text-gray-300 mb-1">${timeStr}</span>
+                    <div class="text-2xl my-1 transform transition-transform cursor-help scale-100 hover:scale-110" title="${m.notes || 'No notes'}">
+                        ${emoji}
+                    </div>
+                    <span class="text-[10px] font-bold capitalize mt-1 ${colorClass}">${m.mood || 'Unknown'}</span>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+
+        // Add style for hiding scrollbar if not present
+        if (!document.getElementById('scrollbar-style')) {
+            const style = document.createElement('style');
+            style.id = 'scrollbar-style';
+            style.innerHTML = '.no-scrollbar::-webkit-scrollbar { display: none; }';
+            document.head.appendChild(style);
+        }
+
+        container.innerHTML = html;
+        container.style.height = 'auto'; // Reset height if canvas had fixed height
+    }
+
+    // Recording variables
+    let mediaRecorder;
+    let recordedChunks = [];
+    let audioContext;
+    let audioDestination;
+    let remoteStreamForRecording; // To keep track
+
+    // Initialize call
+    async function initializeCall() {
+        try {
+            // Get user media
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+            // Initialize AudioContext for recording mixing
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            audioDestination = audioContext.createMediaStreamDestination();
+
+            // Add local stream to mixer
+            const localSource = audioContext.createMediaStreamSource(localStream);
+            localSource.connect(audioDestination);
+
+            // Connect to Socket.IO
+            socket = io({
+                path: '/socket.io'
+            });
+
+            socket.on('connect', () => {
+                console.log('Connected to signaling server');
+                socket.emit('join_call', {
+                    room_id: ROOM_ID,
+                    user_type: USER_TYPE,
+                    user_name: USER_NAME
+                });
+            });
+
+            socket.on('room_joined', (data) => {
+                console.log('Joined room:', data);
+                // Signal recording start after successfully joining
+                if (data.recording) {
+                    // If already recording, show badge
+                    const badge = document.getElementById('recording-badge');
+                    if (badge) badge.classList.remove('hidden');
+                } else {
+                    // Start recording signal
+                    if (!data.recording) {
+                        socket.emit('start_recording', {
+                            room_id: ROOM_ID
+                        });
+                    }
+                }
+
+                // Start local MediaRecorder (recording mixed audio)
+                startRecording();
+            });
+
+            socket.on('user_joined', async (data) => {
+                console.log('User joined:', data);
+                updateStatus('connected', 'Connected');
+
+                // Start call timer
+                if (!callStartTime) {
+                    startCallTimer();
+                }
+
+                // Create peer connection if we're the initiator
+                if (data.should_initiate) {
+                    await createPeerConnection();
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+                    socket.emit('offer', {
+                        room_id: ROOM_ID,
+                        offer: offer
+                    });
+                }
+            });
+
+            socket.on('offer', async (data) => {
+                console.log('Received offer');
+                await createPeerConnection();
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('answer', {
+                    room_id: ROOM_ID,
+                    answer: answer
+                });
+            });
+
+            socket.on('answer', async (data) => {
+                console.log('Received answer');
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+            });
+
+            socket.on('ice_candidate', async (data) => {
+                console.log('Received ICE candidate');
+                if (peerConnection) {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                }
+            });
+
+            socket.on('user_left', () => {
+                console.log('Other user left');
+                updateStatus('disconnected', 'Other user disconnected');
+            });
+
+            socket.on('recording_started', (data) => {
+                console.log('Recording started');
+                const badge = document.getElementById('recording-badge');
+                if (badge) badge.classList.remove('hidden');
+            });
+
+        } catch (error) {
+            console.error('Error initializing call:', error);
+            updateStatus('disconnected', 'Failed to connect');
+            alert('Could not access microphone. Please check permissions.');
+        }
+    }
+
+    // Start Recording Function
+    function startRecording() {
+        try {
+            // Record the mixed output (Local + Remote)
+            // Note: Remote is added in 'ontrack'
+            mediaRecorder = new MediaRecorder(audioDestination.stream);
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.start();
+            console.log("MediaRecorder started");
+        } catch (e) {
+            console.error("Failed to start recording:", e);
+        }
+    }
+
+    // Create peer connection
+    async function createPeerConnection() {
+        peerConnection = new RTCPeerConnection(ICE_SERVERS);
+
+        // Add local stream
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+
+        // Handle ICE candidates
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('ice_candidate', {
+                    room_id: ROOM_ID,
+                    candidate: event.candidate
+                });
+            }
+        };
+
+        // Handle remote stream
+        peerConnection.ontrack = (event) => {
+            console.log('Received remote stream');
+            const remoteStream = event.streams[0];
+            const remoteAudio = new Audio();
+            remoteAudio.srcObject = remoteStream;
+            remoteAudio.play();
+
+            // Add to mixer for recording
+            if (audioContext && audioDestination) {
+                // Ensure context is running
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+                const remoteSource = audioContext.createMediaStreamSource(remoteStream);
+                remoteSource.connect(audioDestination);
+            }
+        };
+
+        return peerConnection;
+    }
+
+    // Toggle mute
+    function toggleMute() {
+        if (localStream) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                isMuted = !audioTrack.enabled;
+
+                const muteBtn = document.getElementById('mute-btn');
+                const muteText = document.getElementById('mute-text');
+                const micIcon = document.getElementById('mic-icon');
+
+                if (isMuted) {
+                    muteBtn.classList.add('muted');
+                    muteText.textContent = 'Unmute';
+                    micIcon.setAttribute('data-lucide', 'mic-off');
+                } else {
+                    muteBtn.classList.remove('muted');
+                    muteText.textContent = 'Mute';
+                    micIcon.setAttribute('data-lucide', 'mic');
+                }
+
+                // Refresh lucide icons
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+        }
+    }
+
+    // End call
+    function endCall() {
+        if (confirm('Are you sure you want to end the call?')) {
+            // Stop recorder and upload
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    await uploadRecording(blob);
+
+                    cleanupAndRedirect();
+                };
+            } else {
+                cleanupAndRedirect();
+            }
+        }
+    }
+
+    // Upload Recording
+    async function uploadRecording(blob) {
+        const formData = new FormData();
+        formData.append('file', blob, 'recording.webm');
+
+        // Show uploading status
+        const btn = document.querySelector('.btn-end');
+        if (btn) btn.innerHTML = 'Saving...';
+
+        try {
+            await fetch(`/api/calls/${ROOM_ID}/recording`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: formData
+            });
+            console.log("Recording uploaded successfully");
+        } catch (e) {
+            console.error("Failed to upload recording", e);
+        }
+    }
+
+    function cleanupAndRedirect() {
+        // Stop all tracks
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Close peer connection
+        if (peerConnection) {
+            peerConnection.close();
+        }
+
+        // Disconnect socket
+        if (socket) {
+            socket.emit('leave_call', { room_id: ROOM_ID });
+            socket.disconnect();
+        }
+
+        // Stop timer
+        if (timerInterval) {
+            clearInterval(timerInterval);
+        }
+
+        if (audioContext) {
+            audioContext.close();
+        }
+
+        // Redirect based on user type
+        if (USER_TYPE === 'consultant') {
+            window.location.href = '/consultant';
+        } else {
+            window.location.href = '/app';
+        }
+    }
+
+    // Update status
+    function updateStatus(status, text) {
+        const indicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+
+        indicator.className = 'status-indicator';
+        indicator.classList.add(`status-${status}`);
+        statusText.textContent = text;
+    }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        if (socket) {
+            socket.disconnect();
+        }
+    });
+
+    // Save consultation notes
+    async function saveNotes() {
+        const notes = document.getElementById('consultation-notes').value;
+        const btn = document.getElementById('save-notes-btn');
+        const status = document.getElementById('save-status');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Saving...';
+
+        try {
+            const response = await fetch(`/api/appointments/${APPOINTMENT_ID}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notes: notes })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                status.textContent = 'Notes saved successfully';
+                status.classList.remove('opacity-0');
+                status.classList.add('text-green-600');
+                setTimeout(() => {
+                    status.classList.add('opacity-0');
+                }, 3000);
+            } else {
+                status.textContent = 'Error saving notes';
+                status.classList.remove('opacity-0');
+                status.classList.add('text-red-600');
+            }
+        } catch (error) {
+            console.error('Error saving notes:', error);
+            status.textContent = 'Error saving notes';
+            status.classList.remove('opacity-0');
+            status.classList.add('text-red-600');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Save';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
+
+    // Start call timer
+    function startCallTimer() {
+        callStartTime = Date.now();
+        timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('timer').textContent =
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }, 1000);
+    }
+
+    // --- Modal & History Logic ---
+
+    // History
+    function openHistoryModal() {
+        document.getElementById('history-modal').classList.remove('hidden');
+        loadPatientHistory();
+    }
+
+    function closeHistoryModal() {
+        document.getElementById('history-modal').classList.add('hidden');
+    }
+
+    async function loadPatientHistory() {
+        // Use global APPOINTMENT.user_id 
+        if (!APPOINTMENT || !APPOINTMENT.user_id) return;
+
+        try {
+            const res = await fetch(`/api/patients/${APPOINTMENT.user_id}/history`);
+            const data = await res.json();
+
+            if (data.success) {
+                document.getElementById('hist-patient-name').textContent = data.patient.name;
+
+                let html = '';
+
+                // Vitals
+                html += '<div class="mb-4"><h3 class="font-bold text-gray-800 border-b pb-1 mb-2">Recent Vitals</h3>';
+                if (data.vitals.length > 0) {
+                    html += '<div class="grid grid-cols-3 gap-2">';
+                    data.vitals.forEach(v => {
+                        html += `<div class="bg-blue-50 p-2 rounded text-xs">
+                            <div class="font-semibold">${v.date}</div>
+                            <div>HR: ${v.heart_rate || '--'} bpm</div>
+                        </div>`;
+                    });
+                    html += '</div>';
+                } else {
+                    html += '<p class="text-sm text-gray-500">No vitals recorded.</p>';
+                }
+                html += '</div>';
+
+                // Appointments
+                html += '<div class="mb-4"><h3 class="font-bold text-gray-800 border-b pb-1 mb-2">Past Interactions</h3>';
+                if (data.appointments.length > 0) {
+                    data.appointments.forEach(appt => {
+                        html += `<div class="mb-2 bg-gray-50 p-3 rounded-lg text-sm border border-gray-100">
+                            <div class="flex justify-between font-semibold mb-1">
+                                <span>${appt.date}</span>
+                                <span class="text-gray-600">${appt.consultant}</span>
+                            </div>
+                            <p class="text-gray-700">${appt.notes || 'No notes'}</p>
+                        </div>`;
+                    });
+                } else {
+                    html += '<p class="text-sm text-gray-500">No previous appointments.</p>';
+                }
+                html += '</div>';
+
+                // Wellness Summary Reports
+                html += '<div class="mb-4"><h3 class="font-bold text-gray-800 border-b pb-1 mb-2">Past Wellness Summary Reports</h3>';
+                if (data.prescriptions.length > 0) {
+                    data.prescriptions.forEach(rx => {
+                        html += `<div class="mb-2 bg-green-50 p-3 rounded-lg text-sm border border-green-100">
+                            <div class="font-semibold mb-1 text-green-800">${rx.date}</div>
+                            <div class="mb-1 text-gray-600"><span class="font-medium">Diagnosis:</span> ${rx.diagnosis || '--'}</div>
+                            <div class="text-gray-700"><span class="font-medium">Meds:</span> ${rx.medications.join(', ')}</div>
+                        </div>`;
+                    });
+                } else {
+                    html += '<p class="text-sm text-gray-500">No past prescriptions.</p>';
+                }
+                html += '</div>';
+
+                document.getElementById('history-content').innerHTML = html;
+            } else {
+                document.getElementById('history-content').innerHTML = `<p class="text-red-500">Error: ${data.error}</p>`;
+            }
+        } catch (e) {
+            console.error(e);
+            document.getElementById('history-content').innerHTML = '<p class="text-red-500">Failed to load history.</p>';
+        }
+    }
+
+    // Prescription
+    function openPrescriptionModal() {
+        document.getElementById('prescription-modal').classList.remove('hidden');
+        if (APPOINTMENT && APPOINTMENT.user_id) {
+            document.getElementById('rx-user-id').value = APPOINTMENT.user_id;
+        }
+    }
+
+    function closePrescriptionModal() {
+        document.getElementById('prescription-modal').classList.add('hidden');
+    }
+
+    function addRxItem() {
+        const container = document.getElementById('rx-items-list');
+        const row = document.createElement('div');
+        row.className = 'rx-row grid grid-cols-12 gap-2 p-2 bg-gray-50 rounded border border-gray-200 relative';
+        row.innerHTML = `
+            <button type="button" onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-white rounded-full p-0.5 border shadow hover:text-red-500">
+                <i data-lucide="x" class="w-3 h-3"></i>
+            </button>
+            <div class="col-span-4">
+                <input type="text" name="medication_name[]" class="w-full px-2 py-1 border rounded text-xs" placeholder="Medication" required>
+            </div>
+            <div class="col-span-2">
+                <input type="text" name="dosage[]" class="w-full px-2 py-1 border rounded text-xs" placeholder="Dosage">
+            </div>
+            <div class="col-span-2">
+                <input type="text" name="frequency[]" class="w-full px-2 py-1 border rounded text-xs" placeholder="Freq">
+            </div>
+            <div class="col-span-2">
+                <input type="text" name="duration[]" class="w-full px-2 py-1 border rounded text-xs" placeholder="Dur">
+            </div>
+             <div class="col-span-2">
+                <input type="text" name="instructions[]" class="w-full px-2 py-1 border rounded text-xs" placeholder="Instr">
+            </div>
+         `;
+        container.appendChild(row);
+        if (window.lucide) lucide.createIcons();
+    }
+
+    // Submit Prescription
+    document.getElementById('callPrescriptionForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const btn = this.querySelector('button[type="submit"]');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = 'Sending...';
+
+        const formData = new FormData(this);
+        const data = {
+            user_id: formData.get('user_id'),
+            diagnosis: formData.get('diagnosis'),
+            notes: formData.get('notes'),
+            items: []
+        };
+
+        const names = formData.getAll('medication_name[]');
+        const dosages = formData.getAll('dosage[]');
+        const frequencies = formData.getAll('frequency[]');
+        const durations = formData.getAll('duration[]');
+        const instructions = formData.getAll('instructions[]');
+
+        for (let i = 0; i < names.length; i++) {
+            if (names[i]) {
+                data.items.push({
+                    medication_name: names[i],
+                    dosage: dosages[i],
+                    frequency: frequencies[i],
+                    duration: durations[i],
+                    instructions: instructions[i]
+                });
+            }
+        }
+
+        try {
+            const res = await fetch('/api/consultant/prescriptions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+
+            if (result.success) {
+                alert('Prescription issued successfully!');
+                closePrescriptionModal();
+                this.reset();
+            } else {
+                alert('Error: ' + result.error);
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Failed to issue prescription');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+</script>
+{% endblock %}

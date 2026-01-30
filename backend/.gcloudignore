@@ -1,0 +1,82 @@
+# .gcloudignore
+# This file specifies files that should NOT be uploaded to GCP
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+*.env
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+solacesquad.db
+
+# Local development
+test_*.py
+*_test.py
+migrate_*.py
+check_*.py
+fix_*.py
+dump_*.py
+setup_*.py
+
+# Documentation (deploy separately if needed)
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# Node (if any)
+node_modules/
+npm-debug.log
+
+# Credentials (NEVER upload!)
+*credentials*.json
+*serviceAccount*.json
+*.pem
+*.key

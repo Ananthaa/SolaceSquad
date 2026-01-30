@@ -1,0 +1,285 @@
+{% extends "layouts/protected.html" %}
+
+{% block title %}Call Recordings - SolaceSquad{% endblock %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
+{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
+{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
+{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
+{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
+{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
+{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
+{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
+{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
+{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'}
+] %}
+
+{% block dashboard_content %}
+<div class="max-w-6xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Call Recordings</h1>
+        <p class="text-gray-600">Listen to your consultation recordings</p>
+    </div>
+
+    <!-- Recordings List -->
+    <div id="recordings-container" class="space-y-4">
+        <!-- Loading state -->
+        <div id="loading" class="text-center py-12">
+            <div
+                class="animate-spin w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4">
+            </div>
+            <p class="text-gray-500">Loading recordings...</p>
+        </div>
+
+        <!-- Empty state -->
+        <div id="empty-state" class="hidden text-center py-12 bg-gray-50 rounded-xl">
+            <i data-lucide="mic-off" class="w-16 h-16 mx-auto mb-4 text-gray-400"></i>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">No Recordings Yet</h3>
+            <p class="text-gray-600">Your call recordings will appear here after consultations</p>
+        </div>
+
+        <!-- Recordings will be loaded here -->
+        <div id="recordings-list" class="hidden space-y-4"></div>
+    </div>
+</div>
+
+<!-- Audio Player Modal -->
+<div id="player-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl max-w-2xl w-full shadow-2xl">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-semibold text-gray-900" id="player-title">Call Recording</h3>
+                <button onclick="closePlayer()" class="p-2 hover:bg-gray-100 rounded-lg transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Recording Info -->
+            <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-600">Date:</span>
+                        <span class="font-medium text-gray-900 ml-2" id="player-date"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Duration:</span>
+                        <span class="font-medium text-gray-900 ml-2" id="player-duration"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Consultant:</span>
+                        <span class="font-medium text-gray-900 ml-2" id="player-consultant"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Status:</span>
+                        <span class="font-medium text-gray-900 ml-2" id="player-status"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Player -->
+            <div class="mb-6">
+                <audio id="audio-player" controls class="w-full">
+                    <source id="audio-source" src="" type="audio/mpeg">
+                    Your browser does not support the audio element.
+                </audio>
+            </div>
+
+            <!-- Transcription/Summary -->
+            <div id="transcription-section" class="hidden">
+                <h4 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-5 h-5"></i>
+                    Call Summary
+                </h4>
+                <div id="transcription-content"
+                    class="bg-gray-50 p-4 rounded-lg text-sm text-gray-700 max-h-64 overflow-y-auto">
+                </div>
+            </div>
+        </div>
+
+        <div class="border-t border-gray-200 p-4 bg-gray-50 flex justify-end">
+            <button onclick="closePlayer()" class="px-6 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentRecordingId = null;
+
+    // Load recordings on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadRecordings();
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+
+    async function loadRecordings() {
+        try {
+            const response = await fetch('/api/user/recordings');
+            const data = await response.json();
+
+            document.getElementById('loading').classList.add('hidden');
+
+            if (data.success && data.recordings.length > 0) {
+                document.getElementById('recordings-list').classList.remove('hidden');
+                renderRecordings(data.recordings);
+            } else {
+                document.getElementById('empty-state').classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error loading recordings:', error);
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('empty-state').classList.remove('hidden');
+        }
+    }
+
+    function renderRecordings(recordings) {
+        const container = document.getElementById('recordings-list');
+        container.innerHTML = '';
+
+        // Group by date
+        const groupedByDate = {};
+        recordings.forEach(rec => {
+            const date = new Date(rec.call_date).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            if (!groupedByDate[date]) {
+                groupedByDate[date] = [];
+            }
+            groupedByDate[date].push(rec);
+        });
+
+        // Render grouped recordings
+        Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a)).forEach(date => {
+            const dateSection = document.createElement('div');
+            dateSection.className = 'mb-6';
+
+            dateSection.innerHTML = `
+                <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <i data-lucide="calendar" class="w-5 h-5"></i>
+                    ${date}
+                </h3>
+                <div class="space-y-3" id="recordings-${date.replace(/\s/g, '-')}"></div>
+            `;
+
+            container.appendChild(dateSection);
+
+            const recordingsContainer = dateSection.querySelector(`#recordings-${date.replace(/\s/g, '-')}`);
+
+            groupedByDate[date].forEach(rec => {
+                const card = document.createElement('div');
+                card.className = 'bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow';
+
+                const duration = formatDuration(rec.duration_seconds);
+                const time = new Date(rec.call_date).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4 flex-1">
+                            <div class="bg-primary-100 p-3 rounded-xl">
+                                <i data-lucide="mic" class="w-6 h-6 text-primary-600"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-semibold text-gray-900 mb-1">
+                                    Consultation with ${rec.consultant_name}
+                                </h4>
+                                <div class="flex items-center gap-4 text-sm text-gray-600">
+                                    <span class="flex items-center gap-1">
+                                        <i data-lucide="clock" class="w-4 h-4"></i>
+                                        ${time}
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <i data-lucide="timer" class="w-4 h-4"></i>
+                                        ${duration}
+                                    </span>
+                                    ${rec.has_transcription ? `
+                                        <span class="flex items-center gap-1 text-green-600">
+                                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                                            Summary Available
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="playRecording(${rec.id})" 
+                                class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition flex items-center gap-2">
+                            <i data-lucide="play" class="w-4 h-4"></i>
+                            <span>Play</span>
+                        </button>
+                    </div>
+                `;
+
+                recordingsContainer.appendChild(card);
+            });
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    async function playRecording(recordingId) {
+        currentRecordingId = recordingId;
+
+        try {
+            const response = await fetch(`/api/recordings/${recordingId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                const rec = data.recording;
+
+                // Set player info
+                document.getElementById('player-title').textContent = `Call with ${rec.consultant_name}`;
+                document.getElementById('player-date').textContent = new Date(rec.call_date).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit'
+                });
+                document.getElementById('player-duration').textContent = formatDuration(rec.duration_seconds);
+                document.getElementById('player-consultant').textContent = rec.consultant_name;
+                document.getElementById('player-status').textContent = rec.status;
+
+                // Set audio source
+                document.getElementById('audio-source').src = rec.recording_url;
+                document.getElementById('audio-player').load();
+
+                // Show transcription if available
+                if (rec.transcription) {
+                    document.getElementById('transcription-section').classList.remove('hidden');
+                    document.getElementById('transcription-content').textContent = rec.transcription.summary || 'Transcription processing...';
+                } else {
+                    document.getElementById('transcription-section').classList.add('hidden');
+                }
+
+                // Show modal
+                document.getElementById('player-modal').classList.remove('hidden');
+
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        } catch (error) {
+            console.error('Error loading recording:', error);
+            alert('Failed to load recording');
+        }
+    }
+
+    function closePlayer() {
+        document.getElementById('player-modal').classList.add('hidden');
+        document.getElementById('audio-player').pause();
+        currentRecordingId = null;
+    }
+
+    function formatDuration(seconds) {
+        if (!seconds) return 'N/A';
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${String(secs).padStart(2, '0')}`;
+    }
+</script>
+{% endblock %}

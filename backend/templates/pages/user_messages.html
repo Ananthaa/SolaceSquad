@@ -1,0 +1,53 @@
+{% extends "layouts/protected.html" %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
+{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
+{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
+{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
+{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
+{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
+{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
+{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
+{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
+{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'},
+{'icon': 'user', 'label': 'Profile', 'href': '/app/profile', 'key': 'profile'}
+] %}
+
+{% block dashboard_content %}
+<div class="mb-8">
+    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+        Messages 💬
+    </h1>
+    <p class="text-gray-600">
+        Communicate with your consultants (Coming Soon)
+    </p>
+</div>
+
+<div class="card p-12 text-center">
+    <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="message-circle" class="w-8 h-8 text-primary-600"></i>
+    </div>
+    <h2 class="text-xl font-bold text-gray-900 mb-2">Direct Messaging Coming Soon</h2>
+    <p class="text-gray-600 mb-6 max-w-md mx-auto">
+        We're building a secure way for you to chat directly with your wellbeing consultants.
+        For now, please use the AI Assistant for immediate support or book a session to talk via video.
+    </p>
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="/app/ai-chat" class="btn btn-secondary">
+            <i data-lucide="bot" class="w-4 h-4 mr-2"></i>
+            Use AI Assistant
+        </a>
+        <a href="/app/consultants" class="btn btn-primary">
+            <i data-lucide="calendar" class="w-4 h-4 mr-2"></i>
+            Book Session
+        </a>
+    </div>
+</div>
+
+<script>
+    window.addEventListener('DOMContentLoaded', function () {
+        lucide.createIcons();
+    });
+</script>
+{% endblock %}

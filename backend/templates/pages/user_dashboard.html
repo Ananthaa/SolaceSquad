@@ -1,0 +1,520 @@
+{% extends "layouts/protected.html" %}
+
+{# Navigation items with Profile button added #}
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
+{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
+{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
+{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
+{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
+{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
+{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
+{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
+{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
+{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'},
+{'icon': 'user', 'label': 'Profile', 'href': '/app/profile', 'key': 'profile'}
+] %}
+
+{% block dashboard_content %}
+<!-- Welcome Section -->
+<div class="mb-8">
+    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+        Welcome back, {{ user.name }}! 👋
+    </h1>
+    <p class="text-gray-600">
+        Here's your wellbeing overview for today
+    </p>
+</div>
+
+<!-- First Row: Journal, Sessions, Wellbeing -->
+<div class="grid md:grid-cols-3 gap-6 mb-6">
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-secondary-100 p-3 rounded-xl">
+                <i data-lucide="book-open" class="w-6 h-6 text-secondary-700"></i>
+            </div>
+            <span class="text-xs text-green-600 font-medium">7 day streak</span>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1">{{ user.stats.journal_entries }}</div>
+        <div class="text-sm text-gray-600">Journal Entries</div>
+    </div>
+
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-accent-100 p-3 rounded-xl">
+                <i data-lucide="heart" class="w-6 h-6 text-accent-700"></i>
+            </div>
+            <span class="text-xs text-gray-600">This month</span>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1">{{ user.stats.sessions }}</div>
+        <div class="text-sm text-gray-600">Sessions Completed</div>
+    </div>
+
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-green-100 p-3 rounded-xl">
+                <i data-lucide="trending-up" class="w-6 h-6 text-green-700"></i>
+            </div>
+            <span class="text-xs text-green-600 font-medium">Improving</span>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1">{{ user.stats.wellbeing }}</div>
+        <div class="text-sm text-gray-600">Overall Wellbeing</div>
+    </div>
+</div>
+
+<!-- Second Row: All Vitals -->
+<div class="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+    <!-- 1. Heart Rate -->
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-red-100 p-3 rounded-xl">
+                <i data-lucide="heart" class="w-6 h-6 text-red-700"></i>
+            </div>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1" id="vital-heart-rate">
+            <span class="text-gray-400">--</span>
+        </div>
+        <div class="text-sm text-gray-600">Heart Rate</div>
+    </div>
+
+    <!-- 2. Temperature -->
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-orange-100 p-3 rounded-xl">
+                <i data-lucide="thermometer" class="w-6 h-6 text-orange-700"></i>
+            </div>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1" id="vital-temperature">
+            <span class="text-gray-400">--</span>
+        </div>
+        <div class="text-sm text-gray-600">Temperature</div>
+    </div>
+
+    <!-- 3. Blood Pressure -->
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-purple-100 p-3 rounded-xl">
+                <i data-lucide="gauge" class="w-6 h-6 text-purple-700"></i>
+            </div>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1" id="vital-blood-pressure">
+            <span class="text-gray-400">--</span>
+        </div>
+        <div class="text-sm text-gray-600">Blood Pressure</div>
+    </div>
+
+    <!-- 4. SpO2 -->
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-blue-100 p-3 rounded-xl">
+                <i data-lucide="droplet" class="w-6 h-6 text-blue-700"></i>
+            </div>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1" id="vital-spo2">
+            <span class="text-gray-400">--</span>
+        </div>
+        <div class="text-sm text-gray-600">Blood Oxygen</div>
+    </div>
+
+    <!-- 5. Breath Count -->
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <div class="bg-teal-100 p-3 rounded-xl">
+                <i data-lucide="wind" class="w-6 h-6 text-teal-700"></i>
+            </div>
+        </div>
+        <div class="text-2xl font-bold text-gray-900 mb-1" id="vital-breathing">
+            <span class="text-gray-400">--</span>
+        </div>
+        <div class="text-sm text-gray-600">Breathing Rate</div>
+    </div>
+</div>
+
+<script>
+    // Load latest vitals for quick stats
+    window.addEventListener('DOMContentLoaded', function () {
+        loadQuickVitals();
+    });
+
+    function loadQuickVitals() {
+        fetch('/app/vitals/history')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.history && data.history.length > 0) {
+                    const latest = data.history[0];
+
+                    // Update Physical Health Score
+                    if (latest.health_score) {
+                        const scoreElement = document.getElementById('physical-health-score');
+                        if (scoreElement) {
+                            scoreElement.textContent = Math.round(latest.health_score) + '%';
+                        }
+                    }
+
+                    // Heart Rate
+                    const hrElement = document.getElementById('vital-heart-rate');
+                    if (latest.heart_rate) {
+                        hrElement.innerHTML = `${latest.heart_rate} <span class="text-sm font-normal text-gray-600">BPM</span>`;
+                    } else {
+                        hrElement.innerHTML = '<span class="text-gray-400">N/A</span>';
+                    }
+
+                    // Temperature (convert to Fahrenheit)
+                    const tempElement = document.getElementById('vital-temperature');
+                    if (latest.temperature) {
+                        const tempF = (latest.temperature * 9 / 5) + 32;
+                        tempElement.innerHTML = `${tempF.toFixed(1)} <span class="text-sm font-normal text-gray-600">°F</span>`;
+                    } else {
+                        tempElement.innerHTML = '<span class="text-gray-400">N/A</span>';
+                    }
+
+                    // Blood Pressure
+                    const bpElement = document.getElementById('vital-blood-pressure');
+                    if (latest.blood_pressure_systolic && latest.blood_pressure_diastolic) {
+                        bpElement.innerHTML = `<span class="text-lg">${latest.blood_pressure_systolic}/${latest.blood_pressure_diastolic}</span>`;
+                    } else {
+                        bpElement.innerHTML = '<span class="text-gray-400">N/A</span>';
+                    }
+
+                    // SpO2
+                    const spo2Element = document.getElementById('vital-spo2');
+                    if (latest.spo2) {
+                        spo2Element.innerHTML = `${latest.spo2} <span class="text-sm font-normal text-gray-600">%</span>`;
+                    } else {
+                        spo2Element.innerHTML = '<span class="text-gray-400">N/A</span>';
+                    }
+
+                    // Breathing Rate
+                    const breathElement = document.getElementById('vital-breathing');
+                    if (latest.respiratory_rate) {
+                        breathElement.innerHTML = `${latest.respiratory_rate} <span class="text-sm font-normal text-gray-600">/min</span>`;
+                    } else {
+                        breathElement.innerHTML = '<span class="text-gray-400">N/A</span>';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error loading quick vitals:', error);
+            });
+    }
+</script>
+
+<!-- Vitals Accuracy Disclaimer -->
+<div class="mb-8">
+    <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <div class="flex gap-3">
+            <i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"></i>
+            <div class="text-sm text-yellow-800">
+                <strong>Important:</strong> Camera-based vital readings are estimates. Accuracy depends on lighting
+                conditions, face positioning, and stillness during scan. For medical-grade measurements, consult a
+                healthcare professional.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
+<div class="grid lg:grid-cols-3 gap-6">
+    <!-- Left Column -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Mood Tracker -->
+        <div class="card">
+            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4">
+                How are you feeling today?
+            </h2>
+            <div class="flex gap-3" id="moodTracker">
+                {% set moods = [
+                {'emoji': '😊', 'value': 'happy', 'label': 'Happy', 'color': 'green'},
+                {'emoji': '😐', 'value': 'neutral', 'label': 'Neutral', 'color': 'blue'},
+                {'emoji': '😔', 'value': 'sad', 'label': 'Sad', 'color': 'indigo'},
+                {'emoji': '😰', 'value': 'anxious', 'label': 'Anxious', 'color': 'yellow'},
+                {'emoji': '😡', 'value': 'angry', 'label': 'Angry', 'color': 'red'}
+                ] %}
+                {% for mood in moods %}
+                <button type="button" data-mood="{{ mood.value }}"
+                    class="mood-btn flex-1 p-3 bg-white hover:bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-{{ mood.color }}-400 transition-all flex flex-col items-center gap-1"
+                    onclick="selectMood(this, '{{ mood.value }}', '{{ mood.color }}')">
+                    <span class="text-4xl">{{ mood.emoji }}</span>
+                    <span class="text-xs font-medium text-gray-600">{{ mood.label }}</span>
+                </button>
+                {% endfor %}
+            </div>
+
+            <script>
+                let selectedMood = null;
+
+                // Load latest mood on page load
+                window.addEventListener('DOMContentLoaded', function () {
+                    loadLatestMood();
+                });
+
+                function loadLatestMood() {
+                    fetch('/app/mood/latest')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.mood) {
+                                const moodValue = data.mood.mood_rating;
+                                const button = document.querySelector(`[data-mood="${moodValue}"]`);
+                                if (button) {
+                                    // Get color from button's hover class
+                                    const colorMap = {
+                                        'happy': 'green',
+                                        'neutral': 'blue',
+                                        'sad': 'indigo',
+                                        'anxious': 'yellow',
+                                        'angry': 'red'
+                                    };
+                                    const color = colorMap[moodValue] || 'gray';
+                                    selectMood(button, moodValue, color, false); // Don't save again
+                                }
+                            }
+                        })
+                        .catch(error => console.error('Error loading latest mood:', error));
+                }
+
+                function selectMood(button, moodValue, color, shouldSave = true) {
+                    // Remove selection from all buttons
+                    document.querySelectorAll('.mood-btn').forEach(btn => {
+                        btn.classList.remove('bg-green-100', 'bg-blue-100', 'bg-indigo-100', 'bg-yellow-100', 'bg-red-100');
+                        btn.classList.remove('border-green-500', 'border-blue-500', 'border-indigo-500', 'border-yellow-500', 'border-red-500');
+                        btn.classList.remove('ring-4', 'ring-green-200', 'ring-blue-200', 'ring-indigo-200', 'ring-yellow-200', 'ring-red-200');
+                        btn.classList.add('border-gray-200');
+                    });
+
+                    // Add selection to clicked button
+                    button.classList.remove('border-gray-200');
+                    button.classList.add(`bg-${color}-100`, `border-${color}-500`, 'ring-4', `ring-${color}-200`);
+
+                    selectedMood = moodValue;
+
+                    // Save to backend
+                    if (shouldSave) {
+                        saveMoodToBackend(moodValue);
+                    }
+                }
+
+                function saveMoodToBackend(mood) {
+                    fetch('/app/mood/save', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ mood: mood })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log('Mood saved successfully');
+                                // Optional: Show a brief success message
+                                showMoodSavedNotification();
+                            } else {
+                                console.error('Error saving mood:', data.error);
+                            }
+                        })
+                        .catch(error => console.error('Error saving mood:', error));
+                }
+
+                function showMoodSavedNotification() {
+                    // Create a brief notification
+                    const notification = document.createElement('div');
+                    notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg transition-opacity duration-300';
+                    notification.textContent = 'Mood saved ✓';
+                    document.body.appendChild(notification);
+
+                    // Fade out and remove after 2 seconds
+                    setTimeout(() => {
+                        notification.style.opacity = '0';
+                        setTimeout(() => notification.remove(), 300);
+                    }, 2000);
+                }
+            </script>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4">
+                Quick Actions
+            </h2>
+            <div class="grid sm:grid-cols-2 gap-4">
+                {% set actions = [
+                {'icon': 'activity', 'title': 'Scan Vitals', 'subtitle': 'Check your health', 'color': 'primary',
+                'href': '/app/vitals'},
+                {'icon': 'book-open', 'title': 'Write Journal', 'subtitle': 'Express yourself', 'color': 'secondary',
+                'href': '/app/journal'},
+                {'icon': 'sparkles', 'title': 'AI Assistant', 'subtitle': 'Get support', 'color': 'accent', 'href':
+                '/app/ai-chat'},
+                {'icon': 'calendar', 'title': 'Book Session', 'subtitle': 'Talk to expert', 'color': 'green', 'href':
+                '/app/consultants'}
+                ] %}
+
+                {% for action in actions %}
+                <a href="{{ action.href }}"
+                    class="flex items-center gap-3 p-4 bg-gradient-to-br from-{{ action.color }}-50 to-{{ action.color }}-100 rounded-xl hover:shadow-md transition-all group">
+                    <div class="bg-{{ action.color }}-600 p-2 rounded-lg">
+                        <i data-lucide="{{ action.icon }}" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <div class="text-left flex-1">
+                        <div class="font-semibold text-gray-900">{{ action.title }}</div>
+                        <div class="text-sm text-gray-600">{{ action.subtitle }}</div>
+                    </div>
+                    <i data-lucide="arrow-right"
+                        class="w-5 h-5 text-{{ action.color }}-600 group-hover:translate-x-1 transition-transform"></i>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="space-y-6">
+        <!-- Upcoming Sessions -->
+        <div class="card">
+            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4">
+                Upcoming Sessions
+            </h2>
+            <div id="upcomingAppointments">
+                <div class="text-center py-4 text-gray-500">
+                    Loading appointments...
+                </div>
+            </div>
+            <a href="/app/consultants" class="btn btn-secondary text-sm w-full mt-3">
+                Book New Session
+            </a>
+        </div>
+
+        <script>
+            // Load upcoming appointments
+            window.addEventListener('DOMContentLoaded', function () {
+                loadUpcomingAppointments();
+            });
+
+            function loadUpcomingAppointments() {
+                fetch('/api/appointments/user')
+                    .then(response => response.json())
+                    .then(data => {
+                        const container = document.getElementById('upcomingAppointments');
+
+                        if (data.success && data.appointments.length > 0) {
+                            // Filter for upcoming and in-progress scheduled appointments
+                            const now = new Date();
+                            const upcoming = data.appointments.filter(appt => {
+                                const appointmentDate = new Date(appt.appointment_date);
+                                const appointmentEnd = new Date(appointmentDate.getTime() + appt.duration_minutes * 60000);
+                                // Show if appointment hasn't ended yet (upcoming or in progress)
+                                return appt.status === 'scheduled' && appointmentEnd > now;
+                            }).sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
+
+                            if (upcoming.length > 0) {
+                                container.innerHTML = upcoming.slice(0, 3).map(appt => {
+                                    const date = new Date(appt.appointment_date);
+                                    const initials = getInitials(appt.consultant_name);
+                                    const dateStr = formatAppointmentDate(date);
+
+                                    return `
+                                        <div class="p-4 bg-primary-50 border border-primary-200 rounded-xl mb-3">
+                                            <div class="flex items-center gap-3 mb-2">
+                                                <div class="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                                    ${initials}
+                                                </div>
+                                                <div class="flex-1">
+                                                    <div class="font-semibold text-gray-900">${appt.consultant_name}</div>
+                                                    <div class="text-xs text-gray-600">${appt.consultant_specialization || 'Wellbeing Consultant'}</div>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-2 text-sm text-gray-700 mb-3">
+                                                <i data-lucide="calendar" class="w-4 h-4"></i>
+                                                <span>${dateStr}</span>
+                                            </div>
+                                            <a href="/app/call/${appt.id}" class="btn btn-primary text-sm w-full flex items-center justify-center gap-2">
+                                                <i data-lucide="phone" class="w-4 h-4"></i>
+                                                <span>Join Call</span>
+                                            </a>
+                                        </div>
+                                    `;
+                                }).join('');
+
+                                // Re-initialize lucide icons
+                                if (typeof lucide !== 'undefined') {
+                                    lucide.createIcons();
+                                }
+                            } else {
+                                container.innerHTML = `
+                                    <div class="text-center py-4 text-gray-500">
+                                        <p class="mb-2">No upcoming appointments</p>
+                                        <p class="text-sm">Book a session with a consultant</p>
+                                    </div>
+                                `;
+                            }
+                        } else {
+                            container.innerHTML = `
+                                <div class="text-center py-4 text-gray-500">
+                                    <p class="mb-2">No appointments yet</p>
+                                    <p class="text-sm">Book your first session</p>
+                                </div>
+                            `;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading appointments:', error);
+                        document.getElementById('upcomingAppointments').innerHTML = `
+                            <div class="text-center py-4 text-red-500">
+                                Error loading appointments
+                            </div>
+                        `;
+                    });
+            }
+
+            function getInitials(name) {
+                const parts = name.split(' ');
+                if (parts.length >= 2) {
+                    return parts[0][0] + parts[parts.length - 1][0];
+                }
+                return name.substring(0, 2);
+            }
+
+            function formatAppointmentDate(date) {
+                const now = new Date();
+                const tomorrow = new Date(now);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+
+                const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+                if (date.toDateString() === now.toDateString()) {
+                    return `Today, ${timeStr}`;
+                } else if (date.toDateString() === tomorrow.toDateString()) {
+                    return `Tomorrow, ${timeStr}`;
+                } else {
+                    return `${dateStr}, ${timeStr}`;
+                }
+            }
+        </script>
+
+
+        <!-- Wellness Score -->
+        <div class="card bg-gradient-to-br from-primary-600 to-secondary-600 text-white">
+            <h2 class="text-xl font-display font-semibold mb-4">
+                Your Wellness Score
+            </h2>
+            <div class="text-center py-6">
+                <div class="text-5xl font-bold mb-2">78</div>
+                <div class="text-primary-100 text-sm">Out of 100</div>
+            </div>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-primary-100">Physical Health</span>
+                    <span class="font-semibold" id="physical-health-score">{{ user.stats.health_score }}%</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-primary-100">Emotional Wellbeing</span>
+                    <span class="font-semibold">75%</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-primary-100">Lifestyle</span>
+                    <span class="font-semibold">77%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

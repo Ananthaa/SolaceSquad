@@ -1,0 +1,307 @@
+{% extends "layouts/protected.html" %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/admin', 'key': 'dashboard'},
+] %}
+
+{% block dashboard_content %}
+<!-- Welcome Section -->
+<div class="mb-8">
+    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+        Admin Dashboard 🛡️
+    </h1>
+    <p class="text-gray-600">
+        Manage users, consultants, and platform settings.
+    </p>
+</div>
+
+<!-- Tabs for Users and Consultants -->
+<div class="mb-6">
+    <div class="border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+            <button onclick="switchTab('consultants')" id="tab-consultants"
+                class="border-primary-500 text-primary-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Consultants
+            </button>
+            <button onclick="switchTab('users')" id="tab-users"
+                class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                Users
+            </button>
+        </nav>
+    </div>
+</div>
+
+<!-- Consultants Section -->
+<div id="content-consultants" class="space-y-6">
+    <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name
+                            / Email</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Specialization</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Hourly Rate</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="consultants-table-body">
+                    <!-- Consultants will be populated here -->
+                    {% for consultant in consultants %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div
+                                    class="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold">
+                                    {{ consultant.initials }}
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ consultant.name }}</div>
+                                    <div class="text-sm text-gray-500">{{ consultant.email }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ consultant.specialization or 'Not set' }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900" id="rate-display-{{consultant.id}}">₹{{
+                                consultant.hourly_rate or 0 }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span
+                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ 'bg-green-100 text-green-800' if consultant.is_active else 'bg-red-100 text-red-800' }}">
+                                {{ 'Active' if consultant.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button
+                                onclick="openPriceModal({{ consultant.id }}, '{{ consultant.name }}', {{ consultant.hourly_rate or 0 }})"
+                                class="text-primary-600 hover:text-primary-900 mr-3">Set Price</button>
+                            {% if consultant.is_active %}
+                            <button onclick="toggleStatus({{ consultant.id }}, 'consultant', false)"
+                                class="text-red-600 hover:text-red-900 mr-3">Reject/Deactivate</button>
+                            {% else %}
+                            <button onclick="toggleStatus({{ consultant.id }}, 'consultant', true)"
+                                class="text-green-600 hover:text-green-900 mr-3">Approve/Activate</button>
+                            {% endif %}
+                            <button onclick="deleteUser({{ consultant.id }})"
+                                class="text-gray-600 hover:text-gray-900">Delete</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Users Section -->
+<div id="content-users" class="space-y-6 hidden">
+    <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name
+                            / Email</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Joined At</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status</th>
+                        <th scope="col"
+                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for user in users %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div
+                                    class="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold">
+                                    {{ user.initials }}
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ user.name }}</div>
+                                    <div class="text-sm text-gray-500">{{ user.email }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-500">{{ user.created_at.strftime('%Y-%m-%d') }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span
+                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ 'bg-green-100 text-green-800' if user.is_active else 'bg-red-100 text-red-800' }}">
+                                {{ 'Active' if user.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            {% if user.is_active %}
+                            <button onclick="toggleStatus({{ user.id }}, 'user', false)"
+                                class="text-red-600 hover:text-red-900 mr-3">Block</button>
+                            {% else %}
+                            <button onclick="toggleStatus({{ user.id }}, 'user', true)"
+                                class="text-green-600 hover:text-green-900 mr-3">Unblock</button>
+                            {% endif %}
+                            <button onclick="deleteUser({{ user.id }})"
+                                class="text-gray-600 hover:text-gray-900">Delete</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Set Price Modal -->
+<div id="priceModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Set Hourly Rate</h3>
+            <div class="mt-2 text-sm text-gray-500" id="modal-desc">
+                Setting rate for Consultant Name
+            </div>
+            <div class="mt-4 px-7 py-3">
+                <input type="number" id="priceInput"
+                    class="mb-3 px-3 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    placeholder="Hourly Rate (₹)">
+                <input type="hidden" id="modalConsultantId">
+            </div>
+            <div class="items-center px-4 py-3">
+                <button id="savePriceBtn"
+                    class="px-4 py-2 bg-primary-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-300">
+                    Save Rate
+                </button>
+                <button onclick="closePriceModal()"
+                    class="mt-3 px-4 py-2 bg-white text-gray-700 text-base font-medium rounded-md w-full shadow-sm border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function switchTab(tabName) {
+        // Hide all content
+        document.getElementById('content-consultants').classList.add('hidden');
+        document.getElementById('content-users').classList.add('hidden');
+
+        // Reset tab styles
+        document.getElementById('tab-consultants').classList.remove('border-primary-500', 'text-primary-600');
+        document.getElementById('tab-consultants').classList.add('border-transparent', 'text-gray-500');
+        document.getElementById('tab-users').classList.remove('border-primary-500', 'text-primary-600');
+        document.getElementById('tab-users').classList.add('border-transparent', 'text-gray-500');
+
+        // Show selected content and highlight tab
+        document.getElementById('content-' + tabName).classList.remove('hidden');
+        document.getElementById('tab-' + tabName).classList.add('border-primary-500', 'text-primary-600');
+        document.getElementById('tab-' + tabName).classList.remove('border-transparent', 'text-gray-500');
+    }
+
+    // Modal Logic
+    function openPriceModal(id, name, currentRate) {
+        document.getElementById('modalConsultantId').value = id;
+        document.getElementById('modal-desc').innerText = 'Setting rate for ' + name;
+        document.getElementById('priceInput').value = currentRate;
+        document.getElementById('priceModal').classList.remove('hidden');
+    }
+
+    function closePriceModal() {
+        document.getElementById('priceModal').classList.add('hidden');
+    }
+
+    document.getElementById('savePriceBtn').addEventListener('click', function () {
+        const id = document.getElementById('modalConsultantId').value;
+        const price = document.getElementById('priceInput').value;
+
+        fetch(`/api/admin/consultants/${id}/price`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ hourly_rate: price })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update UI directly
+                    const display = document.getElementById(`rate-display-${id}`);
+                    if (display) display.innerText = '₹' + price;
+                    closePriceModal();
+                    alert('Price updated successfully');
+                } else {
+                    alert('Error updating price: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+            });
+    });
+
+    // Status Toggle Logic
+    function toggleStatus(userId, type, isActive) {
+        if (!confirm(`Are you sure you want to ${isActive ? 'activate/unblock' : 'deactivate/block'} this ${type}?`)) return;
+
+        fetch(`/api/admin/users/${userId}/status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ is_active: isActive })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload(); // Reload to reflect changes
+                } else {
+                    alert('Error updating status: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+            });
+    }
+
+    // Delete Logic
+    function deleteUser(userId) {
+        if (!confirm('Are you sure you want to DELETE this user? This action cannot be undone.')) return;
+
+        fetch(`/api/admin/users/${userId}`, {
+            method: 'DELETE'
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error deleting user: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred');
+            });
+    }
+
+</script>
+{% endblock %}

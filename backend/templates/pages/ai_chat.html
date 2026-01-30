@@ -1,0 +1,311 @@
+{% extends "layouts/protected.html" %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
+{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
+{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
+{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
+{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
+{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
+{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
+{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
+{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
+{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'},
+{'icon': 'user', 'label': 'Profile', 'href': '/app/profile', 'key': 'profile'}
+] %}
+
+{% block dashboard_content %}
+<!-- Header -->
+<div class="mb-8">
+    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+        AI Wellbeing Assistant 🤖
+    </h1>
+    <p class="text-gray-600">
+        Chat with our AI assistant for instant support and guidance
+    </p>
+</div>
+
+<!-- AI Chat Interface -->
+<div class="max-w-4xl mx-auto">
+    <div class="card h-[600px] flex flex-col">
+        <!-- Chat Header -->
+        <div class="pb-4 mb-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center">
+                        <i data-lucide="bot" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-gray-900">SolaceSquad AI</div>
+                        <div id="aiStatus" class="text-sm text-gray-600">
+                            <span class="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                            Online
+                        </div>
+                    </div>
+                </div>
+                <button onclick="resetSession()"
+                    class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
+                    title="Start fresh session">
+                    <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                    Reset Session
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto space-y-4 mb-4 px-2">
+            <div class="text-center py-8">
+                <div
+                    class="w-16 h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="sparkles" class="w-8 h-8 text-purple-600"></i>
+                </div>
+                <p class="text-gray-600 mb-2">Welcome! I'm your AI wellbeing assistant.</p>
+                <p class="text-sm text-gray-500">How can I support you today?</p>
+            </div>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="border-t border-gray-200 pt-4">
+            <div class="flex gap-2">
+                <input type="text" id="messageInput" placeholder="Type your message..."
+                    class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    onkeypress="if(event.key==='Enter') sendMessage()" autocomplete="off">
+                <button onclick="sendMessage()" id="sendButton" class="btn btn-primary px-6">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                    Send
+                </button>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">
+                💡 This AI assistant provides general wellbeing support. For professional help,
+                <a href="/app/consultants" class="text-primary-600 hover:underline">book a consultant</a>.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<script>
+    let isLoading = false;
+
+    // Load chat history on page load
+    window.addEventListener('DOMContentLoaded', function () {
+        loadChatHistory();
+        checkAIStatus();
+        lucide.createIcons();
+    });
+
+    function checkAIStatus() {
+        fetch('/api/ai-chat/status')
+            .then(response => response.json())
+            .then(data => {
+                const statusEl = document.getElementById('aiStatus');
+                if (data.available) {
+                    statusEl.innerHTML = '<span class="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>Online (Advanced AI)';
+                } else {
+                    statusEl.innerHTML = '<span class="inline-block w-2 h-2 bg-yellow-500 rounded-full mr-1"></span>Basic Mode (Rule-based)';
+                    statusEl.title = "Advanced AI (Ollama) is not detected. Using simple offline bot.";
+                }
+            })
+            .catch(error => {
+                console.error('Error checking AI status:', error);
+            });
+    }
+
+    function loadChatHistory() {
+        fetch('/api/ai-chat/history')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.history.length > 0) {
+                    const container = document.getElementById('chatMessages');
+                    container.innerHTML = '';
+
+                    data.history.forEach(chat => {
+                        appendMessage(chat.message, true, false);
+                        appendMessage(chat.response, false, false);
+                    });
+
+                    scrollToBottom();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading chat history:', error);
+            });
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim();
+
+        if (!message || isLoading) return;
+
+        // Clear input and show user message
+        input.value = '';
+        appendMessage(message, true, true);
+
+        // Show loading indicator
+        isLoading = true;
+        const loadingId = showLoadingMessage();
+
+        // Send to AI
+        fetch('/api/ai-chat/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message: message })
+        })
+            .then(response => response.json())
+            .then(data => {
+                // Remove loading indicator
+                removeLoadingMessage(loadingId);
+                isLoading = false;
+
+                if (data.success) {
+                    appendMessage(data.response, false, true);
+                } else {
+                    const errorDetails = data.error || "I'm having trouble responding right now.";
+                    appendMessage(`${errorDetails} Please try again.`, false, true);
+                    console.error("Backend error:", data.error);
+                }
+            })
+            .catch(error => {
+                removeLoadingMessage(loadingId);
+                isLoading = false;
+                console.error('Error sending message:', error);
+                appendMessage("I encountered an error. Please try again.", false, true);
+            });
+    }
+
+    function appendMessage(content, isUser, animate) {
+        const container = document.getElementById('chatMessages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex gap-3 ${isUser ? 'justify-end' : ''} ${animate ? 'message-fade-in' : ''}`;
+
+        // Parse markdown for bot messages, plain text for user (to avoid injection if possible, though user sees their own input)
+        // Actually, parsing both is fine usually, but let's parse content.
+        const parsedContent = isUser ? escapeHtml(content) : marked.parse(content);
+
+        if (isUser) {
+            messageDiv.innerHTML = `
+                    <div class="flex-1 text-right">
+                        <div class="bg-primary-600 text-white rounded-lg p-3 inline-block max-w-[80%] text-left prose prose-invert prose-sm">
+                            ${parsedContent}
+                        </div>
+                    </div>
+                `;
+        } else {
+            messageDiv.innerHTML = `
+                    <div class="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="bot" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="bg-gray-100 rounded-lg p-3 inline-block max-w-[80%] prose prose-sm">
+                            ${parsedContent}
+                        </div>
+                    </div>
+                `;
+        }
+
+        container.appendChild(messageDiv);
+        lucide.createIcons();
+        scrollToBottom();
+    }
+
+    function showLoadingMessage() {
+        const container = document.getElementById('chatMessages');
+        const loadingDiv = document.createElement('div');
+        const loadingId = 'loading-' + Date.now();
+        loadingDiv.id = loadingId;
+        loadingDiv.className = 'flex gap-3';
+        loadingDiv.innerHTML = `
+                <div class="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center flex-shrink-0">
+                    <i data-lucide="bot" class="w-4 h-4 text-white"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="bg-gray-100 rounded-lg p-3 inline-block">
+                        <div class="flex gap-1">
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        container.appendChild(loadingDiv);
+        lucide.createIcons();
+        scrollToBottom();
+        return loadingId;
+    }
+
+    function removeLoadingMessage(loadingId) {
+        const loadingDiv = document.getElementById(loadingId);
+        if (loadingDiv) {
+            loadingDiv.remove();
+        }
+    }
+
+    function resetSession() {
+        if (confirm('Start a fresh session? This will clear your chat history.')) {
+            // Call API to reset
+            fetch('/api/ai-chat/reset', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const container = document.getElementById('chatMessages');
+                        container.innerHTML = `
+                                <div class="text-center py-8">
+                                    <div class="w-16 h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i data-lucide="sparkles" class="w-8 h-8 text-purple-600"></i>
+                                    </div>
+                                    <p class="text-gray-600 mb-2">Session reset! I'm ready for a fresh start.</p>
+                                    <p class="text-sm text-gray-500">How can I support you now?</p>
+                                </div>
+                            `;
+                        lucide.createIcons();
+                    } else {
+                        alert('Failed to reset session');
+                    }
+                })
+                .catch(e => {
+                    console.error(e);
+                    alert('Error resetting session');
+                });
+        }
+    }
+
+    function scrollToBottom() {
+        const container = document.getElementById('chatMessages');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+        // Basic escaping for user input if we don't want markdown there, 
+        // but user input often benefits from markdown too (e.g. code blocks)
+        // For now, let's keep it simple text escaping or let marked handle it if we want rich text.
+        // If we want simple text:
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+
+<style>
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .message-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+</style>
+{% endblock %}

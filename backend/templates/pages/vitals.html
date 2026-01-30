@@ -1,0 +1,382 @@
+{% extends "layouts/protected.html" %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
+{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
+{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
+{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
+{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
+{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
+{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
+{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
+{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
+{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'},
+{'icon': 'user', 'label': 'Profile', 'href': '/app/profile', 'key': 'profile'}
+] %}
+
+{% block dashboard_content %}
+<!-- Page Header -->
+<div class="mb-8">
+    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+        AI Vitals Scanner 💓
+    </h1>
+    <p class="text-gray-600">
+        Advanced camera-based vital signs detection using AI technology
+    </p>
+</div>
+
+<!-- Main Grid -->
+<div class="grid lg:grid-cols-3 gap-6">
+    <!-- Left Column - Camera Scanner -->
+    <div class="lg:col-span-2 space-y-6">
+        <!-- Camera Scanner Card -->
+        <div class="card">
+            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4">
+                Camera Scanner
+            </h2>
+
+            <!-- Scanner Status -->
+            <div id="scanner-status" class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg hidden">
+                <div class="flex items-center gap-2 text-blue-700">
+                    <i data-lucide="info" class="w-5 h-5"></i>
+                    <span id="status-text">Initializing camera...</span>
+                </div>
+            </div>
+
+            <!-- Error Display -->
+            <div id="error-display" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg hidden">
+                <div class="flex items-center gap-2 text-red-700">
+                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                    <span id="error-text"></span>
+                </div>
+            </div>
+
+            <!-- Camera Preview Container -->
+            <div class="relative bg-gray-900 rounded-xl overflow-hidden mb-4" style="aspect-ratio: 4/3;">
+                <video id="camera-preview" autoplay playsinline class="w-full h-full object-cover"></video>
+
+                <!-- Face Detection Overlay -->
+                <canvas id="face-overlay" class="absolute top-0 left-0 w-full h-full pointer-events-none"></canvas>
+
+                <!-- Scanning Overlay -->
+                <div id="scanning-overlay"
+                    class="absolute inset-0 bg-gradient-to-br from-primary-500/20 to-secondary-500/20 hidden">
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="text-center text-white">
+                            <div class="animate-pulse mb-4">
+                                <i data-lucide="scan" class="w-16 h-16 mx-auto"></i>
+                            </div>
+                            <div class="text-xl font-bold mb-2">Analyzing Vitals...</div>
+                            <div class="text-sm opacity-90 mb-3" id="scan-timer">Scanning: 0s</div>
+
+                            <!-- Live Positioning Feedback -->
+                            <div class="mt-4 px-6 py-3 bg-black/40 backdrop-blur-sm rounded-lg border border-white/20">
+                                <div id="positioning-feedback" class="text-sm font-semibold text-green-400">
+                                    ✓ Perfect! Hold still
+                                </div>
+                            </div>
+
+                            <div class="mt-3 text-xs opacity-75">Stay still and breathe normally</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- No Camera Placeholder -->
+                <div id="no-camera-placeholder" class="absolute inset-0 flex items-center justify-center bg-gray-800">
+                    <div class="text-center text-gray-400">
+                        <i data-lucide="camera-off" class="w-16 h-16 mx-auto mb-4"></i>
+                        <p class="text-lg">Camera not active</p>
+                        <p class="text-sm">Click "Start Scan" to begin</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control Buttons -->
+            <div class="flex gap-3">
+                <button id="start-scan-btn" class="flex-1 btn btn-primary">
+                    <i data-lucide="play" class="w-5 h-5"></i>
+                    Start Scan
+                </button>
+                <button id="stop-scan-btn" class="flex-1 btn btn-secondary hidden">
+                    <i data-lucide="square" class="w-5 h-5"></i>
+                    Stop Scan
+                </button>
+            </div>
+        </div>
+
+        <!-- Instructions Card -->
+        <div class="card bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
+            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i data-lucide="info" class="w-6 h-6 text-blue-600"></i>
+                How to Get Accurate Results
+            </h2>
+
+            <div class="grid md:grid-cols-2 gap-4">
+                <!-- Positioning -->
+                <div class="bg-white p-4 rounded-lg border border-blue-200">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i data-lucide="user" class="w-5 h-5 text-purple-500"></i>
+                        <h3 class="font-semibold text-gray-900">Face Positioning</h3>
+                    </div>
+                    <ul class="text-sm text-gray-700 space-y-2">
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span>Center your face in the <strong>green box</strong></span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span>Keep face <strong>50-70cm</strong> from camera</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span>Look <strong>directly at the camera</strong></span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span>Remove glasses if possible</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Lighting -->
+                <div class="bg-white p-4 rounded-lg border border-blue-200">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i data-lucide="sun" class="w-5 h-5 text-yellow-500"></i>
+                        <h3 class="font-semibold text-gray-900">Lighting Conditions</h3>
+                    </div>
+                    <ul class="text-sm text-gray-700 space-y-2">
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span><strong>Bright, even lighting</strong> on your face</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span>Natural daylight works best</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-600 font-bold">✗</span>
+                            <span>Avoid backlighting or shadows</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-600 font-bold">✗</span>
+                            <span>No direct sunlight on face</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Movement -->
+                <div class="bg-white p-4 rounded-lg border border-blue-200">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i data-lucide="move" class="w-5 h-5 text-red-500"></i>
+                        <h3 class="font-semibold text-gray-900">During Scan (45 seconds)</h3>
+                    </div>
+                    <ul class="text-sm text-gray-700 space-y-2">
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span><strong>Stay completely still</strong></span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span>Breathe <strong>normally and naturally</strong></span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-green-600 font-bold">✓</span>
+                            <span>Relax your facial muscles</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-red-600 font-bold">✗</span>
+                            <span>Don't talk or move your head</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- What We Detect -->
+                <div class="bg-white p-4 rounded-lg border border-blue-200">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i data-lucide="activity" class="w-5 h-5 text-blue-500"></i>
+                        <h3 class="font-semibold text-gray-900">What We Measure</h3>
+                    </div>
+                    <ul class="text-sm text-gray-700 space-y-2">
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="heart" class="w-3 h-3 text-red-500"></i>
+                            <span>Heart Rate (BPM)</span>
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="droplet" class="w-3 h-3 text-blue-500"></i>
+                            <span>Blood Oxygen (SpO2)</span>
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="wind" class="w-3 h-3 text-teal-500"></i>
+                            <span>Breathing Rate</span>
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="thermometer" class="w-3 h-3 text-orange-500"></i>
+                            <span>Body Temperature</span>
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="gauge" class="w-3 h-3 text-purple-500"></i>
+                            <span>Blood Pressure</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-4 p-3 bg-white rounded border border-blue-300">
+                <p class="text-xs text-gray-600">
+                    <strong>Technology:</strong> This scanner uses rPPG (remote photoplethysmography) to detect subtle
+                    color changes in your facial skin caused by blood flow. Results are estimates and should not replace
+                    medical devices. For accurate medical readings, consult a healthcare professional.
+                </p>
+            </div>
+        </div>
+
+        <!-- Results Card (Hidden by default) -->
+        <div id="results-card" class="card hidden">
+            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4">
+                Your Vital Signs
+            </h2>
+
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6" id="vitals-display">
+                <!-- Results will be populated here -->
+            </div>
+
+            <div class="flex gap-3">
+                <button id="save-reading-btn" class="flex-1 btn btn-primary">
+                    <i data-lucide="save" class="w-5 h-5"></i>
+                    Save Results
+                </button>
+                <button id="retake-btn" class="flex-1 btn btn-secondary">
+                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                    Retake Scan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column - History & Stats -->
+    <div class="space-y-6">
+        <!-- Latest Reading -->
+        <div class="card">
+            <h2 class="text-lg font-display font-semibold text-gray-900 mb-4">
+                Latest Reading
+            </h2>
+            <div id="latest-reading" class="space-y-2">
+                {% if vitals_history and vitals_history|length > 0 %}
+                {% set entry = vitals_history[0] %}
+                {% if entry.health_score %}
+                <div class="flex items-center justify-between p-2 bg-green-50 rounded">
+                    <span class="text-sm text-gray-700">Health Score</span>
+                    <span class="font-semibold text-green-600">{{ entry.health_score|int }}/100</span>
+                </div>
+                {% endif %}
+                {% if entry.heart_rate %}
+                <div class="flex items-center justify-between p-2 bg-red-50 rounded">
+                    <span class="text-sm text-gray-700">Heart Rate</span>
+                    <span class="font-semibold text-red-600">{{ entry.heart_rate }} BPM</span>
+                </div>
+                {% endif %}
+                {% if entry.spo2 %}
+                <div class="flex items-center justify-between p-2 bg-blue-50 rounded">
+                    <span class="text-sm text-gray-700">SpO2</span>
+                    <span class="font-semibold text-blue-600">{{ entry.spo2 }}%</span>
+                </div>
+                {% endif %}
+                {% if entry.respiratory_rate %}
+                <div class="flex items-center justify-between p-2 bg-teal-50 rounded">
+                    <span class="text-sm text-gray-700">Breathing</span>
+                    <span class="font-semibold text-teal-600">{{ entry.respiratory_rate }}/min</span>
+                </div>
+                {% endif %}
+                {% if entry.temperature %}
+                <div class="flex items-center justify-between p-2 bg-orange-50 rounded">
+                    <span class="text-sm text-gray-700">Temperature</span>
+                    <span class="font-semibold text-orange-600">{{ "%.1f"|format((entry.temperature * 9/5) + 32)
+                        }}°F</span>
+                </div>
+                {% endif %}
+                {% if entry.blood_pressure_systolic and entry.blood_pressure_diastolic %}
+                <div class="flex items-center justify-between p-2 bg-purple-50 rounded">
+                    <span class="text-sm text-gray-700">Blood Pressure</span>
+                    <span class="font-semibold text-purple-600">{{ entry.blood_pressure_systolic }}/{{
+                        entry.blood_pressure_diastolic }}</span>
+                </div>
+                {% endif %}
+                <div class="text-xs text-gray-500 text-center mt-2">{{ entry.timestamp[:10] }} {{ entry.timestamp[11:16]
+                    }}</div>
+                {% else %}
+                <div class="text-center text-gray-400 py-4">
+                    <i data-lucide="activity" class="w-8 h-8 mx-auto mb-2"></i>
+                    <p class="text-sm">No readings yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- History -->
+        <div class="card">
+            <h2 class="text-lg font-display font-semibold text-gray-900 mb-4">
+                Recent History
+            </h2>
+
+            <div class="space-y-3" id="vitals-history">
+                {% if vitals_history and vitals_history|length > 0 %}
+                {% for entry in vitals_history[:10] %}
+                <div class="p-3 bg-gray-50 rounded-lg">
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        {% if entry.health_score %}
+                        <div class="flex items-center gap-1 col-span-2 pb-1 border-b border-gray-100 mb-1">
+                            <i data-lucide="activity" class="w-3 h-3 text-green-500"></i>
+                            <span class="font-medium text-green-700">Health Score: {{ entry.health_score|int }}</span>
+                        </div>
+                        {% endif %}
+                        {% if entry.heart_rate %}
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="heart" class="w-3 h-3 text-red-500"></i>
+                            <span>{{ entry.heart_rate }} BPM</span>
+                        </div>
+                        {% endif %}
+                        {% if entry.spo2 %}
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="droplet" class="w-3 h-3 text-blue-500"></i>
+                            <span>{{ entry.spo2 }}%</span>
+                        </div>
+                        {% endif %}
+                        {% if entry.respiratory_rate %}
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="wind" class="w-3 h-3 text-teal-500"></i>
+                            <span>{{ entry.respiratory_rate }}/min</span>
+                        </div>
+                        {% endif %}
+                        {% if entry.temperature %}
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="thermometer" class="w-3 h-3 text-orange-500"></i>
+                            <span>{{ "%.1f"|format((entry.temperature * 9/5) + 32) }}°F</span>
+                        </div>
+                        {% endif %}
+                        {% if entry.blood_pressure_systolic and entry.blood_pressure_diastolic %}
+                        <div class="flex items-center gap-1 col-span-2">
+                            <i data-lucide="gauge" class="w-3 h-3 text-purple-500"></i>
+                            <span>{{ entry.blood_pressure_systolic }}/{{ entry.blood_pressure_diastolic }} mmHg</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="text-xs text-gray-500 mt-2">
+                        {{ entry.timestamp[:10] }} at {{ entry.timestamp[11:16] }}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center text-gray-400 py-8">
+                    <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2"></i>
+                    <p class="text-sm">No vitals history</p>
+                    <p class="text-xs">Start scanning to build your history</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include vitals scanner JavaScript -->
+<script src="{{ url_for('static', path='/js/vitals-scanner.js') }}"></script>
+{% endblock %}

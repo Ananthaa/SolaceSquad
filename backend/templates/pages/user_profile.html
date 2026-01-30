@@ -1,0 +1,553 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<div class="profile-container">
+    <div class="profile-header">
+        <h1>My Profile</h1>
+        <p class="profile-subtitle">Manage your personal information and preferences</p>
+    </div>
+
+    <form id="profileForm" class="profile-form">
+        <div class="profile-sections">
+            <!-- Personal Information -->
+            <div class="profile-section">
+                <h2 class="section-title">
+                    <i data-lucide="user" class="section-icon"></i>
+                    Personal Information
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fullName">Full Name</label>
+                        <input type="text" id="fullName" name="full_name" value="{{ profile.full_name or '' }}"
+                            placeholder="Enter your full name">
+                    </div>
+                    <div class="form-group">
+                        <label for="preferredName">Preferred Name</label>
+                        <input type="text" id="preferredName" name="preferred_name"
+                            value="{{ profile.preferred_name or '' }}" placeholder="How you want to be known">
+                        <span class="field-hint">This name will be displayed across the platform</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="age">Age</label>
+                        <input type="number" id="age" name="age" min="1" max="150" value="{{ profile.age or '' }}"
+                            placeholder="Enter your age">
+                    </div>
+                    <div class="form-group">
+                        <label for="gender">Gender</label>
+                        <select id="gender" name="gender">
+                            <option value="">Select gender</option>
+                            <option value="Male" {% if profile.gender=='Male' %}selected{% endif %}>Male</option>
+                            <option value="Female" {% if profile.gender=='Female' %}selected{% endif %}>Female</option>
+                            <option value="Other" {% if profile.gender=='Other' %}selected{% endif %}>Other</option>
+                            <option value="Prefer not to say" {% if profile.gender=='Prefer not to say' %}selected{%
+                                endif %}>Prefer not to say</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Physical Metrics -->
+            <div class="profile-section">
+                <h2 class="section-title">
+                    <i data-lucide="activity" class="section-icon"></i>
+                    Physical Metrics
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="height">Height (cm)</label>
+                        <input type="number" id="height" name="height" step="0.1" min="0"
+                            value="{{ profile.height or '' }}" placeholder="Enter height in cm">
+                    </div>
+                    <div class="form-group">
+                        <label for="weight">Weight (kg)</label>
+                        <input type="number" id="weight" name="weight" step="0.1" min="0"
+                            value="{{ profile.weight or '' }}" placeholder="Enter weight in kg">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Details -->
+            <div class="profile-section">
+                <h2 class="section-title">
+                    <i data-lucide="map-pin" class="section-icon"></i>
+                    Contact Details
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="address">Address</label>
+                        <textarea id="address" name="address" rows="3"
+                            placeholder="Enter your address">{{ profile.address or '' }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Primary Email</label>
+                        <input type="email" id="email" name="contact_email" value="{{ user_email or '' }}"
+                            placeholder="your.email@example.com" readonly>
+                        <span class="field-hint">Primary email cannot be changed</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="contactEmail">Alternative Email</label>
+                        <input type="email" id="contactEmail" name="alt_email" value="{{ profile.contact_email or '' }}"
+                            placeholder="alternative@example.com">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Professional Information -->
+            <div class="profile-section">
+                <h2 class="section-title">
+                    <i data-lucide="briefcase" class="section-icon"></i>
+                    Professional Information
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="occupation">Occupation</label>
+                        <input type="text" id="occupation" name="occupation" value="{{ profile.occupation or '' }}"
+                            placeholder="Enter your occupation">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Health & Wellness -->
+            <div class="profile-section">
+                <h2 class="section-title">
+                    <i data-lucide="heart" class="section-icon"></i>
+                    Health & Wellness
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="medicalHistory">Medical History <span class="optional-tag">(Optional)</span></label>
+                        <textarea id="medicalHistory" name="medical_history" rows="4"
+                            placeholder="Any lifestyle diseases or conditions (e.g., diabetes, hypertension, allergies)">{{ profile.medical_history or '' }}</textarea>
+                        <span class="field-hint">This information helps consultants provide better care</span>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="wellnessHabits">Wellness Habits</label>
+                        <div class="wellness-checkboxes">
+                            {% set habits = profile.wellness_habits.split(',') if profile.wellness_habits else [] %}
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="wellness_habits" value="Physical Workouts" {%
+                                    if 'Physical Workouts' in habits %}checked{% endif %}>
+                                <span>Physical Workouts</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="wellness_habits" value="Yoga" {% if 'Yoga' in habits
+                                    %}checked{% endif %}>
+                                <span>Yoga</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="wellness_habits" value="Running" {% if 'Running' in habits
+                                    %}checked{% endif %}>
+                                <span>Running</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="wellness_habits" value="Swimming" {% if 'Swimming' in
+                                    habits %}checked{% endif %}>
+                                <span>Swimming</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="wellness_habits" value="Meditation" {% if 'Meditation' in
+                                    habits %}checked{% endif %}>
+                                <span>Meditation</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="wellness_habits" value="Cycling" {% if 'Cycling' in habits
+                                    %}checked{% endif %}>
+                                <span>Cycling</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="aboutMe">About Me <span class="optional-tag">(Optional)</span></label>
+                        <textarea id="aboutMe" name="about_me" rows="4"
+                            placeholder="Tell us about yourself...">{{ profile.about_me or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Information (Read-only) -->
+            <div class="profile-section readonly-section">
+                <h2 class="section-title">
+                    <i data-lucide="info" class="section-icon"></i>
+                    Account Information
+                </h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Active Since</label>
+                        <input type="text" value="{{ active_since or 'N/A' }}" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Sessions Taken</label>
+                        <input type="text" value="{{ sessions_count or '0' }}" readonly>
+                    </div>
+                </div>
+                <p class="readonly-note">
+                    <i data-lucide="lock" style="width: 14px; height: 14px;"></i>
+                    These fields are automatically managed and cannot be edited
+                </p>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="saveBtn">
+                <i data-lucide="save" style="width: 18px; height: 18px;"></i>
+                Save Changes
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .profile-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .profile-header {
+        margin-bottom: 2rem;
+    }
+
+    .profile-header h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1a1a2e;
+        margin-bottom: 0.5rem;
+    }
+
+    .profile-subtitle {
+        color: #6b7280;
+        font-size: 1rem;
+    }
+
+    .profile-form {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .profile-sections {
+        display: flex;
+        flex-direction: column;
+        gap: 2.5rem;
+    }
+
+    .profile-section {
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 2rem;
+    }
+
+    .profile-section:last-of-type {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1a1a2e;
+        margin-bottom: 1.5rem;
+    }
+
+    .section-icon {
+        width: 22px;
+        height: 22px;
+        color: #8b5cf6;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-group label {
+        font-weight: 500;
+        color: #374151;
+        font-size: 0.9rem;
+    }
+
+    .optional-tag {
+        color: #9ca3af;
+        font-weight: 400;
+        font-size: 0.85rem;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+
+    .form-group input[readonly] {
+        background-color: #f9fafb;
+        cursor: not-allowed;
+    }
+
+    .field-hint {
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+
+    .wellness-checkboxes {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 6px;
+        transition: background-color 0.2s;
+    }
+
+    .checkbox-label:hover {
+        background-color: #f3f4f6;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #8b5cf6;
+    }
+
+    .checkbox-label span {
+        font-size: 0.9rem;
+        color: #374151;
+    }
+
+    .readonly-section {
+        background: #f9fafb;
+        padding: 1.5rem;
+        border-radius: 8px;
+        border-bottom: none !important;
+    }
+
+    .readonly-note {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        padding: 0.75rem;
+        background: white;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .btn-secondary:hover {
+        background: #e5e7eb;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    }
+
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .profile-container {
+            padding: 1rem;
+        }
+
+        .profile-form {
+            padding: 1.5rem;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .wellness-checkboxes {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Success/Error Messages */
+    .message {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .message.success {
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+    }
+
+    .message.error {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        lucide.createIcons();
+
+        const form = document.getElementById('profileForm');
+        const saveBtn = document.getElementById('saveBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+
+        // Handle form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Disable button during submission
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i data-lucide="loader" class="spinner"></i> Saving...';
+
+            // Collect form data
+            const formData = new FormData(form);
+
+            // Handle wellness habits checkboxes
+            const wellnessHabits = [];
+            document.querySelectorAll('input[name="wellness_habits"]:checked').forEach(cb => {
+                wellnessHabits.push(cb.value);
+            });
+            formData.set('wellness_habits', wellnessHabits.join(','));
+
+            // Convert to JSON
+            const data = {};
+            formData.forEach((value, key) => {
+                if (key !== 'email' && key !== 'wellness_habits') {
+                    data[key] = value;
+                }
+            });
+            data.wellness_habits = wellnessHabits.join(',');
+
+            try {
+                const response = await fetch('/app/profile/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('Profile updated successfully!', 'success');
+                    // Optionally reload after a delay
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showMessage(result.error || 'Failed to update profile', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving profile:', error);
+                showMessage('An error occurred while saving your profile', 'error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i data-lucide="save"></i> Save Changes';
+                lucide.createIcons();
+            }
+        });
+
+        // Cancel button
+        cancelBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to discard your changes?')) {
+                window.location.reload();
+            }
+        });
+
+        // Show message
+        function showMessage(message, type) {
+            const existingMessage = document.querySelector('.message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = `
+                <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i>
+                <span>${message}</span>
+            `;
+
+            form.insertBefore(messageDiv, form.firstChild);
+            lucide.createIcons();
+
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+    });
+</script>
+{% endblock %}

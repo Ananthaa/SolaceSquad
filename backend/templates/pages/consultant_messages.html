@@ -1,0 +1,323 @@
+{% extends "layouts/protected.html" %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/consultant', 'key': 'dashboard'},
+{'icon': 'users', 'label': 'My Clients', 'href': '/consultant/clients', 'key': 'clients'},
+{'icon': 'calendar', 'label': 'Schedule', 'href': '/consultant/schedule', 'key': 'schedule'},
+{'icon': 'message-square', 'label': 'Messages', 'href': '/consultant/messages', 'key': 'messages'},
+{'icon': 'file-text', 'label': 'Reports', 'href': '/consultant/reports', 'key': 'reports'},
+{'icon': 'user', 'label': 'Profile', 'href': '/consultant/profile', 'key': 'profile'}
+] %}
+
+{% block dashboard_content %}
+<!-- Header -->
+<div class="mb-8">
+    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+        Messages 💬
+    </h1>
+    <p class="text-gray-600">
+        Communicate with your clients
+    </p>
+</div>
+
+<!-- Messages Interface -->
+<div class="grid lg:grid-cols-3 gap-6">
+    <!-- Conversations List -->
+    <div class="lg:col-span-1">
+        <div class="card h-[600px] flex flex-col">
+            <div class="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                <h2 class="text-lg font-display font-semibold text-gray-900">
+                    Conversations
+                </h2>
+                <span id="unreadBadge"
+                    class="bg-primary-600 text-white text-xs font-bold px-2 py-1 rounded-full hidden">
+                    0
+                </span>
+            </div>
+
+            <div id="conversationsList" class="flex-1 overflow-y-auto space-y-2">
+                <div class="text-center py-8 text-gray-500">
+                    Loading conversations...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Thread -->
+    <div class="lg:col-span-2">
+        <div class="card h-[600px] flex flex-col">
+            <div id="messageHeader" class="pb-4 mb-4 border-b border-gray-200 hidden">
+                <div class="flex items-center gap-3">
+                    <div id="partnerAvatar"
+                        class="w-12 h-12 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center text-white font-semibold">
+                    </div>
+                    <div>
+                        <div id="partnerName" class="font-semibold text-gray-900"></div>
+                        <div id="partnerStatus" class="text-sm text-gray-600">Client</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="emptyState" class="flex-1 flex items-center justify-center text-gray-500">
+                <div class="text-center">
+                    <i data-lucide="message-square" class="w-16 h-16 mx-auto mb-4 text-gray-300"></i>
+                    <p class="text-lg font-medium">Select a conversation</p>
+                    <p class="text-sm mt-1">Choose a client to start messaging</p>
+                </div>
+            </div>
+
+            <div id="messageThread" class="flex-1 overflow-y-auto space-y-4 mb-4 hidden">
+                <!-- Messages will be loaded here -->
+            </div>
+
+            <div id="messageInput" class="border-t border-gray-200 pt-4 hidden">
+                <div class="flex gap-2">
+                    <input type="text" id="messageText" placeholder="Type your message..."
+                        class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button onclick="sendMessage()" class="btn btn-primary px-6">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPartnerId = null;
+    let conversations = [];
+
+    // Load conversations on page load
+    window.addEventListener('DOMContentLoaded', function () {
+        loadConversations();
+        lucide.createIcons();
+    });
+
+    function loadConversations() {
+        fetch('/api/messages/conversations')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    conversations = data.conversations;
+                    displayConversations(conversations);
+                    updateUnreadBadge();
+                } else {
+                    document.getElementById('conversationsList').innerHTML = `
+                        <div class="text-center py-8 text-gray-500">
+                            <p>No conversations yet</p>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading conversations:', error);
+            });
+    }
+
+    function displayConversations(convs) {
+        const container = document.getElementById('conversationsList');
+
+        if (convs.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <p>No conversations yet</p>
+                    <p class="text-sm mt-1">Messages from clients will appear here</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = convs.map(conv => {
+            const initials = getInitials(conv.partner_name);
+            const timeAgo = getTimeAgo(conv.latest_timestamp);
+            const unreadClass = conv.unread_count > 0 ? 'bg-primary-50 border-l-4 border-primary-600' : 'bg-white';
+
+            return `
+                <div class="conversation-item p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer ${unreadClass}"
+                     onclick="selectConversation(${conv.partner_id}, '${conv.partner_name}')">
+                    <div class="flex items-center gap-3 mb-1">
+                        <div class="w-10 h-10 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                            ${initials}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between">
+                                <div class="font-medium text-gray-900 text-sm truncate">${conv.partner_name}</div>
+                                <div class="text-xs text-gray-500">${timeAgo}</div>
+                            </div>
+                            <p class="text-sm text-gray-600 truncate">${conv.latest_message}</p>
+                        </div>
+                        ${conv.unread_count > 0 ? `<span class="bg-primary-600 text-white text-xs font-bold px-2 py-1 rounded-full">${conv.unread_count}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function selectConversation(partnerId, partnerName) {
+        currentPartnerId = partnerId;
+
+        // Update header
+        document.getElementById('messageHeader').classList.remove('hidden');
+        document.getElementById('emptyState').classList.add('hidden');
+        document.getElementById('messageThread').classList.remove('hidden');
+        document.getElementById('messageInput').classList.remove('hidden');
+
+        document.getElementById('partnerName').textContent = partnerName;
+        document.getElementById('partnerAvatar').textContent = getInitials(partnerName);
+
+        // Load message thread
+        loadMessageThread(partnerId);
+
+        // Mark messages as read
+        markMessagesRead(partnerId);
+    }
+
+    function loadMessageThread(partnerId) {
+        fetch(`/api/messages/thread/${partnerId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayMessages(data.messages);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading messages:', error);
+            });
+    }
+
+    function displayMessages(messages) {
+        const container = document.getElementById('messageThread');
+
+        if (messages.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-500">
+                    <p>No messages yet</p>
+                    <p class="text-sm mt-1">Start the conversation!</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = messages.map(msg => {
+            const time = new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+            if (msg.is_mine) {
+                return `
+                    <div class="flex gap-3 justify-end">
+                        <div class="flex-1 text-right">
+                            <div class="bg-primary-600 text-white rounded-lg p-3 inline-block max-w-[80%] text-left">
+                                <p class="text-sm">${escapeHtml(msg.content)}</p>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">${time}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="flex gap-3">
+                        <div class="w-8 h-8 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                            ${getInitials(document.getElementById('partnerName').textContent)}
+                        </div>
+                        <div class="flex-1">
+                            <div class="bg-gray-100 rounded-lg p-3 inline-block max-w-[80%]">
+                                <p class="text-sm text-gray-900">${escapeHtml(msg.content)}</p>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">${time}</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }).join('');
+
+        // Scroll to bottom
+        container.scrollTop = container.scrollHeight;
+
+        // Re-initialize icons
+        lucide.createIcons();
+    }
+
+    function sendMessage() {
+        const input = document.getElementById('messageText');
+        const content = input.value.trim();
+
+        if (!content || !currentPartnerId) return;
+
+        fetch('/api/messages/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                receiver_id: currentPartnerId,
+                content: content
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    input.value = '';
+                    loadMessageThread(currentPartnerId);
+                    loadConversations(); // Refresh conversation list
+                }
+            })
+            .catch(error => {
+                console.error('Error sending message:', error);
+            });
+    }
+
+    function markMessagesRead(partnerId) {
+        fetch(`/api/messages/mark-read/${partnerId}`, {
+            method: 'POST'
+        })
+            .then(() => {
+                loadConversations(); // Refresh to update unread counts
+            });
+    }
+
+    function updateUnreadBadge() {
+        const totalUnread = conversations.reduce((sum, conv) => sum + conv.unread_count, 0);
+        const badge = document.getElementById('unreadBadge');
+
+        if (totalUnread > 0) {
+            badge.textContent = totalUnread;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    function getInitials(name) {
+        const parts = name.split(' ');
+        if (parts.length >= 2) {
+            return parts[0][0] + parts[parts.length - 1][0];
+        }
+        return name.substring(0, 2);
+    }
+
+    function getTimeAgo(timestamp) {
+        if (!timestamp) return '';
+
+        const now = new Date();
+        const time = new Date(timestamp);
+        const diff = now - time;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+
+        if (minutes < 1) return 'Just now';
+        if (minutes < 60) return `${minutes}m ago`;
+        if (hours < 24) return `${hours}h ago`;
+        if (days === 1) return 'Yesterday';
+        if (days < 7) return `${days}d ago`;
+        return time.toLocaleDateString();
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+{% endblock %}

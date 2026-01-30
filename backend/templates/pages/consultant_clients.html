@@ -1,0 +1,174 @@
+{% extends "layouts/protected.html" %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/consultant', 'key': 'dashboard'},
+{'icon': 'users', 'label': 'My Clients', 'href': '/consultant/clients', 'key': 'clients'},
+{'icon': 'calendar', 'label': 'Schedule', 'href': '/consultant/schedule', 'key': 'schedule'},
+{'icon': 'message-square', 'label': 'Messages', 'href': '/consultant/messages', 'key': 'messages'},
+{'icon': 'file-text', 'label': 'Reports', 'href': '/consultant/reports', 'key': 'reports'},
+{'icon': 'user', 'label': 'Profile', 'href': '/consultant/profile', 'key': 'profile'}
+] %}
+
+{% block dashboard_content %}
+<!-- Header -->
+<div class="mb-8">
+    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+        My Clients 👥
+    </h1>
+    <p class="text-gray-600">
+        View and manage your client relationships
+    </p>
+</div>
+
+<!-- Stats Overview -->
+<div class="grid md:grid-cols-3 gap-6 mb-8">
+    <div class="card">
+        <div class="flex items-center gap-3">
+            <div class="bg-primary-100 p-3 rounded-xl">
+                <i data-lucide="users" class="w-6 h-6 text-primary-700"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">{{ clients|length }}</div>
+                <div class="text-sm text-gray-600">Total Clients</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="flex items-center gap-3">
+            <div class="bg-green-100 p-3 rounded-xl">
+                <i data-lucide="check-circle" class="w-6 h-6 text-green-700"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">
+                    {{ clients|selectattr('upcoming_sessions', 'gt', 0)|list|length }}
+                </div>
+                <div class="text-sm text-gray-600">Active This Week</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="flex items-center gap-3">
+            <div class="bg-secondary-100 p-3 rounded-xl">
+                <i data-lucide="calendar-check" class="w-6 h-6 text-secondary-700"></i>
+            </div>
+            <div>
+                <div class="text-2xl font-bold text-gray-900">
+                    {% set total = namespace(count=0) %}
+                    {% for client in clients %}
+                    {% set total.count = total.count + client.total_sessions %}
+                    {% endfor %}
+                    {{ total.count }}
+                </div>
+                <div class="text-sm text-gray-600">Total Sessions</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clients List -->
+<div class="card">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-display font-semibold text-gray-900">
+            Client List
+        </h2>
+        <div class="relative">
+            <input type="text" id="searchInput" placeholder="Search clients..."
+                class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+            <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-3"></i>
+        </div>
+    </div>
+
+    {% if clients %}
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead>
+                <tr class="border-b border-gray-200">
+                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-700">Client</th>
+                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-700">Email</th>
+                    <th class="text-center py-3 px-4 text-sm font-semibold text-gray-700">Total Sessions</th>
+                    <th class="text-center py-3 px-4 text-sm font-semibold text-gray-700">Upcoming</th>
+                    <th class="text-right py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="clientsTableBody">
+                {% for client in clients %}
+                <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors client-row"
+                    data-name="{{ client.name|lower }}" data-email="{{ client.email|lower }}">
+                    <td class="py-4 px-4">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-10 h-10 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                                {{ client.name[0]|upper }}{{ client.name.split()[-1][0]|upper if
+                                client.name.split()|length > 1 else client.name[1]|upper }}
+                            </div>
+                            <div>
+                                <div class="font-medium text-gray-900">{{ client.name }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4 text-sm text-gray-600">
+                        {{ client.email }}
+                    </td>
+                    <td class="py-4 px-4 text-center">
+                        <span
+                            class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                            {{ client.total_sessions }}
+                        </span>
+                    </td>
+                    <td class="py-4 px-4 text-center">
+                        {% if client.upcoming_sessions > 0 %}
+                        <span
+                            class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                            {{ client.upcoming_sessions }}
+                        </span>
+                        {% else %}
+                        <span class="text-gray-400 text-sm">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-4 px-4 text-right">
+                        <a href="/consultant/patient/{{ client.id }}"
+                            class="inline-flex items-center gap-2 px-4 py-2 text-primary-600 hover:bg-primary-50 rounded-lg transition font-medium text-sm">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                            <span>View Details</span>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <i data-lucide="users" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No clients yet</h3>
+        <p class="text-gray-600">Your clients will appear here once they book sessions with you</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Search functionality
+    document.getElementById('searchInput')?.addEventListener('input', function (e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('.client-row');
+
+        rows.forEach(row => {
+            const name = row.dataset.name;
+            const email = row.dataset.email;
+
+            if (name.includes(searchTerm) || email.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+
+    // Initialize icons
+    window.addEventListener('DOMContentLoaded', function () {
+        lucide.createIcons();
+    });
+</script>
+{% endblock %}
