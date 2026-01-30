@@ -30,6 +30,8 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'ENVIRONMENT=production,DEBUG=False,DATABASE_URL=sqlite:////tmp/soul_squad.db'
 
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/solacesquad/server:$BUILD_ID'
