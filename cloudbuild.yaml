@@ -32,4 +32,8 @@ steps:
 images:
   - 'gcr.io/$PROJECT_ID/solacesquad:$COMMIT_SHA'
 
+# Required when using custom service account
+options:
+  logging: NONE
+
 timeout: 1200s
