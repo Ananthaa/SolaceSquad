@@ -5,14 +5,16 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/solacesquad:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/solacesquad:$BUILD_ID'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/solacesquad:latest'
       - './backend'
     
   # Push the container image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/solacesquad:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/solacesquad:$BUILD_ID'
   
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -22,7 +24,7 @@ steps:
       - 'deploy'
       - 'solacesquad'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/solacesquad:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/solacesquad:$BUILD_ID'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -30,7 +32,7 @@ steps:
       - '--allow-unauthenticated'
 
 images:
-  - 'gcr.io/$PROJECT_ID/solacesquad:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/solacesquad:$BUILD_ID'
 
 # Specify logs bucket to satisfy custom service account requirement
 logsBucket: 'gs://abiding-idea-485817-k2-build-logs'
