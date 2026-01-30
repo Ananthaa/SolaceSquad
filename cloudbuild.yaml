@@ -32,8 +32,7 @@ steps:
 images:
   - 'gcr.io/$PROJECT_ID/solacesquad:$COMMIT_SHA'
 
-# Required when using custom service account
-options:
-  logging: NONE
+# Specify logs bucket to satisfy custom service account requirement
+logsBucket: 'gs://abiding-idea-485817-k2-build-logs'
 
 timeout: 1200s
