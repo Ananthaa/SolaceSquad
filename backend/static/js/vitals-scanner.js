@@ -318,6 +318,14 @@ class VitalsScanner {
                 return;
             }
             console.log("Forcing scan start...");
+            // Use center box as default region since detection failed
+            const regionSize = Math.min(this.canvas.width, this.canvas.height) * 0.6;
+            this.faceRegion = {
+                x: (this.canvas.width - regionSize) / 2,
+                y: (this.canvas.height - regionSize) / 2,
+                width: regionSize,
+                height: regionSize
+            };
         }
 
         this.isScanning = true;
