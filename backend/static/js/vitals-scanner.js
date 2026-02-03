@@ -311,8 +311,13 @@ class VitalsScanner {
         }
 
         if (!this.faceDetected) {
-            this.showError('Face not detected. Please ensure good lighting and center your face in the box, then try again.');
-            return;
+            // Fallback: Allow user to force start if detection is flaky
+            const force = confirm("Face detection is struggling (likely lighting). Force scan anyway?");
+            if (!force) {
+                this.showError('Scan cancelled. Please ensure good lighting and center your face.');
+                return;
+            }
+            console.log("Forcing scan start...");
         }
 
         this.isScanning = true;
