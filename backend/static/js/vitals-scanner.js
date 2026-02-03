@@ -1010,8 +1010,23 @@ window.addEventListener('DOMContentLoaded', function () {
 
     // Button handlers
     document.getElementById('start-scan-btn').addEventListener('click', async () => {
-        // Camera will be started by startScan() method
-        scanner.startScan();
+        const btn = document.getElementById('start-scan-btn');
+        const originalContent = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = 'Starting...';
+
+        try {
+            await scanner.startScan();
+        } catch (e) {
+            console.error(e);
+            alert("Error starting scan: " + e);
+        }
+
+        // Restore if not successfully scanning (scanning hides button)
+        if (!scanner.isScanning) {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
     });
 
     document.getElementById('stop-scan-btn').addEventListener('click', () => {
