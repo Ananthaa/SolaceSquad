@@ -1,4 +1,4 @@
-const CACHE_NAME = 'soulsquad-v5';
+const CACHE_NAME = 'soulsquad-v6';
 const urlsToCache = [
     '/manifest.json',
     '/static/css/styles.css',
@@ -7,11 +7,12 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+    // Force new SW to take control immediately
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => {
-                console.log('Opened cache');
-                // We catch errors here so one missing file doesn't break the whole install
+                console.log('Opened cache v6');
                 return cache.addAll(urlsToCache).catch(err => console.error(err));
             })
     );

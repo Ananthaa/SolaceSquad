@@ -79,9 +79,18 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('SW registered'))
-                    .catch(err => console.log('SW failed', err));
+                // Aggressively clear old service workers to fix cache issues
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (let registration of registrations) {
+                        registration.unregister();
+                        console.log("Unregistered stale SW");
+                    }
+                }).then(() => {
+                    return navigator.serviceWorker.register('/sw.js');
+                }).then(reg => {
+                    console.log('SW registered');
+                    reg.update();
+                }).catch(err => console.log('SW setup failed', err));
             });
         }
     </script>
