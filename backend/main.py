@@ -18,8 +18,9 @@ load_dotenv()
 from database import init_db, get_db, get_db_session
 from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile
 from email_utils import send_password_reset_email, send_welcome_email
-from openai_chat import openai_chat  # Using OpenAI for initial deployment, will switch to Vertex AI in next update
+from vertex_chat import vertex_chat  # Using Vertex AI (Gemini) with GCP credits
 from audit_logging import AuditLogger
+from firebase_otp import FallbackOTP
 
 # Import Socket.IO for WebRTC signaling
 from call_signaling import sio, get_socket_app
@@ -40,6 +41,8 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
+            # Explicitly allow camera/mic permissions
+            response.headers["Permissions-Policy"] = "camera=*, microphone=*"
         return response
 
 app.add_middleware(NoCacheMiddleware)
@@ -1188,9 +1191,9 @@ import string
 
 @app.get("/signup", response_class=HTMLResponse)
 async def signup(request: Request):
-    """Signup page"""
+    """Signup page - Simple version without OTP"""
     return templates.TemplateResponse(
-        "pages/auth/signup_with_otp.html",
+        "pages/auth/signup_simple.html",
         {
             "request": request,
             "page_title": "Sign Up - SolaceSquad"
@@ -1199,10 +1202,11 @@ async def signup(request: Request):
 
 @app.post("/api/auth/otp/send")
 async def send_otp(request: Request, db: Session = Depends(get_db)):
-    """Send OTP to phone number if account doesn't exist - HIPAA Compliant"""
+    """Send OTP to phone number and/or email if account doesn't exist - HIPAA Compliant"""
     try:
         data = await request.json()
         phone = data.get("phone_number")
+        email = data.get("email")  # NEW: Accept email parameter
         
         # Validate phone number format
         if not phone or len(phone) < 10:
@@ -1223,7 +1227,7 @@ async def send_otp(request: Request, db: Session = Depends(get_db)):
             AuditLogger.log_event(
                 db, 
                 event_type="otp_denied_existing_user", 
-                details=f"OTP denied - account exists for phone ending in {phone[-4:]}",
+                details=f"OTP denied - account exists for phone ending in {phone[-4:]}", 
                 status="failure",
                 request=request
             )
@@ -1254,13 +1258,24 @@ async def send_otp(request: Request, db: Session = Depends(get_db)):
             request=request
         )
         
-        # TODO: Integrate with HIPAA-compliant SMS gateway (Twilio, AWS SNS with encryption)
-        # For now, print to server console for development
-        import sys
-        print(f"\n{'='*60}", flush=True, file=sys.stderr)
-        print(f"🔐 OTP for {phone}: {otp}", flush=True, file=sys.stderr)
-        print(f"   Expires: {(datetime.utcnow() + timedelta(minutes=10)).strftime('%H:%M:%S')}", flush=True, file=sys.stderr)
-        print(f"{'='*60}\n", flush=True, file=sys.stderr)
+        # Send OTP via email and/or SMS
+        otp_service = FallbackOTP()
+        send_result = otp_service.send_otp(phone, otp, email=email)  # Pass email parameter
+        
+        # Check if OTP was sent successfully
+        if send_result.get("success"):
+            providers = send_result.get('providers', [send_result.get('provider', 'Unknown')])
+            print(f"[OTP] ✅ OTP sent via {', '.join(providers) if isinstance(providers, list) else providers}")
+        else:
+            print(f"[OTP] ⚠️ Failed to send OTP: {send_result.get('message')}")
+            # Still print to console as backup
+            import sys
+            print(f"\n{'='*60}", flush=True, file=sys.stderr)
+            print(f"🔐 OTP for {phone}: {otp}", flush=True, file=sys.stderr)
+            if email:
+                print(f"   Email: {email}", flush=True, file=sys.stderr)
+            print(f"   Expires: {(datetime.utcnow() + timedelta(minutes=10)).strftime('%H:%M:%S')}", flush=True, file=sys.stderr)
+            print(f"{'='*60}\n", flush=True, file=sys.stderr)
         
         # In production, remove otp_debug to comply with HIPAA
         # Never expose sensitive data in API responses
@@ -1271,6 +1286,12 @@ async def send_otp(request: Request, db: Session = Depends(get_db)):
             response_data["otp_debug"] = otp  # Only for dev/testing
             response_data["note"] = "OTP visible only in development mode"
         
+        # Add info about delivery methods
+        if send_result.get("email_sent"):
+            response_data["email_sent"] = True
+        if send_result.get("sms_sent"):
+            response_data["sms_sent"] = True
+        
         return response_data
         
     except Exception as e:
@@ -1278,7 +1299,7 @@ async def send_otp(request: Request, db: Session = Depends(get_db)):
         AuditLogger.log_event(
             db, 
             event_type="otp_error", 
-            details=f"Error during OTP generation: {str(e)}",
+            details=f"Error during OTP generation: {str(e)}", 
             status="failure",
             request=request
         )
@@ -1301,37 +1322,56 @@ async def signup_post(request: Request, db: Session = Depends(get_db)):
         user_type = form_data.get("user_type", "user")
         
         # Validate inputs
-        if not user_name or not user_email or not user_password or not phone_number or not otp_input:
+        if not user_name or not user_email or not user_password or not phone_number:
             return templates.TemplateResponse(
-                "pages/auth/signup_with_otp.html",
+                "pages/auth/signup_simple.html",
                 {
                     "request": request,
                     "page_title": "Sign Up - SolaceSquad",
-                    "error": "All fields including OTP are required"
+                    "error": "Name, email, password, and phone number are required"
                 }
             )
         
-        # 1. Verify OTP
-        otp_record = db.query(OTPVerification).filter(
-            OTPVerification.phone_number == phone_number,
-            OTPVerification.otp_code == otp_input,
-            OTPVerification.expires_at > datetime.utcnow()
-        ).first()
+        # Check if OTP bypass is enabled (for development/testing)
+        bypass_otp = os.getenv("BYPASS_OTP_VERIFICATION", "false").lower() == "true"
         
-        if not otp_record:
-             return templates.TemplateResponse(
-                "pages/auth/signup_with_otp.html",
-                {
-                    "request": request,
-                    "page_title": "Sign Up - SolaceSquad",
-                    "error": "Invalid or expired OTP"
-                }
-            )
+        if not bypass_otp:
+            # OTP verification is required
+            if not otp_input:
+                return templates.TemplateResponse(
+                    "pages/auth/signup_simple.html",
+                    {
+                        "request": request,
+                        "page_title": "Sign Up - SolaceSquad",
+                        "error": "OTP is required"
+                    }
+                )
+            
+            # 1. Verify OTP
+            otp_record = db.query(OTPVerification).filter(
+                OTPVerification.phone_number == phone_number,
+                OTPVerification.otp_code == otp_input,
+                OTPVerification.expires_at > datetime.utcnow()
+            ).first()
+            
+            if not otp_record:
+                return templates.TemplateResponse(
+                    "pages/auth/signup_simple.html",
+                    {
+                        "request": request,
+                        "page_title": "Sign Up - SolaceSquad",
+                        "error": "Invalid or expired OTP"
+                    }
+                )
+        else:
+            # OTP bypass enabled - skip verification
+            print("[SIGNUP] ⚠️ OTP verification bypassed (BYPASS_OTP_VERIFICATION=true)")
+            otp_record = None
             
         # 2. Check uniqueness
         if db.query(User).filter(User.email == user_email).first():
             return templates.TemplateResponse(
-                "pages/auth/signup_with_otp.html",
+                "pages/auth/signup_simple.html",
                 {
                     "request": request,
                     "page_title": "Sign Up - SolaceSquad",
@@ -1341,7 +1381,7 @@ async def signup_post(request: Request, db: Session = Depends(get_db)):
             
         if db.query(User).filter(User.phone_number == phone_number).first():
             return templates.TemplateResponse(
-                "pages/auth/signup_with_otp.html",
+                "pages/auth/signup_simple.html",
                 {
                     "request": request,
                     "page_title": "Sign Up - SolaceSquad",
@@ -1360,8 +1400,9 @@ async def signup_post(request: Request, db: Session = Depends(get_db)):
         new_user.set_password(user_password)
         
         db.add(new_user)
-        # Mark OTP as verified/used (delete it)
-        db.delete(otp_record)
+        # Mark OTP as verified/used (delete it) - only if OTP was verified
+        if otp_record:
+            db.delete(otp_record)
         
         db.commit()
         db.refresh(new_user)
@@ -2196,8 +2237,9 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
             conversation_history.append({"content": chat.message, "is_user": True})
             conversation_history.append({"content": chat.response, "is_user": False})
         
-        # Get AI response
-        ai_response = ollama_chat.chat(message, conversation_history)
+        # Get AI response using Gemini API
+        from gemini_chat import gemini_chat
+        ai_response = gemini_chat.chat(message, conversation_history)
         
         # Save to database
         chat_entry = AIChatHistory(
@@ -2253,10 +2295,10 @@ async def get_ai_chat_history(request: Request, db: Session = Depends(get_db)):
 @app.get("/api/ai-chat/status")
 async def get_ai_chat_status():
     """Check if AI chat service is available"""
-    is_available = ollama_chat.is_available()
+    is_available = vertex_chat.is_available()
     return {
         "available": is_available,
-        "model": ollama_chat.model if is_available else None
+        "model": vertex_chat.model_name if is_available else None
     }
 
 @app.post("/api/ai-chat/reset")

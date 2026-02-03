@@ -378,5 +378,19 @@
 </div>
 
 <!-- Include vitals scanner JavaScript -->
-<script src="{{ url_for('static', path='/js/vitals-scanner.js') }}?v=debug_fix_2"></script>
+<!-- Inline Error Handler to catch Script Load issues -->
+<script>
+    window.onerror = function (msg, url, line) {
+        // Detailed Alert
+        alert("CRITICAL ERROR: " + msg + "\nURL: " + url + "\nLine: " + line);
+        // Show in UI
+        const errDiv = document.getElementById('error-display');
+        if (errDiv) {
+            errDiv.classList.remove('hidden');
+            document.getElementById('error-text').innerText = msg;
+        }
+    };
+    console.log("Vitals page loaded, initializing...");
+</script>
+<script src="{{ url_for('static', path='/js/vitals-scanner.js') }}?v=debug_fix_3"></script>
 {% endblock %}
