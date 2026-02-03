@@ -4,7 +4,22 @@ from models import Base
 import os
 
 # Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./soul_squad.db")
+DB_USER = os.getenv("DB_USER", "solacesquad_user")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_NAME = os.getenv("DB_NAME", "solacesquad")
+INSTANCE_CONNECTION_NAME = os.getenv("INSTANCE_CONNECTION_NAME")
+
+if os.getenv("DATABASE_URL"):
+    # Allow explicit override
+    DATABASE_URL = os.getenv("DATABASE_URL")
+elif DB_PASSWORD and INSTANCE_CONNECTION_NAME:
+    # Google Cloud SQL (PostgreSQL)
+    # Ensure pg8000 driver is used
+    socket_path = f"/cloudsql/{INSTANCE_CONNECTION_NAME}"
+    DATABASE_URL = f"postgresql+pg8000://{DB_USER}:{DB_PASSWORD}@/{DB_NAME}?unix_sock={socket_path}"
+else:
+    # Fallback to SQLite (Local Development)
+    DATABASE_URL = "sqlite:///./soul_squad.db"
 
 # Connection arguments
 connect_args = {}
@@ -13,16 +28,17 @@ connect_args = {}
 if "sqlite" in DATABASE_URL:
     connect_args = {"check_same_thread": False}
 else:
-    # PostgreSQL configuration guarantees
-    # In production, we would enforce SSL here with:
-    # connect_args = {"sslmode": "require"} 
+    # PostgreSQL configuration
     pass
 
 # Create engine
 engine = create_engine(
     DATABASE_URL,
     connect_args=connect_args,
-    echo=False  # Set to True for SQL query logging
+    echo=False,  # Set to True for SQL query logging
+    pool_pre_ping=True,  # Enable connection health checks
+    pool_size=5,        # Reasonable pool size for Cloud Run
+    max_overflow=10
 )
 
 # Create session factory
