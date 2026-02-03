@@ -29,9 +29,7 @@ class VitalsScanner {
         // Face detection
         this.faceDetected = false;
         this.faceRegion = null;
-        // Face detection
-        this.faceDetected = false;
-        this.faceRegion = null;
+
 
         // Historical data for fallback
         this.historicalData = {};
@@ -141,7 +139,15 @@ class VitalsScanner {
         }
 
         const skinRatio = skinPixels / totalPixels;
-        this.faceDetected = skinRatio > 0.3;
+        this.faceDetected = skinRatio > 0.15; // Lowered threshold for better usability
+
+        // Define the target scanning area (where the user should position their face)
+        const scanBox = {
+            x: centerX - regionSize / 2,
+            y: centerY - regionSize / 2,
+            width: regionSize,
+            height: regionSize
+        };
 
         if (this.faceDetected && facePixelCount > 0) {
             // Calculate actual face center
@@ -149,24 +155,25 @@ class VitalsScanner {
             faceCenterY /= facePixelCount;
 
             this.faceRegion = {
-                x: centerX - regionSize / 2,
-                y: centerY - regionSize / 2,
-                width: regionSize,
-                height: regionSize,
+                x: scanBox.x, // Keep box fixed to guide user
+                y: scanBox.y,
+                width: scanBox.width,
+                height: scanBox.height,
                 centerX: faceCenterX,
                 centerY: faceCenterY,
                 coverage: skinRatio
             };
 
-            this.drawFaceBox();
+            this.drawFaceBox(this.faceRegion, true);
 
             // Provide positioning feedback during scanning
             if (this.isScanning) {
                 this.updatePositioningFeedback();
             }
         } else {
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
             this.faceRegion = null;
+            // Draw the guide box in red so user knows where to position face
+            this.drawFaceBox(scanBox, false);
         }
 
         // Continue detection loop (even during scanning for live feedback)
@@ -227,18 +234,27 @@ class VitalsScanner {
         feedbackElement.className = `text-sm font-semibold ${feedbackClass}`;
     }
 
-    drawFaceBox() {
+    drawFaceBox(box, isDetected) {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        if (this.faceRegion) {
-            this.ctx.strokeStyle = this.faceDetected ? '#10b981' : '#ef4444';
+        if (box) {
+            this.ctx.strokeStyle = isDetected ? '#10b981' : '#ef4444';
             this.ctx.lineWidth = 3;
+            // Draw dashed line for guide if not detected
+            if (!isDetected) {
+                this.ctx.setLineDash([10, 5]);
+            } else {
+                this.ctx.setLineDash([]);
+            }
+
             this.ctx.strokeRect(
-                this.faceRegion.x,
-                this.faceRegion.y,
-                this.faceRegion.width,
-                this.faceRegion.height
+                box.x,
+                box.y,
+                box.width,
+                box.height
             );
+
+            this.ctx.setLineDash([]); // Reset for corners
 
             // Draw corner markers
             const cornerSize = 20;
@@ -246,30 +262,30 @@ class VitalsScanner {
 
             // Top-left
             this.ctx.beginPath();
-            this.ctx.moveTo(this.faceRegion.x, this.faceRegion.y + cornerSize);
-            this.ctx.lineTo(this.faceRegion.x, this.faceRegion.y);
-            this.ctx.lineTo(this.faceRegion.x + cornerSize, this.faceRegion.y);
+            this.ctx.moveTo(box.x, box.y + cornerSize);
+            this.ctx.lineTo(box.x, box.y);
+            this.ctx.lineTo(box.x + cornerSize, box.y);
             this.ctx.stroke();
 
             // Top-right
             this.ctx.beginPath();
-            this.ctx.moveTo(this.faceRegion.x + this.faceRegion.width - cornerSize, this.faceRegion.y);
-            this.ctx.lineTo(this.faceRegion.x + this.faceRegion.width, this.faceRegion.y);
-            this.ctx.lineTo(this.faceRegion.x + this.faceRegion.width, this.faceRegion.y + cornerSize);
+            this.ctx.moveTo(box.x + box.width - cornerSize, box.y);
+            this.ctx.lineTo(box.x + box.width, box.y);
+            this.ctx.lineTo(box.x + box.width, box.y + cornerSize);
             this.ctx.stroke();
 
             // Bottom-left
             this.ctx.beginPath();
-            this.ctx.moveTo(this.faceRegion.x, this.faceRegion.y + this.faceRegion.height - cornerSize);
-            this.ctx.lineTo(this.faceRegion.x, this.faceRegion.y + this.faceRegion.height);
-            this.ctx.lineTo(this.faceRegion.x + cornerSize, this.faceRegion.y + this.faceRegion.height);
+            this.ctx.moveTo(box.x, box.y + box.height - cornerSize);
+            this.ctx.lineTo(box.x, box.y + box.height);
+            this.ctx.lineTo(box.x + cornerSize, box.y + box.height);
             this.ctx.stroke();
 
             // Bottom-right
             this.ctx.beginPath();
-            this.ctx.moveTo(this.faceRegion.x + this.faceRegion.width - cornerSize, this.faceRegion.y + this.faceRegion.height);
-            this.ctx.lineTo(this.faceRegion.x + this.faceRegion.width, this.faceRegion.y + this.faceRegion.height);
-            this.ctx.lineTo(this.faceRegion.x + this.faceRegion.width, this.faceRegion.y + this.faceRegion.height - cornerSize);
+            this.ctx.moveTo(box.x + box.width - cornerSize, box.y + box.height);
+            this.ctx.lineTo(box.x + box.width, box.y + box.height);
+            this.ctx.lineTo(box.x + box.width, box.y + box.height - cornerSize);
             this.ctx.stroke();
         }
     }
@@ -279,13 +295,23 @@ class VitalsScanner {
         if (!this.stream) {
             const success = await this.startCamera();
             if (!success) return;
+        }
 
-            // Wait a moment for camera to stabilize
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait for face detection (up to 5 seconds)
+        if (!this.faceDetected) {
+            this.updateStatus('Looking for face... Please center your face in the box.', 'info');
+
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds (50 * 100ms)
+
+            while (!this.faceDetected && attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
         }
 
         if (!this.faceDetected) {
-            this.showError('Please position your face in the green box before starting the scan.');
+            this.showError('Face not detected. Please ensure good lighting and center your face in the box, then try again.');
             return;
         }
 
