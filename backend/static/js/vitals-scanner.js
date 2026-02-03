@@ -3,6 +3,11 @@
  * Captures multiple vital signs from facial video analysis
  */
 
+// Global error handler for debugging
+window.onerror = function (msg, url, line) {
+    alert("System Error: " + msg + "\nLine: " + line);
+};
+
 class VitalsScanner {
     constructor() {
         this.video = document.getElementById('camera-preview');
@@ -49,14 +54,28 @@ class VitalsScanner {
     }
 
     async startCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Camera API is not supported in this browser. Please use Chrome/Safari/Edge on a secure (HTTPS) connection.");
+            return false;
+        }
+
         try {
-            this.stream = await navigator.mediaDevices.getUserMedia({
+            // Timeout promise to catch hanging permission prompts (10s)
+            const timeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Camera request timed out. Please check if camera is blocked or permission prompt is hidden.")), 10000)
+            );
+
+            // Camera promise
+            const cameraPromise = navigator.mediaDevices.getUserMedia({
                 video: {
                     width: { ideal: 1280 },
                     height: { ideal: 720 },
                     facingMode: 'user'
                 }
             });
+
+            // Race against timeout
+            this.stream = await Promise.race([cameraPromise, timeout]);
 
             this.video.srcObject = this.stream;
             this.video.play();
@@ -79,7 +98,9 @@ class VitalsScanner {
             return true;
         } catch (error) {
             console.error('Camera error:', error);
-            this.showError('Unable to access camera. Please grant camera permissions.');
+            const msg = "Camera Failed: " + error.message + "\n\nPlease ensure you allowed camera access.";
+            alert(msg);
+            this.showError(msg);
             return false;
         }
     }
