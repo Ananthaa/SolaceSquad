@@ -32,14 +32,29 @@ else:
     pass
 
 # Create engine
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=connect_args,
-    echo=False,  # Set to True for SQL query logging
-    pool_pre_ping=True,  # Enable connection health checks
-    pool_size=5,        # Reasonable pool size for Cloud Run
-    max_overflow=10
-)
+try:
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args=connect_args,
+        echo=False,
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10
+    )
+    # Test connection
+    with engine.connect() as connection:
+        pass
+    print(f"Successfully connected to database: {DATABASE_URL.split('@')[0]}...")
+except Exception as e:
+    print(f"Database connection failed: {e}")
+    print("Falling back to local SQLite database.")
+    DATABASE_URL = "sqlite:///./soul_squad.db"
+    connect_args = {"check_same_thread": False}
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args=connect_args,
+        echo=False
+    )
 
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
