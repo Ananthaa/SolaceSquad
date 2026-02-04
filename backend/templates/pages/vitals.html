@@ -392,5 +392,8 @@
     };
     console.log("Vitals page loaded, initializing...");
 </script>
-<script src="{{ url_for('static', path='/js/vitals-scanner.js') }}?v=debug_fix_4"></script>
+<script src="{{ url_for('static', path='/js/health-monitor.js') }}?v=final_fix_1"
+    onload="console.log('Health Monitor script loaded successfully');"
+    onerror="alert('CRITICAL: Health Monitor script FAILED to load. Check ad-blocker or network.');">
+    </script>
 {% endblock %}
