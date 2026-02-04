@@ -1024,43 +1024,59 @@ class VitalsScanner {
 }
 
 // Initialize scanner
-let scanner;
+window.scanner = null;
 
-window.addEventListener('DOMContentLoaded', function () {
-    scanner = new VitalsScanner();
+function initScanner() {
+    console.log("Initializing Vitals Scanner...");
+    try {
+        window.scanner = new VitalsScanner();
 
-    // Button handlers
-    document.getElementById('start-scan-btn').addEventListener('click', async () => {
-        const btn = document.getElementById('start-scan-btn');
-        const originalContent = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = 'Starting...';
+        // Button handlers
+        const startBtn = document.getElementById('start-scan-btn');
+        if (startBtn) {
+            startBtn.onclick = async () => {
+                console.log("Start Scan Clicked");
+                const btn = document.getElementById('start-scan-btn');
+                const originalContent = btn.innerHTML;
 
-        try {
-            await scanner.startScan();
-        } catch (e) {
-            console.error(e);
-            alert("Error starting scan: " + e);
+                // Force UI update immediately
+                btn.innerHTML = 'Starting...';
+                btn.disabled = true;
+
+                try {
+                    await window.scanner.startScan();
+                } catch (e) {
+                    console.error(e);
+                    alert("Error starting scan: " + e);
+                    // Restore button if error
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                }
+            };
+            console.log("Start button handler attached via onclick");
+        } else {
+            console.error("Start button not found!");
+            alert("System Error: Start button missing from page.");
         }
 
-        // Restore if not successfully scanning (scanning hides button)
-        if (!scanner.isScanning) {
-            btn.disabled = false;
-            btn.innerHTML = originalContent;
-        }
-    });
+        const stopBtn = document.getElementById('stop-scan-btn');
+        if (stopBtn) stopBtn.onclick = () => window.scanner.stopScan();
 
-    document.getElementById('stop-scan-btn').addEventListener('click', () => {
-        scanner.stopScan();
-    });
+        const saveBtn = document.getElementById('save-reading-btn');
+        if (saveBtn) saveBtn.onclick = () => window.scanner.saveResults();
 
-    document.getElementById('save-reading-btn').addEventListener('click', () => {
-        scanner.saveResults();
-    });
+        const retakeBtn = document.getElementById('retake-btn');
+        if (retakeBtn) retakeBtn.onclick = () => window.scanner.retakeScan();
 
-    document.getElementById('retake-btn').addEventListener('click', () => {
-        scanner.retakeScan();
-    });
+        lucide.createIcons();
+        console.log("Scanner initialization complete.");
 
-    lucide.createIcons();
-});
+        // Notify user vaguely that systems are ready (optional, but good for debugging)
+        // alert("System Ready"); 
+    } catch (e) {
+        alert("Init Error: " + e.message);
+    }
+}
+
+// Run immediately since script is at end of body
+initScanner();
