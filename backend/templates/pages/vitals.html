@@ -1,28 +1,162 @@
-{% extends "layouts/protected.html" %}
+&#65279;{% extends "layouts/protected.html" %}
 
-{% set nav_items = [
-{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
-{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
-{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
-{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
-{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
-{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
-{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
-{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
-{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
-{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'},
-{'icon': 'user', 'label': 'Profile', 'href': '/app/profile', 'key': 'profile'}
-] %}
 
 {% block dashboard_content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- User profile data for JS health scoring -->
+<div id="user-profile-data" data-gender="{{ user_gender | default('') }}" data-age="{{ user_age | default(0) }}"
+    style="display:none;" aria-hidden="true"></div>
+
+<!-- -- Vital Scan Disclaimer Modal -- -->
+<div id="scan-disclaimer-overlay" style="display:none;position:fixed;inset:0;z-index:9999;
+           background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);
+           align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#fff;border-radius:1.25rem;width:100%;max-width:480px;
+                box-shadow:0 24px 80px rgba(0,0,0,0.35);overflow:hidden;
+                animation:disclaimerPop .3s cubic-bezier(.34,1.56,.64,1);">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#2d6a5a,#1e4d40);padding:1.25rem 1.5rem;">
+            <div style="display:flex;align-items:center;gap:.75rem;">
+                <div
+                    style="width:40px;height:40px;background:rgba(251,191,36,.15);border:1.5px solid rgba(251,191,36,.4);
+                            border-radius:.65rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24"
+                        stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                </div>
+                <div>
+                    <div style="font-size:1rem;font-weight:700;color:#f1f5f9;font-family:'Outfit',sans-serif;">Before
+                        You Scan</div>
+                    <div style="font-size:.75rem;color:#94a3b8;margin-top:.1rem;">Medical Disclaimer</div>
+                </div>
+            </div>
+        </div>
+        <!-- Body -->
+        <div style="padding:1.5rem;">
+            <p style="font-size:.9rem;color:#374151;line-height:1.65;margin-bottom:1.1rem;">
+                Uses <strong>rPPG</strong> (remote photoplethysmography) to detect subtle
+                skin-colour changes caused by blood flow.
+            </p>
+            <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:.65rem;
+                        padding:.85rem 1rem;margin-bottom:1.25rem;">
+                <p style="font-size:.875rem;color:#92400e;line-height:1.6;margin:0;">
+                    ⚠️ <strong>Results are estimates</strong> — they are not a substitute for
+                    clinical measurement. Please consult a healthcare professional for
+                    medical-grade readings.
+                </p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:.65rem;">                <button onclick="continueScan()" style="width:100%;padding:.8rem;border:none;border-radius:9999px;cursor:pointer;
+                           background:linear-gradient(135deg,#2d6a5a,#1e4d40);
+                           color:#fff;font-size:.95rem;font-weight:700;
+                           display:flex;align-items:center;justify-content:center;gap:.5rem;
+                           box-shadow:0 4px 16px rgba(45,106,90,.35);transition:transform .15s,box-shadow .15s;"
+                    onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(45,106,90,.45)';"
+                    onmouseout="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(45,106,90,.35)';">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    Continue Scanning
+                </button>
+                <button onclick="skipScan()" style="width:100%;padding:.75rem;border:1.5px solid #e5e7eb;border-radius:9999px;cursor:pointer;
+                           background:#f9fafb;color:#6b7280;font-size:.9rem;font-weight:600;
+                           display:flex;align-items:center;justify-content:center;gap:.5rem;transition:all .15s;"
+                    onmouseover="this.style.borderColor='#2d6a5a';this.style.color='#2d6a5a';this.style.background='#f0fdf4';"
+                    onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#6b7280';this.style.background='#f9fafb';">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                    Skip Scan — Go to Dashboard
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    @keyframes disclaimerPop {
+        from {
+            opacity: 0;
+            transform: scale(.9) translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+</style>
+<script>
+    async function downloadVitalsCSV() {
+        try {
+            const res = await fetch('/api/settings/download-vitals-csv');
+            if (!res.ok) throw new Error("Export failed");
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `solacesquad_vitals_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            alert('Failed to export vitals records.');
+        }
+    }
+
+    function showScanDisclaimer() {
+        var overlay = document.getElementById('scan-disclaimer-overlay');
+        overlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    function continueScan() {
+        document.getElementById('scan-disclaimer-overlay').style.display = 'none';
+        document.body.style.overflow = '';
+        if (window.scanner) {
+            var btn = document.getElementById('start-scan-btn');
+            var originalContent = btn ? btn.innerHTML : '';
+            if (btn) { btn.innerHTML = 'Starting...'; btn.disabled = true; }
+            window.scanner.startScan().catch(function (e) {
+                console.error(e);
+                alert('Error starting scan: ' + e);
+                if (btn) { btn.disabled = false; btn.innerHTML = originalContent; }
+            });
+        }
+    }
+    function skipScan() {
+        document.getElementById('scan-disclaimer-overlay').style.display = 'none';
+        document.body.style.overflow = '';
+        window.location.href = '/app';
+    }
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            document.getElementById('scan-disclaimer-overlay').style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    });
+</script>
+
 <!-- Page Header -->
-<div class="mb-8">
-    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
-        AI Vitals Scanner 💓
-    </h1>
-    <p class="text-gray-600">
-        Advanced camera-based vital signs detection using AI technology
-    </p>
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+    <div>
+        <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+            AI Vitals Scanner &#129658;
+        </h1>
+        <p class="text-gray-600">
+            Advanced camera-based vital signs detection using AI technology
+        </p>
+    </div>
+    <div>
+        <button onclick="downloadVitalsCSV()" class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-sm shadow-sm transition-colors whitespace-nowrap">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            Export CSV
+        </button>
+    </div>
 </div>
 
 <!-- Main Grid -->
@@ -34,22 +168,6 @@
             <h2 class="text-xl font-display font-semibold text-gray-900 mb-4">
                 Camera Scanner
             </h2>
-
-            <!-- Scanner Status -->
-            <div id="scanner-status" class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg hidden">
-                <div class="flex items-center gap-2 text-blue-700">
-                    <i data-lucide="info" class="w-5 h-5"></i>
-                    <span id="status-text">Initializing camera...</span>
-                </div>
-            </div>
-
-            <!-- Error Display -->
-            <div id="error-display" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg hidden">
-                <div class="flex items-center gap-2 text-red-700">
-                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
-                    <span id="error-text"></span>
-                </div>
-            </div>
 
             <!-- Camera Preview Container -->
             <div class="relative bg-gray-900 rounded-xl overflow-hidden mb-4" style="aspect-ratio: 4/3;">
@@ -69,14 +187,7 @@
                             <div class="text-xl font-bold mb-2">Analyzing Vitals...</div>
                             <div class="text-sm opacity-90 mb-3" id="scan-timer">Scanning: 0s</div>
 
-                            <!-- Live Positioning Feedback -->
-                            <div class="mt-4 px-6 py-3 bg-black/40 backdrop-blur-sm rounded-lg border border-white/20">
-                                <div id="positioning-feedback" class="text-sm font-semibold text-green-400">
-                                    ✓ Perfect! Hold still
-                                </div>
-                            </div>
-
-                            <div class="mt-3 text-xs opacity-75">Stay still and breathe normally</div>
+                            <div class="mt-4 text-sm opacity-80">Stay still and breathe normally</div>
                         </div>
                     </div>
                 </div>
@@ -91,13 +202,32 @@
                 </div>
             </div>
 
+            <!-- Scanner Status — Reserve space to prevent dynamic layout shifts -->
+            <div class="h-14 flex items-center justify-center mb-4">
+                <div id="scanner-status" class="w-full p-3 bg-secondary-50 border border-secondary-100 rounded-xl hidden animate-fade-in">
+                    <div class="flex items-center gap-2 text-secondary-800 text-sm">
+                        <i data-lucide="info" class="w-4 h-4 text-secondary-600 flex-shrink-0 animate-pulse"></i>
+                        <span id="status-text" class="font-medium">Initializing camera...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Display -->
+            <div id="error-display" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg hidden">
+                <div class="flex items-center gap-2 text-red-700">
+                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                    <span id="error-text"></span>
+                </div>
+            </div>
+
             <!-- Control Buttons -->
-            <div class="flex gap-3">
-                <button id="start-scan-btn" class="flex-1 btn btn-primary">
+            <div class="flex justify-center w-full">
+                <button id="start-scan-btn" class="max-w-xs w-full btn btn-primary rounded-full shadow-md"
+                    onclick="showScanDisclaimer(); return false;">
                     <i data-lucide="play" class="w-5 h-5"></i>
                     Start Scan
                 </button>
-                <button id="stop-scan-btn" class="flex-1 btn btn-secondary hidden">
+                <button id="stop-scan-btn" class="max-w-xs w-full btn btn-secondary rounded-full hidden shadow-md">
                     <i data-lucide="square" class="w-5 h-5"></i>
                     Stop Scan
                 </button>
@@ -105,128 +235,96 @@
         </div>
 
         <!-- Instructions Card -->
-        <div class="card bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
-            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <i data-lucide="info" class="w-6 h-6 text-blue-600"></i>
-                How to Get Accurate Results
+        <div class="card bg-gradient-to-br from-secondary-50/60 to-emerald-50/40 border-2 border-secondary-200">
+            <h2 class="text-xl font-display font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                <i data-lucide="zap" class="w-5 h-5 text-secondary-600 animate-pulse"></i>
+                Quick Setup — 4 Steps
             </h2>
+            <p class="text-sm text-gray-500 mb-5">Follow these steps before pressing <strong>Start Scan</strong></p>
 
-            <div class="grid md:grid-cols-2 gap-4">
-                <!-- Positioning -->
-                <div class="bg-white p-4 rounded-lg border border-blue-200">
-                    <div class="flex items-center gap-2 mb-3">
-                        <i data-lucide="user" class="w-5 h-5 text-purple-500"></i>
-                        <h3 class="font-semibold text-gray-900">Face Positioning</h3>
+            <div class="grid sm:grid-cols-2 gap-3 mb-5">
+
+                <!-- Step 1 -->
+                <div class="bg-white rounded-xl border border-secondary-100 p-4 flex gap-3 items-start shadow-sm">
+                    <div
+                        class="flex-shrink-0 w-10 h-10 rounded-full bg-secondary-600 text-white font-bold flex items-center justify-center text-lg">
+                        1</div>
+                    <div>
+                        <p class="font-semibold text-gray-900 mb-1">☀️ Find Good Light</p>
+                        <p class="text-sm text-gray-600">Sit facing a <strong>window or lamp</strong> so your face is
+                            evenly lit. Avoid light coming from <em>behind</em> you.</p>
+                        <p class="text-xs mt-2 text-green-700 bg-green-50 px-2 py-1 rounded-md inline-block">→ Watch for
+                            the <strong>☀️ Good Light</strong> badge on the camera</p>
                     </div>
-                    <ul class="text-sm text-gray-700 space-y-2">
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-600 font-bold">✓</span>
-                            <span>Center your face in the <strong>green box</strong></span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-600 font-bold">✓</span>
-                            <span>Keep face <strong>50-70cm</strong> from camera</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-600 font-bold">✓</span>
-                            <span>Look <strong>directly at the camera</strong></span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-600 font-bold">✓</span>
-                            <span>Remove glasses if possible</span>
-                        </li>
-                    </ul>
                 </div>
 
-                <!-- Lighting -->
-                <div class="bg-white p-4 rounded-lg border border-blue-200">
-                    <div class="flex items-center gap-2 mb-3">
-                        <i data-lucide="sun" class="w-5 h-5 text-yellow-500"></i>
-                        <h3 class="font-semibold text-gray-900">Lighting Conditions</h3>
+                <!-- Step 2 -->
+                <div class="bg-white rounded-xl border border-secondary-100 p-4 flex gap-3 items-start shadow-sm">
+                    <div
+                        class="flex-shrink-0 w-10 h-10 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-lg">
+                        2</div>
+                    <div>
+                        <p class="font-semibold text-gray-900 mb-1">📱 Hold Camera at Eye Level</p>
+                        <p class="text-sm text-gray-600">Prop your phone so the camera is at <strong>eye level</strong>,
+                            roughly <strong>arm's length away</strong> (40–70 cm).</p>
+                        <p class="text-xs mt-2 text-amber-700 bg-amber-50 px-2 py-1 rounded-md inline-block">→ Don't
+                            angle the phone up from below — it blocks face detection</p>
                     </div>
-                    <ul class="text-sm text-gray-700 space-y-2">
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-600 font-bold">✓</span>
-                            <span><strong>Bright, even lighting</strong> on your face</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-600 font-bold">✓</span>
-                            <span>Natural daylight works best</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-red-600 font-bold">✗</span>
-                            <span>Avoid backlighting or shadows</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-red-600 font-bold">✗</span>
-                            <span>No direct sunlight on face</span>
-                        </li>
-                    </ul>
                 </div>
 
-                <!-- Movement -->
-                <div class="bg-white p-4 rounded-lg border border-blue-200">
-                    <div class="flex items-center gap-2 mb-3">
-                        <i data-lucide="move" class="w-5 h-5 text-red-500"></i>
-                        <h3 class="font-semibold text-gray-900">During Scan (45 seconds)</h3>
+                <!-- Step 3 -->
+                <div class="bg-white rounded-xl border border-secondary-100 p-4 flex gap-3 items-start shadow-sm">
+                    <div
+                        class="flex-shrink-0 w-10 h-10 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-lg">
+                        3</div>
+                    <div>
+                        <p class="font-semibold text-gray-900 mb-1">🎯 Centre Face in the Green Box</p>
+                        <p class="text-sm text-gray-600">Look directly at the camera until the <strong>green
+                                box</strong> fits snugly around your face. Remove glasses if you can.</p>
+                        <p class="text-xs mt-2 text-green-700 bg-green-50 px-2 py-1 rounded-md inline-block">→ The box
+                            turns green when your position is good → then press Start</p>
                     </div>
-                    <ul class="text-sm text-gray-700 space-y-2">
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-600 font-bold">✓</span>
-                            <span><strong>Stay completely still</strong></span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-600 font-bold">✓</span>
-                            <span>Breathe <strong>normally and naturally</strong></span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-green-600 font-bold">✓</span>
-                            <span>Relax your facial muscles</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-red-600 font-bold">✗</span>
-                            <span>Don't talk or move your head</span>
-                        </li>
-                    </ul>
                 </div>
 
-                <!-- What We Detect -->
-                <div class="bg-white p-4 rounded-lg border border-blue-200">
-                    <div class="flex items-center gap-2 mb-3">
-                        <i data-lucide="activity" class="w-5 h-5 text-blue-500"></i>
-                        <h3 class="font-semibold text-gray-900">What We Measure</h3>
+                <!-- Step 4 -->
+                <div class="bg-white rounded-xl border border-secondary-100 p-4 flex gap-3 items-start shadow-sm">
+                    <div
+                        class="flex-shrink-0 w-10 h-10 rounded-full bg-red-500 text-white font-bold flex items-center justify-center text-lg">
+                        4</div>
+                    <div>
+                        <p class="font-semibold text-gray-900 mb-1">⏱️ Stay Still for 45 Seconds</p>
+                        <p class="text-sm text-gray-600">Once scanning starts, <strong>don't move or speak</strong>.
+                            Breathe slowly and naturally. Relax your jaw and shoulders.</p>
+                        <p class="text-xs mt-2 text-amber-700 bg-amber-50 px-2 py-1 rounded-md inline-block">→ Even
+                            small head movements reduce accuracy</p>
                     </div>
-                    <ul class="text-sm text-gray-700 space-y-2">
-                        <li class="flex items-center gap-2">
-                            <i data-lucide="heart" class="w-3 h-3 text-red-500"></i>
-                            <span>Heart Rate (BPM)</span>
-                        </li>
-                        <li class="flex items-center gap-2">
-                            <i data-lucide="droplet" class="w-3 h-3 text-blue-500"></i>
-                            <span>Blood Oxygen (SpO2)</span>
-                        </li>
-                        <li class="flex items-center gap-2">
-                            <i data-lucide="wind" class="w-3 h-3 text-teal-500"></i>
-                            <span>Breathing Rate</span>
-                        </li>
-                        <li class="flex items-center gap-2">
-                            <i data-lucide="thermometer" class="w-3 h-3 text-orange-500"></i>
-                            <span>Body Temperature</span>
-                        </li>
-                        <li class="flex items-center gap-2">
-                            <i data-lucide="gauge" class="w-3 h-3 text-purple-500"></i>
-                            <span>Blood Pressure</span>
-                        </li>
-                    </ul>
                 </div>
+
             </div>
 
-            <div class="mt-4 p-3 bg-white rounded border border-blue-300">
-                <p class="text-xs text-gray-600">
-                    <strong>Technology:</strong> This scanner uses rPPG (remote photoplethysmography) to detect subtle
-                    color changes in your facial skin caused by blood flow. Results are estimates and should not replace
-                    medical devices. For accurate medical readings, consult a healthcare professional.
-                </p>
+            <!-- What we measure  compact chip row -->
+            <div class="flex flex-wrap gap-2 mb-4">
+                <span class="text-xs font-medium text-gray-500 self-center">Measures:</span>
+                <span
+                    class="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
+                        data-lucide="heart" class="w-3 h-3"></i> Heart Rate</span>
+                <span
+                    class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
+                        data-lucide="droplet" class="w-3 h-3"></i> SpO2</span>
+                <span
+                    class="inline-flex items-center gap-1 bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
+                        data-lucide="wind" class="w-3 h-3"></i> Breathing</span>
+                <span
+                    class="inline-flex items-center gap-1 bg-orange-50 text-orange-700 border border-orange-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
+                        data-lucide="thermometer" class="w-3 h-3"></i> Temperature</span>
+                <span
+                    class="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
+                        data-lucide="gauge" class="w-3 h-3"></i> Blood Pressure</span>
+            </div>
+
+            <div class="p-3 bg-white rounded-lg border border-secondary-200 text-xs text-gray-500">
+                <strong>Note:</strong> Uses rPPG (remote photoplethysmography) to detect subtle skin-colour changes
+                caused by blood flow. Results are estimates — consult a healthcare professional for clinical readings.
             </div>
         </div>
 
@@ -240,12 +338,12 @@
                 <!-- Results will be populated here -->
             </div>
 
-            <div class="flex gap-3">
-                <button id="save-reading-btn" class="flex-1 btn btn-primary">
+            <div class="flex flex-col sm:flex-row justify-center gap-3 mt-4">
+                <button id="save-reading-btn" class="sm:max-w-xs w-full btn btn-primary rounded-full">
                     <i data-lucide="save" class="w-5 h-5"></i>
                     Save Results
                 </button>
-                <button id="retake-btn" class="flex-1 btn btn-secondary">
+                <button id="retake-btn" class="sm:max-w-xs w-full btn btn-secondary rounded-full">
                     <i data-lucide="refresh-cw" class="w-5 h-5"></i>
                     Retake Scan
                 </button>
@@ -253,129 +351,893 @@
         </div>
     </div>
 
-    <!-- Right Column - History & Stats -->
+    <!-- Right Column - Latest Reading only -->
     <div class="space-y-6">
         <!-- Latest Reading -->
         <div class="card">
-            <h2 class="text-lg font-display font-semibold text-gray-900 mb-4">
+            <h2 class="text-lg font-display font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i data-lucide="clock" class="w-5 h-5 text-purple-500"></i>
                 Latest Reading
             </h2>
             <div id="latest-reading" class="space-y-2">
                 {% if vitals_history and vitals_history|length > 0 %}
                 {% set entry = vitals_history[0] %}
+
                 {% if entry.health_score %}
-                <div class="flex items-center justify-between p-2 bg-green-50 rounded">
-                    <span class="text-sm text-gray-700">Health Score</span>
-                    <span class="font-semibold text-green-600">{{ entry.health_score|int }}/100</span>
+                <div
+                    class="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-100 mb-3">
+                    <span class="text-sm font-medium text-gray-700 flex items-center gap-1">
+                        <i data-lucide="activity" class="w-4 h-4 text-green-500"></i> Health Score
+                    </span>
+                    <span class="text-lg font-bold text-green-600">{{ entry.health_score|round|int }}<span
+                            class="text-sm font-normal text-gray-500">/100</span></span>
                 </div>
                 {% endif %}
-                {% if entry.heart_rate %}
-                <div class="flex items-center justify-between p-2 bg-red-50 rounded">
-                    <span class="text-sm text-gray-700">Heart Rate</span>
-                    <span class="font-semibold text-red-600">{{ entry.heart_rate }} BPM</span>
+
+                <div class="grid grid-cols-2 gap-2">
+                    {% if entry.heart_rate %}
+                    <div class="flex items-center justify-between p-2 bg-red-50 rounded-lg">
+                        <span class="text-xs text-gray-600 flex items-center gap-1">
+                            <i data-lucide="heart" class="w-3 h-3 text-red-400"></i> Heart Rate
+                        </span>
+                        <span class="font-semibold text-red-600 text-sm">{{ entry.heart_rate }} <span
+                                class="text-xs font-normal">BPM</span></span>
+                    </div>
+                    {% endif %}
+
+                    {% if entry.spo2 %}
+                    <div class="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
+                        <span class="text-xs text-gray-600 flex items-center gap-1">
+                            <i data-lucide="droplet" class="w-3 h-3 text-blue-400"></i> SpO2
+                        </span>
+                        <span class="font-semibold text-blue-600 text-sm">{{ entry.spo2 }}<span
+                                class="text-xs font-normal">%</span></span>
+                    </div>
+                    {% endif %}
+
+                    {% if entry.respiratory_rate %}
+                    <div class="flex items-center justify-between p-2 bg-teal-50 rounded-lg">
+                        <span class="text-xs text-gray-600 flex items-center gap-1">
+                            <i data-lucide="wind" class="w-3 h-3 text-teal-400"></i> Breathing
+                        </span>
+                        <span class="font-semibold text-teal-600 text-sm">{{ entry.respiratory_rate }}<span
+                                class="text-xs font-normal">/min</span></span>
+                    </div>
+                    {% endif %}
+
+                    {% if entry.temperature %}
+                    <div class="flex items-center justify-between p-2 bg-orange-50 rounded-lg">
+                        <span class="text-xs text-gray-600 flex items-center gap-1">
+                            <i data-lucide="thermometer" class="w-3 h-3 text-orange-400"></i> Temp
+                        </span>
+                        <span class="font-semibold text-orange-600 text-sm">{{ "%.1f"|format((entry.temperature * 9/5) +
+                            32) }}<span class="text-xs font-normal">&deg;F</span></span>
+                    </div>
+                    {% endif %}
+
+                    {% if entry.blood_pressure_systolic and entry.blood_pressure_diastolic %}
+                    <div class="flex items-center justify-between p-2 bg-purple-50 rounded-lg col-span-2">
+                        <span class="text-xs text-gray-600 flex items-center gap-1">
+                            <i data-lucide="gauge" class="w-3 h-3 text-purple-400"></i> Blood Pressure
+                        </span>
+                        <span class="font-semibold text-purple-600 text-sm">{{ entry.blood_pressure_systolic }}/{{
+                            entry.blood_pressure_diastolic }} <span class="text-xs font-normal">mmHg</span></span>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
-                {% if entry.spo2 %}
-                <div class="flex items-center justify-between p-2 bg-blue-50 rounded">
-                    <span class="text-sm text-gray-700">SpO2</span>
-                    <span class="font-semibold text-blue-600">{{ entry.spo2 }}%</span>
+
+                <div class="text-xs text-gray-400 text-center mt-3 flex items-center justify-center gap-1">
+                    <i data-lucide="calendar" class="w-3 h-3"></i>
+                    <span class="vitals-local-ts" data-utc="{{ entry.timestamp }}">{{ entry.timestamp }}</span>
                 </div>
-                {% endif %}
-                {% if entry.respiratory_rate %}
-                <div class="flex items-center justify-between p-2 bg-teal-50 rounded">
-                    <span class="text-sm text-gray-700">Breathing</span>
-                    <span class="font-semibold text-teal-600">{{ entry.respiratory_rate }}/min</span>
-                </div>
-                {% endif %}
-                {% if entry.temperature %}
-                <div class="flex items-center justify-between p-2 bg-orange-50 rounded">
-                    <span class="text-sm text-gray-700">Temperature</span>
-                    <span class="font-semibold text-orange-600">{{ "%.1f"|format((entry.temperature * 9/5) + 32)
-                        }}°F</span>
-                </div>
-                {% endif %}
-                {% if entry.blood_pressure_systolic and entry.blood_pressure_diastolic %}
-                <div class="flex items-center justify-between p-2 bg-purple-50 rounded">
-                    <span class="text-sm text-gray-700">Blood Pressure</span>
-                    <span class="font-semibold text-purple-600">{{ entry.blood_pressure_systolic }}/{{
-                        entry.blood_pressure_diastolic }}</span>
-                </div>
-                {% endif %}
-                <div class="text-xs text-gray-500 text-center mt-2">{{ entry.timestamp[:10] }} {{ entry.timestamp[11:16]
-                    }}</div>
+
                 {% else %}
-                <div class="text-center text-gray-400 py-4">
-                    <i data-lucide="activity" class="w-8 h-8 mx-auto mb-2"></i>
+                <div class="text-center text-gray-400 py-6">
+                    <i data-lucide="activity" class="w-10 h-10 mx-auto mb-2 opacity-40"></i>
                     <p class="text-sm">No readings yet</p>
+                    <p class="text-xs mt-1 text-gray-400">Run your first scan to see results here</p>
                 </div>
                 {% endif %}
             </div>
         </div>
 
-        <!-- History -->
-        <div class="card">
-            <h2 class="text-lg font-display font-semibold text-gray-900 mb-4">
-                Recent History
-            </h2>
+{% if user_plan|lower == 'free' %}
+        <!-- Charts locked for Free plan -->
+        <div class="card mt-6" style="text-align:center; padding: 2.5rem 1.5rem;">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;">
+                <!-- Blurred chart preview mockup -->
+                <div style="position:relative;width:100%;max-width:480px;margin:0 auto;">
+                    <div style="height:140px;background:linear-gradient(135deg,#f0fdf4,#dcfce7,#d1fae5);border-radius:1rem;overflow:hidden;filter:blur(4px);opacity:0.5;display:flex;align-items:flex-end;gap:6px;padding:16px 16px 0;">
+                        {% for h in [60,80,55,90,70,85,65,95,75,88] %}
+                        <div style="flex:1;background:linear-gradient(180deg,#10b981,#059669);border-radius:4px 4px 0 0;height:{{ h }}%;"></div>
+                        {% endfor %}
+                    </div>
+                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.5rem;">
+                        <div style="background:#fff;border-radius:999px;padding:0.6rem 1.2rem;box-shadow:0 4px 16px rgba(0,0,0,0.13);display:flex;align-items:center;gap:0.5rem;">
+                            <span style="font-size:1.3rem;">🔒</span>
+                            <span style="font-weight:800;font-size:0.95rem;color:#111827;">Charts Locked</span>
+                        </div>
+                    </div>
+                </div>
+                <h3 style="font-size:1.1rem;font-weight:800;color:#111827;margin:0;">Health Score &amp; Vital Trend Charts</h3>
+                <p style="font-size:0.85rem;color:#6b7280;max-width:360px;line-height:1.6;margin:0;">
+                    Track your progress over time with Health Score trends, Heart Rate, SpO₂, Blood Pressure and Breathing charts.
+                    Available on <strong>White, Green &amp; Blue</strong> plans.
+                </p>
+                <a href="/app/plans"
+                   style="display:inline-flex;align-items:center;gap:0.5rem;background:linear-gradient(135deg,#0d9488,#0f766e);color:#fff;font-weight:700;font-size:0.9rem;padding:0.7rem 1.6rem;border-radius:0.75rem;text-decoration:none;box-shadow:0 4px 14px rgba(13,148,136,0.35);transition:opacity .15s;">
+                    ✨ Upgrade to Unlock Charts
+                </a>
+            </div>
+        </div>
 
-            <div class="space-y-3" id="vitals-history">
-                {% if vitals_history and vitals_history|length > 0 %}
-                {% for entry in vitals_history[:10] %}
-                <div class="p-3 bg-gray-50 rounded-lg">
-                    <div class="grid grid-cols-2 gap-2 text-sm">
-                        {% if entry.health_score %}
-                        <div class="flex items-center gap-1 col-span-2 pb-1 border-b border-gray-100 mb-1">
-                            <i data-lucide="activity" class="w-3 h-3 text-green-500"></i>
-                            <span class="font-medium text-green-700">Health Score: {{ entry.health_score|int }}</span>
-                        </div>
-                        {% endif %}
-                        {% if entry.heart_rate %}
-                        <div class="flex items-center gap-1">
-                            <i data-lucide="heart" class="w-3 h-3 text-red-500"></i>
-                            <span>{{ entry.heart_rate }} BPM</span>
-                        </div>
-                        {% endif %}
-                        {% if entry.spo2 %}
-                        <div class="flex items-center gap-1">
-                            <i data-lucide="droplet" class="w-3 h-3 text-blue-500"></i>
-                            <span>{{ entry.spo2 }}%</span>
-                        </div>
-                        {% endif %}
-                        {% if entry.respiratory_rate %}
-                        <div class="flex items-center gap-1">
-                            <i data-lucide="wind" class="w-3 h-3 text-teal-500"></i>
-                            <span>{{ entry.respiratory_rate }}/min</span>
-                        </div>
-                        {% endif %}
-                        {% if entry.temperature %}
-                        <div class="flex items-center gap-1">
-                            <i data-lucide="thermometer" class="w-3 h-3 text-orange-500"></i>
-                            <span>{{ "%.1f"|format((entry.temperature * 9/5) + 32) }}°F</span>
-                        </div>
-                        {% endif %}
-                        {% if entry.blood_pressure_systolic and entry.blood_pressure_diastolic %}
-                        <div class="flex items-center gap-1 col-span-2">
-                            <i data-lucide="gauge" class="w-3 h-3 text-purple-500"></i>
-                            <span>{{ entry.blood_pressure_systolic }}/{{ entry.blood_pressure_diastolic }} mmHg</span>
-                        </div>
-                        {% endif %}
+{% else %}
+        <!-- Health Score Trend -->
+        <div class="card mt-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-display font-semibold text-gray-900 flex items-center gap-2">
+                    <i data-lucide="trending-up" class="w-5 h-5 text-emerald-500"></i>
+                    Health Score Trend
+                </h2>
+                <!-- Timeframe Selectors & Maximize -->
+                <div class="flex items-center gap-2">
+                    <div class="flex bg-gray-100 rounded-lg p-0.5 text-xs">
+                        <button id="btn-1w" onclick="changeTimeframe('1w')" class="px-2.5 py-1 rounded-md font-medium transition-all bg-white text-gray-800 shadow-sm">1W</button>
+                        <button id="btn-1m" onclick="changeTimeframe('1m')" class="px-2.5 py-1 rounded-md font-medium transition-all text-gray-500 hover:text-gray-900 flex items-center gap-1">
+                            1M <span id="lock-1m" class="hidden text-[10px]">🔒</span>
+                        </button>
+                        <button id="btn-1y" onclick="changeTimeframe('1y')" class="px-2.5 py-1 rounded-md font-medium transition-all text-gray-500 hover:text-gray-900 flex items-center gap-1">
+                            1Y <span id="lock-1y" class="hidden text-[10px]">🔒</span>
+                        </button>
+                        <button id="btn-ytd" onclick="changeTimeframe('ytd')" class="px-2.5 py-1 rounded-md font-medium transition-all text-gray-500 hover:text-gray-900 flex items-center gap-1">
+                            YTD <span id="lock-ytd" class="hidden text-[10px]">🔒</span>
+                        </button>
                     </div>
-                    <div class="text-xs text-gray-500 mt-2">
-                        {{ entry.timestamp[:10] }} at {{ entry.timestamp[11:16] }}
+                    <button onclick="maximizeChart('healthScore')" class="text-gray-400 hover:text-emerald-500 transition-colors p-1 rounded hover:bg-gray-50" title="Maximize Chart">
+                        <i data-lucide="maximize-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="relative" style="height: 260px;">
+                <canvas id="healthScoreChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Vital Trends -->
+        <div class="card mt-6">
+            <h2 class="text-lg font-display font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <i data-lucide="bar-chart-3" class="w-5 h-5 text-blue-500"></i>
+                Vital Trends
+            </h2>
+            <div class="space-y-4">
+                <!-- Heart Rate Chart -->
+                <div>
+                    <div class="flex justify-between items-center mb-1 text-xs font-semibold text-red-600">
+                        <span class="flex items-center gap-1"><i data-lucide="heart" class="w-3.5 h-3.5"></i> Heart Rate (BPM)</span>
+                        <div class="flex items-center gap-2">
+                            <span id="trend-val-hr" class="text-gray-500 font-normal text-[10px]">-</span>
+                            <button onclick="maximizeChart('hr')" class="text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded hover:bg-gray-50" title="Maximize Chart">
+                                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div style="height: 180px;">
+                        <canvas id="heartRateChart"></canvas>
                     </div>
                 </div>
-                {% endfor %}
-                {% else %}
-                <div class="text-center text-gray-400 py-8">
-                    <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2"></i>
-                    <p class="text-sm">No vitals history</p>
-                    <p class="text-xs">Start scanning to build your history</p>
+
+                <!-- SpO2 Chart -->
+                <div class="border-t border-gray-100 pt-4">
+                    <div class="flex justify-between items-center mb-1 text-xs font-semibold text-blue-600">
+                        <span class="flex items-center gap-1"><i data-lucide="droplet" class="w-3.5 h-3.5"></i> SpO2 (%)</span>
+                        <div class="flex items-center gap-2">
+                            <span id="trend-val-spo2" class="text-gray-500 font-normal text-[10px]">-</span>
+                            <button onclick="maximizeChart('spo2')" class="text-gray-400 hover:text-blue-500 transition-colors p-0.5 rounded hover:bg-gray-50" title="Maximize Chart">
+                                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div style="height: 180px;">
+                        <canvas id="spo2Chart"></canvas>
+                    </div>
                 </div>
-                {% endif %}
+
+                <!-- Blood Pressure Chart -->
+                <div class="border-t border-gray-100 pt-4">
+                    <div class="flex justify-between items-center mb-1 text-xs font-semibold text-purple-600">
+                        <span class="flex items-center gap-1"><i data-lucide="gauge" class="w-3.5 h-3.5"></i> Blood Pressure (mmHg)</span>
+                        <div class="flex items-center gap-2">
+                            <span id="trend-val-bp" class="text-gray-500 font-normal text-[10px]">-</span>
+                            <button onclick="maximizeChart('bp')" class="text-gray-400 hover:text-purple-500 transition-colors p-0.5 rounded hover:bg-gray-50" title="Maximize Chart">
+                                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div style="height: 180px;">
+                        <canvas id="bloodPressureChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Breath Count Chart -->
+                <div class="border-t border-gray-100 pt-4">
+                    <div class="flex justify-between items-center mb-1 text-xs font-semibold text-teal-600">
+                        <span class="flex items-center gap-1"><i data-lucide="wind" class="w-3.5 h-3.5"></i> Breath Count (/min)</span>
+                        <div class="flex items-center gap-2">
+                            <span id="trend-val-rr" class="text-gray-500 font-normal text-[10px]">-</span>
+                            <button onclick="maximizeChart('rr')" class="text-gray-400 hover:text-teal-500 transition-colors p-0.5 rounded hover:bg-gray-50" title="Maximize Chart">
+                                <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div style="height: 180px;">
+                        <canvas id="breathingChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+{% endif %}
+
+
+        <script>
+            // --- Charting Logic ---
+            const userPlan = "{{ user_plan | default('Free') }}".toLowerCase().trim();
+            const userType = "{{ user_type | default('user') }}";
+            const isGreen = userPlan.includes("green");
+            const isBlue = userPlan.includes("blue");
+            const isPremium = isGreen || isBlue;
+
+            const canAccess1Month = userType !== 'user' || isPremium;
+            const canAccess1Year = userType !== 'user' || isBlue;
+
+            let charts = {};
+            window.vitalsHistoryData = [];
+            let activeTimeframe = '1w';
+
+            document.addEventListener("DOMContentLoaded", function() {
+                // ── Localize all server-rendered UTC timestamps to browser timezone ──
+                document.querySelectorAll('.vitals-local-ts[data-utc]').forEach(function(el) {
+                    try {
+                        const d = new Date(el.dataset.utc);
+                        if (!isNaN(d)) {
+                            el.textContent = d.toLocaleString(undefined, {
+                                day: '2-digit', month: 'short', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit', hour12: true
+                            });
+                        }
+                    } catch(e) {}
+                });
+
+                if (!canAccess1Month) {
+                    const lock1m = document.getElementById('lock-1m');
+                    if (lock1m) lock1m.classList.remove('hidden');
+                }
+                if (!canAccess1Year) {
+                    const lock1y = document.getElementById('lock-1y');
+                    if (lock1y) lock1y.classList.remove('hidden');
+                    // YTD is gated the same as 1Y
+                    const lockYtd = document.getElementById('lock-ytd');
+                    if (lockYtd) lockYtd.classList.remove('hidden');
+                }
+
+                // Fetch vitals history from database
+                loadVitalsHistory();
+            });
+
+            async function loadVitalsHistory() {
+                try {
+                    const res = await fetch('/app/vitals/history');
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.success && data.history) {
+                            window.vitalsHistoryData = data.history;
+                            // Default to 1 Week view
+                            activeTimeframe = '1w';
+                            drawCharts('1w');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error fetching vitals history:', e);
+                }
+            }
+
+            function filterDataByTimeframe(history, timeframe) {
+                const now = new Date();
+                let cutoff = new Date();
+                if (timeframe === '1w') {
+                    cutoff.setDate(now.getDate() - 7);
+                } else if (timeframe === '1m') {
+                    cutoff.setDate(now.getDate() - 30);
+                } else if (timeframe === '1y') {
+                    cutoff.setDate(now.getDate() - 365);
+                } else if (timeframe === 'ytd') {
+                    // Year-To-Date: Jan 1 of the current year at 00:00:00
+                    cutoff = new Date(now.getFullYear(), 0, 1);
+                }
+
+                // Filter by timeframe
+                const filtered = history.filter(item => new Date(item.timestamp) >= cutoff);
+
+                // Deduplicate: keep only the LATEST scan per calendar day
+                // Sort descending (newest first), then pick first seen per date key
+                const sorted = filtered.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                const seen = new Set();
+                const deduplicated = [];
+                for (const item of sorted) {
+                    const dayKey = new Date(item.timestamp).toISOString().slice(0, 10); // YYYY-MM-DD
+                    if (!seen.has(dayKey)) {
+                        seen.add(dayKey);
+                        deduplicated.push(item);
+                    }
+                }
+
+                // Reverse to get chronological order (oldest → newest) for the chart x-axis
+                return deduplicated.reverse();
+            }
+
+
+            function createGradient(ctx, color) {
+                const gradient = ctx.createLinearGradient(0, 0, 0, 100);
+                gradient.addColorStop(0, color + '30');
+                gradient.addColorStop(1, color + '00');
+                return gradient;
+            }
+
+            function drawCharts(timeframe) {
+                const dataPoints = filterDataByTimeframe(window.vitalsHistoryData, timeframe);
+                const hasData = dataPoints.length > 0;
+                
+                // Update latest labels
+                if (hasData) {
+                    const lastEntry = dataPoints[dataPoints.length - 1];
+                    const trendHR = document.getElementById('trend-val-hr');
+                    const trendSpO2 = document.getElementById('trend-val-spo2');
+                    const trendBP = document.getElementById('trend-val-bp');
+                    const trendRR = document.getElementById('trend-val-rr');
+                    
+                    if (trendHR) trendHR.textContent = `Latest: ${lastEntry.heart_rate || '-'} BPM`;
+                    if (trendSpO2) trendSpO2.textContent = `Latest: ${lastEntry.spo2 || '-'}%`;
+                    if (trendBP && lastEntry.blood_pressure_systolic) {
+                        trendBP.textContent = `Latest: ${lastEntry.blood_pressure_systolic}/${lastEntry.blood_pressure_diastolic} mmHg`;
+                    }
+                    if (trendRR) trendRR.textContent = `Latest: ${lastEntry.respiratory_rate || '-'}/min`;
+                }
+
+                const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                const labels = dataPoints.map(item => {
+                    const d = new Date(item.timestamp);
+                    return d.getDate() + ' ' + MONTHS[d.getMonth()];
+                });
+
+
+                // 1. Health Score Chart
+                const hsCanvas = document.getElementById('healthScoreChart');
+                if (hsCanvas) {
+                    const ctx = hsCanvas.getContext('2d');
+                    if (charts.healthScore) charts.healthScore.destroy();
+                    charts.healthScore = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: dataPoints.map(item => item.health_score || 0),
+                                borderColor: '#10b981',
+                                borderWidth: 2.5,
+                                backgroundColor: createGradient(ctx, '#10b981'),
+                                fill: true,
+                                tension: 0.35,
+                                pointBackgroundColor: '#10b981',
+                                pointRadius: labels.length > 20 ? 0 : 3,
+                                pointHoverRadius: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                                    padding: 8,
+                                    borderRadius: 6,
+                                    displayColors: false
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { font: { size: 9 }, autoSkip: true, maxTicksLimit: 6 }
+                                },
+                                y: {
+                                    min: 0,
+                                    max: 100,
+                                    grid: { color: '#f3f4f6' },
+                                    ticks: { font: { size: 9 }, stepSize: 20 }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const commonOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                            padding: 6,
+                            borderRadius: 6,
+                            displayColors: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { display: false }
+                        },
+                        y: {
+                            grid: { color: '#f9fafb' },
+                            ticks: { font: { size: 8 }, maxTicksLimit: 3 }
+                        }
+                    }
+                };
+
+                // 2. Heart Rate Chart
+                const hrCanvas = document.getElementById('heartRateChart');
+                if (hrCanvas) {
+                    const ctx = hrCanvas.getContext('2d');
+                    if (charts.hr) charts.hr.destroy();
+                    charts.hr = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: dataPoints.map(item => item.heart_rate),
+                                borderColor: '#ef4444',
+                                borderWidth: 2,
+                                backgroundColor: createGradient(ctx, '#ef4444'),
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: labels.length > 20 ? 0 : 2
+                            }]
+                        },
+                        options: commonOptions
+                    });
+                }
+
+                // 3. SpO2 Chart
+                const spo2Canvas = document.getElementById('spo2Chart');
+                if (spo2Canvas) {
+                    const ctx = spo2Canvas.getContext('2d');
+                    if (charts.spo2) charts.spo2.destroy();
+                    charts.spo2 = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: dataPoints.map(item => item.spo2),
+                                borderColor: '#3b82f6',
+                                borderWidth: 2,
+                                backgroundColor: createGradient(ctx, '#3b82f6'),
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: labels.length > 20 ? 0 : 2
+                            }]
+                        },
+                        options: {
+                            ...commonOptions,
+                            scales: {
+                                ...commonOptions.scales,
+                                y: {
+                                    ...commonOptions.scales.y,
+                                    min: 80,
+                                    max: 100
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // 4. Blood Pressure Chart (2 lines)
+                const bpCanvas = document.getElementById('bloodPressureChart');
+                if (bpCanvas) {
+                    const ctx = bpCanvas.getContext('2d');
+                    if (charts.bp) charts.bp.destroy();
+                    charts.bp = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Systolic',
+                                    data: dataPoints.map(item => item.blood_pressure_systolic),
+                                    borderColor: '#8b5cf6',
+                                    borderWidth: 1.8,
+                                    fill: false,
+                                    tension: 0.3,
+                                    pointRadius: labels.length > 20 ? 0 : 2
+                                },
+                                {
+                                    label: 'Diastolic',
+                                    data: dataPoints.map(item => item.blood_pressure_diastolic),
+                                    borderColor: '#f97316',
+                                    borderWidth: 1.8,
+                                    fill: false,
+                                    tension: 0.3,
+                                    pointRadius: labels.length > 20 ? 0 : 2
+                                }
+                            ]
+                        },
+                        options: {
+                            ...commonOptions,
+                            plugins: {
+                                ...commonOptions.plugins,
+                                legend: {
+                                    display: true,
+                                    position: 'top',
+                                    align: 'end',
+                                    labels: { boxWidth: 6, boxHeight: 6, font: { size: 8 } }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // 5. Breathing Chart
+                const rrCanvas = document.getElementById('breathingChart');
+                if (rrCanvas) {
+                    const ctx = rrCanvas.getContext('2d');
+                    if (charts.rr) charts.rr.destroy();
+                    charts.rr = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                data: dataPoints.map(item => item.respiratory_rate),
+                                borderColor: '#0d9488',
+                                borderWidth: 2,
+                                backgroundColor: createGradient(ctx, '#0d9488'),
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: labels.length > 20 ? 0 : 2
+                            }]
+                        },
+                        options: commonOptions
+                    });
+                }
+                
+                // Initialize Lucide icons on newly injected HTML elements
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }
+
+            window.changeTimeframe = function(timeframe) {
+                if (timeframe === '1m' && !canAccess1Month) {
+                    alert("Green or Blue Plan required to view 1 Month trend history. Please upgrade your plan in the Billing section.");
+                    return;
+                }
+                if ((timeframe === '1y' || timeframe === 'ytd') && !canAccess1Year) {
+                    alert("Blue Plan required to view 1 Year / YTD trend history. Please upgrade your plan in the Billing section.");
+                    return;
+                }
+
+                activeTimeframe = timeframe;
+
+                // Update button active styles
+                ['1w', '1m', '1y', 'ytd'].forEach(tf => {
+                    const btn = document.getElementById('btn-' + tf);
+                    if (btn) {
+                        if (tf === timeframe) {
+                            btn.className = "px-2.5 py-1 rounded-md font-medium transition-all bg-white text-gray-800 shadow-sm";
+                        } else {
+                            btn.className = "px-2.5 py-1 rounded-md font-medium transition-all text-gray-500 hover:text-gray-900 flex items-center gap-1";
+                        }
+                    }
+                });
+
+                // Re-draw all charts
+                drawCharts(timeframe);
+            };
+
+            let modalChart = null;
+
+            window.maximizeChart = function(chartKey) {
+                const modal = document.getElementById('chart-modal');
+                const titleEl = document.getElementById('modal-chart-title');
+                if (!modal || !titleEl) return;
+
+                // Set title & icon based on chartKey
+                let titleHtml = '';
+                if (chartKey === 'healthScore') {
+                    titleHtml = '<i data-lucide="trending-up" class="w-5 h-5 text-emerald-500"></i> Health Score Trend';
+                } else if (chartKey === 'hr') {
+                    titleHtml = '<i data-lucide="heart" class="w-5 h-5 text-red-500"></i> Heart Rate (BPM)';
+                } else if (chartKey === 'spo2') {
+                    titleHtml = '<i data-lucide="droplet" class="w-5 h-5 text-blue-500"></i> SpO2 (%)';
+                } else if (chartKey === 'bp') {
+                    titleHtml = '<i data-lucide="gauge" class="w-5 h-5 text-purple-500"></i> Blood Pressure (mmHg)';
+                } else if (chartKey === 'rr') {
+                    titleHtml = '<i data-lucide="wind" class="w-5 h-5 text-teal-500"></i> Breath Count (/min)';
+                }
+                titleEl.innerHTML = titleHtml;
+                if (window.lucide) {
+                    window.lucide.createIcons({
+                        attrs: {
+                            class: ['w-5', 'h-5']
+                        },
+                        nameAttr: 'data-lucide',
+                        node: titleEl
+                    });
+                }
+
+                // Show modal
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+
+                // Get canvas context and prepare config
+                const canvas = document.getElementById('maximizedChartCanvas');
+                const ctx = canvas.getContext('2d');
+                if (modalChart) modalChart.destroy();
+
+                const dataPoints = filterDataByTimeframe(window.vitalsHistoryData, activeTimeframe);
+                const labels = dataPoints.map(item => {
+                    const d = new Date(item.timestamp);
+                    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                });
+
+                // Create custom gradient for modal chart
+                function createModalGradient(ctx, color) {
+                    const gradient = ctx.createLinearGradient(0, 0, 0, 350);
+                    gradient.addColorStop(0, color + '40');
+                    gradient.addColorStop(1, color + '00');
+                    return gradient;
+                }
+
+                let chartConfig = {};
+                if (chartKey === 'healthScore') {
+                    chartConfig = {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Health Score',
+                                data: dataPoints.map(item => item.health_score || 0),
+                                borderColor: '#10b981',
+                                borderWidth: 3,
+                                backgroundColor: createModalGradient(ctx, '#10b981'),
+                                fill: true,
+                                tension: 0.35,
+                                pointBackgroundColor: '#10b981',
+                                pointRadius: 4,
+                                pointHoverRadius: 7
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                                    padding: 12,
+                                    borderRadius: 8,
+                                    titleFont: { size: 12 },
+                                    bodyFont: { size: 12 }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid: { color: '#f3f4f6' },
+                                    ticks: { font: { size: 10 } }
+                                },
+                                y: {
+                                    min: 0,
+                                    max: 100,
+                                    grid: { color: '#f3f4f6' },
+                                    ticks: { font: { size: 10 } }
+                                }
+                            }
+                        }
+                    };
+                } else if (chartKey === 'hr') {
+                    chartConfig = {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Heart Rate (BPM)',
+                                data: dataPoints.map(item => item.heart_rate),
+                                borderColor: '#ef4444',
+                                borderWidth: 3,
+                                backgroundColor: createModalGradient(ctx, '#ef4444'),
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 4,
+                                pointHoverRadius: 7
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                                    padding: 12,
+                                    borderRadius: 8
+                                }
+                            },
+                            scales: {
+                                x: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } },
+                                y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } }
+                            }
+                        }
+                    };
+                } else if (chartKey === 'spo2') {
+                    chartConfig = {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'SpO2 (%)',
+                                data: dataPoints.map(item => item.spo2),
+                                borderColor: '#3b82f6',
+                                borderWidth: 3,
+                                backgroundColor: createModalGradient(ctx, '#3b82f6'),
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 4,
+                                pointHoverRadius: 7
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                                    padding: 12,
+                                    borderRadius: 8
+                                }
+                            },
+                            scales: {
+                                x: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } },
+                                y: { min: 80, max: 100, grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } }
+                            }
+                        }
+                    };
+                } else if (chartKey === 'bp') {
+                    chartConfig = {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Systolic (mmHg)',
+                                    data: dataPoints.map(item => item.blood_pressure_systolic),
+                                    borderColor: '#8b5cf6', // Purple
+                                    borderWidth: 3,
+                                    fill: false,
+                                    tension: 0.3,
+                                    pointRadius: 4,
+                                    pointHoverRadius: 7
+                                },
+                                {
+                                    label: 'Diastolic (mmHg)',
+                                    data: dataPoints.map(item => item.blood_pressure_diastolic),
+                                    borderColor: '#f97316', // Orange
+                                    borderWidth: 3,
+                                    fill: false,
+                                    tension: 0.3,
+                                    pointRadius: 4,
+                                    pointHoverRadius: 7
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top', labels: { font: { size: 11 } } },
+                                tooltip: {
+                                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                                    padding: 12,
+                                    borderRadius: 8
+                                }
+                            },
+                            scales: {
+                                x: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } },
+                                y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } }
+                            }
+                        }
+                    };
+                } else if (chartKey === 'rr') {
+                    chartConfig = {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Breath Count (/min)',
+                                data: dataPoints.map(item => item.respiratory_rate),
+                                borderColor: '#0d9488',
+                                borderWidth: 3,
+                                backgroundColor: createModalGradient(ctx, '#0d9488'),
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 4,
+                                pointHoverRadius: 7
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                                    padding: 12,
+                                    borderRadius: 8
+                                }
+                            },
+                            scales: {
+                                x: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } },
+                                y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } }
+                            }
+                        }
+                    };
+                }
+
+                modalChart = new Chart(ctx, chartConfig);
+            };
+
+            window.closeChartModal = function() {
+                const modal = document.getElementById('chart-modal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
+                document.body.style.overflow = '';
+                if (modalChart) {
+                    modalChart.destroy();
+                    modalChart = null;
+                }
+            };
+
+            // Close modal when clicking outside of the content container
+            document.addEventListener('DOMContentLoaded', function() {
+                const modal = document.getElementById('chart-modal');
+                if (modal) {
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) {
+                            closeChartModal();
+                        }
+                    });
+                }
+            });
+        </script>
+    </div>
+</div>
+
+<!-- Chart Maximized Modal -->
+<div id="chart-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity">
+    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full overflow-hidden transform scale-95 transition-transform duration-300">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <h3 id="modal-chart-title" class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <!-- Title injected here -->
+            </h3>
+            <button onclick="closeChartModal()" class="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="relative w-full" style="height: 450px;">
+                <canvas id="maximizedChartCanvas"></canvas>
             </div>
         </div>
     </div>
 </div>
+
 
 <!-- Include vitals scanner JavaScript -->
 <!-- Inline Error Handler to catch Script Load issues -->
@@ -399,6 +1261,117 @@
      * INLINED VERSION to bypass network blocking
      */
 
+    // ── Heart Rate rating table (mirrors backend rate_heart_rate()) ────────
+    // Returns { score, label } e.g. { score: 100, label: 'Best' }
+    function rateHeartRate(hr) {
+        const profileEl = document.getElementById('user-profile-data');
+        const gender = (profileEl ? profileEl.dataset.gender : '').toLowerCase().trim();
+        const age = parseInt(profileEl ? profileEl.dataset.age : '0') || 0;
+        const isAdult = age === 0 || age >= 18;   // default adult when unknown
+        const isMale = ['male', 'm', 'man', 'boy'].includes(gender);
+        const isFemale = ['female', 'f', 'woman', 'girl'].includes(gender);
+
+        if (isMale && isAdult) {
+            // Male 18+: Best 50-60 | Better 60-70 | Good 70-80 | Poor <50 or >80
+            if (hr >= 50 && hr <= 60) return { score: 100, label: 'Best' };
+            if (hr > 60 && hr <= 70) return { score: 80, label: 'Better' };
+            if (hr > 70 && hr <= 80) return { score: 60, label: 'Good' };
+            return { score: 50, label: 'Poor' };
+        }
+        if (isMale && !isAdult) {
+            // Male <18: Best 60-70 | Better 70-80 | Good 80-110 | Poor <60 or >110
+            if (hr >= 60 && hr <= 70) return { score: 100, label: 'Best' };
+            if (hr > 70 && hr <= 80) return { score: 80, label: 'Better' };
+            if (hr > 80 && hr <= 110) return { score: 60, label: 'Good' };
+            return { score: 50, label: 'Poor' };
+        }
+        if (isFemale && isAdult) {
+            // Female 18+: Best 45-65 | Better 65-75 | Good 75-90 | Poor <45 or >90
+            if (hr >= 45 && hr <= 65) return { score: 100, label: 'Best' };
+            if (hr > 65 && hr <= 75) return { score: 80, label: 'Better' };
+            if (hr > 75 && hr <= 90) return { score: 60, label: 'Good' };
+            return { score: 50, label: 'Poor' };
+        }
+        if (isFemale && !isAdult) {
+            // Female <18: Best 60-70 | Better 70-80 | Good 80-110 | Poor <60 or >110
+            if (hr >= 60 && hr <= 70) return { score: 100, label: 'Best' };
+            if (hr > 70 && hr <= 80) return { score: 80, label: 'Better' };
+            if (hr > 80 && hr <= 110) return { score: 60, label: 'Good' };
+            return { score: 50, label: 'Poor' };
+        }
+        // Gender unknown — generic adult fallback
+        if (hr >= 60 && hr <= 100) return { score: 80, label: 'Good' };
+        if (hr >= 50 && hr < 60 || hr > 100 && hr <= 110) return { score: 60, label: 'Fair' };
+        return { score: 50, label: 'Poor' };
+    }
+
+    // Convenience: get rating score only (used inside class method)
+    // Overloads rateHeartRate(hr) → score number
+    const _rateHeartRateOrig = rateHeartRate;
+    /* eslint-disable no-global-assign */
+    rateHeartRate = function (hr) { return _rateHeartRateOrig(hr).score; };
+    // getHRRating stays available for display
+    function getHRRating(hr) { return _rateHeartRateOrig(hr); }
+
+
+    // ── Blood Pressure rating table (mirrors backend rate_blood_pressure()) ──
+    // Gender = Any, same ranges for 18+ and <18
+    // Returns { score: Number, label: String }
+    function rateBloodPressure(sys, dia) {
+        if (sys > 140 || dia > 90) return { score: 50, label: 'Poor' };
+        if (sys >= 120 && sys <= 139 && dia >= 80 && dia <= 90) return { score: 60, label: 'Good' };
+        if (sys >= 116 && sys <= 120 && dia >= 76 && dia <= 80) return { score: 100, label: 'Best' };
+        if (sys <= 115 && dia <= 75) return { score: 80, label: 'Better' };
+        // Edge cases: mixed readings — use the conservative side
+        if (sys >= 120 || dia >= 80) return { score: 60, label: 'Good' };
+        return { score: 80, label: 'Better' };
+    }
+
+    // -- SpO2 rating table (mirrors backend rate_spo2()) ----------------
+    // Gender = Any, Age = Any
+    // Returns { score: Number, label: String }
+    function rateSpo2(spo2) {
+        if (spo2 >= 99) return { score: 100, label: 'Best' };
+        if (spo2 >= 97 && spo2 <= 98) return { score: 80, label: 'Better' };
+        if (spo2 >= 90 && spo2 <= 96) return { score: 60, label: 'Good' };
+        return { score: 50, label: 'Poor' };
+    }
+
+    // -- Respiration Rate rating table (mirrors backend rate_respiration()) --
+    // Age-aware: adults (18+) and children (<18) have different normal ranges
+    // Returns { score: Number, label: String }
+    function rateRespiration(rr) {
+        const profileEl = document.getElementById('user-profile-data');
+        const age = parseInt(profileEl ? profileEl.dataset.age : '0') || 0;
+        const isAdult = (age === 0 || age >= 18);  // default adult when unknown
+
+        if (isAdult) {
+            // 18+ table
+            if (rr >= 10 && rr <= 12) return { score: 100, label: 'Best' };
+            if (rr >= 13 && rr <= 14) return { score: 80, label: 'Better' };
+            if (rr >= 15 && rr <= 20) return { score: 60, label: 'Good' };
+            return { score: 50, label: 'Poor' };  // >20 or <10
+        } else {
+            // <18 table (children breathe faster normally)
+            if (rr >= 18 && rr <= 20) return { score: 100, label: 'Best' };
+            if (rr >= 21 && rr <= 24) return { score: 80, label: 'Better' };
+            if (rr >= 25 && rr <= 30) return { score: 60, label: 'Good' };
+            return { score: 50, label: 'Poor' };  // >30 or <18
+        }
+    }
+
+    // -- Temperature rating table (mirrors backend rate_temperature()) --------
+    // Table is in degF; tempC converted to degF internally (Gender=Any, Age=Any)
+    // Returns { score: Number, label: String }
+    function rateTemperature(tempC) {
+        const tempF = Math.round(((tempC * 9 / 5) + 32) * 10) / 10; // 1 decimal
+        if (tempF > 100.4 || tempF < 97.7) return { score: 50, label: 'Poor' };
+        if (tempF >= 98.55 && tempF <= 98.65) return { score: 100, label: 'Best' }; // 98.6 degF
+        if (tempF >= 98.2 && tempF <= 98.5) return { score: 80, label: 'Better' };
+        if (tempF >= 98.7 && tempF <= 100.4) return { score: 60, label: 'Good' };
+        return { score: 60, label: 'Good' }; // 97.7-98.2 slightly cool
+    }
+
     class VitalsScanner {
         constructor() {
             this.video = document.getElementById('camera-preview');
@@ -413,6 +1386,14 @@
             this.frames = [];
             this.startTime = null;
 
+            // ── Fix: rAF-based frame capture (replaces drifting setTimeout) ──
+            // Reuse one canvas for all frames — avoids per-frame DOM allocation
+            this._tempCanvas = document.createElement('canvas');
+            this._tempCtx = this._tempCanvas.getContext('2d');
+            this._rafId = null;          // requestAnimationFrame handle
+            this._lastCapture = 0;       // performance.now() of last captured frame
+            this._captureInterval = 100; // ms between frames → ~10 fps target
+
             // Results
             this.results = {
                 heartRate: null,
@@ -425,7 +1406,13 @@
             // Face detection
             this.faceDetected = false;
             this.faceRegion = null;
+            // Smooth box tracking
+            this._smoothBox = null;
 
+            // Ambient light
+            this.lightLevel = null;   // 0-255 luminance average
+            this.lightCategory = 'unknown'; // 'dark'|'dim'|'good'|'bright'|'overexposed'
+            this.lightCalibrationFactor = 1.0; // multiplier applied to rPPG signal
 
             // Historical data for fallback
             this.historicalData = {};
@@ -483,7 +1470,10 @@
                 this.updateStatus('Camera ready. Position your face in the frame.', 'info');
                 document.getElementById('no-camera-placeholder').classList.add('hidden');
 
-                // Start face detection loop
+                // Create light level indicator badge
+                this._createLightIndicator();
+
+                // Start face detection + light measurement loop
                 this.detectFace();
 
                 return true;
@@ -494,6 +1484,79 @@
                 this.showError(msg);
                 return false;
             }
+        }
+
+        _createLightIndicator() {
+            // Badge overlaid on top-right of the camera preview
+            let badge = document.getElementById('light-indicator');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.id = 'light-indicator';
+                badge.style.cssText = `
+                    position:absolute; top:10px; right:10px; z-index:20;
+                    display:flex; align-items:center; gap:6px;
+                    background:rgba(0,0,0,0.55); backdrop-filter:blur(4px);
+                    color:#fff; font-size:12px; font-weight:600;
+                    padding:5px 10px; border-radius:20px;
+                    border:1px solid rgba(255,255,255,0.2);
+                    transition: border-color 0.4s, background 0.4s;
+                `;
+                // Append to the camera container
+                const container = this.canvas.parentElement;
+                container.style.position = 'relative';
+                container.appendChild(badge);
+            }
+            this._lightBadge = badge;
+        }
+
+        measureAmbientLight(imageData, width, height) {
+            // Sample every 4th pixel for speed
+            let luminanceSum = 0;
+            let count = 0;
+            for (let i = 0; i < imageData.data.length; i += 16) { // step=4px, *4 channels
+                const r = imageData.data[i];
+                const g = imageData.data[i + 1];
+                const b = imageData.data[i + 2];
+                // Perceived luminance (ITU-R BT.601)
+                luminanceSum += 0.299 * r + 0.587 * g + 0.114 * b;
+                count++;
+            }
+            const avgLuminance = luminanceSum / count; // 0-255
+            this.lightLevel = avgLuminance;
+
+            // Categorize
+            let category, label, dotColor, calFactor;
+            if (avgLuminance < 40) {
+                category = 'dark'; label = '🌑 Too Dark'; dotColor = '#ef4444'; calFactor = 0.70;
+            } else if (avgLuminance < 80) {
+                category = 'dim'; label = '🌘 Dim Light'; dotColor = '#f59e0b'; calFactor = 0.85;
+            } else if (avgLuminance <= 180) {
+                category = 'good'; label = '☀️ Good Light'; dotColor = '#10b981'; calFactor = 1.00;
+            } else if (avgLuminance <= 220) {
+                category = 'bright'; label = '🌟 Bright'; dotColor = '#f59e0b'; calFactor = 0.95;
+            } else {
+                category = 'overexposed'; label = '⚠️ Too Bright'; dotColor = '#ef4444'; calFactor = 0.80;
+            }
+
+            this.lightCategory = category;
+            this.lightCalibrationFactor = calFactor;
+
+            // Update badge
+            if (this._lightBadge) {
+                this._lightBadge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${dotColor};display:inline-block"></span>${label}`;
+                this._lightBadge.style.borderColor = dotColor + '80';
+            }
+
+            // Warn during scan if lighting is bad
+            if (this.isScanning && (category === 'dark' || category === 'overexposed')) {
+                const pf = document.getElementById('positioning-feedback');
+                if (pf && !pf.textContent.includes('Light')) {
+                    pf.textContent = category === 'dark' ? '💡 Needs more light!' : '🔆 Too much glare!';
+                    pf.className = 'text-sm font-semibold text-red-400';
+                }
+            }
+
+            return avgLuminance;
         }
 
         stopCamera() {
@@ -508,87 +1571,173 @@
         detectFace() {
             if (!this.stream) return;
 
-            // Simple face detection using color analysis
-            // In production, use a library like face-api.js or MediaPipe
+            const VW = this.video.videoWidth;
+            const VH = this.video.videoHeight;
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = this.video.videoWidth;
-            tempCanvas.height = this.video.videoHeight;
+            tempCanvas.width = VW;
+            tempCanvas.height = VH;
             const tempCtx = tempCanvas.getContext('2d');
-
             tempCtx.drawImage(this.video, 0, 0);
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+            const imageData = tempCtx.getImageData(0, 0, VW, VH);
 
-            // Detect skin tones in center region (simplified)
-            const centerX = tempCanvas.width / 2;
-            const centerY = tempCanvas.height / 2;
-            const regionSize = 200;
+            // ── 1. Measure ambient light from full frame ───────────────────
+            this.measureAmbientLight(imageData, VW, VH);
 
-            let skinPixels = 0;
-            const totalPixels = regionSize * regionSize;
+            let minX = VW, minY = VH, maxX = 0, maxY = 0;
+            let skinPixelCount = 0;
+            let sumX = 0, sumY = 0;
 
-            // Also track face centroid for positioning feedback
-            let facePixelCount = 0;
-            let faceCenterX = 0;
-            let faceCenterY = 0;
-
-            for (let y = centerY - regionSize / 2; y < centerY + regionSize / 2; y++) {
-                for (let x = centerX - regionSize / 2; x < centerX + regionSize / 2; x++) {
-                    const i = (y * tempCanvas.width + x) * 4;
+            // ── Multi-model skin detection (works for all skin tones, all lighting) ──
+            // Uses YCbCr ranges (robust to illumination) plus an HSV hue check as backup
+            for (let y = 0; y < VH; y++) {
+                for (let x = 0; x < VW; x++) {
+                    const i = (y * VW + x) * 4;
                     const r = imageData.data[i];
                     const g = imageData.data[i + 1];
                     const b = imageData.data[i + 2];
 
-                    // Simple skin tone detection
-                    if (r > 95 && g > 40 && b > 20 &&
-                        r > g && r > b &&
-                        Math.abs(r - g) > 15) {
-                        skinPixels++;
-                        faceCenterX += x;
-                        faceCenterY += y;
-                        facePixelCount++;
+                    // ── YCbCr skin model ───────────────────────────────────────
+                    // Standard empirical ranges that hold for diverse skin tones
+                    // under typical indoor (cool-white) lighting
+                    const y_ = 0.299 * r + 0.587 * g + 0.114 * b;
+                    const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+                    const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+                    const ycbcrSkin = y_ > 40 && cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173;
+
+                    // ── HSV hue backup (catches cases YCbCr misses near bright light) ──
+                    const maxC = Math.max(r, g, b), minC = Math.min(r, g, b), delta = maxC - minC;
+                    let hue = 0;
+                    if (delta > 0 && maxC === r) hue = 60 * (((g - b) / delta) % 6);
+                    else if (delta > 0 && maxC === g) hue = 60 * ((b - r) / delta + 2);
+                    else if (delta > 0) hue = 60 * ((r - g) / delta + 4);
+                    if (hue < 0) hue += 360;
+                    const sat = maxC === 0 ? 0 : delta / maxC;
+                    const val = maxC / 255;
+                    const hsvSkin = hue >= 0 && hue <= 50 && sat >= 0.10 && sat <= 0.85 && val >= 0.20;
+
+                    if (ycbcrSkin || hsvSkin) {
+                        skinPixelCount++;
+                        sumX += x; sumY += y;
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
                     }
                 }
             }
 
-            const skinRatio = skinPixels / totalPixels;
-            this.faceDetected = skinRatio > 0.15; // Lowered threshold for better usability
+            const totalPixels = VW * VH;
+            const skinRatio = skinPixelCount / totalPixels;
+            // 0.5% skin coverage is enough at arm's length (face ≈ 5-15% of frame)
+            this.faceDetected = skinRatio > 0.005 && skinPixelCount > 200;
 
-            // Define the target scanning area (where the user should position their face)
-            const scanBox = {
-                x: centerX - regionSize / 2,
-                y: centerY - regionSize / 2,
-                width: regionSize,
-                height: regionSize
+            // Default guide box (fixed centre, shown when no face)
+            const guideSize = Math.round(Math.min(VW, VH) * 0.45);
+            const defaultBox = {
+                x: Math.round((VW - guideSize) / 2),
+                y: Math.round((VH - guideSize) / 2),
+                width: guideSize,
+                height: guideSize
             };
 
-            if (this.faceDetected && facePixelCount > 0) {
-                // Calculate actual face center
-                faceCenterX /= facePixelCount;
-                faceCenterY /= facePixelCount;
+            if (this.faceDetected && skinPixelCount > 0) {
+                // ── Pass 1: centroid of ALL skin pixels ──────────────────────
+                const cxAll = sumX / skinPixelCount;
+                const cyAll = sumY / skinPixelCount;
 
-                this.faceRegion = {
-                    x: scanBox.x, // Keep box fixed to guide user
-                    y: scanBox.y,
-                    width: scanBox.width,
-                    height: scanBox.height,
-                    centerX: faceCenterX,
-                    centerY: faceCenterY,
+                // ── Pass 2: tight bbox using only pixels near the centroid ───
+                // Radius = 35% of the shorter frame dimension.
+                // This discards background objects (walls, furniture) that happen
+                // to have skin-like hues and were dragging the box to a corner.
+                const radius = Math.min(VW, VH) * 0.35;
+                let fMinX = VW, fMinY = VH, fMaxX = 0, fMaxY = 0;
+                let fCount = 0;
+
+                for (let y = 0; y < VH; y++) {
+                    for (let x = 0; x < VW; x++) {
+                        const dx = x - cxAll, dy = y - cyAll;
+                        if (dx * dx + dy * dy > radius * radius) continue; // outside radius
+
+                        const i = (y * VW + x) * 4;
+                        const r = imageData.data[i];
+                        const g = imageData.data[i + 1];
+                        const b = imageData.data[i + 2];
+
+                        const y_ = 0.299 * r + 0.587 * g + 0.114 * b;
+                        const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+                        const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+                        const ycbcrSkin = y_ > 40 && cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173;
+
+                        const maxC = Math.max(r, g, b), delta = maxC - Math.min(r, g, b);
+                        let hue = 0;
+                        if (delta > 0 && maxC === r) hue = 60 * (((g - b) / delta) % 6);
+                        else if (delta > 0 && maxC === g) hue = 60 * ((b - r) / delta + 2);
+                        else if (delta > 0) hue = 60 * ((r - g) / delta + 4);
+                        if (hue < 0) hue += 360;
+                        const sat = maxC === 0 ? 0 : delta / maxC;
+                        const val = maxC / 255;
+                        const hsvSkin = hue >= 0 && hue <= 50 && sat >= 0.10 && sat <= 0.85 && val >= 0.20;
+
+                        if (ycbcrSkin || hsvSkin) {
+                            fCount++;
+                            if (x < fMinX) fMinX = x;
+                            if (x > fMaxX) fMaxX = x;
+                            if (y < fMinY) fMinY = y;
+                            if (y > fMaxY) fMaxY = y;
+                        }
+                    }
+                }
+
+                // If pass-2 found too few pixels fall back to centroid-based fixed box
+                let boxW, boxH, boxX, boxY;
+                if (fCount > 100) {
+                    const rawW = Math.max(fMaxX - fMinX, 60);
+                    const rawH = Math.max(fMaxY - fMinY, 60);
+                    const padX = rawW * 0.20;
+                    const padY = rawH * 0.20;
+                    boxX = Math.max(0, Math.round(fMinX - padX));
+                    boxY = Math.max(0, Math.round(fMinY - padY));
+                    boxW = Math.min(VW - boxX, Math.round(rawW + padX * 2));
+                    boxH = Math.min(VH - boxY, Math.round(rawH + padY * 2));
+                } else {
+                    // Centroid-only fallback: fixed-size box centred on detected skin cluster
+                    const fallSize = Math.round(Math.min(VW, VH) * 0.35);
+                    boxX = Math.max(0, Math.round(cxAll - fallSize / 2));
+                    boxY = Math.max(0, Math.round(cyAll - fallSize / 2));
+                    boxW = Math.min(VW - boxX, fallSize);
+                    boxH = Math.min(VH - boxY, fallSize);
+                }
+
+                const targetBox = {
+                    x: boxX, y: boxY, width: boxW, height: boxH,
+                    centerX: cxAll, centerY: cyAll,
                     coverage: skinRatio
                 };
 
-                this.drawFaceBox(this.faceRegion, true);
-
-                // Provide positioning feedback during scanning
-                if (this.isScanning) {
-                    this.updatePositioningFeedback();
+                // Smooth transition — lerp towards target box
+                if (!this._smoothBox) {
+                    this._smoothBox = { ...targetBox };
+                } else {
+                    const alpha = 0.15; // smoothing factor (lower = smoother)
+                    this._smoothBox.x = Math.round(this._smoothBox.x + alpha * (targetBox.x - this._smoothBox.x));
+                    this._smoothBox.y = Math.round(this._smoothBox.y + alpha * (targetBox.y - this._smoothBox.y));
+                    this._smoothBox.width = Math.round(this._smoothBox.width + alpha * (targetBox.width - this._smoothBox.width));
+                    this._smoothBox.height = Math.round(this._smoothBox.height + alpha * (targetBox.height - this._smoothBox.height));
+                    this._smoothBox.centerX = cxAll;
+                    this._smoothBox.centerY = cyAll;
+                    this._smoothBox.coverage = skinRatio;
                 }
+
+                this.faceRegion = this._smoothBox;
+                this.drawFaceBox(this._smoothBox, true);
+
+                if (this.isScanning) this.updatePositioningFeedback();
             } else {
+                this._smoothBox = null;
                 this.faceRegion = null;
-                // Draw the guide box in red so user knows where to position face
-                this.drawFaceBox(scanBox, false);
+                this.drawFaceBox(defaultBox, false);
             }
 
-            // Continue detection loop (even during scanning for live feedback)
             requestAnimationFrame(() => this.detectFace());
         }
 
@@ -610,35 +1759,29 @@
             let feedback = '';
             let feedbackClass = 'text-green-400';
 
-            // Check distance (coverage indicates how close the face is)
-            if (coverage < 0.35) {
-                feedback = '📏 Move closer to the camera';
+            // Distance check
+            if (coverage < 0.05) {
+                feedback = '[ + ] Move a little closer to the camera';
                 feedbackClass = 'text-yellow-400';
-            } else if (coverage > 0.65) {
-                feedback = '📏 Move back a bit';
-                feedbackClass = 'text-yellow-400';
-            }
-            // Check horizontal alignment
-            else if (Math.abs(offsetX) > 50) {
-                if (offsetX > 0) {
-                    feedback = '⬅️ Move your face left';
-                } else {
-                    feedback = '➡️ Move your face right';
-                }
+            } else if (coverage > 0.45) {
+                feedback = '[ - ] Too close � move back a bit';
                 feedbackClass = 'text-yellow-400';
             }
-            // Check vertical alignment
-            else if (Math.abs(offsetY) > 50) {
-                if (offsetY > 0) {
-                    feedback = '⬆️ Move your face up';
-                } else {
-                    feedback = '⬇️ Move your face down';
-                }
+            // Centering check (horizontal)
+            // NOTE: front camera is mirrored � if offsetX > 0 (face right in video)
+            // the user sees it on their LEFT side, so tell them to move RIGHT.
+            else if (Math.abs(offsetX) > 80) {
+                feedback = offsetX > 0 ? '>> Shift your face slightly right' : '<< Shift your face slightly left';
                 feedbackClass = 'text-yellow-400';
             }
-            // Perfect position
+            // Centering check (vertical)
+            else if (Math.abs(offsetY) > 80) {
+                feedback = offsetY > 0 ? '\/ Shift your face slightly down' : '/\ Shift your face slightly up';
+                feedbackClass = 'text-yellow-400';
+            }
+            // All good
             else {
-                feedback = '✓ Perfect! Hold still';
+                feedback = '(OK) Perfect position! Hold still';
                 feedbackClass = 'text-green-400';
             }
 
@@ -649,57 +1792,70 @@
         drawFaceBox(box, isDetected) {
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-            if (box) {
-                this.ctx.strokeStyle = isDetected ? '#10b981' : '#ef4444';
-                this.ctx.lineWidth = 3;
-                // Draw dashed line for guide if not detected
-                if (!isDetected) {
-                    this.ctx.setLineDash([10, 5]);
-                } else {
-                    this.ctx.setLineDash([]);
-                }
+            // Always draw a FIXED guide box at the center of the frame.
+            // It turns green when a face is detected inside it, red-dashed otherwise.
+            // This prevents the box from jumping around on phones.
+            const VW = this.canvas.width;
+            const VH = this.canvas.height;
+            const guideSize = Math.round(Math.min(VW, VH) * 0.55);
+            const guideBox = {
+                x: Math.round((VW - guideSize) / 2),
+                y: Math.round((VH - guideSize) / 2),
+                width: guideSize,
+                height: guideSize
+            };
 
-                this.ctx.strokeRect(
-                    box.x,
-                    box.y,
-                    box.width,
-                    box.height
-                );
-
-                this.ctx.setLineDash([]); // Reset for corners
-
-                // Draw corner markers
-                const cornerSize = 20;
-                this.ctx.lineWidth = 4;
-
-                // Top-left
-                this.ctx.beginPath();
-                this.ctx.moveTo(box.x, box.y + cornerSize);
-                this.ctx.lineTo(box.x, box.y);
-                this.ctx.lineTo(box.x + cornerSize, box.y);
-                this.ctx.stroke();
-
-                // Top-right
-                this.ctx.beginPath();
-                this.ctx.moveTo(box.x + box.width - cornerSize, box.y);
-                this.ctx.lineTo(box.x + box.width, box.y);
-                this.ctx.lineTo(box.x + box.width, box.y + cornerSize);
-                this.ctx.stroke();
-
-                // Bottom-left
-                this.ctx.beginPath();
-                this.ctx.moveTo(box.x, box.y + box.height - cornerSize);
-                this.ctx.lineTo(box.x, box.y + box.height);
-                this.ctx.lineTo(box.x + cornerSize, box.y + box.height);
-                this.ctx.stroke();
-
-                // Bottom-right
-                this.ctx.beginPath();
-                this.ctx.moveTo(box.x + box.width - cornerSize, box.y + box.height);
-                this.ctx.lineTo(box.x + box.width, box.y + box.height);
-                this.ctx.lineTo(box.x + box.width, box.y + box.height - cornerSize);
-                this.ctx.stroke();
+            // Color: green if face detected, red-dashed if not
+            this.ctx.strokeStyle = isDetected ? '#10b981' : '#ef4444';
+            this.ctx.lineWidth = 3;
+            if (!isDetected) {
+                this.ctx.setLineDash([10, 5]);
+            } else {
+                this.ctx.setLineDash([]);
             }
+
+            this.ctx.strokeRect(guideBox.x, guideBox.y, guideBox.width, guideBox.height);
+            this.ctx.setLineDash([]);
+
+            // Corner markers
+            const cornerSize = 22;
+            this.ctx.lineWidth = 4;
+            const bx = guideBox.x, by = guideBox.y, bw = guideBox.width, bh = guideBox.height;
+
+            // Top-left
+            this.ctx.beginPath();
+            this.ctx.moveTo(bx, by + cornerSize);
+            this.ctx.lineTo(bx, by);
+            this.ctx.lineTo(bx + cornerSize, by);
+            this.ctx.stroke();
+
+            // Top-right
+            this.ctx.beginPath();
+            this.ctx.moveTo(bx + bw - cornerSize, by);
+            this.ctx.lineTo(bx + bw, by);
+            this.ctx.lineTo(bx + bw, by + cornerSize);
+            this.ctx.stroke();
+
+            // Bottom-left
+            this.ctx.beginPath();
+            this.ctx.moveTo(bx, by + bh - cornerSize);
+            this.ctx.lineTo(bx, by + bh);
+            this.ctx.lineTo(bx + cornerSize, by + bh);
+            this.ctx.stroke();
+
+            // Bottom-right
+            this.ctx.beginPath();
+            this.ctx.moveTo(bx + bw - cornerSize, by + bh);
+            this.ctx.lineTo(bx + bw, by + bh);
+            this.ctx.lineTo(bx + bw, by + bh - cornerSize);
+            this.ctx.stroke();
+
+            // Label below box
+            this.ctx.font = 'bold 13px Inter, sans-serif';
+            this.ctx.fillStyle = isDetected ? '#10b981' : '#ef4444';
+            this.ctx.textAlign = 'center';
+            const label = isDetected ? 'Face in frame' : 'Centre your face here';
+            this.ctx.fillText(label, bx + bw / 2, by + bh + 20);
         }
 
         async startScan() {
@@ -765,36 +1921,36 @@
             }
 
             // Update timer
-            document.getElementById('scan-timer').textContent = `Scanning: ${Math.floor(elapsed)}s / ${this.scanDuration}s`;
+            document.getElementById('scan-timer').textContent =
+                `Scanning: ${Math.floor(elapsed)}s / ${this.scanDuration}s`;
 
-            // Capture frame data from face region
-            if (this.faceRegion) {
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = this.faceRegion.width;
-                tempCanvas.height = this.faceRegion.height;
-                const tempCtx = tempCanvas.getContext('2d');
+            // ── Fix: throttle captures to _captureInterval ms (~10 fps) ──────
+            // requestAnimationFrame fires at ~60 fps; we only sample 1-in-6 ticks.
+            // This gives reliable, consistent timing without setTimeout drift.
+            const now = performance.now();
+            if (now - this._lastCapture >= this._captureInterval && this.faceRegion) {
+                this._lastCapture = now;
 
-                tempCtx.drawImage(
-                    this.video,
-                    this.faceRegion.x, this.faceRegion.y,
-                    this.faceRegion.width, this.faceRegion.height,
-                    0, 0,
-                    this.faceRegion.width, this.faceRegion.height
-                );
+                // ── Fix: reuse canvas — no per-frame DOM allocation ───────────
+                const { x, y, width: w, height: h } = this.faceRegion;
+                if (this._tempCanvas.width  !== w) this._tempCanvas.width  = w;
+                if (this._tempCanvas.height !== h) this._tempCanvas.height = h;
+                this._tempCtx.drawImage(this.video, x, y, w, h, 0, 0, w, h);
 
-                const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-                const avgColor = this.getAverageColor(imageData);
+                const imageData = this._tempCtx.getImageData(0, 0, w, h);
+                const avgColor  = this.getAverageColor(imageData);
 
                 this.frames.push({
                     timestamp: elapsed,
                     r: avgColor.r,
                     g: avgColor.g,
-                    b: avgColor.b
+                    b: avgColor.b,
+                    luminance: 0.299 * avgColor.r + 0.587 * avgColor.g + 0.114 * avgColor.b
                 });
             }
 
-            // Continue capturing
-            setTimeout(() => this.captureFrames(), 1000 / this.frameRate);
+            // ── Fix: requestAnimationFrame — synced to display, no drift ─────
+            this._rafId = requestAnimationFrame(() => this.captureFrames());
         }
 
         getAverageColor(imageData) {
@@ -819,6 +1975,8 @@
             document.getElementById('scanning-overlay').classList.add('hidden');
             document.getElementById('start-scan-btn').classList.remove('hidden');
             document.getElementById('stop-scan-btn').classList.add('hidden');
+            // Always restore start button label (fixes "Starting…" stuck state)
+            this._resetStartBtn();
 
             this.updateStatus('Processing scan data...', 'info');
 
@@ -829,53 +1987,138 @@
             this.analyzeVitals();
         }
 
+        // Helper: resets the start-scan button to its default state
+        _resetStartBtn() {
+            const btn = document.getElementById('start-scan-btn');
+            if (!btn) return;
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="play" class="w-5 h-5"></i> Start Scan';
+            if (window.lucide) lucide.createIcons();
+        }
+
         analyzeVitals() {
+            // ── Light calibration ──────────────────────────────────────────
+            // Compute mean luminance across all captured frames for final calibration
+            if (this.frames.length > 0) {
+                const avgLum = this.frames.reduce((s, f) => s + (f.luminance || 128), 0) / this.frames.length;
+                // Recalculate calibration factor from per-frame luminance
+                if (avgLum < 40) this.lightCalibrationFactor = 0.70;
+                else if (avgLum < 80) this.lightCalibrationFactor = 0.85;
+                else if (avgLum <= 180) this.lightCalibrationFactor = 1.00;
+                else if (avgLum <= 220) this.lightCalibrationFactor = 0.95;
+                else this.lightCalibrationFactor = 0.80;
+                console.log(`[Light] Avg frame luminance: ${avgLum.toFixed(1)}, calibration factor: ${this.lightCalibrationFactor}`);
+            }
+            const cf = this.lightCalibrationFactor;
+
             // Extract green channel (most sensitive to blood flow)
-            const greenSignal = this.frames.map(f => f.g);
+            // Normalize green signal relative to luminance to reduce light-induced drift
+            const greenSignal = this.frames.map(f => {
+                const lum = f.luminance || 128;
+                // Normalize: scale signal as if luminance were ideal (128)
+                return lum > 10 ? (f.g / lum) * 128 : f.g;
+            });
 
-            // 1. Heart Rate Detection using FFT
-            this.results.heartRate = this.detectHeartRate(greenSignal);
+            // 1. Heart Rate Detection via FFT frequency peak
+            const rawHR = this.detectHeartRate(greenSignal);
+            // Apply a gentle light-correction (at most ±5%) rather than the full 1/cf factor
+            // which was amplifying noise-driven readings (e.g. 90 → 120 when cf=0.75)
+            const lightCorrection = 1 + (1 - cf) * 0.05;
+            this.results.heartRate = rawHR ? Math.max(50, Math.min(130, Math.round(rawHR * lightCorrection))) : null;
 
-            // 2. SpO2 Estimation (ratio of red to infrared absorption)
+            // 2. SpO2 Estimation
             this.results.spo2 = this.estimateSpO2();
 
-            // 3. Respiratory Rate (from signal modulation)
+            // 3. Respiratory Rate
             this.results.respiratoryRate = this.detectRespiratoryRate(greenSignal);
 
-            // 4. Temperature Estimation (from facial thermal patterns - simplified)
-            this.results.temperature = this.estimateTemperature();
+            // 4. Temperature Estimation — light affects red/green ratio
+            // In dim light the red channel is relatively stronger, inflating temperature estimate
+            this.results.temperature = this.estimateTemperatureCalibrated(cf);
 
-            // 5. Blood Pressure Estimation (from pulse wave analysis)
+            // 5. Blood Pressure Estimation
             const bp = this.estimateBloodPressure(greenSignal);
             this.results.bloodPressure = bp;
 
             // 6. Calculate Overall Health Score
             this.results.healthScore = this.calculateHealthScore();
 
+            // 7. Show light quality note in status
+            const lightNote = cf < 1.0
+                ? ` (${this.lightCategory === 'dark' ? 'Low-light' : this.lightCategory === 'overexposed' ? 'Over-bright' : 'Sub-optimal light'} correction applied)`
+                : '';
+            this.updateStatus(`Scan complete! Results calibrated for lighting.${lightNote}`, 'success');
+
             // Display results
             this.displayResults();
         }
 
         detectHeartRate(signal) {
-            // Apply bandpass filter (0.7 - 4 Hz for 42-240 BPM)
-            const filtered = this.bandpassFilter(signal, 0.7, 4.0, this.frameRate);
+            // ── FFT-based heart-rate detection ────────────────────────────────
+            const N = signal.length;
+            if (N < 20) return null;
 
-            // Find peaks
-            const peaks = this.findPeaks(filtered);
-
-            if (peaks.length < 2) return null;
-
-            // Calculate average interval between peaks
-            const intervals = [];
-            for (let i = 1; i < peaks.length; i++) {
-                intervals.push(peaks[i] - peaks[i - 1]);
+            // ── Fix 1: Compute REAL frame rate from stored timestamps ─────────
+            // setTimeout drifts badly: actual fps on mobile is 8-12, not 30.
+            // If we use assumed fps=30 when real fps=10, a 70 BPM heart appears
+            // at 175 BPM in the DFT → outside the 50-130 clamp → returns null.
+            let fs = this.frameRate; // safe default
+            if (this.frames.length >= 2) {
+                const t0   = this.frames[0].timestamp;
+                const tEnd = this.frames[this.frames.length - 1].timestamp;
+                const span = tEnd - t0;
+                if (span > 0.5) fs = Math.max(5, Math.min(60, (this.frames.length - 1) / span));
             }
+            console.log(`[HR] Real FPS: ${fs.toFixed(2)}, frames: ${N}`);
 
-            const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-            const bpm = Math.round((60 * this.frameRate) / avgInterval);
+            // Detrend: subtract linear trend to remove slow drift
+            const detrended = this._detrend(signal);
 
-            // Validate range
-            return (bpm >= 40 && bpm <= 180) ? bpm : null;
+            // ── DFT helper: search dominant frequency within a Hz range ───────
+            const dftPeak = (fMin, fMax) => {
+                const kMin = Math.max(1, Math.ceil(fMin * N / fs));
+                const kMax = Math.floor(fMax * N / fs);
+                if (kMax < kMin) return null;
+                let bestPower = -1, bestK = -1;
+                for (let k = kMin; k <= kMax; k++) {
+                    let re = 0, im = 0;
+                    for (let n = 0; n < N; n++) {
+                        const phi = (2 * Math.PI * k * n) / N;
+                        re += detrended[n] * Math.cos(phi);
+                        im -= detrended[n] * Math.sin(phi);
+                    }
+                    const power = re * re + im * im;
+                    if (power > bestPower) { bestPower = power; bestK = k; }
+                }
+                if (bestK < 0) return null;
+                return Math.round((bestK * fs / N) * 60);
+            };
+
+            // Primary search: 50-130 BPM (0.83-2.17 Hz) — normal resting range
+            const bpm = dftPeak(0.83, 2.17);
+            if (bpm !== null && bpm >= 50 && bpm <= 130) return bpm;
+
+            // ── Fix 4: Wider fallback 40-160 BPM (0.67-2.67 Hz) ─────────────
+            // Catches athletes (low hr ~45), tachycardia, or light motion artifacts
+            const bpmWide = dftPeak(0.67, 2.67);
+            if (bpmWide !== null && bpmWide >= 40 && bpmWide <= 160) return bpmWide;
+
+            return null;
+        }
+
+        _detrend(signal) {
+            // Remove linear trend via least-squares line subtraction
+            const N = signal.length;
+            const xMean = (N - 1) / 2;
+            const yMean = signal.reduce((a, b) => a + b, 0) / N;
+            let num = 0, den = 0;
+            for (let i = 0; i < N; i++) {
+                num += (i - xMean) * (signal[i] - yMean);
+                den += (i - xMean) * (i - xMean);
+            }
+            const slope = den !== 0 ? num / den : 0;
+            const intercept = yMean - slope * xMean;
+            return signal.map((v, i) => v - (slope * i + intercept));
         }
 
         estimateSpO2() {
@@ -900,62 +2143,49 @@
         }
 
         detectRespiratoryRate(signal) {
+            // ── Compute real FPS (same fix as detectHeartRate) ───────────────
+            let fs = this.frameRate;
+            if (this.frames.length >= 2) {
+                const t0   = this.frames[0].timestamp;
+                const tEnd = this.frames[this.frames.length - 1].timestamp;
+                const span = tEnd - t0;
+                if (span > 0.5) fs = Math.max(5, Math.min(60, (this.frames.length - 1) / span));
+            }
+
             // Respiratory rate detection from facial color changes
-            // Breathing causes subtle variations in facial blood flow and oxygenation
+            // Use 0.2-0.5 Hz range (12-30 breaths/min)
+            const lowFreqFiltered = this.bandpassFilter(signal, 0.2, 0.5, fs);
 
-            // Use a more conservative frequency range for breathing (0.2-0.5 Hz = 12-30 breaths/min)
-            // This filters out very slow movements and noise
-            const lowFreqFiltered = this.bandpassFilter(signal, 0.2, 0.5, this.frameRate);
+            const mean    = this.calculateMean(lowFreqFiltered);
+            const stdDev  = this.calculateStdDev(lowFreqFiltered);
+            const threshold = mean + stdDev * 1.5;
 
-            // Calculate a higher threshold for peak detection to avoid noise
-            const mean = this.calculateMean(lowFreqFiltered);
-            const stdDev = this.calculateStdDev(lowFreqFiltered);
-            const threshold = mean + stdDev * 1.5; // Higher threshold than default
-
-            // Find peaks with minimum distance requirement (breathing cycles are slower than heartbeats)
-            const minPeakDistance = Math.floor(this.frameRate * 1.5); // Minimum 1.5 seconds between breaths
+            const minPeakDistance = Math.floor(fs * 1.5); // 1.5 seconds between breaths
             const peaks = this.findPeaksWithMinDistance(lowFreqFiltered, threshold, minPeakDistance);
 
-            // Need at least 3 breathing cycles for reliable detection
             if (peaks.length < 3) {
-                // Not enough data - return a reasonable default based on typical resting rate
                 console.log('Insufficient breathing peaks detected, using default estimate');
-                return 14; // Normal resting breathing rate
-            }
-
-            // Calculate intervals between peaks
-            const intervals = [];
-            for (let i = 1; i < peaks.length; i++) {
-                intervals.push(peaks[i] - peaks[i - 1]);
-            }
-
-            // Remove outliers (intervals that are too short or too long)
-            const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-            const filteredIntervals = intervals.filter(interval => {
-                return interval > avgInterval * 0.5 && interval < avgInterval * 1.5;
-            });
-
-            if (filteredIntervals.length < 2) {
-                console.log('Irregular breathing pattern detected, using default estimate');
                 return 14;
             }
 
-            // Calculate breathing rate from filtered intervals
-            const finalAvgInterval = filteredIntervals.reduce((a, b) => a + b, 0) / filteredIntervals.length;
-            const breathsPerMin = Math.round((60 * this.frameRate) / finalAvgInterval);
+            const intervals = [];
+            for (let i = 1; i < peaks.length; i++) intervals.push(peaks[i] - peaks[i - 1]);
 
-            // Validate range - breathing should be between 8-25 for resting state
-            // Cap at 25 instead of 30 to avoid false high readings
-            if (breathsPerMin < 8) {
-                console.log(`Detected very slow breathing: ${breathsPerMin}, clamping to 8`);
-                return 8;
-            }
-            if (breathsPerMin > 25) {
-                console.log(`Detected very fast breathing: ${breathsPerMin}, likely noise, clamping to 25`);
-                return 25;
+            const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+            const filteredIntervals = intervals.filter(iv => iv > avgInterval * 0.5 && iv < avgInterval * 1.5);
+
+            if (filteredIntervals.length < 2) {
+                console.log('Irregular breathing pattern, using default estimate');
+                return 14;
             }
 
-            console.log(`Detected breathing rate: ${breathsPerMin} breaths/min from ${peaks.length} peaks`);
+            const finalAvg = filteredIntervals.reduce((a, b) => a + b, 0) / filteredIntervals.length;
+            const breathsPerMin = Math.round((60 * fs) / finalAvg);
+
+            if (breathsPerMin < 8)  return 8;
+            if (breathsPerMin > 25) return 25;
+
+            console.log(`Breathing: ${breathsPerMin} bpm from ${peaks.length} peaks at ${fs.toFixed(1)} fps`);
             return breathsPerMin;
         }
 
@@ -979,16 +2209,29 @@
         }
 
         estimateTemperature() {
-            // Simplified temperature estimation
-            // In reality, requires thermal imaging
-            // Using facial color as proxy (warmer = more red)
+            return this.estimateTemperatureCalibrated(this.lightCalibrationFactor);
+        }
+
+        estimateTemperatureCalibrated(lightFactor) {
+            // Temperature is derived from red/green ratio
+            // In dim light: red channel is proportionally stronger (LED/incandescent warmth)
+            // In bright/overexposed light: ratio can be skewed high
+            // Apply correction to push ratio back toward neutral
             const avgRed = this.frames.reduce((sum, f) => sum + f.r, 0) / this.frames.length;
             const avgGreen = this.frames.reduce((sum, f) => sum + f.g, 0) / this.frames.length;
+            const avgLum = this.frames.reduce((sum, f) => sum + (f.luminance || 128), 0) / this.frames.length;
 
-            // Normalize to temperature range (stored in Celsius)
-            const ratio = avgRed / avgGreen;
-            const tempCelsius = 36.0 + (ratio - 1.0) * 2; // Simplified mapping
 
+            // Normalise ratio as if scene were at ideal luminance (128)
+            // dim light boosts ratio; we scale it down proportionally
+            let ratio = avgRed / Math.max(avgGreen, 1);
+            if (avgLum > 10 && avgLum < 200) {
+                const normFactor = 128 / avgLum; // >1 in dim, <1 in bright
+                // Dampen the normFactor effect on temp (use 30% of correction)
+                ratio = ratio / (1 + (normFactor - 1) * 0.30);
+            }
+
+            const tempCelsius = 36.0 + (ratio - 1.0) * 2;
             return Math.max(35.5, Math.min(38.5, parseFloat(tempCelsius.toFixed(1))));
         }
 
@@ -1049,7 +2292,7 @@
             // Variance factor: Higher variance suggests more variability
             const varianceFactor = Math.max(-5, Math.min(5, variance * 3));
 
-            // Add some controlled randomness for natural variation (±3 mmHg)
+            // Add some controlled randomness for natural variation (Â±3 mmHg)
             const randomFactor = (Math.random() - 0.5) * 6;
 
             // Calculate systolic (normal: 120)
@@ -1076,88 +2319,86 @@
         }
 
         calculateHealthScore() {
-            const scores = [];
+            // ── Weighted formula ──────────────────────────────────────────────
+            // Health Score = 20%*HR + 35%*BP + 25%*SpO2 + 15%*RR + 5%*Temp
+            // Missing vitals: weight redistributed proportionally.
+            const WEIGHTS = { hr: 0.20, bp: 0.35, spo2: 0.25, rr: 0.15, temp: 0.05 };
+            const vitalScores = {};
 
-            // Heart Rate (Normal: 60-100)
+            // -- Heart Rate --------------------------------------------------
             let hr = this.results.heartRate;
-            // Fallback if missing
             if (hr === null && this.historicalData.heart_rate) {
                 hr = this.historicalData.heart_rate;
                 console.log('Using historical Heart Rate for score:', hr);
             }
-
             if (hr) {
-                if (hr >= 60 && hr <= 100) scores.push(100);
-                else if ((hr >= 50 && hr < 60) || (hr > 100 && hr <= 110)) scores.push(80);
-                else if ((hr >= 40 && hr < 50) || (hr > 110 && hr <= 120)) scores.push(60);
-                else scores.push(40);
+                const hrScore = rateHeartRate(hr);
+                console.log('HR:', hr, '=> score:', hrScore);
+                vitalScores.hr = hrScore;
             }
 
-            // SpO2 (Normal: 95-100)
+            // -- SpO2 --------------------------------------------------------
             let spo2 = this.results.spo2;
-            // Fallback
             if (spo2 === null && this.historicalData.spo2) {
                 spo2 = this.historicalData.spo2;
             }
-
             if (spo2) {
-                if (spo2 >= 95) scores.push(100);
-                else if (spo2 >= 90 && spo2 < 95) scores.push(80);
-                else if (spo2 >= 85 && spo2 < 90) scores.push(60);
-                else scores.push(40);
+                const r = rateSpo2(spo2);
+                console.log('SpO2:', spo2, '=> score:', r.score, '(' + r.label + ')');
+                vitalScores.spo2 = r.score;
             }
 
-            // Respiratory Rate (Normal: 12-20)
+            // -- Respiratory Rate --------------------------------------------
             let rr = this.results.respiratoryRate;
-            // Fallback
             if (rr === null && this.historicalData.respiratory_rate) {
                 rr = this.historicalData.respiratory_rate;
             }
-
             if (rr) {
-                if (rr >= 12 && rr <= 20) scores.push(100);
-                else if ((rr >= 8 && rr < 12) || (rr > 20 && rr <= 25)) scores.push(80);
-                else scores.push(60);
+                const r = rateRespiration(rr);
+                console.log('RR:', rr, '=> score:', r.score, '(' + r.label + ')');
+                vitalScores.rr = r.score;
             }
 
-            // Temperature (Normal: 36.1-37.5)
+            // -- Temperature -------------------------------------------------
             let temp = this.results.temperature;
-            // Fallback
             if (temp === null && this.historicalData.temperature) {
                 temp = this.historicalData.temperature;
             }
-
             if (temp) {
-                if (temp >= 36.1 && temp <= 37.5) scores.push(100);
-                else if ((temp >= 35.5 && temp < 36.1) || (temp > 37.5 && temp <= 38.3)) scores.push(80);
-                else scores.push(60);
+                const r = rateTemperature(temp);
+                console.log('Temp:', temp + 'C', '=> score:', r.score, '(' + r.label + ')');
+                vitalScores.temp = r.score;
             }
 
-            // Blood Pressure (Normal: <120 and <80)
+            // -- Blood Pressure ----------------------------------------------
             let sys = this.results.bloodPressure.systolic;
             let dia = this.results.bloodPressure.diastolic;
-            // Fallback (check both or individually? Usually both come together)
             if (sys === null && this.historicalData.blood_pressure_systolic) {
                 sys = this.historicalData.blood_pressure_systolic;
             }
             if (dia === null && this.historicalData.blood_pressure_diastolic) {
                 dia = this.historicalData.blood_pressure_diastolic;
             }
-
             if (sys && dia) {
-                if (sys >= 90 && sys <= 120 && dia >= 60 && dia <= 80) scores.push(100);
-                else if ((sys > 120 && sys <= 130) || (dia > 80 && dia <= 85)) scores.push(85);
-                else if ((sys > 130 && sys <= 140) || (dia > 85 && dia <= 90)) scores.push(70);
-                else if (sys > 140 || dia > 90) scores.push(50);
-                else if (sys < 90 || dia < 60) scores.push(60);
-                else scores.push(100);
+                const r = rateBloodPressure(sys, dia);
+                console.log('BP:', sys + '/' + dia, '=> score:', r.score, '(' + r.label + ')');
+                vitalScores.bp = r.score;
             }
 
-            if (scores.length === 0) return 0;
+            // ── Compute weighted score ──────────────────────────────────────
+            const keys = Object.keys(vitalScores);
+            if (keys.length === 0) return 0;
 
-            const sum = scores.reduce((a, b) => a + b, 0);
-            return Math.round(sum / scores.length);
+            const availableWeight = keys.reduce((sum, k) => sum + WEIGHTS[k], 0);
+            const weightedSum = keys.reduce((sum, k) => sum + vitalScores[k] * WEIGHTS[k], 0);
+            const score = Math.round(weightedSum / availableWeight);
+
+            console.log('Weighted Health Score:', score,
+                '| Components:', JSON.stringify(vitalScores),
+                '| Available weight:', availableWeight.toFixed(2));
+            return score;
         }
+
 
         // Signal processing utilities
         bandpassFilter(signal, lowFreq, highFreq, sampleRate) {
@@ -1273,7 +2514,7 @@
                 html += `
                 <div class="text-center p-4 bg-orange-50 rounded-lg">
                     <i data-lucide="thermometer" class="w-8 h-8 mx-auto mb-2 text-orange-500"></i>
-                    <div class="text-2xl font-bold text-gray-900">${tempFahrenheit.toFixed(1)}°F</div>
+                    <div class="text-2xl font-bold text-gray-900">${tempFahrenheit.toFixed(1)}&deg;F</div>
                     <div class="text-xs text-gray-600">Temperature</div>
                 </div>
             `;
@@ -1296,6 +2537,12 @@
         }
 
         async saveResults() {
+            const saveBtn = document.getElementById('save-reading-btn');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Saving...';
+                if (window.lucide) lucide.createIcons();
+            }
             try {
                 const response = await fetch('/app/vitals/save', {
                     method: 'POST',
@@ -1329,14 +2576,25 @@
                     }, 1000);
                 } else {
                     this.showError('Failed to save vitals: ' + result.error);
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i data-lucide="save" class="w-5 h-5"></i> Save Results';
+                        if (window.lucide) lucide.createIcons();
+                    }
                 }
             } catch (error) {
                 console.error('Save error:', error);
                 this.showError('Failed to save vitals. Please try again.');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i data-lucide="save" class="w-5 h-5"></i> Save Results';
+                    if (window.lucide) lucide.createIcons();
+                }
             }
         }
 
         async retakeScan() {
+            // Hide results, reset stored results
             document.getElementById('results-card').classList.add('hidden');
             this.results = {
                 heartRate: null,
@@ -1346,23 +2604,37 @@
                 bloodPressure: { systolic: null, diastolic: null }
             };
 
-            // Start camera for new scan
+            // Reset face detection state
+            this.faceDetected = false;
+            this.faceRegion = null;
+            this._smoothBox = null;
+            this.frames = [];
+
+            // Reset the start button so it is usable again
+            this._resetStartBtn();
+
+            // Make sure the scan overlay is hidden and buttons are correct
+            document.getElementById('scanning-overlay').classList.add('hidden');
+            document.getElementById('start-scan-btn').classList.remove('hidden');
+            document.getElementById('stop-scan-btn').classList.add('hidden');
+
+            // Re-open the camera so the user can see themselves again
             this.updateStatus('Starting camera...', 'info');
             const success = await this.startCamera();
             if (success) {
-                this.updateStatus('Ready to scan. Position your face in the frame.', 'info');
+                this.updateStatus('Camera ready. Position your face then click Start Scan.', 'info');
             }
         }
 
         stopScan() {
             this.isScanning = false;
+            // ── Fix: cancel rAF loop immediately ─────────────────────────────
+            if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
             document.getElementById('scanning-overlay').classList.add('hidden');
             document.getElementById('start-scan-btn').classList.remove('hidden');
             document.getElementById('stop-scan-btn').classList.add('hidden');
 
-            // Stop camera when scan is cancelled
             this.stopCamera();
-
             this.updateStatus('Scan cancelled.', 'info');
         }
 
@@ -1370,15 +2642,15 @@
             const statusDiv = document.getElementById('scanner-status');
             const statusText = document.getElementById('status-text');
 
-            statusDiv.classList.remove('hidden', 'bg-blue-50', 'border-blue-200', 'bg-green-50', 'border-green-200');
-            statusDiv.querySelector('div').classList.remove('text-blue-700', 'text-green-700');
+            statusDiv.classList.remove('hidden', 'bg-secondary-50', 'border-secondary-100', 'bg-green-50', 'border-green-200');
+            statusDiv.querySelector('div').classList.remove('text-secondary-700', 'text-green-700');
 
             if (type === 'success') {
                 statusDiv.classList.add('bg-green-50', 'border-green-200');
                 statusDiv.querySelector('div').classList.add('text-green-700');
             } else {
-                statusDiv.classList.add('bg-blue-50', 'border-blue-200');
-                statusDiv.querySelector('div').classList.add('text-blue-700');
+                statusDiv.classList.add('bg-secondary-50', 'border-secondary-100');
+                statusDiv.querySelector('div').classList.add('text-secondary-700');
             }
 
             statusText.textContent = message;
@@ -1414,6 +2686,22 @@
         }
     }
 
+    // -- Steps input handler � recalc calories from overridden steps --
+    function wlOnStepsInput() {
+        wlUserEditedSteps = true;
+        // Only recalc calories if user hasn't manually set them + workout is step-based
+        if (wlUserEditedCal) return;
+        const meta = WL_META[wlSelectedType] || WL_META['Other'];
+        if (!meta.stepsPerMin || meta.stepsPerMin === 0) return;
+        const steps = parseInt(document.getElementById('wl-steps').value);
+        if (!steps || steps <= 0) return;
+        const w = wlWeightKg || DEFAULT_WEIGHT_KG;
+        const effectiveDurMin = steps / meta.stepsPerMin;
+        const kcal = Math.round(meta.met * w * (effectiveDurMin / 60));
+        document.getElementById('wl-calories').value = kcal;
+        document.getElementById('wl-cal-badge').style.display = 'inline-flex';
+    }
+
     // Initialize scanner
     window.scanner = null;
 
@@ -1425,43 +2713,52 @@
             // Button handlers
             const startBtn = document.getElementById('start-scan-btn');
             if (startBtn) {
-                startBtn.onclick = async () => {
+                startBtn.onclick = function () {
+                    console.log("Start Scan Clicked - showing disclaimer");
+                    if (typeof showScanDisclaimer === 'function') {
+                        showScanDisclaimer();
+                    } else {
+                        window.scanner.startScan();
+                    }
+                };
+                if (false) { /* dead code � disclaimer now handles scan start */
                     console.log("Start Scan Clicked");
                     const btn = document.getElementById('start-scan-btn');
-                    const originalContent = btn.innerHTML;
 
-                    // Force UI update immediately
-                    btn.innerHTML = 'Starting...';
+                    // Show loading state
+                    btn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Starting…';
                     btn.disabled = true;
+                    if (window.lucide) lucide.createIcons();
 
                     try {
-                        await window.scanner.startScan();
+                        // DISABLED � scan now only starts through showScanDisclaimer() above
+                        // startScan hides this button itself once scanning begins;
+                        // but if it returns early (face not found / cancelled) we must restore.
                     } catch (e) {
                         console.error(e);
                         alert("Error starting scan: " + e);
-                        // Restore button if error
-                        btn.disabled = false;
-                        btn.innerHTML = originalContent;
+                    } finally {
+                        // Always restore unless we actively scanning
+                        if (!window.scanner.isScanning) {
+                            window.scanner._resetStartBtn();
+                        }
+                        console.log("Start button handler attached via onclick");
                     }
-                };
-                console.log("Start button handler attached via onclick");
-            } else {
-                console.error("Start button not found!");
-                alert("System Error: Start button missing from page.");
-            }
+                }
 
-            const stopBtn = document.getElementById('stop-scan-btn');
-            if (stopBtn) stopBtn.onclick = () => window.scanner.stopScan();
+                const stopBtn = document.getElementById('stop-scan-btn');
+                if (stopBtn) stopBtn.onclick = () => window.scanner.stopScan();
 
-            const saveBtn = document.getElementById('save-reading-btn');
-            if (saveBtn) saveBtn.onclick = () => window.scanner.saveResults();
+                const saveBtn = document.getElementById('save-reading-btn');
+                if (saveBtn) saveBtn.onclick = () => window.scanner.saveResults();
 
-            const retakeBtn = document.getElementById('retake-btn');
-            if (retakeBtn) retakeBtn.onclick = () => window.scanner.retakeScan();
+                const retakeBtn = document.getElementById('retake-btn');
+                if (retakeBtn) retakeBtn.onclick = () => window.scanner.retakeScan();
 
-            lucide.createIcons();
-            console.log("Scanner initialization complete.");
+                if (window.lucide) lucide.createIcons();
+                console.log("Scanner initialization complete.");
 
+            } // end if(startBtn)
         } catch (e) {
             alert("Init Error: " + e.message);
         }
@@ -1469,5 +2766,920 @@
 
     // Run immediately since script is at end of body
     initScanner();
+
+    // Clean up camera on page hide/unload to prevent blank screens on next page navigation
+    window.addEventListener('beforeunload', function () {
+        if (window.scanner) {
+            window.scanner.stopCamera();
+        }
+    });
+    window.addEventListener('pagehide', function () {
+        if (window.scanner) {
+            window.scanner.stopCamera();
+        }
+    });
+</script>
+
+<!-- &#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144; -->
+<!-- WORKOUT LOG FLOATING BUTTON + MODAL                     -->
+<!-- &#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144; -->
+<style>
+    /* Floating button */
+    .wlog-fab {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 1000;
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        color: #fff;
+        border: none;
+        border-radius: 9999px;
+        padding: .75rem 1.4rem;
+        font-size: .9rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        cursor: pointer;
+        box-shadow: 0 8px 32px rgba(109, 40, 217, .45);
+        transition: transform .2s, box-shadow .2s;
+    }
+
+    .wlog-fab:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 40px rgba(109, 40, 217, .55);
+    }
+
+    .wlog-fab svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    /* Overlay */
+    .wlog-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        background: rgba(0, 0, 0, .65);
+        backdrop-filter: blur(6px);
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .wlog-overlay.open {
+        display: flex;
+    }
+
+    /* Modal */
+    .wlog-modal {
+        background: #1a1d27;
+        border: 1px solid rgba(255, 255, 255, .1);
+        border-radius: 1.25rem;
+        width: 100%;
+        max-width: 540px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, .6);
+        animation: wlogPop .3s cubic-bezier(.34, 1.56, .64, 1);
+    }
+
+    @keyframes wlogPop {
+        from {
+            opacity: 0;
+            transform: scale(.9) translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    .wlog-modal::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .wlog-modal::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, .1);
+        border-radius: 99px;
+    }
+
+    .wlog-header {
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, .07);
+        position: sticky;
+        top: 0;
+        background: #1a1d27;
+        z-index: 1;
+    }
+
+    .wlog-header h3 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #f1f5f9;
+        margin: 0;
+    }
+
+    .wlog-close {
+        background: rgba(255, 255, 255, .07);
+        border: none;
+        color: #94a3b8;
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        transition: all .15s;
+    }
+
+    .wlog-close:hover {
+        background: rgba(225, 29, 72, .2);
+        color: #f87171;
+    }
+
+    .wlog-body {
+        padding: 1.25rem 1.5rem;
+    }
+
+    /* Type grid */
+    .wlog-type-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: .4rem;
+        margin-bottom: 1rem;
+    }
+
+    .wlog-type-btn {
+        background: rgba(255, 255, 255, .04);
+        border: 1.5px solid rgba(255, 255, 255, .08);
+        border-radius: .6rem;
+        padding: .45rem .2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: .25rem;
+        cursor: pointer;
+        transition: all .15s;
+        color: #64748b;
+        font-size: .65rem;
+        font-weight: 500;
+    }
+
+    .wlog-type-btn:hover {
+        border-color: #8b5cf6;
+        color: #e2e8f0;
+        background: rgba(139, 92, 246, .12);
+    }
+
+    .wlog-type-btn.active {
+        border-color: #8b5cf6;
+        color: #e2e8f0;
+        background: rgba(139, 92, 246, .2);
+    }
+
+    /* Fields */
+    .wlog-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .75rem;
+    }
+
+    .wlog-field {
+        margin-bottom: .9rem;
+    }
+
+    .wlog-label {
+        font-size: .75rem;
+        color: #64748b;
+        margin-bottom: .3rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .wlog-label b {
+        color: #cbd5e1;
+        font-weight: 600;
+    }
+
+    .wlog-input {
+        width: 100%;
+        background: rgba(255, 255, 255, .06);
+        border: 1.5px solid rgba(255, 255, 255, .1);
+        border-radius: .5rem;
+        padding: .6rem .85rem;
+        color: #f1f5f9;
+        font-size: .875rem;
+        outline: none;
+        transition: border-color .15s;
+        box-sizing: border-box;
+    }
+
+    .wlog-input:focus {
+        border-color: #8b5cf6;
+    }
+
+    .wlog-input[type=date]::-webkit-calendar-picker-indicator {
+        filter: invert(.7);
+        cursor: pointer;
+    }
+
+    .wlog-range {
+        width: 100%;
+        accent-color: #8b5cf6;
+        cursor: pointer;
+    }
+
+    /* Save button */
+    .wlog-save {
+        width: 100%;
+        padding: .8rem;
+        border-radius: .65rem;
+        font-weight: 600;
+        font-size: .95rem;
+        border: none;
+        cursor: pointer;
+        color: #fff;
+        margin-top: .5rem;
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        box-shadow: 0 4px 20px rgba(109, 40, 217, .35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        transition: all .2s;
+    }
+
+    .wlog-save:hover {
+        box-shadow: 0 6px 28px rgba(109, 40, 217, .5);
+        transform: translateY(-1px);
+    }
+
+    .wlog-save:active {
+        transform: translateY(0);
+    }
+
+    .wlog-save:disabled {
+        opacity: .6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    /* Log Later button */
+    .wlog-later {
+        width: 100%;
+        padding: .7rem;
+        border-radius: .65rem;
+        font-weight: 600;
+        font-size: .875rem;
+        border: 1.5px solid rgba(255, 255, 255, .12);
+        cursor: pointer;
+        color: #94a3b8;
+        background: rgba(255, 255, 255, .04);
+        margin-top: .5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        transition: all .2s;
+    }
+
+    .wlog-later:hover {
+        border-color: #f59e0b;
+        color: #fbbf24;
+        background: rgba(245, 158, 11, .08);
+    }
+
+    .wlog-later svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Reminder banner */
+    .wlog-reminder {
+        display: none;
+        position: sticky;
+        top: 0;
+        z-index: 500;
+        background: linear-gradient(90deg, #78350f, #92400e);
+        border-bottom: 1px solid #b45309;
+        padding: .6rem 1rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        animation: wlogReminderIn .4s ease-out;
+    }
+
+    .wlog-reminder.show {
+        display: flex;
+    }
+
+    @keyframes wlogReminderIn {
+        from {
+            opacity: 0;
+            transform: translateY(-100%);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .wlog-reminder-text {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        font-size: .875rem;
+        font-weight: 600;
+        color: #fef3c7;
+    }
+
+    .wlog-reminder-text span {
+        font-size: 1.1rem;
+    }
+
+    .wlog-reminder-actions {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        flex-shrink: 0;
+    }
+
+    .wlog-reminder-btn {
+        padding: .35rem .85rem;
+        border-radius: .4rem;
+        font-size: .8rem;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all .15s;
+    }
+
+    .wlog-reminder-btn.primary {
+        background: #f59e0b;
+        color: #1c1917;
+    }
+
+    .wlog-reminder-btn.primary:hover {
+        background: #fbbf24;
+    }
+
+    .wlog-reminder-btn.dismiss {
+        background: rgba(255, 255, 255, .1);
+        color: #fde68a;
+    }
+
+    .wlog-reminder-btn.dismiss:hover {
+        background: rgba(255, 255, 255, .2);
+    }
+
+    /* Toast */
+    .wlog-toast {
+        position: fixed;
+        bottom: 1.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 3000;
+        padding: .7rem 1.4rem;
+        border-radius: .65rem;
+        font-size: .875rem;
+        font-weight: 600;
+        color: #fff;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, .5);
+        animation: wlogToast .3s ease-out;
+        white-space: nowrap;
+    }
+
+    @keyframes wlogToast {
+        from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    }
+
+    .wlog-toast.success {
+        background: #0f766e;
+    }
+
+    .wlog-toast.error {
+        background: #be123c;
+    }
+
+    .wlog-toast.info {
+        background: #92400e;
+    }
+
+    /* Session queue item */
+    .wl-session-item {
+        display: flex;
+        align-items: center;
+        gap: .55rem;
+        background: rgba(255, 255, 255, .04);
+        border: 1px solid rgba(255, 255, 255, .08);
+        border-radius: .5rem;
+        padding: .45rem .65rem;
+        font-size: .78rem;
+        color: #cbd5e1;
+        animation: wlogPop .2s ease-out;
+    }
+
+    .wl-session-item-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .wl-session-item-type {
+        font-weight: 600;
+        color: #e2e8f0;
+    }
+
+    .wl-session-item-meta {
+        font-size: .7rem;
+        color: #64748b;
+        margin-top: .1rem;
+    }
+
+    .wl-session-remove {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #475569;
+        padding: .2rem;
+        border-radius: .3rem;
+        transition: color .15s;
+        flex-shrink: 0;
+        line-height: 1;
+        font-size: 1rem;
+    }
+
+    .wl-session-remove:hover {
+        color: #f87171;
+    }
+
+    @media (max-width: 1023px) {
+        .wlog-fab {
+            bottom: 5.5rem !important;
+            right: 1rem !important;
+            padding: .6rem 1.1rem !important;
+            font-size: .8rem !important;
+            box-shadow: 0 4px 16px rgba(109, 40, 217, .4) !important;
+        }
+        .wlog-overlay {
+            align-items: flex-start !important;
+            overflow-y: auto !important;
+            padding: 1.5rem 0.5rem !important;
+        }
+        .wlog-modal {
+            margin-top: 1rem !important;
+            margin-bottom: 5rem !important;
+            max-height: none !important;
+            width: 95% !important;
+        }
+        .wlog-type-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+        }
+        .wlog-row {
+            grid-template-columns: 1fr !important;
+            gap: 0.5rem !important;
+        }
+    }
+</style>
+
+<!-- Floating button -->
+<button class="wlog-fab" onclick="openWorkoutModal()">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+    </svg>
+    Log Workout
+</button>
+
+<!-- Modal overlay -->
+<div class="wlog-overlay" id="wlog-overlay" onclick="closeWorkoutModal(event)">
+    <div class="wlog-modal" id="wlog-modal">
+        <div class="wlog-header">
+            <h3>&#x1F3CB;&#xFE0F; Log Today's Workout</h3>
+            <button class="wlog-close" onclick="closeWorkoutModal()">&#x2715;</button>
+        </div>
+        <div class="wlog-body">
+
+            <!-- Date -->
+            <div class="wlog-field">
+                <div class="wlog-label">Date</div>
+                <input type="date" id="wl-date" class="wlog-input">
+            </div>
+
+            <!-- Workout type -->
+            <div class="wlog-field">
+                <div class="wlog-label">Workout Type</div>
+                <div class="wlog-type-grid" id="wl-type-grid"></div>
+                <input type="hidden" id="wl-type" value="Running">
+            </div>
+
+            <div class="wlog-field">
+                <div class="wlog-label">Duration <b id="wl-dur-val">30 min</b></div>
+                <input type="range" id="wl-duration" class="wlog-range" min="5" max="180" step="5" value="30"
+                    oninput="onDurationChange(this.value)">
+                <div
+                    style="display:flex;justify-content:space-between;font-size:.68rem;color:#64748b;margin-top:.2rem;">
+                    <span>5 min</span><span>3 hrs</span>
+                </div>
+            </div>
+
+            <!-- Steps + Calories (auto-calculated) -->
+            <div id="wl-autocalc-notice" style="display:none;margin-bottom:.6rem;background:rgba(139,92,246,.12);
+                        border:1px solid rgba(139,92,246,.3);border-radius:.5rem;
+                        padding:.45rem .75rem;font-size:.75rem;color:#a78bfa;
+                        align-items:center;gap:.4rem;">
+                <span>&#x2728;</span>
+                <span id="wl-autocalc-msg">Auto-calculated from your profile</span>
+            </div>
+            <div id="wl-no-profile-notice" style="display:none;margin-bottom:.6rem;background:rgba(245,158,11,.1);
+                        border:1px solid rgba(245,158,11,.3);border-radius:.5rem;
+                        padding:.45rem .75rem;font-size:.75rem;color:#fbbf24;
+                        align-items:center;gap:.4rem;">
+                <span>&#x26A0;&#xFE0F;</span>
+                <span id="wl-no-profile-notice-msg">
+                    Using 70&nbsp;kg estimate &mdash;
+                    add your weight in <a href="/app/profile"
+                        style="color:#f59e0b;text-decoration:underline;">Profile</a>
+                    for accurate calculation.
+                </span>
+            </div>
+            <div class="wlog-row">
+                <div class="wlog-field">
+                    <div class="wlog-label">Step Count
+                        <span id="wl-steps-badge" style="display:none;font-size:.65rem;background:rgba(139,92,246,.2);
+                                   color:#a78bfa;padding:.1rem .4rem;border-radius:99px;">
+                            auto &mdash; editable
+                        </span>
+                    </div>
+                    <input type="number" id="wl-steps" class="wlog-input" placeholder="0" min="0" max="100000"
+                        oninput="wlOnStepsInput()">
+                </div>
+                <div class="wlog-field">
+                    <div class="wlog-label">Calories (kcal)
+                        <span id="wl-cal-badge" style="display:none;font-size:.65rem;background:rgba(139,92,246,.2);
+                                   color:#a78bfa;padding:.1rem .4rem;border-radius:99px;">
+                            auto &mdash; editable
+                        </span>
+                    </div>
+                    <input type="number" id="wl-calories" class="wlog-input" placeholder="0" min="0" max="5000"
+                        oninput="wlUserEditedCal=true">
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="wlog-field">
+                <div class="wlog-label">Notes <span style="font-weight:400;">(optional)</span></div>
+                <textarea id="wl-notes" class="wlog-input" rows="2" placeholder="How did it feel? Any PRs?"
+                    style="resize:vertical;"></textarea>
+            </div>
+
+            <!-- Save Workout -->
+            <button class="wlog-save" id="wl-add-btn" onclick="saveWorkoutLog()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Save Workout
+            </button>
+
+            <button class="wlog-later" onclick="logLater()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0" />
+                </svg>
+                Log Later &mdash; remind me next visit
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Reminder banner (shows on next visit if 'Log Later' was clicked) -->
+<div class="wlog-reminder" id="wlog-reminder">
+    <div class="wlog-reminder-text">
+        <span>&#x23F0;</span>
+        <span id="wlog-reminder-msg">You planned to log a workout &mdash; ready to do it now?</span>
+    </div>
+    <div class="wlog-reminder-actions">
+        <button class="wlog-reminder-btn primary" onclick="openWorkoutModalFromReminder()">Log Now</button>
+        <button class="wlog-reminder-btn dismiss" onclick="dismissReminder()">Dismiss</button>
+    </div>
+</div>
+
+<script>
+    // MET values & cadence per workout type (Compendium of Physical Activities)
+    const WL_META = {
+        'Running': { met: 9.8, stepsPerMin: 160 },
+        'Walking': { met: 3.5, stepsPerMin: 100 },
+        'Cycling': { met: 7.5, stepsPerMin: 0 },
+        'Swimming': { met: 7.0, stepsPerMin: 0 },
+        'Yoga': { met: 2.5, stepsPerMin: 20 },
+        'Strength': { met: 5.0, stepsPerMin: 30 },
+        'HIIT': { met: 10.0, stepsPerMin: 120 },
+        'Pilates': { met: 3.0, stepsPerMin: 20 },
+        'Dancing': { met: 5.5, stepsPerMin: 80 },
+        'Meditation': { met: 1.3, stepsPerMin: 0 },
+        'Sports': { met: 6.0, stepsPerMin: 90 },
+        'Rowing': { met: 7.0, stepsPerMin: 0 },
+        'Boxing': { met: 9.0, stepsPerMin: 100 },
+        'Climbing': { met: 8.0, stepsPerMin: 60 },
+        'Stretching': { met: 2.3, stepsPerMin: 10 },
+        'Other': { met: 4.0, stepsPerMin: 50 },
+    };
+
+    // Workout type definitions - emoji as Unicode escapes (encoding-safe)
+    const WL_TYPES = [
+        { label: 'Running', emoji: '\uD83C\uDFC3' },
+        { label: 'Walking', emoji: '\uD83D\uDEB6' },
+        { label: 'Cycling', emoji: '\uD83D\uDEB4' },
+        { label: 'Swimming', emoji: '\uD83C\uDFCA' },
+        { label: 'Yoga', emoji: '\uD83E\uDDD8' },
+        { label: 'Strength', emoji: '\uD83C\uDFCB\uFE0F' },
+        { label: 'HIIT', emoji: '\u26A1' },
+        { label: 'Pilates', emoji: '\uD83E\uDD38' },
+        { label: 'Dancing', emoji: '\uD83D\uDC83' },
+        { label: 'Meditation', emoji: '\uD83E\uDDE0' },
+        { label: 'Sports', emoji: '\u26BD' },
+        { label: 'Rowing', emoji: '\uD83D\uDEA3' },
+        { label: 'Boxing', emoji: '\uD83E\uDD4A' },
+        { label: 'Climbing', emoji: '\uD83E\uDDD7' },
+        { label: 'Stretching', emoji: '\uD83E\uDD3E' },
+        { label: 'Other', emoji: '\uD83C\uDFC5' },
+    ];
+
+    const DEFAULT_WEIGHT_KG = 70; // fallback when profile has no weight
+
+    let wlSelectedType = 'Running';
+    let wlWeightKg = null;   // loaded from API
+    let wlHeightCm = null;
+    let wlUserEditedSteps = false;
+    let wlUserEditedCal = false;
+    let wlSessionQueue = [];  // holds workouts added but not yet saved
+    const WL_REMINDER_KEY = 'solace_workout_reminder';
+
+    // ── Fetch user fitness profile ────────────────────────────────────
+    async function fetchFitnessProfile() {
+        try {
+            const r = await fetch('/api/user/fitness-profile');
+            const d = await r.json();
+            if (d.success) {
+                wlWeightKg = d.weight_kg;
+                wlHeightCm = d.height_cm;
+            }
+        } catch (e) { /* silently ignore network error */ }
+    }
+
+    // ── Auto-calculate calories & steps ──────────────────────────────
+    function autoCalc() {
+        const durMin = parseInt(document.getElementById('wl-duration').value) || 30;
+        const meta = WL_META[wlSelectedType] || WL_META['Other'];
+
+        const noticePurple = document.getElementById('wl-autocalc-notice');
+        const noticeAmber = document.getElementById('wl-no-profile-notice');
+        const stepsBadge = document.getElementById('wl-steps-badge');
+        const calBadge = document.getElementById('wl-cal-badge');
+
+        // Use real weight or fallback default
+        const weightToUse = wlWeightKg || DEFAULT_WEIGHT_KG;
+        const usingDefault = !wlWeightKg;
+
+        // Calories = MET x weight(kg) x duration(hrs)
+        const kcal = Math.round(meta.met * weightToUse * (durMin / 60));
+
+        // Steps = stepsPerMin x duration(min)
+        const steps = Math.round(meta.stepsPerMin * durMin);
+
+        // Fill fields if user hasn't manually overridden them
+        if (!wlUserEditedCal) {
+            document.getElementById('wl-calories').value = kcal;
+        }
+        if (!wlUserEditedSteps) {
+            document.getElementById('wl-steps').value = steps > 0 ? steps : '';
+        }
+
+        if (usingDefault) {
+            // Show amber notice - profile incomplete, but still calculated with default
+            noticePurple.style.display = 'none';
+            noticeAmber.style.display = 'flex';
+            document.getElementById('wl-no-profile-notice-msg').textContent =
+                'Using 70 kg estimate. Add your weight in Profile for accurate calculation.';
+        } else {
+            // Show purple notice with exact details
+            noticePurple.style.display = 'flex';
+            noticeAmber.style.display = 'none';
+            document.getElementById('wl-autocalc-msg').textContent =
+                'Estimated for ' + durMin + ' min ' + wlSelectedType +
+                ' (' + weightToUse + ' kg) \u2014 you can edit below';
+        }
+
+        stepsBadge.style.display = steps > 0 ? 'inline-flex' : 'none';
+        calBadge.style.display = 'inline-flex';
+    }
+
+    // -- Steps input handler � recalculate calories from overridden steps --
+    function wlOnStepsInput() {
+        wlUserEditedSteps = true;
+        // Only recalc calories if user hasn't also manually edited them
+        if (wlUserEditedCal) return;
+        const meta = WL_META[wlSelectedType] || WL_META['Other'];
+        if (!meta.stepsPerMin || meta.stepsPerMin === 0) return; // non-step workout (Cycling etc)
+        const steps = parseInt(document.getElementById('wl-steps').value);
+        if (!steps || steps <= 0) return;
+        const w = wlWeightKg || DEFAULT_WEIGHT_KG;
+        // Derive effective duration from step count: duration = steps / cadence
+        const effectiveDurMin = steps / meta.stepsPerMin;
+        const kcal = Math.round(meta.met * w * (effectiveDurMin / 60));
+        document.getElementById('wl-calories').value = kcal;
+        document.getElementById('wl-cal-badge').style.display = 'inline-flex';
+    }
+
+    // -- Duration slider handler ---------------------------------------
+    function onDurationChange(val) {
+        document.getElementById('wl-dur-val').textContent = val + ' min';
+        wlUserEditedSteps = false;
+        wlUserEditedCal = false;
+        autoCalc();
+    }
+
+    // ── Build type grid ──────────────────────────────────────────────
+    function buildWlTypeGrid() {
+        const grid = document.getElementById('wl-type-grid');
+        if (!grid || grid.childElementCount > 0) return;
+        WL_TYPES.forEach(function (t) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'wlog-type-btn' + (t.label === wlSelectedType ? ' active' : '');
+            btn.innerHTML = '<span style="font-size:1.1rem;">' + t.emoji + '</span><span>' + t.label + '</span>';
+            btn.onclick = function () {
+                wlSelectedType = t.label;
+                document.getElementById('wl-type').value = t.label;
+                grid.querySelectorAll('.wlog-type-btn').forEach(function (b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                wlUserEditedSteps = false;
+                wlUserEditedCal = false;
+                autoCalc();
+            };
+            grid.appendChild(btn);
+        });
+    }
+
+    // ── Open / Close modal ────────────────────────────────────────────
+    function openWorkoutModal() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById('wl-date').value = yyyy + '-' + mm + '-' + dd;
+        buildWlTypeGrid();
+        wlUserEditedSteps = false;
+        wlUserEditedCal = false;
+        autoCalc();
+        document.getElementById('wlog-overlay').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function openWorkoutModalFromReminder() {
+        document.getElementById('wlog-reminder').classList.remove('show');
+        openWorkoutModal();
+    }
+
+    function closeWorkoutModal(e) {
+        if (e && e.target !== document.getElementById('wlog-overlay')) return;
+        document.getElementById('wlog-overlay').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    async function saveWorkoutLog() {
+        const date = document.getElementById('wl-date').value;
+        if (!date) { wlToast('Pick a date first', 'error'); return; }
+        const payload = {
+            log_date: date,
+            workout_type: wlSelectedType,
+            duration_min: parseInt(document.getElementById('wl-duration').value) || 0,
+            step_count: parseInt(document.getElementById('wl-steps').value) || 0,
+            calories: parseInt(document.getElementById('wl-calories').value) || 0,
+            notes: document.getElementById('wl-notes').value.trim(),
+        };
+
+        const btn = document.getElementById('wl-add-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+        }
+
+        try {
+            const res = await fetch('/api/workout-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                localStorage.removeItem(WL_REMINDER_KEY);
+                const reminder = document.getElementById('wlog-reminder');
+                if (reminder) reminder.classList.remove('show');
+                wlToast('Workout saved successfully! 💪', 'success');
+                setTimeout(function () {
+                    const overlay = document.getElementById('wlog-overlay');
+                    if (overlay) overlay.classList.remove('open');
+                    document.body.style.overflow = '';
+                    window.location.reload();
+                }, 1200);
+            } else {
+                wlToast(data.error || 'Save failed', 'error');
+            }
+        } catch (e) {
+            wlToast('Network error - try again', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Save Workout';
+            }
+        }
+    }
+
+    // ── Log Later ─────────────────────────────────────────────────────
+    function logLater() {
+        const today = new Date();
+        const label = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        localStorage.setItem(WL_REMINDER_KEY, JSON.stringify({
+            savedOn: today.toISOString().slice(0, 10),
+            label: label
+        }));
+        document.getElementById('wlog-overlay').classList.remove('open');
+        document.body.style.overflow = '';
+        wlToast('Reminder set! We\'ll remind you next visit.', 'info');
+    }
+
+    // ── Dismiss reminder ──────────────────────────────────────────────
+    function dismissReminder() {
+        localStorage.removeItem(WL_REMINDER_KEY);
+        document.getElementById('wlog-reminder').classList.remove('show');
+    }
+
+    // ── Check for pending reminder on load ────────────────────────────
+    function checkWorkoutReminder() {
+        const raw = localStorage.getItem(WL_REMINDER_KEY);
+        if (!raw) return;
+        try {
+            const parsed = JSON.parse(raw);
+            const savedOn = parsed.savedOn;
+            const label = parsed.label;
+            const banner = document.getElementById('wlog-reminder');
+            const msgEl = document.getElementById('wlog-reminder-msg');
+            const today = new Date().toISOString().slice(0, 10);
+            if (savedOn !== today) {
+                msgEl.textContent = 'You planned to log a workout from ' + label + ' \u2014 ready to do it now?';
+            } else {
+                msgEl.textContent = 'You set a reminder today (' + label + ') to log your workout \u2014 do it now!';
+            }
+            banner.classList.add('show');
+            banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (e) {
+            localStorage.removeItem(WL_REMINDER_KEY);
+        }
+    }
+
+
+    // ── Toast ─────────────────────────────────────────────────────────
+    function wlToast(msg, type) {
+        const el = document.createElement('div');
+        el.className = 'wlog-toast ' + type;
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(function () { el.remove(); }, 3500);
+    }
+
+    // ── Keyboard close ────────────────────────────────────────────────
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            document.getElementById('wlog-overlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async function () {
+        await fetchFitnessProfile();
+        autoCalc();          // calculate on load with default weight if needed
+        checkWorkoutReminder();
+    });
 </script>
 {% endblock %}

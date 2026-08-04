@@ -1,0 +1,163 @@
+{% extends "layouts/protected.html" %}
+
+
+{% block dashboard_content %}
+<style>
+  .cs-wrap {
+    min-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem 1rem;
+  }
+  .cs-icon-ring {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e0fdf4, #ccfbf1);
+    border: 3px solid #99f6e4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    animation: csFloat 3s ease-in-out infinite;
+  }
+  @keyframes csFloat {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-8px); }
+  }
+  .cs-title {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #111827;
+    margin-bottom: .5rem;
+    letter-spacing: -.02em;
+  }
+  .cs-sub {
+    font-size: 1rem;
+    color: #6b7280;
+    max-width: 420px;
+    margin: 0 auto 1.75rem;
+    line-height: 1.6;
+  }
+  .cs-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    background: #f0fdfa;
+    border: 1.5px solid #99f6e4;
+    color: #0d9488;
+    font-size: .82rem;
+    font-weight: 700;
+    padding: .4rem 1rem;
+    border-radius: 999px;
+    margin-bottom: 2rem;
+  }
+  .cs-notify-box {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    padding: 1.25rem 1.5rem;
+    max-width: 380px;
+    margin: 0 auto;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  }
+  .cs-notify-box p {
+    font-size: .85rem;
+    color: #374151;
+    margin-bottom: .75rem;
+  }
+  .cs-back {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin-top: 1.5rem;
+    font-size: .85rem;
+    font-weight: 600;
+    color: #0d9488;
+    text-decoration: none;
+  }
+  .cs-back:hover { text-decoration: underline; }
+
+  /* Steps */
+  .cs-steps {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    max-width: 340px;
+    margin: 1.5rem auto 0;
+    text-align: left;
+  }
+  .cs-step {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: .75rem;
+    padding: .65rem 1rem;
+    font-size: .83rem;
+    color: #374151;
+    font-weight: 500;
+  }
+  .cs-step-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #0d9488;
+    color: #fff;
+    font-size: .7rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+</style>
+
+<div class="cs-wrap">
+
+  <!-- Floating icon -->
+  <div class="cs-icon-ring">
+    <i data-lucide="calendar-clock" style="width:42px;height:42px;color:#0d9488;"></i>
+  </div>
+
+  <!-- Badge -->
+  <div class="cs-badge">
+    <i data-lucide="clock" style="width:13px;height:13px;"></i>
+    Coming Soon
+  </div>
+
+  <!-- Headline -->
+  <h1 class="cs-title">Consultant Booking</h1>
+  <p class="cs-sub">
+    We're carefully onboarding our team of wellness experts.<br>
+    Sessions will be available very soon — stay tuned!
+  </p>
+
+  <!-- What to expect -->
+  <div class="cs-steps">
+    <div class="cs-step">
+      <div class="cs-step-num">1</div>
+      Expert consultants being verified &amp; onboarded
+    </div>
+    <div class="cs-step">
+      <div class="cs-step-num">2</div>
+      Personalised wellness sessions launching shortly
+    </div>
+    <div class="cs-step">
+      <div class="cs-step-num">3</div>
+      You'll be able to book directly from your dashboard
+    </div>
+  </div>
+
+  <!-- Back link -->
+  <a href="/app" class="cs-back">
+    <i data-lucide="arrow-left" style="width:14px;height:14px;"></i>
+    Back to Dashboard
+  </a>
+
+</div>
+{% endblock %}

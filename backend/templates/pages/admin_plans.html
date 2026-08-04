@@ -1,0 +1,1070 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<style>
+  :root { --green: #0d9488; --dark: #134e4a; }
+  body { background: #f8fafc; font-family: 'Inter', sans-serif; }
+  .ap-wrap { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+  .ap-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: .75rem; }
+  .ap-header h1 { font-size: 1.4rem; font-weight: 800; color: #1f2937; margin: 0; }
+
+  /* ── Chat panel ───────────────────────────────────────────────────────── */
+  .chat-card {
+    background: #fff;
+    border-radius: 18px;
+    border: 1.5px solid #e5e7eb;
+    box-shadow: 0 4px 24px rgba(13,148,136,.08);
+    margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    height: 540px;
+  }
+  .chat-head {
+    padding: .9rem 1.25rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex; align-items: center; gap: .75rem;
+  }
+  .bot-avatar {
+    width: 38px; height: 38px; background: linear-gradient(135deg,#0f766e,#0d9488);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; color: #fff; flex-shrink: 0;
+  }
+  .chat-head-info h3 { font-size: .9rem; font-weight: 800; color: #1f2937; margin: 0; }
+  .chat-head-info p  { font-size: .75rem; color: #6b7280; margin: 0; }
+  .chat-head-actions { margin-left: auto; }
+  .btn-ghost { background: none; border: 1px solid #e5e7eb; border-radius: .5rem; padding: .35rem .8rem; font-size: .78rem; cursor: pointer; color: #6b7280; font-weight: 600; }
+  .btn-ghost:hover { background: #f3f4f6; }
+
+  /* Messages */
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 1rem 1.25rem;
+    display: flex; flex-direction: column; gap: .75rem;
+    scroll-behavior: smooth;
+  }
+  .msg { display: flex; gap: .6rem; max-width: 85%; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg-bubble {
+    padding: .55rem .9rem; border-radius: 14px; font-size: .85rem; line-height: 1.5;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .msg.bot .msg-bubble  { background: #f0fdf4; color: #1f2937; border: 1px solid #d1fae5; border-bottom-left-radius: 4px; }
+  .msg.user .msg-bubble { background: linear-gradient(135deg,#0f766e,#0d9488); color: #fff; border-bottom-right-radius: 4px; }
+  .msg-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg,#0f766e,#0d9488); display: flex; align-items: center; justify-content: center; font-size: .7rem; color: #fff; flex-shrink: 0; margin-top: .1rem; }
+  .msg.user .msg-avatar { background: #e5e7eb; color: #374151; }
+  .typing-dots { display: flex; gap: 4px; align-items: center; padding: .6rem .9rem; }
+  .typing-dots span { width: 7px; height: 7px; border-radius: 50%; background: #9ca3af; animation: bounce .9s infinite; }
+  .typing-dots span:nth-child(2) { animation-delay: .15s; }
+  .typing-dots span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+  /* Confirm card */
+  .confirm-card {
+    background: linear-gradient(135deg,#f0fdf4,#ecfdf5);
+    border: 1.5px solid #6ee7b7; border-radius: 12px; padding: 1rem 1.25rem;
+    font-size: .82rem; color: #1f2937;
+  }
+  .confirm-card h4 { margin: 0 0 .5rem; font-size: .9rem; color: #0f766e; }
+  .confirm-btns { display: flex; gap: .5rem; margin-top: .75rem; }
+  .btn-confirm { background: #0d9488; color: #fff; border: none; border-radius: .5rem; padding: .45rem 1rem; font-weight: 700; font-size: .82rem; cursor: pointer; }
+  .btn-cancel-plan { background: #fff; border: 1px solid #d1d5db; border-radius: .5rem; padding: .45rem 1rem; font-weight: 600; font-size: .82rem; cursor: pointer; color: #6b7280; }
+
+  /* Input bar */
+  .chat-input-bar {
+    padding: .75rem 1.25rem; border-top: 1px solid #e5e7eb;
+    display: flex; gap: .6rem; align-items: flex-end;
+  }
+  .chat-input-bar textarea {
+    flex: 1; border: 1px solid #d1d5db; border-radius: .75rem; padding: .5rem .75rem;
+    font-size: .875rem; resize: none; outline: none; max-height: 100px; min-height: 38px;
+    font-family: inherit; line-height: 1.4;
+  }
+  .chat-input-bar textarea:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,.1); }
+  .btn-send {
+    width: 38px; height: 38px; background: linear-gradient(135deg,#0f766e,#0d9488);
+    border: none; border-radius: .65rem; color: #fff; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .btn-send:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* Plan list below */
+  .section-title { font-size: 1rem; font-weight: 800; color: #1f2937; margin: 0 0 1rem; }
+  .plans-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(310px,1fr)); gap: 1rem; }
+  .plan-card { background: #fff; border: 2px solid #e5e7eb; border-radius: 14px; overflow: hidden; }
+  .plan-card-header { padding: .9rem 1.1rem .6rem; display: flex; align-items: flex-start; gap: .65rem; }
+  .plan-badge { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .8rem; color: #fff; flex-shrink: 0; }
+  .plan-title { font-size: .95rem; font-weight: 800; color: #1f2937; }
+  .plan-price-sm { font-size: .8rem; color: #6b7280; }
+  .pill { display: inline-block; padding: .12rem .5rem; border-radius: 9999px; font-size: .68rem; font-weight: 700; }
+  .pill-green  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+  .pill-blue   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .pill-gray   { background: #f9fafb; color: #6b7280; border: 1px solid #e5e7eb; }
+  .pill-orange { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+  .plan-meta   { display: flex; gap: .3rem; flex-wrap: wrap; margin-top: .3rem; }
+  .plan-card-body { padding: .4rem 1.1rem .9rem; }
+  .caps-mini { font-size: .75rem; color: #6b7280; margin: .3rem 0; line-height: 1.6; }
+  .plan-actions { display: flex; gap: .4rem; margin-top: .6rem; }
+  .btn-sm  { padding: .3rem .7rem; font-size: .75rem; border-radius: .4rem; cursor: pointer; }
+  .btn-edit { background: #fff; border: 1px solid #d1d5db; color: #374151; }
+  .btn-del  { background: #fff; border: 1px solid #fca5a5; color: #dc2626; }
+
+  /* Markdown-like bold in chat */
+  .msg-bubble strong { font-weight: 700; }
+</style>
+
+<div class="ap-wrap">
+  <div class="ap-header">
+    <h1>📦 Plan Manager</h1>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+      <button class="btn-ghost" onclick="seedDefaults()" id="seedBtn">🌱 Seed Defaults (Free + White)</button>
+      <button class="btn-ghost" onclick="toggleImportPanel()" style="border-color:#6366f1;color:#6366f1;">⬆ Import Plan</button>
+      <button class="btn-ghost" onclick="resetChat()">✦ New Plan (AI)</button>
+    </div>
+  </div>
+
+  <!-- Import Plan Panel -->
+  <div id="importPanel" style="display:none;background:#fff;border:2px dashed #6366f1;border-radius:1rem;padding:1.5rem;margin-bottom:1.5rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <div>
+        <div style="font-size:1rem;font-weight:800;color:#1f2937;">⬆ Import Plan from Template</div>
+        <div style="font-size:.78rem;color:#6b7280;margin-top:.2rem;">Paste or upload a plan JSON template to create a new plan with all its feature caps in one shot.</div>
+      </div>
+      <button onclick="downloadTemplate()" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:.5rem;padding:.35rem .9rem;font-size:.78rem;font-weight:700;cursor:pointer;">⬇ Download Template</button>
+    </div>
+
+    <!-- Drop zone -->
+    <div id="dropZone"
+      style="border:2px dashed #c7d2fe;border-radius:.75rem;padding:1.5rem;text-align:center;cursor:pointer;transition:background .2s;margin-bottom:1rem;"
+      ondragover="event.preventDefault();this.style.background='#eef2ff'"
+      ondragleave="this.style.background=''"
+      ondrop="handleDrop(event)">
+      <div style="font-size:1.5rem;margin-bottom:.25rem;">📂</div>
+      <div style="font-size:.82rem;color:#6b7280;">Drag & drop a <code>.json</code> file here, or</div>
+      <label style="display:inline-block;margin-top:.4rem;background:#6366f1;color:#fff;border-radius:.4rem;padding:.35rem .9rem;font-size:.78rem;font-weight:700;cursor:pointer;">
+        Browse File
+        <input type="file" accept=".json" style="display:none" onchange="handleFileUpload(this)">
+      </label>
+    </div>
+
+    <!-- Paste area -->
+    <div style="margin-bottom:1rem;">
+      <label style="font-size:.72rem;font-weight:700;color:#6b7280;">Or paste JSON here</label>
+      <textarea id="importJson" rows="6"
+        style="width:100%;border:1.5px solid #d1d5db;border-radius:.5rem;padding:.5rem .75rem;font-size:.78rem;font-family:monospace;box-sizing:border-box;margin-top:.25rem;resize:vertical;"
+        placeholder='{ "plan": { "name": "Green", ... }, "caps": [...] }'></textarea>
+    </div>
+
+    <!-- Preview area -->
+    <div id="importPreview" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:.6rem;padding:.75rem 1rem;font-size:.8rem;color:#1f2937;margin-bottom:1rem;line-height:1.7;"></div>
+
+    <div style="display:flex;gap:.5rem;">
+      <button onclick="previewImport()" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;border-radius:.5rem;padding:.4rem 1rem;font-weight:700;font-size:.82rem;cursor:pointer;">🔍 Preview</button>
+      <button onclick="doImport()" id="importSaveBtn" style="background:#6366f1;color:#fff;border:none;border-radius:.5rem;padding:.4rem 1.1rem;font-weight:700;font-size:.82rem;cursor:pointer;">✅ Create Plan</button>
+      <button onclick="toggleImportPanel()" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:.5rem;padding:.4rem .9rem;font-size:.82rem;cursor:pointer;color:#6b7280;">Cancel</button>
+    </div>
+  </div>
+
+  <!-- AI Chatbot -->
+  <div class="chat-card">
+    <div class="chat-head">
+      <div class="bot-avatar">🤖</div>
+      <div class="chat-head-info">
+        <h3>Plan Creation Assistant</h3>
+        <p>I'll help you create subscription plans & feature extenders through conversation</p>
+      </div>
+    </div>
+
+    <div class="chat-messages" id="chatMessages">
+      <!-- Messages injected by JS -->
+    </div>
+
+    <div class="chat-input-bar">
+      <textarea id="chatInput" placeholder="Type your answer…" rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="btn-send" id="sendBtn" onclick="sendMessage()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Existing Plans -->
+  <h2 class="section-title">Existing Plans</h2>
+  <div class="plans-grid" id="plansGrid">
+    {% for plan in plans %}
+    <div class="plan-card">
+      <div class="plan-card-header">
+        <div class="plan-badge" style="background:{{ plan.colour or '#0d9488' }}">{{ plan.name[0] }}</div>
+        <div style="flex:1;">
+          <div class="plan-title">{{ plan.name }}</div>
+          <div class="plan-price-sm">{% if plan.is_free %}Free{% else %}₹{{ "%.0f"|format(plan.price) }}/{% if plan.billing_cycle == 'annual' %}year{% elif plan.billing_cycle == 'monthly' %}month{% elif plan.billing_cycle == 'weekly' %}week{% elif plan.billing_cycle == 'one_time' %}one-time{% else %}{{ plan.billing_cycle }}{% endif %}{% endif %}</div>
+          <div class="plan-meta">
+            <span class="pill {% if plan.is_active %}pill-green{% else %}pill-gray{% endif %}">{% if plan.is_active %}Active{% else %}Draft{% endif %}</span>
+            {% if plan.is_default %}<span class="pill pill-blue">Default</span>{% endif %}
+            {% if plan.is_free %}<span class="pill pill-orange">Free</span>{% endif %}
+            <span class="pill pill-gray">{{ sub_counts.get(plan.id, 0) }} subs</span>
+          </div>
+        </div>
+      </div>
+      <div class="plan-card-body">
+        {% if plan.description %}<div class="caps-mini" style="color:#374151;">{{ plan.description }}</div>{% endif %}
+        {% if plan.caps %}
+        <div class="caps-mini">
+          {% for cap in plan.caps %}
+          {{ cap.feature_name }}: {% if cap.limit_value == -1 %}∞{% else %}{{ cap.limit_value }}{% endif %}{% if cap.limit_first_week is not none %} (wk1: {{ cap.limit_first_week }}/day){% endif %}{% if cap.extend_price %} · Extend ₹{{ cap.extend_price }}{% endif %}<br>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="plan-actions">
+          <button class="btn-sm btn-edit"
+            data-plan-id="{{ plan.id }}"
+            data-plan='{{ plan|tojson }}'
+            onclick="openEditModal(this)">\u270e Edit Plan</button>
+          <button class="btn-sm btn-edit" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534;"
+            data-plan-id="{{ plan.id }}"
+            data-plan-name="{{ plan.name|e }}"
+            data-caps='{{ plan.caps|tojson }}'
+            onclick="openCapsModal(this)">\u270f Edit Caps</button>
+          <button class="btn-sm btn-del"
+            data-plan-id="{{ plan.id }}"
+            data-plan-name="{{ plan.name|e }}"
+            onclick="deletePlan(this)">&#128465; Delete</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ── Edit Plan Modal ──────────────────────────────────────────────── -->
+<div id="editPlanModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:101;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#fff;border-radius:1.25rem;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div style="padding:1.1rem 1.25rem .75rem;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:1rem;font-weight:800;color:#1f2937;">✎ Edit Plan</div>
+      <button onclick="closeEditModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#9ca3af;">&times;</button>
+    </div>
+    <div style="padding:1rem 1.25rem;display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+      <div style="grid-column:1/-1;">
+        <label style="font-size:.72rem;font-weight:700;color:#6b7280;">Plan Name *</label>
+        <input id="ep-name" style="width:100%;border:1.5px solid #d1d5db;border-radius:.5rem;padding:.45rem .65rem;font-size:.875rem;margin-top:.2rem;box-sizing:border-box;" placeholder="e.g. White, Green, Blue">
+      </div>
+      <div style="grid-column:1/-1;">
+        <label style="font-size:.72rem;font-weight:700;color:#6b7280;">Description</label>
+        <input id="ep-desc" style="width:100%;border:1.5px solid #d1d5db;border-radius:.5rem;padding:.45rem .65rem;font-size:.875rem;margin-top:.2rem;box-sizing:border-box;" placeholder="One-line description">
+      </div>
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:#6b7280;">₹ Price</label>
+        <input id="ep-price" type="number" min="0" step="0.01" style="width:100%;border:1.5px solid #d1d5db;border-radius:.5rem;padding:.45rem .65rem;font-size:.875rem;margin-top:.2rem;box-sizing:border-box;">
+      </div>
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:#6b7280;">Billing Cycle</label>
+        <select id="ep-cycle" style="width:100%;border:1.5px solid #d1d5db;border-radius:.5rem;padding:.45rem .65rem;font-size:.875rem;margin-top:.2rem;box-sizing:border-box;">
+          <option value="free">Free</option>
+          <option value="monthly">Monthly</option>
+          <option value="annual">Annual</option>
+          <option value="one_time">One-time</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:#6b7280;">Badge Colour</label>
+        <div style="display:flex;gap:.4rem;align-items:center;margin-top:.2rem;">
+          <input id="ep-colour" type="color" style="width:44px;height:34px;border:1.5px solid #d1d5db;border-radius:.4rem;cursor:pointer;padding:.15rem;">
+          <input id="ep-colour-hex" style="flex:1;border:1.5px solid #d1d5db;border-radius:.5rem;padding:.45rem .5rem;font-size:.8rem;" placeholder="#0d9488" oninput="document.getElementById('ep-colour').value=this.value">
+        </div>
+      </div>
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:#6b7280;">Display Order</label>
+        <input id="ep-order" type="number" min="0" style="width:100%;border:1.5px solid #d1d5db;border-radius:.5rem;padding:.45rem .65rem;font-size:.875rem;margin-top:.2rem;box-sizing:border-box;">
+      </div>
+      <div style="grid-column:1/-1;display:flex;gap:1rem;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:600;color:#374151;cursor:pointer;">
+          <input type="checkbox" id="ep-free" style="width:15px;height:15px;"> Free plan
+        </label>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:600;color:#374151;cursor:pointer;">
+          <input type="checkbox" id="ep-active" style="width:15px;height:15px;"> Active
+        </label>
+        <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;font-weight:600;color:#374151;cursor:pointer;">
+          <input type="checkbox" id="ep-default" style="width:15px;height:15px;"> Default plan
+        </label>
+      </div>
+    </div>
+    <div style="padding:.75rem 1.25rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:.5rem;">
+      <button onclick="saveEditPlan()" style="background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;border:none;border-radius:.5rem;padding:.45rem 1.25rem;font-weight:700;font-size:.85rem;cursor:pointer;">Save Changes</button>
+      <button onclick="closeEditModal()" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:.5rem;padding:.45rem .9rem;font-size:.85rem;cursor:pointer;color:#6b7280;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="capsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#fff;border-radius:1.25rem;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+    <div style="padding:1.1rem 1.25rem .75rem;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:1rem;font-weight:800;color:#1f2937;">✏ Edit Caps — <span id="modalPlanName"></span></div>
+        <div style="font-size:.75rem;color:#6b7280;margin-top:.1rem;">Add or remove feature limits for this plan</div>
+      </div>
+      <button onclick="closeCapsModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#9ca3af;line-height:1;">×</button>
+    </div>
+
+    <!-- Quick-add chips -->
+    <div style="padding:.75rem 1.25rem .4rem;">
+      <div style="font-size:.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;">Quick Add</div>
+      <div style="display:flex;flex-wrap:wrap;gap:.4rem;">
+        <button class="quick-chip" onclick="quickAdd('thryveq_access','THRYVEQ Score Access','thryveq')">📊 THRYVEQ Access</button>
+        <button class="quick-chip" onclick="quickAdd('recording_access','Call Recording Access','recording')">🎙 Call Recordings</button>
+        <button class="quick-chip" onclick="quickAdd('ai_chat','Emora Chat Buddy','ai_chat')">🤖 Emora Chat</button>
+        <button class="quick-chip" onclick="quickAdd('consultant_sessions','Consultant Bookings','monthly')">👥 Consultant Bookings</button>
+        <button class="quick-chip" onclick="quickAdd('vitals_scans','Vitals Scans','monthly')">❤ Vitals Scans</button>
+        <button class="quick-chip" onclick="quickAdd('journal_entries','Journal Entries','monthly')">📓 Journal</button>
+        <button class="quick-chip" onclick="quickAdd('google_fit_sync','Google Fit Sync','toggle')">🏃 Google Fit Sync</button>
+        <button class="quick-chip" onclick="quickAdd('live_chat','Live Chat with Consultant','toggle')">💬 Live Chat</button>
+        <button class="quick-chip" onclick="quickAdd('free_consultation','Free Consultation','monthly')">🎁 Free Consultation</button>
+        <button class="quick-chip" onclick="quickAdd('consultation_discount','Consultation Discount','discount')">🏷 Consultation Discount</button>
+        <button class="quick-chip" onclick="quickAdd('emora_pack_discount','Emora Pack Discount','discount')">🏷 Emora Pack Discount</button>
+      </div>
+    </div>
+
+    <!-- Existing caps list -->
+    <div style="padding:.5rem 1.25rem;" id="existingCapsList"></div>
+
+    <!-- Add cap form -->
+    <div id="addCapForm" style="display:none;background:#f8fafc;border-top:1px solid #e5e7eb;">
+
+      <!-- ThryvQ-specific form -->
+      <div id="capForm-thryveq" style="display:none;padding:.75rem 1.25rem;">
+        <div style="font-size:.8rem;font-weight:700;color:#374151;margin-bottom:.65rem;">📊 ThryvQ Score Access</div>
+        <div style="font-size:.75rem;color:#6b7280;margin-bottom:.6rem;">Latest is always visible to all users. Select which additional periods to unlock:</div>
+        <div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.65rem;">
+          <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:#9ca3af;">
+            <input type="checkbox" id="tq-latest" value="1" checked disabled style="accent-color:#0d9488;width:15px;height:15px;"> Latest <span style="font-size:.72rem;">(always included)</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;cursor:pointer;">
+            <input type="checkbox" id="tq-week" value="2" style="accent-color:#0d9488;width:15px;height:15px;"> This Week
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;cursor:pointer;">
+            <input type="checkbox" id="tq-month" value="4" style="accent-color:#0d9488;width:15px;height:15px;"> This Month
+          </label>
+          <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;cursor:pointer;">
+            <input type="checkbox" id="tq-year" value="8" style="accent-color:#0d9488;width:15px;height:15px;"> This Year
+          </label>
+        </div>
+        <label style="font-size:.72rem;color:#6b7280;">Lock message (shown on hidden tiles)</label>
+        <input id="cf-tq-msg" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;margin-top:.2rem;box-sizing:border-box;" placeholder="Upgrade to see your weekly ThryvQ score">
+        <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+          <button onclick="saveCapThryveq()" style="background:#0d9488;color:#fff;border:none;border-radius:.5rem;padding:.4rem 1rem;font-weight:700;font-size:.8rem;cursor:pointer;">Save Cap</button>
+          <button onclick="document.getElementById('addCapForm').style.display='none'" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:.5rem;padding:.4rem .8rem;font-size:.8rem;cursor:pointer;color:#6b7280;">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Recording-specific form -->
+      <div id="capForm-recording" style="display:none;padding:.75rem 1.25rem;">
+        <div style="font-size:.8rem;font-weight:700;color:#374151;margin-bottom:.65rem;">🎙 Call Recording Access</div>
+        <div style="font-size:.75rem;color:#6b7280;margin-bottom:.6rem;">Should users on this plan be able to view and listen to their call recordings?</div>
+        <div style="display:flex;gap:1rem;margin-bottom:.65rem;">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;cursor:pointer;"><input type="radio" name="rec-access" value="1" style="accent-color:#0d9488;" checked> ✅ Yes — allow access</label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;cursor:pointer;"><input type="radio" name="rec-access" value="0" style="accent-color:#0d9488;"> 🔒 No — lock recordings</label>
+        </div>
+        <label style="font-size:.72rem;color:#6b7280;">Lock message (shown on recordings page if denied)</label>
+        <input id="cf-rec-msg" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;margin-top:.2rem;box-sizing:border-box;" placeholder="Upgrade your plan to access call recordings">
+        <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+          <button onclick="saveCapRecording()" style="background:#0d9488;color:#fff;border:none;border-radius:.5rem;padding:.4rem 1rem;font-weight:700;font-size:.8rem;cursor:pointer;">Save Cap</button>
+          <button onclick="document.getElementById('addCapForm').style.display='none'" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:.5rem;padding:.4rem .8rem;font-size:.8rem;cursor:pointer;color:#6b7280;">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Discount form — for consultation_discount, emora_pack_discount -->
+      <div id="capForm-discount" style="display:none;padding:.75rem 1.25rem;">
+        <div style="font-size:.8rem;font-weight:700;color:#374151;margin-bottom:.65rem;" id="capForm-discount-title">Discount Cap</div>
+        <div style="font-size:.75rem;color:#6b7280;margin-bottom:.6rem;" id="capForm-discount-desc">Enter the discount percentage this plan grants (e.g. 25 for 25% off).</div>
+        <input type="hidden" id="cf-discount-key">
+        <input type="hidden" id="cf-discount-name">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem;">
+          <input id="cf-discount-pct" type="number" min="1" max="100" value="25"
+            style="width:80px;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.9rem;font-weight:700;text-align:center;">
+          <span style="font-size:.85rem;color:#374151;">% discount</span>
+        </div>
+        <label style="font-size:.72rem;color:#6b7280;">Message shown at checkout</label>
+        <input id="cf-discount-msg" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;margin-top:.2rem;box-sizing:border-box;"
+          placeholder="25% Blue plan discount applied.">
+        <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+          <button onclick="saveCapDiscount()" style="background:#0d9488;color:#fff;border:none;border-radius:.5rem;padding:.4rem 1rem;font-weight:700;font-size:.8rem;cursor:pointer;">Save Cap</button>
+          <button onclick="document.getElementById('addCapForm').style.display='none'" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:.5rem;padding:.4rem .8rem;font-size:.8rem;cursor:pointer;color:#6b7280;">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Toggle (Allow/Block) form — for Google Fit Sync, Live Chat etc. -->
+      <div id="capForm-toggle" style="display:none;padding:.75rem 1.25rem;">
+        <div style="font-size:.8rem;font-weight:700;color:#374151;margin-bottom:.65rem;" id="capForm-toggle-title">Feature Access</div>
+        <div style="font-size:.75rem;color:#6b7280;margin-bottom:.6rem;" id="capForm-toggle-desc">Should users on this plan have access to this feature?</div>
+        <input type="hidden" id="cf-toggle-key">
+        <input type="hidden" id="cf-toggle-name">
+        <div style="display:flex;gap:1rem;margin-bottom:.65rem;">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;cursor:pointer;"><input type="radio" name="toggle-access" value="-1" style="accent-color:#0d9488;" checked> ✅ Yes — allow access</label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.85rem;cursor:pointer;"><input type="radio" name="toggle-access" value="0" style="accent-color:#0d9488;"> 🔒 No — block access</label>
+        </div>
+        <label style="font-size:.72rem;color:#6b7280;">Lock message (shown when blocked)</label>
+        <input id="cf-toggle-msg" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;margin-top:.2rem;box-sizing:border-box;" placeholder="Upgrade your plan to access this feature">
+        <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+          <button onclick="saveCapToggle()" style="background:#0d9488;color:#fff;border:none;border-radius:.5rem;padding:.4rem 1rem;font-weight:700;font-size:.8rem;cursor:pointer;">Save Cap</button>
+          <button onclick="document.getElementById('addCapForm').style.display='none'" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:.5rem;padding:.4rem .8rem;font-size:.8rem;cursor:pointer;color:#6b7280;">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Generic / AI Chat / Bookings / Vitals form -->
+      <div id="capForm-generic" style="display:none;padding:.75rem 1.25rem;">
+        <div style="font-size:.8rem;font-weight:700;color:#374151;margin-bottom:.6rem;" id="capForm-generic-title">New Feature Cap</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+          <div><label style="font-size:.72rem;color:#6b7280;">Feature Key</label><input id="cf-key" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;box-sizing:border-box;" placeholder="e.g. ai_chat"></div>
+          <div><label style="font-size:.72rem;color:#6b7280;">Label</label><input id="cf-name" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;box-sizing:border-box;" placeholder="e.g. Emora Chat"></div>
+          <div id="cf-limit-wrap"><label style="font-size:.72rem;color:#6b7280;">Limit Value <span style="font-weight:400;">(-1=unlimited)</span></label><input id="cf-limit" type="number" value="-1" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;box-sizing:border-box;"></div>
+          <div id="cf-price-wrap"><label style="font-size:.72rem;color:#6b7280;">Extend Price (₹)</label><input id="cf-price" type="number" value="0" step="0.01" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;box-sizing:border-box;"></div>
+          <div id="cf-quota-wrap"><label style="font-size:.72rem;color:#6b7280;">Extend Quota</label><input id="cf-quota" type="number" value="0" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;box-sizing:border-box;"></div>
+          <div id="cf-wk1-wrap"><label style="font-size:.72rem;color:#6b7280;">First-week Daily Limit</label><input id="cf-wk1" type="number" placeholder="Leave blank" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;box-sizing:border-box;"></div>
+          <div id="cf-wk2-wrap" style="grid-column:1/-1;"><label style="font-size:.72rem;color:#6b7280;">Post-week Daily Limit</label><input id="cf-wk2" type="number" placeholder="Leave blank" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;box-sizing:border-box;"></div>
+          <div style="grid-column:1/-1;"><label style="font-size:.72rem;color:#6b7280;">Limit-hit Message</label><input id="cf-msg" style="width:100%;border:1px solid #d1d5db;border-radius:.4rem;padding:.35rem .5rem;font-size:.8rem;box-sizing:border-box;" placeholder="Shown when user hits the limit"></div>
+        </div>
+        <div style="display:flex;gap:.5rem;margin-top:.75rem;">
+          <button onclick="saveCap()" style="background:#0d9488;color:#fff;border:none;border-radius:.5rem;padding:.4rem 1rem;font-weight:700;font-size:.8rem;cursor:pointer;">Save Cap</button>
+          <button onclick="document.getElementById('addCapForm').style.display='none'" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:.5rem;padding:.4rem .8rem;font-size:.8rem;cursor:pointer;color:#6b7280;">Cancel</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="padding:.75rem 1.25rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:.5rem;">
+      <button onclick="showAddCapForm()" style="background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:.5rem;padding:.4rem .9rem;font-size:.8rem;font-weight:700;cursor:pointer;">+ Custom Feature</button>
+      <button onclick="closeCapsModal()" style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:.5rem;padding:.4rem .9rem;font-size:.8rem;cursor:pointer;color:#6b7280;">Close</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .quick-chip { background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:999px;padding:.3rem .75rem;font-size:.75rem;font-weight:700;cursor:pointer; }
+  .quick-chip:hover { background:#dcfce7; }
+  .cap-row { display:flex;align-items:flex-start;gap:.6rem;padding:.55rem .5rem;border:1px solid #e5e7eb;border-radius:.6rem;margin-bottom:.4rem;background:#f9fafb; }
+  .cap-icon { font-size:1rem;margin-top:.1rem;flex-shrink:0; }
+  .cap-info { flex:1; }
+  .cap-title { font-size:.82rem;font-weight:700;color:#1f2937; }
+  .cap-detail { font-size:.73rem;color:#6b7280;margin-top:.1rem; }
+  .cap-del { background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:.1rem .3rem;border-radius:.3rem; }
+  .cap-del:hover { background:#fee2e2; }
+</style>
+
+<script>
+  // ── Edit Plan Modal ──────────────────────────────────────────────────────────
+  let _editPlanId = null;
+
+  function openEditModal(btn) {
+    const planId = parseInt(btn.dataset.planId);
+    const plan   = JSON.parse(btn.dataset.plan);
+    _editPlanId = planId;
+    document.getElementById('ep-name').value       = plan.name        || '';
+    document.getElementById('ep-desc').value       = plan.description || '';
+    document.getElementById('ep-price').value      = plan.price       || 0;
+    document.getElementById('ep-cycle').value      = plan.billing_cycle || 'monthly';
+    const col = plan.colour || '#0d9488';
+    document.getElementById('ep-colour').value     = col;
+    document.getElementById('ep-colour-hex').value = col;
+    document.getElementById('ep-order').value      = plan.display_order ?? 0;
+    document.getElementById('ep-free').checked     = !!plan.is_free;
+    document.getElementById('ep-active').checked   = !!plan.is_active;
+    document.getElementById('ep-default').checked  = !!plan.is_default;
+    // sync colour picker → hex on change
+    document.getElementById('ep-colour').oninput = function() {
+      document.getElementById('ep-colour-hex').value = this.value;
+    };
+    const m = document.getElementById('editPlanModal');
+    m.style.display = 'flex';
+  }
+
+  function closeEditModal() {
+    document.getElementById('editPlanModal').style.display = 'none';
+    _editPlanId = null;
+  }
+
+  async function saveEditPlan() {
+    const payload = {
+      name:          document.getElementById('ep-name').value.trim(),
+      description:   document.getElementById('ep-desc').value.trim(),
+      price:         parseFloat(document.getElementById('ep-price').value) || 0,
+      billing_cycle: document.getElementById('ep-cycle').value,
+      colour:        document.getElementById('ep-colour-hex').value.trim() || document.getElementById('ep-colour').value,
+      display_order: parseInt(document.getElementById('ep-order').value) || 0,
+      is_free:       document.getElementById('ep-free').checked,
+      is_active:     document.getElementById('ep-active').checked,
+      is_default:    document.getElementById('ep-default').checked,
+    };
+    if (!payload.name) { alert('Plan name is required.'); return; }
+
+    const btn = document.querySelector('#editPlanModal button[onclick="saveEditPlan()"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+    try {
+      const r = await fetch(`/api/admin/plans/${_editPlanId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if (d.success) {
+        closeEditModal();
+        location.reload();
+      } else {
+        alert(d.error || 'Failed to save plan');
+        if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
+      }
+    } catch(e) {
+      alert('Network error');
+      if (btn) { btn.disabled = false; btn.textContent = 'Save Changes'; }
+    }
+  }
+
+  // ── Caps Modal State ────────────────────────────────────────────────────────
+  let _modalPlanId = null;
+  let _modalCaps   = [];
+
+  function openCapsModal(btn) {
+    const planId   = parseInt(btn.dataset.planId);
+    const planName = btn.dataset.planName;
+    const caps     = JSON.parse(btn.dataset.caps);
+    _modalPlanId = planId;
+    _modalCaps   = caps || [];
+    document.getElementById('modalPlanName').textContent = planName;
+    document.getElementById('addCapForm').style.display = 'none';
+    renderCaps();
+    const m = document.getElementById('capsModal');
+    m.style.display = 'flex';
+  }
+
+  function closeCapsModal() {
+    document.getElementById('capsModal').style.display = 'none';
+    _modalPlanId = null;
+    location.reload();   // refresh to show updated caps in card
+  }
+
+  function renderCaps() {
+    const el = document.getElementById('existingCapsList');
+    if (!_modalCaps.length) {
+      el.innerHTML = '<p style="font-size:.8rem;color:#9ca3af;padding:.5rem 0;">No feature caps yet. Use Quick Add above.</p>';
+      return;
+    }
+    const icons = { ai_chat:'🤖', thryveq_access:'📊', recording_access:'🎙', consultant_sessions:'👥', vitals_scans:'❤', journal_entries:'📓', google_fit_sync:'🏃', live_chat:'💬', free_consultation:'🎁', consultation_discount:'🏷', emora_pack_discount:'🏷' };
+    el.innerHTML = _modalCaps.map(c => {
+      const icon     = icons[c.feature_key] || '⚙';
+      let detail = '';
+      if (c.feature_key === 'thryveq_access') {
+        const map = {1:'Latest only',3:'Latest+Week',7:'Latest+Week+Month',15:'All'};
+        detail = 'Access: ' + (map[c.limit_value] || 'Bitmask ' + c.limit_value);
+      } else if (c.feature_key === 'recording_access') {
+        detail = c.limit_value ? '✅ Allowed' : '❌ Blocked';
+      } else {
+        detail = 'Limit: ' + (c.limit_value == -1 ? 'Unlimited' : c.limit_value);
+        if (c.limit_first_week != null) detail += ` · Wk1: ${c.limit_first_week}/day`;
+        if (c.limit_post_week  != null) detail += ` · Post-wk: ${c.limit_post_week}/day`;
+        if (c.extend_price)             detail += ` · Extend ₹${c.extend_price}`;
+      }
+      if (c.limit_hit_message) detail += `<br><em style="color:#9ca3af;">"${c.limit_hit_message}"</em>`;
+      return `<div class="cap-row">
+        <span class="cap-icon">${icon}</span>
+        <div class="cap-info">
+          <div class="cap-title">${c.feature_name}</div>
+          <div class="cap-detail">${detail}</div>
+        </div>
+        <button class="cap-del" onclick="deleteCap(${c.id})" title="Remove cap">🗑</button>
+      </div>`;
+    }).join('');
+  }
+
+  function _showOnlySubForm(id) {
+    ['capForm-thryveq','capForm-recording','capForm-generic','capForm-toggle','capForm-discount'].forEach(f =>
+      document.getElementById(f).style.display = f === id ? 'block' : 'none'
+    );
+    document.getElementById('addCapForm').style.display = 'block';
+    document.getElementById('addCapForm').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function showAddCapForm() {
+    // + Custom Feature shows generic form with blank fields
+    ['cf-key','cf-name','cf-msg'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('cf-limit').value = '-1';
+    document.getElementById('cf-toggle-key').value = '';
+    document.getElementById('cf-toggle-name').value = '';
+    document.getElementById('cf-toggle-msg').value = '';
+    document.querySelector('input[name="toggle-access"][value="-1"]').checked = true;
+    document.getElementById('cf-discount-key').value = '';
+    document.getElementById('cf-discount-name').value = '';
+    document.getElementById('cf-discount-pct').value = '25';
+    document.getElementById('cf-discount-msg').value = '';
+    document.getElementById('cf-price').value = '0';
+    document.getElementById('cf-quota').value = '0';
+    document.getElementById('cf-wk1').value = '';
+    document.getElementById('cf-wk2').value = '';
+    document.getElementById('capForm-generic-title').textContent = 'New Feature Cap';
+    _showOnlySubForm('capForm-generic');
+  }
+
+  function quickAdd(key, name, type) {
+    if (type === 'discount') {
+      document.getElementById('cf-discount-key').value  = key;
+      document.getElementById('cf-discount-name').value = name;
+      document.getElementById('capForm-discount-title').textContent = name;
+      const descs = {
+        'consultation_discount': 'What % discount should Blue plan users get on paid consultations?',
+        'emora_pack_discount':   'What % discount should Blue plan users get on Emora chat packs?',
+      };
+      document.getElementById('capForm-discount-desc').textContent = descs[key] || 'Enter the discount percentage.';
+      document.getElementById('cf-discount-pct').value = '25';
+      document.getElementById('cf-discount-msg').value = '';
+      _showOnlySubForm('capForm-discount');
+    } else if (type === 'toggle') {
+      document.getElementById('cf-toggle-key').value  = key;
+      document.getElementById('cf-toggle-name').value = name;
+      document.getElementById('capForm-toggle-title').textContent = name;
+      const descs = {
+        'google_fit_sync': 'Should users on this plan be able to sync their workout data from Google Fit?',
+        'live_chat': 'Should users on this plan have access to live chat with a consultant?',
+      };
+      document.getElementById('capForm-toggle-desc').textContent = descs[key] || 'Should users on this plan have access to this feature?';
+      document.getElementById('cf-toggle-msg').value = '';
+      document.querySelector('input[name="toggle-access"][value="-1"]').checked = true;
+      _showOnlySubForm('capForm-toggle');
+    } else if (type === 'thryveq') {
+      // Reset ThryvQ form
+      document.querySelector('input[name="tq-period"][value="15"]') && (document.querySelector('input[name="tq-period"][value="15"]').checked = true);
+      // Reset individual checkboxes
+      ['tq-week','tq-month','tq-year'].forEach(id => { const el = document.getElementById(id); if(el) el.checked = false; });
+      document.getElementById('cf-tq-msg').value = 'Upgrade your plan to unlock this ThryvQ score period.';
+      _showOnlySubForm('capForm-thryveq');
+
+    } else if (type === 'recording') {
+      // Reset Recording form
+      document.querySelector('input[name="rec-access"][value="1"]').checked = true;
+      document.getElementById('cf-rec-msg').value = 'Upgrade your plan to access call recordings.';
+      _showOnlySubForm('capForm-recording');
+
+    } else {
+      // Generic / ai_chat / bookings / vitals / journal
+      document.getElementById('cf-key').value  = key;
+      document.getElementById('cf-name').value = name;
+      document.getElementById('cf-msg').value  = '';
+      document.getElementById('cf-price').value = '0';
+      document.getElementById('cf-quota').value = '0';
+      if (type === 'ai_chat') {
+        document.getElementById('cf-limit').value = '-1';
+        document.getElementById('cf-wk1').value   = '5';
+        document.getElementById('cf-wk2').value   = '10';
+        document.getElementById('cf-msg').value   = 'Daily Emora chat limit reached. Upgrade or try again tomorrow.';
+        document.getElementById('capForm-generic-title').textContent = '🤖 Emora Chat Buddy';
+      } else {
+        document.getElementById('cf-limit').value = '-1';
+        document.getElementById('cf-wk1').value   = '';
+        document.getElementById('cf-wk2').value   = '';
+        document.getElementById('capForm-generic-title').textContent = '✏ ' + name;
+      }
+      _showOnlySubForm('capForm-generic');
+    }
+  }
+
+  async function _postCaps(payload) {
+    const r = await fetch(`/api/admin/plans/${_modalPlanId}/caps`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify([payload]),
+    });
+    const d = await r.json();
+    if (d.success) {
+      _modalCaps = d.caps || _modalCaps;
+      renderCaps();
+      document.getElementById('addCapForm').style.display = 'none';
+    } else { alert(d.error || 'Failed to save cap'); }
+  }
+
+  async function saveCapToggle() {
+    const key  = document.getElementById('cf-toggle-key').value;
+    const name = document.getElementById('cf-toggle-name').value;
+    const val  = parseInt(document.querySelector('input[name="toggle-access"]:checked')?.value ?? '-1');
+    const msg  = document.getElementById('cf-toggle-msg').value.trim() || null;
+    await _postCaps({ feature_key: key, feature_name: name,
+      limit_value: val, limit_hit_message: val === 0 ? msg : null, extend_price: 0, extend_quota: 0 });
+  }
+
+  async function saveCapDiscount() {
+    const key  = document.getElementById('cf-discount-key').value;
+    const name = document.getElementById('cf-discount-name').value;
+    const pct  = parseInt(document.getElementById('cf-discount-pct').value) || 0;
+    const msg  = document.getElementById('cf-discount-msg').value.trim() ||
+                 `${pct}% plan discount applied.`;
+    await _postCaps({ feature_key: key, feature_name: name,
+      limit_value: pct, limit_hit_message: msg, extend_price: 0, extend_quota: 0 });
+  }
+
+  async function saveCapThryveq() {
+    let mask = 1; // Latest always included
+    if (document.getElementById('tq-week')?.checked)  mask += 2;
+    if (document.getElementById('tq-month')?.checked) mask += 4;
+    if (document.getElementById('tq-year')?.checked)  mask += 8;
+    const msg  = document.getElementById('cf-tq-msg').value.trim() || null;
+    await _postCaps({ feature_key: 'thryveq_access', feature_name: 'THRYVEQ Score Access',
+      limit_value: mask, limit_hit_message: msg, extend_price: 0, extend_quota: 0 });
+  }
+
+  async function saveCapRecording() {
+    const val = parseInt(document.querySelector('input[name="rec-access"]:checked')?.value || '1');
+    const msg = document.getElementById('cf-rec-msg').value.trim() || null;
+    await _postCaps({ feature_key: 'recording_access', feature_name: 'Call Recording Access',
+      limit_value: val, limit_hit_message: val === 0 ? msg : null, extend_price: 0, extend_quota: 0 });
+  }
+
+  async function saveCap() {
+    const payload = {
+      feature_key:       document.getElementById('cf-key').value.trim(),
+      feature_name:      document.getElementById('cf-name').value.trim(),
+      limit_value:       parseInt(document.getElementById('cf-limit').value) || -1,
+      extend_price:      parseFloat(document.getElementById('cf-price').value) || 0,
+      extend_quota:      parseInt(document.getElementById('cf-quota').value) || 0,
+      limit_hit_message: document.getElementById('cf-msg').value.trim() || null,
+      limit_first_week:  document.getElementById('cf-wk1').value !== '' ? parseInt(document.getElementById('cf-wk1').value) : null,
+      limit_post_week:   document.getElementById('cf-wk2').value !== '' ? parseInt(document.getElementById('cf-wk2').value) : null,
+    };
+    if (!payload.feature_key || !payload.feature_name) { alert('Feature key and label are required.'); return; }
+
+    try {
+      // Backend expects a list of cap objects
+      const r = await fetch(`/api/admin/plans/${_modalPlanId}/caps`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([payload]),
+      });
+      const d = await r.json();
+      if (d.success) {
+        _modalCaps = d.caps || _modalCaps;   // reload from full updated caps list
+        renderCaps();
+        document.getElementById('addCapForm').style.display = 'none';
+        ['cf-key','cf-name','cf-wk1','cf-wk2','cf-msg'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('cf-limit').value = '-1';
+        document.getElementById('cf-price').value = '0';
+        document.getElementById('cf-quota').value = '0';
+      } else { alert(d.error || 'Failed to save cap'); }
+    } catch(e) { alert('Network error'); }
+  }
+
+  async function deleteCap(capId) {
+    if (!confirm('Remove this feature cap?')) return;
+    try {
+      const r = await fetch(`/api/admin/plans/${_modalPlanId}/caps/${capId}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.success) {
+        _modalCaps = _modalCaps.filter(c => c.id !== capId);
+        renderCaps();
+      } else { alert(d.error || 'Failed to delete'); }
+    } catch(e) { alert('Network error'); }
+  }
+
+  // ── Conversation state ─────────────────────────────────────────────────────
+  let messages = [];  // [{role, parts:[{text}]}]
+  let pendingAction = null;  // action JSON from bot waiting for confirm
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    // Bot greeting
+    addBotMsg("👋 Hi! I'm your Plan Creation Assistant.\n\nI can help you create two types of plans:\n\n**1. Feature Extender** — lets users buy extra quota for a specific feature (e.g. 50 more Emora messages/day for ₹49)\n\n**2. Subscription Plan** — a full subscription tier with multiple features and caps\n\nWhich type would you like to create?");
+  });
+
+  function resetChat() {
+    messages = [];
+    pendingAction = null;
+    document.getElementById('chatMessages').innerHTML = '';
+    addBotMsg("👋 Let's create a new plan! Which type would you like?\n\n**1. Feature Extender** — extra quota for a specific feature\n**2. Subscription Plan** — full tier with multiple features");
+  }
+
+  // ── Message rendering ───────────────────────────────────────────────────────
+  function mdToHtml(text) {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function addBotMsg(text, isConfirm, actionData) {
+    const wrap = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'msg bot';
+
+    if (isConfirm && actionData) {
+      div.innerHTML = `
+        <div class="msg-avatar">🤖</div>
+        <div>
+          <div class="msg-bubble">${mdToHtml(text)}</div>
+          <div class="confirm-card" style="margin-top:.5rem;">
+            <h4>✅ Plan Ready to Create</h4>
+            <div style="font-size:.78rem;color:#374151;line-height:1.8;">
+              <strong>Name:</strong> ${actionData.plan.name}<br>
+              <strong>Type:</strong> ${actionData.plan_type === 'feature_extender' ? 'Feature Extender' : 'Subscription Plan'}<br>
+              <strong>Price:</strong> ${actionData.plan.is_free ? 'Free' : '₹' + actionData.plan.price + '/' + actionData.plan.billing_cycle}<br>
+              ${actionData.caps.map(c=>`<strong>${c.feature_name}:</strong> ${c.limit_value===-1?'Unlimited':c.limit_value}${c.extend_price?` · Extend ₹${c.extend_price} for ${c.extend_quota} more`:''}`).join('<br>')}
+            </div>
+            <div class="confirm-btns">
+              <button class="btn-confirm" onclick="createPlan()">✓ Create Plan</button>
+              <button class="btn-cancel-plan" onclick="sendText('Let me make some changes.')">✎ Edit</button>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      div.innerHTML = `
+        <div class="msg-avatar">🤖</div>
+        <div class="msg-bubble">${mdToHtml(text)}</div>`;
+    }
+
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function addUserMsg(text) {
+    const wrap = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'msg user';
+    div.innerHTML = `<div class="msg-avatar" style="background:#e5e7eb;color:#374151;">A</div><div class="msg-bubble">${mdToHtml(text)}</div>`;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function showTyping() {
+    const wrap = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'msg bot'; div.id = 'typingIndicator';
+    div.innerHTML = `<div class="msg-avatar">🤖</div><div class="msg-bubble" style="padding:.35rem .75rem;"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+    wrap.appendChild(div);
+    wrap.scrollTop = wrap.scrollHeight;
+  }
+
+  function removeTyping() {
+    const el = document.getElementById('typingIndicator');
+    if (el) el.remove();
+  }
+
+  // ── Send message ─────────────────────────────────────────────────────────────
+  async function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    input.style.height = 'auto';
+    sendText(text);
+  }
+
+  async function sendText(text) {
+    addUserMsg(text);
+    messages.push({ role: 'user', parts: [{ text }] });
+
+    document.getElementById('sendBtn').disabled = true;
+    showTyping();
+
+    try {
+      const r = await fetch('/api/admin/plan-assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages }),
+      });
+      const d = await r.json();
+      removeTyping();
+
+      if (!d.success) {
+        addBotMsg('❌ Error: ' + (d.error || 'Something went wrong. Please try again.'));
+        return;
+      }
+
+      const reply = d.reply || '';
+
+      // Strip the JSON block from the displayed reply
+      const displayReply = reply.replace(/```json[\s\S]*?```/g, '').trim();
+
+      if (d.action && d.action.action === 'create_plan') {
+        pendingAction = d.action;
+        addBotMsg(displayReply || 'Here is the plan I\'ve designed based on our conversation. Please review:', true, d.action);
+      } else {
+        addBotMsg(displayReply);
+      }
+
+      messages.push({ role: 'model', parts: [{ text: reply }] });
+
+    } catch (e) {
+      removeTyping();
+      addBotMsg('❌ Network error. Please check your connection and try again.');
+    } finally {
+      document.getElementById('sendBtn').disabled = false;
+    }
+  }
+
+  // ── Create plan ─────────────────────────────────────────────────────────────
+  async function createPlan() {
+    if (!pendingAction) return;
+    const btn = document.querySelector('.btn-confirm');
+    btn.disabled = true;
+    btn.textContent = 'Creating…';
+
+    try {
+      const r = await fetch('/api/admin/plan-assistant/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: pendingAction.plan, caps: pendingAction.caps }),
+      });
+      const d = await r.json();
+
+      if (d.success) {
+        addBotMsg(`✅ **"${d.plan_name}"** has been created successfully! 🎉\n\nThe plan is now live and visible to users. You can see it in the list below.\n\nWould you like to create another plan?`);
+        pendingAction = null;
+        setTimeout(() => location.reload(), 2500);
+      } else {
+        addBotMsg('❌ Failed to create plan: ' + (d.error || 'Unknown error'));
+        btn.disabled = false;
+        btn.textContent = '✓ Create Plan';
+      }
+    } catch (e) {
+      addBotMsg('❌ Network error while creating plan.');
+      btn.disabled = false;
+      btn.textContent = '✓ Create Plan';
+    }
+  }
+
+  // ── Import & Seed ────────────────────────────────────────────────────────────
+  const _PLAN_TEMPLATE = {
+    "plan": {
+      "name": "Green",
+      "description": "A short description of this plan.",
+      "price": 500,
+      "billing_cycle": "monthly",
+      "is_free": false,
+      "is_default": false,
+      "is_active": true,
+      "colour": "#16a34a",
+      "display_order": 2
+    },
+    "caps": [
+      { "feature_key": "mood_tracker",      "feature_name": "Mood Tracker",              "limit_value": -1 },
+      { "feature_key": "vital_scan",        "feature_name": "Vital Scan",                "limit_value": -1 },
+      { "feature_key": "journal",           "feature_name": "Daily Journal",             "limit_value": -1 },
+      { "feature_key": "workout_log",       "feature_name": "Workout Log",               "limit_value": -1 },
+      { "feature_key": "google_fit_sync",   "feature_name": "Google Fit Sync",           "limit_value": -1 },
+      { "feature_key": "thryveq_access",    "feature_name": "THRYVEQ Score Access",       "limit_value": 15,
+        "limit_hit_message": "Upgrade to unlock this THRYVEQ period." },
+      { "feature_key": "free_consultation", "feature_name": "Free Consultation",         "limit_value": 1,
+        "limit_hit_message": "Your free consultation has been used. Book more at standard rates." },
+      { "feature_key": "ai_chat",           "feature_name": "Emora Chat Buddy",           "limit_value": 50,
+        "limit_first_week": 500, "limit_post_week": 50,
+        "limit_hit_message": "Daily Emora message limit reached. Try again tomorrow.",
+        "extend_price": 49, "extend_quota": 50 },
+      { "feature_key": "recording_access",  "feature_name": "Call Recording Access",     "limit_value": 1 },
+      { "feature_key": "live_chat",         "feature_name": "Live Chat with Consultant", "limit_value": -1 }
+    ]
+  };
+
+  function toggleImportPanel() {
+    const p = document.getElementById('importPanel');
+    p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    if (p.style.display === 'block') p.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function downloadTemplate() {
+    const blob = new Blob([JSON.stringify(_PLAN_TEMPLATE, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'solacesquad_plan_template.json'; a.click();
+  }
+
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').style.background = '';
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.json')) readFile(file);
+    else alert('Please drop a .json file.');
+  }
+
+  function handleFileUpload(input) {
+    const file = input.files[0];
+    if (file) readFile(file);
+  }
+
+  function readFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => { document.getElementById('importJson').value = e.target.result; previewImport(); };
+    reader.readAsText(file);
+  }
+
+  function previewImport() {
+    const raw = document.getElementById('importJson').value.trim();
+    if (!raw) { alert('Paste or upload a JSON first.'); return; }
+    try {
+      const d = JSON.parse(raw);
+      const plan = d.plan || d;
+      const caps = d.caps || [];
+      const tqMap = {1:'Latest only',3:'Latest+Week',7:'Latest+Week+Month',15:'All periods'};
+      let html = `<strong>${plan.name || '?'}</strong> — ${plan.is_free ? 'Free' : '₹' + plan.price + '/' + (plan.billing_cycle||'monthly')}`;
+      html += `<br><span style="color:#6b7280;">${plan.description || ''}</span>`;
+      html += `<br><br><strong>${caps.length} feature cap${caps.length!==1?'s':''}</strong><br>`;
+      caps.forEach(c => {
+        let detail = c.limit_value === -1 ? '∞ Unlimited' : (c.limit_value === 0 ? '🔒 Blocked' : c.limit_value);
+        if (c.feature_key === 'thryveq_access') detail = tqMap[c.limit_value] || ('Mask '+c.limit_value);
+        html += `• ${c.feature_name || c.feature_key}: ${detail}<br>`;
+      });
+      const prev = document.getElementById('importPreview');
+      prev.innerHTML = html; prev.style.display = 'block';
+    } catch(e) { alert('Invalid JSON: ' + e.message); }
+  }
+
+  async function doImport() {
+    const raw = document.getElementById('importJson').value.trim();
+    if (!raw) { alert('Nothing to import.'); return; }
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch(e) { alert('Invalid JSON: ' + e.message); return; }
+
+    const btn = document.getElementById('importSaveBtn');
+    btn.disabled = true; btn.textContent = 'Creating…';
+    try {
+      const r = await fetch('/api/admin/plans/import', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed),
+      });
+      const d = await r.json();
+      if (d.success) {
+        alert(`✅ Plan "${d.plan_name}" created with ${d.caps_created} feature caps!`);
+        location.reload();
+      } else {
+        alert('❌ ' + (d.error || 'Failed to import plan'));
+        btn.disabled = false; btn.textContent = '✅ Create Plan';
+      }
+    } catch(e) {
+      alert('Network error: ' + e.message);
+      btn.disabled = false; btn.textContent = '✅ Create Plan';
+    }
+  }
+
+  async function seedDefaults() {
+    const btn = document.getElementById('seedBtn');
+    if (!confirm('This will create Free + White plans (skips any that already exist). Continue?')) return;
+    btn.disabled = true; btn.textContent = 'Seeding…';
+    try {
+      const r = await fetch('/api/admin/plans/seed-defaults', { method: 'POST' });
+      const d = await r.json();
+      if (d.success) {
+        const msg = d.results.map(r => `${r.name}: ${r.status}${r.reason ? ' ('+r.reason+')' : ''}`).join('\n');
+        alert('✅ Done!\n\n' + msg);
+        location.reload();
+      } else { alert('❌ ' + (d.error || 'Failed')); }
+    } catch(e) { alert('Network error'); }
+    btn.disabled = false; btn.textContent = '🌱 Seed Defaults (Free + White)';
+  }
+
+  // ── Delete existing plan ────────────────────────────────────────────────────
+  async function deletePlan(btn) {
+    const id   = parseInt(btn.dataset.planId);
+    const name = btn.dataset.planName;
+    if (!confirm(`Delete plan "${name}"? If it has active subscribers it will be deactivated instead.`)) return;
+    const r = await fetch(`/api/admin/plans/${id}`, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.success) { alert(d.message || 'Deleted'); location.reload(); }
+    else alert(d.error || 'Error');
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+  function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+  }
+</script>
+{% endblock %}

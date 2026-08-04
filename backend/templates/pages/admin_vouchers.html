@@ -1,0 +1,682 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between mb-8">
+        <div class="flex-1 min-w-0">
+            <h1 class="text-3xl font-display font-bold text-gray-900 leading-tight">
+                Voucher Management
+            </h1>
+            <p class="mt-1 text-sm text-gray-600">
+                Create and manage discount codes for plan subscriptions and Emora packages.
+            </p>
+        </div>
+        <div class="mt-4 md:mt-0 md:ml-4">
+            <button onclick="openVoucherModal()" class="btn btn-primary inline-flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> Create Voucher
+            </button>
+        </div>
+    </div>
+
+    <!-- Voucher list -->
+    <div class="card" style="overflow:visible">
+        <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center flex-wrap gap-3">
+            <h3 class="text-lg font-semibold text-gray-900">Active & Expired Vouchers</h3>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Code</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Discount</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Applies To</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Allowed Users</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Valid Until</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Usage</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-100">
+                    {% for v in vouchers %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4">
+                            <span class="font-mono font-bold text-gray-900 bg-gray-100 px-2.5 py-1 rounded">
+                                {{ v.code }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900 font-semibold">
+                            {% if v.discount_type == 'percentage' %}
+                                {{ v.discount_value }}% Off
+                            {% else %}
+                                ₹{{ v.discount_value }} Flat
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-600">
+                            {% if v.applies_to == 'all' %}
+                                <span class="badge badge-success">All Plans & Packages</span>
+                            {% elif v.applies_to == 'plan' %}
+                                <span class="badge bg-teal-50 text-teal-700 border border-teal-200">
+                                    Plan ID: {{ v.applies_to_id }}
+                                </span>
+                            {% elif v.applies_to == 'package' %}
+                                <span class="badge bg-purple-50 text-purple-700 border border-purple-200">
+                                    Emora Pack {{ v.applies_to_id }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title="{{ v.assigned_user_emails or 'Anyone' }}">
+                            {{ v.assigned_user_emails or 'Anyone' }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-600">
+                            {% if v.valid_until %}
+                                {{ v.valid_until | format_local('%d-%b-%Y %H:%M') }}
+                                {% if v.is_expired %}
+                                    <span class="text-xs text-red-500 font-bold ml-1">(Expired)</span>
+                                  {% endif %}
+                            {% else %}
+                                <span class="text-gray-400">Lifetime</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <button onclick="toggleVoucherStatus({{ v.id }})" 
+                                class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ 'bg-green-100 text-green-800' if v.is_active else 'bg-gray-100 text-gray-800' }}">
+                                {{ 'Active' if v.is_active else 'Inactive' }}
+                            </button>
+                        </td>
+                        <td class="px-6 py-4 text-sm font-semibold text-gray-900">
+                            {{ v.usage_count }} times
+                        </td>
+                        <td class="px-6 py-4 text-right text-sm font-medium">
+                            <!-- Desktop Actions -->
+                            <div class="hidden sm:flex items-center justify-end gap-1.5">
+                                <button onclick="openViewVoucherModal({
+                                    code: '{{ v.code }}',
+                                    discount_type: '{{ v.discount_type }}',
+                                    discount_value: {{ v.discount_value }},
+                                    applies_to: '{{ v.applies_to }}',
+                                    applies_to_id: '{{ v.applies_to_id or "" }}',
+                                    assigned_user_emails: '{{ v.assigned_user_emails or "" }}',
+                                    valid_until: '{{ v.valid_until | format_local("%d-%b-%Y %H:%M") if v.valid_until else "" }}',
+                                    is_active: {{ 'true' if v.is_active else 'false' }},
+                                    is_expired: {{ 'true' if v.is_expired else 'false' }},
+                                    usage_count: {{ v.usage_count }},
+                                    created_at: '{{ v.created_at | format_local("%d-%b-%Y %H:%M") if v.created_at else "" }}'
+                                })" class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-blue-600 hover:text-blue-900 shadow-sm transition" title="View Details">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="viewVoucherReport({{ v.id }})" class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-teal-600 hover:text-teal-900 shadow-sm transition" title="Report">
+                                    <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteVoucher({{ v.id }})" class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-red-600 hover:text-red-900 shadow-sm transition" title="Delete">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+
+                            <!-- Mobile/PWA Actions -->
+                            <div class="sm:hidden flex items-center justify-end">
+                                <button id="vouch-opt-{{ v.id }}" class="dropdown-trigger inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 shadow-sm transition" onclick="toggleTableDropdown(this, event)">
+                                    <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                                </button>
+                                <div class="hidden">
+                                    <button onclick="openViewVoucherModal({
+                                        code: '{{ v.code }}',
+                                        discount_type: '{{ v.discount_type }}',
+                                        discount_value: {{ v.discount_value }},
+                                        applies_to: '{{ v.applies_to }}',
+                                        applies_to_id: '{{ v.applies_to_id or "" }}',
+                                        assigned_user_emails: '{{ v.assigned_user_emails or "" }}',
+                                        valid_until: '{{ v.valid_until | format_local("%d-%b-%Y %H:%M") if v.valid_until else "" }}',
+                                        is_active: {{ 'true' if v.is_active else 'false' }},
+                                        is_expired: {{ 'true' if v.is_expired else 'false' }},
+                                        usage_count: {{ v.usage_count }},
+                                        created_at: '{{ v.created_at | format_local("%d-%b-%Y %H:%M") if v.created_at else "" }}'
+                                    })">
+                                        <i data-lucide="eye" class="w-4 h-4 inline mr-2"></i> View
+                                    </button>
+                                    <button onclick="viewVoucherReport({{ v.id }})">
+                                        <i data-lucide="bar-chart-3" class="w-4 h-4 inline mr-2"></i> Report
+                                    </button>
+                                    <button onclick="deleteVoucher({{ v.id }})">
+                                        <i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-10 text-center text-sm text-gray-500">
+                            No vouchers found. Click "Create Voucher" to make one.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Create Voucher Modal -->
+<div id="voucherModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden z-50 overflow-y-auto flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-lg w-full overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-gray-900">Create New Voucher</h3>
+            <button onclick="closeVoucherModal()" class="text-gray-400 hover:text-gray-500">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <form id="voucherForm" onsubmit="submitVoucher(event)" class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Voucher Code</label>
+                <input type="text" id="voucherCode" required placeholder="e.g. GREEN50" 
+                    class="input w-full uppercase font-mono" style="text-transform: uppercase;">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Discount Type</label>
+                    <select id="discountType" class="input w-full" onchange="updateDiscountLabel()">
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="flat">Flat Value (₹)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1" id="discountValueLabel">Value (%)</label>
+                    <input type="number" id="discountValue" required min="0" step="any" class="input w-full">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Applies To</label>
+                <select id="appliesTo" class="input w-full" onchange="toggleAppliesToFields()">
+                    <option value="all">All Plans & Packages</option>
+                    <option value="plan">Specific Usage Plan</option>
+                    <option value="package">Specific Emora Package</option>
+                </select>
+            </div>
+
+            <!-- Specific Plan Selection -->
+            <div id="planSelectionBlock" class="hidden">
+                <label class="block text-sm font-bold text-gray-700 mb-1">Select Plan</label>
+                <select id="appliesToPlanId" class="input w-full">
+                    {% for p in active_plans %}
+                    <option value="{{ p.id }}">{{ p.name }} (₹{{ p.price }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Specific Emora Pack Selection -->
+            <div id="packageSelectionBlock" class="hidden">
+                <label class="block text-sm font-bold text-gray-700 mb-1">Select Emora Package</label>
+                <select id="appliesToPackId" class="input w-full">
+                    <option value="S">Emora Pack S (₹500)</option>
+                    <option value="M">Emora Pack M (₹2,000)</option>
+                    <option value="L">Emora Pack L (₹5,000)</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Restricted User Emails (Optional)</label>
+                <textarea id="assignedEmails" placeholder="comma-separated, e.g. user1@gmail.com, user2@gmail.com" 
+                    rows="2" class="input w-full py-2"></textarea>
+                <p class="text-xs text-gray-500 mt-1">Leave blank to allow any user to redeem the voucher.</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Validity Expiration Date (Optional)</label>
+                <input type="datetime-local" id="validUntil" class="input w-full">
+                <p class="text-xs text-gray-500 mt-1">Voucher will not be redeemable past this date/time.</p>
+            </div>
+
+            <div class="flex items-center">
+                <input type="checkbox" id="isActive" checked class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
+                <label for="isActive" class="ml-2 block text-sm text-gray-900 font-bold">Voucher is Active</label>
+            </div>
+
+            <div class="pt-4 border-t border-gray-100 flex justify-end gap-3">
+                <button type="button" onclick="closeVoucherModal()" class="btn btn-outline">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Voucher</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- View Voucher Modal -->
+<div id="viewVoucherModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden z-50 overflow-y-auto flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <div class="flex items-center gap-3">
+                <span class="font-mono font-bold text-lg text-gray-900 bg-gray-200 px-3 py-1 rounded" id="viewCode"></span>
+                <span class="badge" id="viewStatusBadge"></span>
+            </div>
+            <button onclick="closeViewVoucherModal()" class="text-gray-400 hover:text-gray-500">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        
+        <!-- Details Body -->
+        <div class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Discount Value</span>
+                    <span class="block text-base font-bold text-gray-900 mt-1" id="viewDiscount"></span>
+                </div>
+                <div>
+                    <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Applies To</span>
+                    <span class="block text-base font-medium text-gray-900 mt-1" id="viewAppliesTo"></span>
+                </div>
+            </div>
+            
+            <hr class="border-gray-100">
+            
+            <div>
+                <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Expiration Date</span>
+                <span class="block text-base font-medium text-gray-900 mt-1" id="viewExpiration"></span>
+            </div>
+            
+            <hr class="border-gray-100">
+            
+            <div>
+                <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Usage</span>
+                <span class="block text-base font-bold text-teal-700 mt-1" id="viewUsage"></span>
+            </div>
+            
+            <hr class="border-gray-100">
+            
+            <div>
+                <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Restricted Users</span>
+                <div class="mt-1 bg-gray-50 border border-gray-100 rounded-lg p-2.5 max-h-24 overflow-y-auto" style="overflow-wrap: break-word;">
+                    <span class="text-sm text-gray-600 font-mono" id="viewAssignedUsers"></span>
+                </div>
+            </div>
+            
+            <hr class="border-gray-100">
+            
+            <div>
+                <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Created At</span>
+                <span class="block text-sm text-gray-600 mt-1" id="viewCreatedAt"></span>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-end bg-gray-50">
+            <button onclick="closeViewVoucherModal()" class="btn btn-outline">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Voucher Report Modal -->
+<div id="reportModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden z-50 overflow-y-auto flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-4xl w-full overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900">Voucher Usage Report</h3>
+                <p class="text-xs text-gray-500" id="reportVoucherCode"></p>
+            </div>
+            <button onclick="closeReportModal()" class="text-gray-400 hover:text-gray-500">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        
+        <div class="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+            <!-- Stats Summary Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="bg-teal-50 border border-teal-100 p-4 rounded-xl">
+                    <p class="text-sm text-teal-600 font-bold">Total Times Redeemed</p>
+                    <p class="text-3xl font-extrabold text-teal-900 mt-1" id="reportTotalUses">0</p>
+                </div>
+                <div class="bg-purple-50 border border-purple-100 p-4 rounded-xl">
+                    <p class="text-sm text-purple-600 font-bold">Total Discount Given</p>
+                    <p class="text-3xl font-extrabold text-purple-900 mt-1" id="reportTotalDiscount">₹0.00</p>
+                </div>
+            </div>
+
+            <!-- Tabs to toggle between Detailed Log and Daily Summary -->
+            <div class="border-b border-gray-100">
+                <nav class="flex space-x-4" aria-label="Tabs">
+                    <button type="button" onclick="switchReportTab('log')" id="tabBtnLog" class="border-teal-500 text-teal-600 px-3 py-2 font-medium text-sm border-b-2 focus:outline-none">
+                        Detailed Log
+                    </button>
+                    <button type="button" onclick="switchReportTab('summary')" id="tabBtnSummary" class="border-transparent text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm border-b-2 focus:outline-none">
+                        Daily Summary
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Tab 1: Detailed Log Table -->
+            <div id="tabContentLog" class="block">
+                <div class="overflow-x-auto border border-gray-100 rounded-lg">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left font-semibold text-gray-600">Date/Time</th>
+                                <th class="px-4 py-2 text-left font-semibold text-gray-600">User</th>
+                                <th class="px-4 py-2 text-left font-semibold text-gray-600">Item</th>
+                                <th class="px-4 py-2 text-right font-semibold text-gray-600">Orig. Price</th>
+                                <th class="px-4 py-2 text-right font-semibold text-gray-600">Discount</th>
+                                <th class="px-4 py-2 text-right font-semibold text-gray-600">Paid</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportLogBody" class="divide-y divide-gray-100">
+                            <!-- Dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab 2: Daily Summary Table -->
+            <div id="tabContentSummary" class="hidden">
+                <div class="overflow-x-auto border border-gray-100 rounded-lg max-w-md mx-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left font-semibold text-gray-600">Date</th>
+                                <th class="px-4 py-2 text-center font-semibold text-gray-600">Redemptions</th>
+                                <th class="px-4 py-2 text-right font-semibold text-gray-600">Discount Given</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportSummaryBody" class="divide-y divide-gray-100">
+                            <!-- Dynamic -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-end bg-gray-50">
+            <button type="button" onclick="closeReportModal()" class="btn btn-outline">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openVoucherModal() {
+    document.getElementById('voucherForm').reset();
+    document.getElementById('voucherModal').classList.remove('hidden');
+    toggleAppliesToFields();
+    updateDiscountLabel();
+}
+
+function closeVoucherModal() {
+    document.getElementById('voucherModal').classList.add('hidden');
+}
+
+function updateDiscountLabel() {
+    const type = document.getElementById('discountType').value;
+    const label = document.getElementById('discountValueLabel');
+    if (type === 'percentage') {
+        label.innerText = 'Value (%)';
+    } else {
+        label.innerText = 'Value (₹)';
+    }
+}
+
+function toggleAppliesToFields() {
+    const appliesTo = document.getElementById('appliesTo').value;
+    const planBlock = document.getElementById('planSelectionBlock');
+    const packBlock = document.getElementById('packageSelectionBlock');
+
+    planBlock.classList.add('hidden');
+    packBlock.classList.add('hidden');
+
+    if (appliesTo === 'plan') {
+        planBlock.classList.remove('hidden');
+    } else if (appliesTo === 'package') {
+        packBlock.classList.remove('hidden');
+    }
+}
+
+async function submitVoucher(e) {
+    e.preventDefault();
+    const code = document.getElementById('voucherCode').value;
+    const discount_type = document.getElementById('discountType').value;
+    const discount_value = parseFloat(document.getElementById('discountValue').value);
+    const applies_to = document.getElementById('appliesTo').value;
+    
+    let applies_to_id = null;
+    if (applies_to === 'plan') {
+        applies_to_id = document.getElementById('appliesToPlanId').value;
+    } else if (applies_to === 'package') {
+        applies_to_id = document.getElementById('appliesToPackId').value;
+    }
+
+    const assigned_user_emails = document.getElementById('assignedEmails').value;
+    const valid_until = document.getElementById('validUntil').value;
+    const is_active = document.getElementById('isActive').checked;
+
+    try {
+        const response = await fetch('/api/admin/vouchers/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                code, discount_type, discount_value, applies_to, applies_to_id, 
+                assigned_user_emails, valid_until, is_active
+            })
+        });
+        const data = await response.json();
+        if (data.success) {
+            closeVoucherModal();
+            showToast('✅ Voucher created successfully!');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showError(data.error || 'Failed to create voucher');
+        }
+    } catch (err) {
+        showError('Network error: ' + err.message);
+    }
+}
+
+async function toggleVoucherStatus(voucherId) {
+    try {
+        const response = await fetch('/api/admin/vouchers/toggle', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({voucher_id: voucherId})
+        });
+        const data = await response.json();
+        if (data.success) {
+            showToast('✅ Voucher status updated!');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            showError(data.error || 'Failed to toggle status');
+        }
+    } catch (err) {
+        showError('Network error: ' + err.message);
+    }
+}
+
+async function deleteVoucher(voucherId) {
+    if (!confirm('Are you sure you want to delete this voucher code?')) return;
+
+    try {
+        const response = await fetch('/api/admin/vouchers/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({voucher_id: voucherId})
+        });
+        const data = await response.json();
+        if (data.success) {
+            showToast('🗑️ Voucher deleted successfully!');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            showError(data.error || 'Failed to delete voucher');
+        }
+    } catch (err) {
+        showError('Network error: ' + err.message);
+    }
+}
+function openViewVoucherModal(v) {
+    document.getElementById('viewCode').textContent = v.code;
+    
+    // Discount
+    if (v.discount_type === 'percentage') {
+        document.getElementById('viewDiscount').textContent = v.discount_value + '% Off';
+    } else {
+        document.getElementById('viewDiscount').textContent = '₹' + Number(v.discount_value).toLocaleString('en-IN') + ' Flat';
+    }
+    
+    // Applies to
+    if (v.applies_to === 'all') {
+        document.getElementById('viewAppliesTo').textContent = 'All Plans & Packages';
+    } else if (v.applies_to === 'plan') {
+        document.getElementById('viewAppliesTo').textContent = 'Usage Plan ID: ' + v.applies_to_id;
+    } else if (v.applies_to === 'package') {
+        document.getElementById('viewAppliesTo').textContent = 'Emora Pack ' + v.applies_to_id;
+    }
+    
+    // Expiration
+    if (v.valid_until) {
+        let expText = v.valid_until;
+        if (v.is_expired) {
+            expText += ' (Expired)';
+            document.getElementById('viewExpiration').className = 'block text-base font-medium text-red-600 mt-1';
+        } else {
+            document.getElementById('viewExpiration').className = 'block text-base font-medium text-gray-900 mt-1';
+        }
+        document.getElementById('viewExpiration').textContent = expText;
+    } else {
+        document.getElementById('viewExpiration').className = 'block text-base font-medium text-gray-900 mt-1';
+        document.getElementById('viewExpiration').textContent = 'Lifetime';
+    }
+    
+    // Usage
+    document.getElementById('viewUsage').textContent = v.usage_count + ' times';
+    
+    // Assigned users
+    document.getElementById('viewAssignedUsers').textContent = v.assigned_user_emails || 'Anyone (No restrictions)';
+    
+    // Created at
+    document.getElementById('viewCreatedAt').textContent = v.created_at || 'N/A';
+    
+    // Status Badge
+    const badge = document.getElementById('viewStatusBadge');
+    if (!v.is_active) {
+        badge.className = 'badge bg-gray-100 text-gray-800 border border-gray-200';
+        badge.textContent = 'Inactive';
+    } else if (v.is_expired) {
+        badge.className = 'badge bg-red-100 text-red-800 border border-red-200';
+        badge.textContent = 'Expired';
+    } else {
+        badge.className = 'badge bg-green-100 text-green-800 border border-green-200';
+        badge.textContent = 'Active';
+    }
+    
+    document.getElementById('viewVoucherModal').classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function closeViewVoucherModal() {
+    document.getElementById('viewVoucherModal').classList.add('hidden');
+}
+
+function closeReportModal() {
+    document.getElementById('reportModal').classList.add('hidden');
+}
+
+function switchReportTab(tab) {
+    const tabLog = document.getElementById('tabContentLog');
+    const tabSum = document.getElementById('tabContentSummary');
+    const btnLog = document.getElementById('tabBtnLog');
+    const btnSum = document.getElementById('tabBtnSummary');
+
+    if (tab === 'log') {
+        tabLog.classList.replace('hidden', 'block');
+        tabSum.classList.replace('block', 'hidden');
+        btnLog.className = "border-teal-500 text-teal-600 px-3 py-2 font-medium text-sm border-b-2 focus:outline-none";
+        btnSum.className = "border-transparent text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm border-b-2 focus:outline-none";
+    } else {
+        tabLog.classList.replace('block', 'hidden');
+        tabSum.classList.replace('hidden', 'block');
+        btnLog.className = "border-transparent text-gray-500 hover:text-gray-700 px-3 py-2 font-medium text-sm border-b-2 focus:outline-none";
+        btnSum.className = "border-teal-500 text-teal-600 px-3 py-2 font-medium text-sm border-b-2 focus:outline-none";
+    }
+}
+
+async function viewVoucherReport(voucherId) {
+    try {
+        const response = await fetch(`/api/admin/vouchers/report/${voucherId}`);
+        const data = await response.json();
+        if (!data.success) {
+            showError(data.error || 'Failed to fetch report');
+            return;
+        }
+
+        document.getElementById('reportVoucherCode').innerText = `Voucher Code: ${data.voucher_code}`;
+        document.getElementById('reportTotalUses').innerText = data.total_uses;
+        document.getElementById('reportTotalDiscount').innerText = `₹${data.total_discount.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+
+        // Render Log
+        const logBody = document.getElementById('reportLogBody');
+        if (!data.usages.length) {
+            logBody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">No usage recorded yet.</td></tr>`;
+        } else {
+            logBody.innerHTML = data.usages.map(u => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2.5 text-gray-600">${u.date}</td>
+                    <td class="px-4 py-2.5">
+                        <div class="font-semibold text-gray-900">${u.user_name}</div>
+                        <div class="text-xs text-gray-500">${u.user_email}</div>
+                    </td>
+                    <td class="px-4 py-2.5">
+                        <span class="px-2 py-0.5 rounded text-xs font-semibold ${u.type === 'Subscription' ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}">
+                            ${u.item_name}
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5 text-right text-gray-900">₹${u.original_price.toFixed(2)}</td>
+                    <td class="px-4 py-2.5 text-right font-semibold text-green-600">-₹${u.discount_amount.toFixed(2)}</td>
+                    <td class="px-4 py-2.5 text-right font-bold text-gray-900">₹${u.final_price.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Render Summary
+        const sumBody = document.getElementById('reportSummaryBody');
+        if (!data.daily_summary.length) {
+            sumBody.innerHTML = `<tr><td colspan="3" class="px-4 py-6 text-center text-gray-400">No usage recorded yet.</td></tr>`;
+        } else {
+            sumBody.innerHTML = data.daily_summary.map(s => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-2.5 text-gray-600 font-medium">${s.date}</td>
+                    <td class="px-4 py-2.5 text-center font-bold text-gray-900">${s.count}</td>
+                    <td class="px-4 py-2.5 text-right font-bold text-green-600">₹${s.discount.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        switchReportTab('log');
+        document.getElementById('reportModal').classList.remove('hidden');
+        
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    } catch(err) {
+        showError('Failed to load report: ' + err.message);
+    }
+}
+
+function showError(msg) {
+    let box = document.getElementById('voucherErrorBox');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'voucherErrorBox';
+        box.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);background:#fee2e2;border:1.5px solid #fca5a5;color:#991b1b;padding:.75rem 1.25rem;border-radius:.75rem;font-size:.875rem;font-weight:600;z-index:99999;max-width:90%;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.15);cursor:pointer;';
+        box.onclick = () => box.remove();
+        document.body.appendChild(box);
+    }
+    box.textContent = msg + ' (tap to dismiss)';
+    setTimeout(() => box?.remove(), 8000);
+}
+
+function showToast(msg) {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#10b981;color:#fff;padding:.65rem 1.25rem;border-radius:.75rem;font-size:.875rem;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+</script>
+{% endblock %}

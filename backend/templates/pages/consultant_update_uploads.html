@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Update CV & Photo - SolaceSquad{% endblock %}
+
+{% block content %}
+<div
+    style="min-height:80vh; background:linear-gradient(135deg,#f0fdf4,#eff6ff); display:flex; align-items:center; justify-content:center; padding:2rem 1rem;">
+    <div style="max-width:520px; width:100%;">
+
+        <!-- Header -->
+        <div style="text-align:center; margin-bottom:1.5rem;">
+            <div
+                style="display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg,#0f766e,#0d9488); margin-bottom:.75rem;">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="12" y1="18" x2="12" y2="12" />
+                    <line x1="9" y1="15" x2="15" y2="15" />
+                </svg>
+            </div>
+            <h1 style="font-size:1.5rem; font-weight:800; color:#1f2937; margin:0;">Update CV &amp; Profile Photo</h1>
+            <p style="color:#6b7280; font-size:.875rem; margin-top:.35rem;">Upload or replace your CV and photo — no
+                need to re-fill the full form.</p>
+        </div>
+
+        <!-- Success Banner -->
+        {% if success %}
+        <div
+            style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:.75rem; padding:.875rem 1rem; display:flex; align-items:center; gap:.5rem; margin-bottom:1rem;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <span style="color:#15803d; font-weight:600; font-size:.875rem;">Files uploaded successfully!</span>
+        </div>
+        {% endif %}
+
+        <!-- Upload Form -->
+        <div
+            style="background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:1.75rem; box-shadow:0 1px 4px rgba(0,0,0,.05);">
+            <form action="/consultant/update-uploads" method="POST" enctype="multipart/form-data">
+
+                <!-- Current status -->
+                {% if profile %}
+                <div
+                    style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:.6rem; padding:.875rem 1rem; margin-bottom:1.25rem; font-size:.8rem; color:#6b7280;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:.35rem;">
+                        <span>📄 <strong>CV:</strong></span>
+                        {% if profile.cv_url %}
+                        <span style="display:flex;align-items:center;gap:.5rem;">
+                            <a href="{{ profile.cv_url }}" target="_blank"
+                                style="color:#0d9488; font-weight:600; text-decoration:none;">View current CV ↗</a>
+                            <button id="deleteCvBtn" onclick="deleteCVFromPage()"
+                                style="background:#fee2e2;color:#dc2626;border:none;border-radius:.4rem;padding:2px 8px;font-size:.72rem;font-weight:700;cursor:pointer;">
+                                ✕ Delete
+                            </button>
+                        </span>
+                        {% else %}
+                        <span id="cvStatus" style="color:#f59e0b; font-weight:600;">Not uploaded yet</span>
+                        {% endif %}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span>🖼️ <strong>Photo:</strong></span>
+                        {% if profile.photo_url %}
+                        <span style="color:#0d9488; font-weight:600;">✓ Uploaded</span>
+                        {% else %}
+                        <span style="color:#f59e0b; font-weight:600;">Not uploaded yet</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- CV Upload -->
+                <div style="margin-bottom:1.25rem;">
+                    <label
+                        style="display:block; font-size:.8rem; font-weight:700; color:#374151; margin-bottom:.5rem; text-transform:uppercase; letter-spacing:.05em;">
+                        CV / Resume <span style="font-weight:400; color:#9ca3af; text-transform:none;">(PDF preferred,
+                            max 5 MB)</span>
+                    </label>
+                    <label
+                        style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.5rem; padding:1.5rem; border:2px dashed #d1d5db; border-radius:.75rem; cursor:pointer; background:#fafafa; transition:.15s;"
+                        id="cv-drop" ondragover="event.preventDefault();this.style.borderColor='#0d9488';"
+                        ondragleave="this.style.borderColor='#d1d5db';"
+                        ondrop="handleDrop(event,'cv-input','cv-label')">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                        <span style="font-size:.8rem; color:#6b7280;" id="cv-label">Click to choose or drag &amp; drop
+                            your CV</span>
+                        <input type="file" id="cv-input" name="cv" accept=".pdf,.doc,.docx" style="display:none;"
+                            onchange="updateLabel(this,'cv-label')">
+                    </label>
+                </div>
+
+                <!-- Photo Upload -->
+                <div style="margin-bottom:1.5rem;">
+                    <label
+                        style="display:block; font-size:.8rem; font-weight:700; color:#374151; margin-bottom:.5rem; text-transform:uppercase; letter-spacing:.05em;">
+                        Profile Photo <span style="font-weight:400; color:#9ca3af; text-transform:none;">(JPG/PNG, max 3
+                            MB)</span>
+                    </label>
+                    <label
+                        style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.5rem; padding:1.5rem; border:2px dashed #d1d5db; border-radius:.75rem; cursor:pointer; background:#fafafa; transition:.15s;"
+                        id="photo-drop" ondragover="event.preventDefault();this.style.borderColor='#0d9488';"
+                        ondragleave="this.style.borderColor='#d1d5db';"
+                        ondrop="handleDrop(event,'photo-input','photo-label')">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                        <span style="font-size:.8rem; color:#6b7280;" id="photo-label">Click to choose or drag &amp;
+                            drop your photo</span>
+                        <input type="file" id="photo-input" name="photo" accept="image/*" style="display:none;"
+                            onchange="updateLabel(this,'photo-label')">
+                    </label>
+                </div>
+
+                <button type="submit"
+                    style="width:100%; padding:.875rem; background:linear-gradient(135deg,#0f766e,#0d9488); color:#fff; border:none; border-radius:.6rem; font-weight:700; font-size:.9rem; cursor:pointer; letter-spacing:.02em;">
+                    ⬆ Upload Files
+                </button>
+            </form>
+        </div>
+
+        <!-- Back link -->
+        <div style="text-align:center; margin-top:1rem;">
+            <a href="/consultant/pending-approval" style="color:#6b7280; font-size:.8rem; text-decoration:none;">← Back
+                to application status</a>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    function updateLabel(input, labelId) {
+        const label = document.getElementById(labelId);
+        label.textContent = input.files[0] ? input.files[0].name : 'Click to choose or drag & drop';
+    }
+    function handleDrop(e, inputId, labelId) {
+        e.preventDefault();
+        const input = document.getElementById(inputId);
+        const dt = e.dataTransfer;
+        if (dt.files.length) {
+            input.files = dt.files;
+            updateLabel(input, labelId);
+        }
+        e.currentTarget.style.borderColor = '#d1d5db';
+    }
+    async function deleteCVFromPage() {
+        if (!confirm('Delete your CV? You can upload a new one using the form below.')) return;
+        const btn = document.getElementById('deleteCvBtn');
+        if (btn) btn.disabled = true;
+        try {
+            const res = await fetch('/api/consultant/delete-cv', { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                const parent = btn.closest('span');
+                if (parent) parent.outerHTML = '<span style="color:#f59e0b;font-weight:600;">Not uploaded yet — upload below</span>';
+            } else {
+                alert('Error: ' + (data.error || 'Could not delete'));
+                if (btn) btn.disabled = false;
+            }
+        } catch {
+            alert('Network error — please try again.');
+            if (btn) btn.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

@@ -2,15 +2,9 @@
 
 {% block title %}Patient Details - SolaceSquad{% endblock %}
 
-{% set nav_items = [
-{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/consultant', 'key': 'dashboard'},
-{'icon': 'users', 'label': 'Clients', 'href': '/consultant/clients', 'key': 'clients'},
-{'icon': 'calendar', 'label': 'Schedule', 'href': '/consultant/schedule', 'key': 'schedule'},
-{'icon': 'message-circle', 'label': 'Messages', 'href': '/consultant/messages', 'key': 'messages'},
-{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/consultant/prescriptions', 'key': 'prescriptions'}
-] %}
 
 {% block dashboard_content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <div class="max-w-7xl mx-auto">
     <!-- Back Button -->
     <div class="mb-6">
@@ -30,7 +24,7 @@
             </div>
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">{{ patient.name }}</h1>
-                <p class="text-gray-600">{{ patient.email }}</p>
+                <p class="text-sm text-gray-400 font-mono">SS-{{ '%06d' % patient.id }}</p>
             </div>
         </div>
     </div>
@@ -52,7 +46,7 @@
                 <button onclick="showTab('recordings')" id="tab-recordings"
                     class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2">
                     <i data-lucide="mic" class="w-4 h-4"></i>
-                    <span>Call Recordings</span>
+                    <span>Consultation Sessions</span>
                 </button>
                 <button onclick="showTab('summary')" id="tab-summary"
                     class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2">
@@ -63,6 +57,11 @@
                     class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2">
                     <i data-lucide="sticky-note" class="w-4 h-4"></i>
                     <span>Notes</span>
+                </button>
+                <button onclick="showTab('lab-reports')" id="tab-lab-reports"
+                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2">
+                    <i data-lucide="folder-heart" class="w-4 h-4"></i>
+                    <span>Lab Reports</span>
                 </button>
             </nav>
         </div>
@@ -81,14 +80,19 @@
             </div>
 
             <!-- Health Reports Tab -->
-            <div id="content-health" class="tab-content hidden">
+            <div id="content-health" class="tab-content hidden relative">
                 <div id="health-loading" class="text-center py-8">
                     <div
                         class="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4">
                     </div>
                     <p class="text-gray-500">Loading health reports...</p>
                 </div>
-                <div id="health-content"></div>
+                <div id="health-grid-container" class="relative w-full">
+                    <!-- SVG connector overlay -->
+                    <svg id="health-connector-svg" class="absolute top-0 left-0 pointer-events-none w-full h-full" style="z-index: 1;"></svg>
+                    <!-- Actual grid, elevated above the lines so hover effects work -->
+                    <div id="health-content" class="relative" style="z-index: 10;"></div>
+                </div>
             </div>
 
             <!-- Recordings Tab -->
@@ -141,6 +145,22 @@
                 </div>
                 <div id="notes-content"></div>
             </div>
+
+            <!-- Lab Reports Tab -->
+            <div id="content-lab-reports" class="tab-content hidden">
+                <div id="lab-reports-loading" class="text-center py-8">
+                    <div
+                        class="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4">
+                    </div>
+                    <p class="text-gray-500">Loading lab reports...</p>
+                </div>
+                <div id="lab-reports-empty" class="hidden text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                    <i data-lucide="folder-open" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
+                    <h3 class="text-base font-semibold text-gray-700">No shared lab reports</h3>
+                    <p class="text-sm text-gray-500 mt-1">This patient has not shared any diagnosis reports with you yet.</p>
+                </div>
+                <div id="lab-reports-content" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -171,7 +191,6 @@
 
             <div class="mb-6">
                 <audio id="audio-player" controls class="w-full">
-                    <source id="audio-source" src="" type="audio/mpeg">
                     Your browser does not support the audio element.
                 </audio>
             </div>
@@ -198,6 +217,21 @@
     const PATIENT_ID = {{ patient.id }};
     let currentTab = 'history';
 
+    function showConsentRequiredError(containerId, message) {
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2rem; background-color:#fffbeb; border:1px solid #fef3c7; border-radius:1rem; max-w:480px; margin:2rem auto;">
+                    <div style="width:3rem; height:3rem; border-radius:50%; background-color:#fef3c7; display:flex; align-items:center; justify-content:center; color:#d97706; margin-bottom:1rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-alert"><path d="M20 13c0 5-3.5 7.5-7.66 9.7a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                    </div>
+                    <h3 style="font-size:1rem; font-weight:700; color:#1e293b; margin:0 0 0.25rem 0;">Access Restricted</h3>
+                    <p style="font-size:0.875rem; color:#475569; line-height:1.5; margin:0;">${message || 'The patient has not granted data sharing consent, or the consent has expired (15-day validity window).'}</p>
+                </div>
+            `;
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         showTab('history');
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -221,10 +255,15 @@
 
         // Load content if not loaded
         if (tabName === 'history') loadHistory();
-        else if (tabName === 'health') loadHealth();
+        else if (tabName === 'health') {
+            loadHealth().then(() => {
+                setTimeout(drawConnectingLines, 200);
+            });
+        }
         else if (tabName === 'recordings') loadRecordings();
         else if (tabName === 'summary') loadSummaries();
         else if (tabName === 'notes') loadNotes();
+        else if (tabName === 'lab-reports') loadLabReports();
 
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
@@ -238,10 +277,152 @@
 
             if (data.success) {
                 renderNotes(data.notes);
+            } else if (data.error === "ConsentNotGivenOrExpired") {
+                showConsentRequiredError('notes-content', 'This patient has not shared their previous consultation notes, or the 15-day sharing consent has expired.');
             }
         } catch (error) {
             console.error('Error loading notes:', error);
         }
+    }
+
+    async function loadLabReports() {
+        const loading = document.getElementById('lab-reports-loading');
+        const empty = document.getElementById('lab-reports-empty');
+        const content = document.getElementById('lab-reports-content');
+
+        loading.classList.remove('hidden');
+        empty.classList.add('hidden');
+        content.classList.add('hidden');
+
+        try {
+            const response = await fetch(`/api/consultant/patient/${PATIENT_ID}/reports`);
+            if (response.ok) {
+                const reports = await response.json();
+                loading.classList.add('hidden');
+                renderLabReports(reports);
+            } else if (response.status === 403) {
+                loading.classList.add('hidden');
+                showConsentRequiredError('content-lab-reports', 'This patient has not shared access to their diagnosis reports, or the 15-day sharing consent has expired.');
+            } else {
+                loading.classList.add('hidden');
+                empty.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error loading lab reports:', error);
+            loading.classList.add('hidden');
+            empty.classList.remove('hidden');
+        }
+    }
+
+    function renderLabReports(reports) {
+        const empty = document.getElementById('lab-reports-empty');
+        const content = document.getElementById('lab-reports-content');
+
+        if (!reports || reports.length === 0) {
+            empty.classList.remove('hidden');
+            content.classList.add('hidden');
+            return;
+        }
+
+        empty.classList.add('hidden');
+        content.classList.remove('hidden');
+        content.innerHTML = '';
+
+        // Group by test date
+        const groups = {};
+        reports.forEach(report => {
+            const dateStr = report.test_date;
+            if (!groups[dateStr]) {
+                groups[dateStr] = [];
+            }
+            groups[dateStr].push(report);
+        });
+
+        // Sort dates descending
+        const sortedDates = Object.keys(groups).sort((a, b) => new Date(b) - new Date(a));
+
+        sortedDates.forEach(dateStr => {
+            const dateReports = groups[dateStr];
+            
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const parts = dateStr.split('-');
+            const date = new Date(parts[0], parts[1] - 1, parts[2]);
+            const formattedDate = date.toLocaleDateString('en-US', options);
+
+            const folderCard = document.createElement('div');
+            folderCard.className = 'bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col transition hover:shadow-md';
+
+            // Folder Header
+            const folderHeader = document.createElement('div');
+            folderHeader.className = 'flex items-center gap-3 pb-3 mb-3 border-b border-gray-100';
+            folderHeader.innerHTML = `
+                <div class="text-yellow-500 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" class="lucide lucide-folder fill-yellow-400 text-yellow-500"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                </div>
+                <span class="font-bold text-gray-900">${formattedDate}</span>
+                <span class="ml-auto bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded-full">${dateReports.length} ${dateReports.length === 1 ? 'file' : 'files'}</span>
+            `;
+            folderCard.appendChild(folderHeader);
+
+            // File items container
+            const fileList = document.createElement('div');
+            fileList.className = 'flex flex-col gap-3';
+
+            dateReports.forEach(report => {
+                const item = document.createElement('div');
+                item.className = 'bg-gray-50 border border-gray-100 rounded-lg p-3 flex flex-col gap-2 transition hover:border-gray-200';
+
+                const isPdf = report.file_name.toLowerCase().endsWith('.pdf');
+                const fileIcon = isPdf 
+                    ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text text-red-500"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>`
+                    : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image text-blue-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
+
+                const tagClass = getTagClass(report.tag || 'OTHER');
+
+                let mainInfoHtml = `
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            ${fileIcon}
+                            <span class="text-sm font-semibold text-gray-900 truncate" title="${report.file_name}">${report.file_name}</span>
+                            <span class="text-[0.7rem] font-bold uppercase px-1.5 py-0.5 rounded ${tagClass}">${report.tag || 'OTHER'}</span>
+                        </div>
+                `;
+
+                // View Inline button only (no download)
+                mainInfoHtml += `
+                        <button onclick="window.open('/api/reports/${report.id}/file', '_blank')" 
+                                class="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-md transition" 
+                                title="View Inline">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-eye"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 0 0 0 .696 10.75 10.75 0 0 1-19.876 0z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                    </div>
+                `;
+                
+                item.innerHTML = mainInfoHtml;
+
+                if (report.description) {
+                    const desc = document.createElement('p');
+                    desc.className = 'text-xs text-gray-500 leading-normal';
+                    desc.textContent = report.description;
+                    item.appendChild(desc);
+                }
+
+                fileList.appendChild(item);
+            });
+
+            folderCard.appendChild(fileList);
+            content.appendChild(folderCard);
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function getTagClass(tag) {
+        const clean = tag.toUpperCase().replace(/\s+/g, '-');
+        if (clean.includes('CBC')) return 'bg-blue-50 text-blue-700 border border-blue-200';
+        if (clean.includes('MRI')) return 'bg-purple-50 text-purple-700 border border-purple-200';
+        if (clean.includes('X-RAY')) return 'bg-amber-50 text-amber-700 border border-amber-200';
+        return 'bg-gray-100 text-gray-700 border border-gray-200';
     }
 
     function renderNotes(notes) {
@@ -363,6 +544,8 @@
 
             if (data.success) {
                 renderHistory(data);
+            } else if (data.error === "ConsentNotGivenOrExpired") {
+                showConsentRequiredError('history-content', 'This patient has not shared their medical history, or the 15-day sharing consent has expired.');
             }
         } catch (error) {
             console.error('Error loading history:', error);
@@ -427,44 +610,515 @@
 
             if (data.success) {
                 renderHealth(data);
+            } else if (data.error === "ConsentNotGivenOrExpired") {
+                showConsentRequiredError('health-content', 'This patient has not shared their vital scan reports or health check reports, or the 15-day sharing consent has expired.');
             }
         } catch (error) {
             console.error('Error loading health data:', error);
         }
     }
 
-    function renderHealth(data) {
-        const container = document.getElementById('health-content');
-        let html = '<div class="grid md:grid-cols-2 gap-6">';
+    let modalChart = null;
+    let activeModalMetric = 'thryveq';
+    let activeModalTimeframe = '7d';
 
-        // Latest vitals
-        if (data.vitals && data.vitals.length > 0) {
-            // Since API returns oldest-first for charts, the latest is the last item
-            const latest = data.vitals[data.vitals.length - 1];
-            html += `
-                <div class="p-6 bg-gradient-to-br from-red-50 to-orange-50 rounded-xl border border-red-200">
-                    <div class="flex items-center justify-between mb-4">
-                        <h4 class="font-semibold text-gray-900 flex items-center gap-2">
-                            <i data-lucide="heart" class="w-5 h-5 text-red-600"></i>
-                            Latest Vitals
-                        </h4>
-                        <span class="text-sm font-medium text-gray-500 bg-white/50 px-2 py-1 rounded-md border border-red-100">
-                            ${latest.date}
-                        </span>
-                    </div>
-                    <div class="space-y-2 text-sm">
-                        ${latest.heart_rate ? `<div><span class="text-gray-600">Heart Rate:</span> <span class="font-medium">${latest.heart_rate} bpm</span></div>` : ''}
-                        ${latest.blood_pressure_systolic ? `<div><span class="text-gray-600">Blood Pressure:</span> <span class="font-medium">${latest.blood_pressure_systolic}/${latest.blood_pressure_diastolic} mmHg</span></div>` : ''}
-                        ${latest.temperature ? `<div><span class="text-gray-600">Temperature:</span> <span class="font-medium">${latest.temperature}°C</span></div>` : ''}
-                        ${latest.oxygen_saturation ? `<div><span class="text-gray-600">SpO2:</span> <span class="font-medium">${latest.oxygen_saturation}%</span></div>` : ''}
-                    </div>
-                </div>
-            `;
+    function filterDataByTimeframe(history, timeframe) {
+        if (!history) return [];
+        const now = new Date();
+        let cutoff = new Date();
+        if (timeframe === '7d') {
+            cutoff.setDate(now.getDate() - 7);
+        } else if (timeframe === '30d') {
+            cutoff.setDate(now.getDate() - 30);
+        } else if (timeframe === '365d') {
+            cutoff.setDate(now.getDate() - 365);
         }
 
-        html += '</div>';
+        // Filter by cutoff
+        const filtered = history.filter(item => new Date(item.timestamp) >= cutoff);
+
+        // Deduplicate: keep only the LATEST scan/wellness per calendar day
+        const sorted = filtered.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const seen = new Set();
+        const deduplicated = [];
+        for (const item of sorted) {
+            const dayKey = new Date(item.timestamp).toISOString().slice(0, 10); // YYYY-MM-DD
+            if (!seen.has(dayKey)) {
+                seen.add(dayKey);
+                deduplicated.push(item);
+            }
+        }
+
+        // Reverse to get chronological order (oldest -> newest)
+        return deduplicated.reverse();
+    }
+
+    function createModalGradient(ctx, color) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, 350);
+        gradient.addColorStop(0, color + '40');
+        gradient.addColorStop(1, color + '00');
+        return gradient;
+    }
+
+    function drawConnectingLines() {
+        const container = document.getElementById('health-grid-container');
+        const svg = document.getElementById('health-connector-svg');
+        if (!container || !svg) return;
+
+        // Clear existing elements in SVG
+        svg.innerHTML = '';
+
+        const containerRect = container.getBoundingClientRect();
+
+        function getCardPorts(cardId) {
+            const el = document.getElementById(cardId);
+            if (!el) return null;
+            const rect = el.getBoundingClientRect();
+            return {
+                bottom: {
+                    x: rect.left - containerRect.left + rect.width / 2,
+                    y: rect.bottom - containerRect.top
+                },
+                top: {
+                    x: rect.left - containerRect.left + rect.width / 2,
+                    y: rect.top - containerRect.top
+                }
+            };
+        }
+
+        const thryveqPorts = getCardPorts('card-thryveq');
+        const healthPorts = getCardPorts('card-health_score');
+        const lifestylePorts = getCardPorts('card-lifestyle_score');
+        const moodPorts = getCardPorts('card-mood');
+
+        const bpPorts = getCardPorts('card-bp');
+        const hrPorts = getCardPorts('card-hr');
+        const spo2Ports = getCardPorts('card-spo2');
+        const tempPorts = getCardPorts('card-temp');
+
+        // Check if elements are rendered and visible (getBoundingClientRect width > 0)
+        const sampleEl = document.getElementById('card-thryveq');
+        if (!sampleEl || sampleEl.getBoundingClientRect().width === 0) {
+            return; // Not visible, skip drawing
+        }
+
+        // Update SVG size
+        svg.setAttribute('width', containerRect.width);
+        svg.setAttribute('height', containerRect.height);
+
+        const strokeColor = '#0f766e'; // teal-800
+        const strokeWidth = '2.5';
+
+        function drawPath(d) {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', d);
+            path.setAttribute('stroke', strokeColor);
+            path.setAttribute('stroke-width', strokeWidth);
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke-linecap', 'round');
+            svg.appendChild(path);
+        }
+
+        // Connector 1: ThryveQ (bottom) -> Health, Lifestyle, Mood (tops)
+        if (thryveqPorts && healthPorts && lifestylePorts && moodPorts) {
+            const startY = thryveqPorts.bottom.y;
+            const endY = healthPorts.top.y;
+            const midY = startY + (endY - startY) / 2;
+
+            // Draw vertical drop from ThryveQ
+            drawPath(`M ${thryveqPorts.bottom.x} ${startY} L ${thryveqPorts.bottom.x} ${midY}`);
+            // Draw horizontal bar spanning from Health to Mood
+            drawPath(`M ${healthPorts.top.x} ${midY} L ${moodPorts.top.x} ${midY}`);
+            // Drops down to Health, Lifestyle, Mood tops
+            drawPath(`M ${healthPorts.top.x} ${midY} L ${healthPorts.top.x} ${healthPorts.top.y}`);
+            drawPath(`M ${lifestylePorts.top.x} ${midY} L ${lifestylePorts.top.x} ${lifestylePorts.top.y}`);
+            drawPath(`M ${moodPorts.top.x} ${midY} L ${moodPorts.top.x} ${moodPorts.top.y}`);
+        }
+
+        // Connector 2: Health (bottom) -> BP, HR, SpO2, Temp (tops)
+        if (healthPorts && bpPorts && hrPorts && spo2Ports && tempPorts) {
+            const startY = healthPorts.bottom.y;
+            const endY = bpPorts.top.y;
+            const midY = startY + (endY - startY) / 2;
+
+            // Draw vertical drop from Health Score
+            drawPath(`M ${healthPorts.bottom.x} ${startY} L ${healthPorts.bottom.x} ${midY}`);
+            // Draw horizontal bar spanning from BP to Temp
+            drawPath(`M ${bpPorts.top.x} ${midY} L ${tempPorts.top.x} ${midY}`);
+            // Drops down to BP, HR, SpO2, Temp tops
+            drawPath(`M ${bpPorts.top.x} ${midY} L ${bpPorts.top.x} ${bpPorts.top.y}`);
+            drawPath(`M ${hrPorts.top.x} ${midY} L ${hrPorts.top.x} ${hrPorts.top.y}`);
+            drawPath(`M ${spo2Ports.top.x} ${midY} L ${spo2Ports.top.x} ${spo2Ports.top.y}`);
+            drawPath(`M ${tempPorts.top.x} ${midY} L ${tempPorts.top.x} ${tempPorts.top.y}`);
+        }
+    }
+
+    // Attach resize handler to redraw tree lines dynamically
+    window.addEventListener('resize', () => {
+        if (currentTab === 'health') {
+            drawConnectingLines();
+        }
+    });
+
+    function renderHealth(data) {
+        window.patientHealthData = data;
+        const container = document.getElementById('health-content');
+        
+        // Find latest values for each metric
+        const latestVital = (data.vitals && data.vitals.length > 0) ? data.vitals[data.vitals.length - 1] : null;
+        const latestMood = (data.moods && data.moods.length > 0) ? data.moods[data.moods.length - 1] : null;
+        const latestWellness = (data.wellness_scores && data.wellness_scores.length > 0) ? data.wellness_scores[data.wellness_scores.length - 1] : null;
+        
+        const thryveqVal = latestWellness && latestWellness.overall_wellness_score !== null ? Math.round(latestWellness.overall_wellness_score) : '--';
+        const healthVal = latestWellness && latestWellness.health_score !== null ? Math.round(latestWellness.health_score) : '--';
+        const lifestyleVal = latestWellness && latestWellness.lifestyle_score !== null ? Math.round(latestWellness.lifestyle_score) : '--';
+        
+        let moodVal = '--';
+        let moodLabel = 'Mental Vibe';
+        if (latestWellness && latestWellness.emotional_wellness_score !== null) {
+            moodVal = Math.round(latestWellness.emotional_wellness_score);
+            if (latestMood && latestMood.mood) {
+                moodLabel = latestMood.mood;
+            }
+        }
+        
+        const bpVal = latestVital && latestVital.blood_pressure_systolic ? `${latestVital.blood_pressure_systolic}/${latestVital.blood_pressure_diastolic}` : '--';
+        const hrVal = latestVital && latestVital.heart_rate ? latestVital.heart_rate : '--';
+        const spo2Val = latestVital && latestVital.oxygen_saturation ? latestVital.oxygen_saturation : '--';
+        
+        let tempVal = '--';
+        if (latestVital && latestVital.temperature !== null) {
+            tempVal = ((latestVital.temperature * 9 / 5) + 32).toFixed(1);
+        }
+        
+        const heightVal = data.height !== null && data.height !== undefined ? `${data.height} cm` : '--';
+        const weightVal = data.weight !== null && data.weight !== undefined ? `${data.weight} kg` : '--';
+
+        let html = `
+            <!-- Row 1: ThryveQ, Weight, Height -->
+            <div class="grid grid-cols-3 gap-6 mb-12">
+                <!-- Tile 1: ThryveQ -->
+                <div id="card-thryveq" onclick="openChartModal('thryveq')" class="cursor-pointer p-5 bg-gradient-to-br from-teal-50 to-emerald-50 hover:from-teal-100 hover:to-emerald-100 border border-teal-200 hover:border-teal-300 rounded-2xl transition duration-200 shadow-sm flex flex-col justify-between h-36">
+                    <div class="flex items-center justify-between text-teal-800">
+                        <span class="text-xs font-semibold uppercase tracking-wider">ThryveQ™</span>
+                        <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                    </div>
+                    <div class="text-4xl font-extrabold text-teal-900 my-2">${thryveqVal}</div>
+                    <span class="text-[10px] text-teal-600 font-medium leading-tight">Overall Wellness Score</span>
+                </div>
+
+                <!-- Tile 9: Weight -->
+                <div id="card-weight" class="p-5 bg-gradient-to-br from-slate-50 to-gray-50 border border-gray-200 rounded-2xl shadow-sm flex flex-col justify-between h-36">
+                    <div class="flex items-center justify-between text-gray-800">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Weight</span>
+                        <i data-lucide="scale" class="w-4 h-4"></i>
+                    </div>
+                    <div class="text-4xl font-extrabold text-gray-900 my-2">${weightVal}</div>
+                    <span class="text-[10px] text-gray-500 font-medium leading-tight">Body Weight (kg)</span>
+                </div>
+
+                <!-- Tile 10: Height -->
+                <div id="card-height" class="p-5 bg-gradient-to-br from-slate-50 to-gray-50 border border-gray-200 rounded-2xl shadow-sm flex flex-col justify-between h-36">
+                    <div class="flex items-center justify-between text-gray-800">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Height</span>
+                        <i data-lucide="ruler" class="w-4 h-4"></i>
+                    </div>
+                    <div class="text-4xl font-extrabold text-gray-900 my-2">${heightVal}</div>
+                    <span class="text-[10px] text-gray-500 font-medium leading-tight">Body Height (cm)</span>
+                </div>
+            </div>
+
+            <!-- Row 2: Health, Lifestyle, Mood -->
+            <div class="grid grid-cols-3 gap-6 mb-12">
+                <!-- Tile 2: Health Score -->
+                <div id="card-health_score" onclick="openChartModal('health_score')" class="cursor-pointer p-5 bg-gradient-to-br from-green-50 to-teal-50 hover:from-green-100 hover:to-teal-100 border border-green-200 hover:border-green-300 rounded-2xl transition duration-200 shadow-sm flex flex-col justify-between h-36">
+                    <div class="flex items-center justify-between text-green-800">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Health Score</span>
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                    </div>
+                    <div class="text-4xl font-extrabold text-green-900 my-2">${healthVal}</div>
+                    <span class="text-[10px] text-green-600 font-medium leading-tight">Physical Health Vitals</span>
+                </div>
+
+                <!-- Tile 3: Lifestyle Score -->
+                <div id="card-lifestyle_score" onclick="openChartModal('lifestyle_score')" class="cursor-pointer p-5 bg-gradient-to-br from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 border border-indigo-200 hover:border-indigo-300 rounded-2xl transition duration-200 shadow-sm flex flex-col justify-between h-36">
+                    <div class="flex items-center justify-between text-indigo-800">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Lifestyle Score</span>
+                        <i data-lucide="dumbbell" class="w-4 h-4"></i>
+                    </div>
+                    <div class="text-4xl font-extrabold text-indigo-900 my-2">${lifestyleVal}</div>
+                    <span class="text-[10px] text-indigo-600 font-medium leading-tight">Workout & Exercise</span>
+                </div>
+
+                <!-- Tile 4: Mood -->
+                <div id="card-mood" onclick="openChartModal('mood')" class="cursor-pointer p-5 bg-gradient-to-br from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 border border-purple-200 hover:border-purple-300 rounded-2xl transition duration-200 shadow-sm flex flex-col justify-between h-36">
+                    <div class="flex items-center justify-between text-purple-800">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Mood / Emotional</span>
+                        <i data-lucide="smile" class="w-4 h-4"></i>
+                    </div>
+                    <div class="text-4xl font-extrabold text-purple-900 my-2">
+                        ${moodVal} <span class="text-xs font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded ml-1 inline-block align-middle">${moodLabel}</span>
+                    </div>
+                    <span class="text-[10px] text-purple-600 font-medium leading-tight">Mental Vibe Score</span>
+                </div>
+            </div>
+
+            <!-- Row 3: BP, HR, SpO2, Temp -->
+            <div class="grid grid-cols-4 gap-6">
+                <!-- Tile 5: BP -->
+                <div id="card-bp" onclick="openChartModal('bp')" class="cursor-pointer p-5 bg-gradient-to-br from-violet-50 to-purple-50 hover:from-violet-100 hover:to-purple-100 border border-violet-200 hover:border-violet-300 rounded-2xl transition duration-200 shadow-sm flex flex-col justify-between h-36">
+                    <div class="flex items-center justify-between text-violet-800">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Blood Pressure</span>
+                        <i data-lucide="gauge" class="w-4 h-4"></i>
+                    </div>
+                    <div class="text-3xl font-extrabold text-violet-900 my-2">${bpVal} <span class="text-xs font-normal text-violet-500">mmHg</span></div>
+                    <span class="text-[10px] text-violet-600 font-medium leading-tight">Systolic / Diastolic</span>
+                </div>
+
+                <!-- Tile 6: Heart BPM -->
+                <div id="card-hr" onclick="openChartModal('hr')" class="cursor-pointer p-5 bg-gradient-to-br from-red-50 to-orange-50 hover:from-red-100 hover:to-orange-100 border border-red-200 hover:border-red-300 rounded-2xl transition duration-200 shadow-sm flex flex-col justify-between h-36">
+                    <div class="flex items-center justify-between text-red-800">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Heart Rate</span>
+                        <i data-lucide="heart" class="w-4 h-4"></i>
+                    </div>
+                    <div class="text-3xl font-extrabold text-red-900 my-2">${hrVal} <span class="text-xs font-normal text-red-500">BPM</span></div>
+                    <span class="text-[10px] text-red-600 font-medium leading-tight">Beats per Minute</span>
+                </div>
+
+                <!-- Tile 7: SpO2 -->
+                <div id="card-spo2" onclick="openChartModal('spo2')" class="cursor-pointer p-5 bg-gradient-to-br from-blue-50 to-sky-50 hover:from-blue-100 hover:to-sky-100 border border-blue-200 hover:border-blue-300 rounded-2xl transition duration-200 shadow-sm flex flex-col justify-between h-36">
+                    <div class="flex items-center justify-between text-blue-800">
+                        <span class="text-xs font-semibold uppercase tracking-wider">SpO2</span>
+                        <i data-lucide="droplet" class="w-4 h-4"></i>
+                    </div>
+                    <div class="text-3xl font-extrabold text-blue-900 my-2">${spo2Val} <span class="text-xs font-normal text-blue-500">%</span></div>
+                    <span class="text-[10px] text-blue-600 font-medium leading-tight">Oxygen Saturation</span>
+                </div>
+
+                <!-- Tile 8: Temperature -->
+                <div id="card-temp" onclick="openChartModal('temp')" class="cursor-pointer p-5 bg-gradient-to-br from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 border border-amber-200 hover:border-amber-300 rounded-2xl transition duration-200 shadow-sm flex flex-col justify-between h-36">
+                    <div class="flex items-center justify-between text-amber-800">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Temperature</span>
+                        <i data-lucide="thermometer" class="w-4 h-4"></i>
+                    </div>
+                    <div class="text-3xl font-extrabold text-amber-900 my-2">${tempVal} <span class="text-xs font-normal text-amber-500">°F</span></div>
+                    <span class="text-[10px] text-amber-600 font-medium leading-tight">Body Temp (Fahrenheit)</span>
+                </div>
+            </div>
+        `;
+        
         container.innerHTML = html;
         if (typeof lucide !== 'undefined') lucide.createIcons();
+        setTimeout(drawConnectingLines, 200);
+    }
+
+    window.openChartModal = function(metricKey) {
+        activeModalMetric = metricKey;
+        activeModalTimeframe = '7d';
+        
+        const modal = document.getElementById('chart-modal');
+        const titleEl = document.getElementById('modal-chart-title');
+        if (!modal || !titleEl) return;
+        
+        let titleHtml = '';
+        if (metricKey === 'thryveq') {
+            titleHtml = '<i data-lucide="bar-chart-3" class="w-5 h-5 text-teal-500"></i> ThryveQ™ Wellness Score';
+        } else if (metricKey === 'health_score') {
+            titleHtml = '<i data-lucide="activity" class="w-5 h-5 text-green-500"></i> Health Score History';
+        } else if (metricKey === 'lifestyle_score') {
+            titleHtml = '<i data-lucide="dumbbell" class="w-5 h-5 text-indigo-500"></i> Lifestyle Score History';
+        } else if (metricKey === 'mood') {
+            titleHtml = '<i data-lucide="smile" class="w-5 h-5 text-purple-500"></i> Mood Score History';
+        } else if (metricKey === 'bp') {
+            titleHtml = '<i data-lucide="gauge" class="w-5 h-5 text-violet-500"></i> Blood Pressure (mmHg)';
+        } else if (metricKey === 'hr') {
+            titleHtml = '<i data-lucide="heart" class="w-5 h-5 text-red-500"></i> Heart Rate (BPM)';
+        } else if (metricKey === 'spo2') {
+            titleHtml = '<i data-lucide="droplet" class="w-5 h-5 text-blue-500"></i> SpO2 (%)';
+        } else if (metricKey === 'temp') {
+            titleHtml = '<i data-lucide="thermometer" class="w-5 h-5 text-amber-500"></i> Temperature (°F)';
+        }
+        titleEl.innerHTML = titleHtml;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        
+        updateModalTimeframeButtons();
+        drawModalChart();
+    };
+
+    window.closeChartModal = function() {
+        const modal = document.getElementById('chart-modal');
+        if (modal) modal.classList.add('hidden');
+        document.body.style.overflow = '';
+        if (modalChart) {
+            modalChart.destroy();
+            modalChart = null;
+        }
+    };
+
+    window.changeModalTimeframe = function(tf) {
+        activeModalTimeframe = tf;
+        updateModalTimeframeButtons();
+        drawModalChart();
+    };
+
+    function updateModalTimeframeButtons() {
+        ['7d', '30d', '365d'].forEach(tf => {
+            const btn = document.getElementById(`modal-btn-${tf}`);
+            if (btn) {
+                if (tf === activeModalTimeframe) {
+                    btn.className = "px-2.5 py-1 rounded-md font-medium transition-all bg-white text-gray-800 shadow-sm border border-gray-200";
+                } else {
+                    btn.className = "px-2.5 py-1 rounded-md font-medium transition-all text-gray-500 hover:text-gray-900";
+                }
+            }
+        });
+    }
+
+    function drawModalChart() {
+        const canvas = document.getElementById('maximizedChartCanvas');
+        const ctx = canvas.getContext('2d');
+        if (modalChart) {
+            modalChart.destroy();
+            modalChart = null;
+        }
+        
+        const data = window.patientHealthData;
+        if (!data) return;
+        
+        // Choose source array
+        const isWellness = ['thryveq', 'health_score', 'lifestyle_score', 'mood'].includes(activeModalMetric);
+        const sourceArray = isWellness ? data.wellness_scores : data.vitals;
+        
+        // Filter by timeframe
+        const dataPoints = filterDataByTimeframe(sourceArray, activeModalTimeframe);
+        
+        const labels = dataPoints.map(item => {
+            const d = new Date(item.timestamp);
+            if (activeModalTimeframe === '365d') {
+                return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            }
+            return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        });
+        
+        let datasets = [];
+        if (activeModalMetric === 'thryveq') {
+            datasets.push({
+                label: 'ThryveQ Score',
+                data: dataPoints.map(item => item.overall_wellness_score),
+                borderColor: '#0d9488',
+                borderWidth: 3,
+                backgroundColor: createModalGradient(ctx, '#0d9488'),
+                fill: true,
+                tension: 0.3
+            });
+        } else if (activeModalMetric === 'health_score') {
+            datasets.push({
+                label: 'Health Score',
+                data: dataPoints.map(item => item.health_score),
+                borderColor: '#10b981',
+                borderWidth: 3,
+                backgroundColor: createModalGradient(ctx, '#10b981'),
+                fill: true,
+                tension: 0.3
+            });
+        } else if (activeModalMetric === 'lifestyle_score') {
+            datasets.push({
+                label: 'Lifestyle Score',
+                data: dataPoints.map(item => item.lifestyle_score),
+                borderColor: '#4f46e5',
+                borderWidth: 3,
+                backgroundColor: createModalGradient(ctx, '#4f46e5'),
+                fill: true,
+                tension: 0.3
+            });
+        } else if (activeModalMetric === 'mood') {
+            datasets.push({
+                label: 'Mood Score',
+                data: dataPoints.map(item => item.emotional_wellness_score),
+                borderColor: '#9333ea',
+                borderWidth: 3,
+                backgroundColor: createModalGradient(ctx, '#9333ea'),
+                fill: true,
+                tension: 0.3
+            });
+        } else if (activeModalMetric === 'hr') {
+            datasets.push({
+                label: 'Heart Rate (BPM)',
+                data: dataPoints.map(item => item.heart_rate),
+                borderColor: '#ef4444',
+                borderWidth: 3,
+                backgroundColor: createModalGradient(ctx, '#ef4444'),
+                fill: true,
+                tension: 0.3
+            });
+        } else if (activeModalMetric === 'spo2') {
+            datasets.push({
+                label: 'SpO2 (%)',
+                data: dataPoints.map(item => item.oxygen_saturation),
+                borderColor: '#3b82f6',
+                borderWidth: 3,
+                backgroundColor: createModalGradient(ctx, '#3b82f6'),
+                fill: true,
+                tension: 0.3
+            });
+        } else if (activeModalMetric === 'temp') {
+            datasets.push({
+                label: 'Temperature (°F)',
+                data: dataPoints.map(item => item.temperature !== null ? (item.temperature * 9 / 5) + 32 : null),
+                borderColor: '#f59e0b',
+                borderWidth: 3,
+                backgroundColor: createModalGradient(ctx, '#f59e0b'),
+                fill: true,
+                tension: 0.3
+            });
+        } else if (activeModalMetric === 'bp') {
+            datasets.push({
+                label: 'Systolic (mmHg)',
+                data: dataPoints.map(item => item.blood_pressure_systolic),
+                borderColor: '#8b5cf6',
+                borderWidth: 3,
+                tension: 0.3
+            });
+            datasets.push({
+                label: 'Diastolic (mmHg)',
+                data: dataPoints.map(item => item.blood_pressure_diastolic),
+                borderColor: '#f97316',
+                borderWidth: 3,
+                tension: 0.3
+            });
+        }
+        
+        modalChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: activeModalMetric === 'bp' },
+                    tooltip: {
+                        backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                        padding: 12,
+                        borderRadius: 8
+                    }
+                },
+                scales: {
+                    x: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } },
+                    y: { 
+                        grid: { color: '#f3f4f6' }, 
+                        ticks: { font: { size: 10 } },
+                        min: ['thryveq', 'health_score', 'lifestyle_score', 'mood', 'spo2'].includes(activeModalMetric) ? 50 : undefined,
+                        max: ['thryveq', 'health_score', 'lifestyle_score', 'mood', 'spo2'].includes(activeModalMetric) ? 100 : undefined
+                    }
+                }
+            }
+        });
     }
 
     async function loadRecordings() {
@@ -476,6 +1130,8 @@
 
             if (data.success) {
                 renderRecordings(data.recordings);
+            } else if (data.error === "ConsentNotGivenOrExpired") {
+                showConsentRequiredError('recordings-content', 'This patient has not shared access to their call recordings, or the 15-day sharing consent has expired.');
             }
         } catch (error) {
             console.error('Error loading recordings:', error);
@@ -522,27 +1178,38 @@
                     hour12: true
                 });
                 const duration = formatDuration(rec.duration_seconds);
+                const isVideo = rec.has_video !== false;
+                const iconName = isVideo ? 'video' : 'mic';
+                const playerTag = isVideo
+                    ? `<video id="media-${rec.id}" controls controlsList="nodownload noremoteplayback" oncontextmenu="return false;" class="w-full rounded-lg bg-black" style="max-height:360px" playsinline preload="metadata" src="/api/recordings/${rec.id}/stream"></video>`
+                    : `<audio id="media-${rec.id}" controls controlsList="nodownload noremoteplayback" oncontextmenu="return false;" class="w-full" style="height:36px" preload="metadata" src="/api/recordings/${rec.id}/stream"></audio>`;
 
                 html += `
-                    <div class="p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="bg-primary-100 p-2 rounded-lg">
-                                    <i data-lucide="mic" class="w-5 h-5 text-primary-600"></i>
-                                </div>
-                                <div>
-                                    <div class="font-medium text-gray-900">Call Recording</div>
-                                    <div class="text-sm text-gray-600">${time} • ${duration}</div>
-                                </div>
-                            </div>
-                            <button onclick="playRecording(${rec.id})" 
-                                    class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition flex items-center gap-2">
-                                <i data-lucide="play" class="w-4 h-4"></i>
-                                <span>Play</span>
-                            </button>
+                    <div class="border border-gray-200 rounded-lg overflow-hidden mb-2 bg-white hover:shadow-sm transition" id="rec-tile-${rec.id}">
+                      <div class="p-4 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                          <div class="bg-primary-100 p-2 rounded-lg">
+                            <i data-lucide="${iconName}" class="w-5 h-5 text-primary-600"></i>
+                          </div>
+                          <div>
+                            <div class="font-medium text-gray-900">${isVideo ? 'Video' : 'Audio'} Call Recording</div>
+                            <div class="text-sm text-gray-600">${time} &bull; ${duration}</div>
+                          </div>
                         </div>
+                        <button onclick="window.toggleInlinePlayer(${rec.id})" id="play-btn-${rec.id}"
+                                class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition flex items-center gap-2 text-sm font-medium">
+                          <i data-lucide="play" class="w-4 h-4"></i>
+                          <span>Play</span>
+                        </button>
+                      </div>
+                      <!-- Inline player (hidden by default) -->
+                      <div id="inline-player-${rec.id}" class="hidden border-t border-gray-100 bg-gray-50 px-4 py-3">
+                        ${playerTag}
+                        <p class="text-xs text-gray-400 mt-1.5">Best played on Chrome or Firefox &bull; <span class="text-gray-500">${time} &bull; ${duration}</span></p>
+                      </div>
                     </div>
                 `;
+
             });
 
             html += '</div></div>';
@@ -551,6 +1218,42 @@
         container.innerHTML = html;
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
+
+    function toggleInlinePlayer(recId) {
+        const player  = document.getElementById(`inline-player-${recId}`);
+        const media   = document.getElementById(`media-${recId}`);
+        const btn     = document.getElementById(`play-btn-${recId}`);
+        if (!player || !media) return;
+
+        const isHidden = player.classList.contains('hidden');
+
+        // Stop any other playing media first
+        document.querySelectorAll('audio[id^="media-"], video[id^="media-"]').forEach(m => {
+            if (m.id !== `media-${recId}`) {
+                m.pause();
+                const otherId = m.id.replace('media-', '');
+                const otherPlayer = document.getElementById(`inline-player-${otherId}`);
+                const otherBtn    = document.getElementById(`play-btn-${otherId}`);
+                if (otherPlayer) otherPlayer.classList.add('hidden');
+                if (otherBtn) otherBtn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i><span>Play</span>';
+            }
+        });
+
+        if (isHidden) {
+            player.classList.remove('hidden');
+            if (!media.src || media.src === window.location.href) {
+                media.src = `/api/recordings/${recId}/stream`;
+            }
+            media.play().catch(err => console.warn('[Recording] Play error:', err));
+            if (btn) btn.innerHTML = '<i data-lucide="stop-circle" class="w-4 h-4"></i><span>Close</span>';
+        } else {
+            media.pause();
+            player.classList.add('hidden');
+            if (btn) btn.innerHTML = '<i data-lucide="play" class="w-4 h-4"></i><span>Play</span>';
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+    window.toggleInlinePlayer = toggleInlinePlayer;
 
     async function loadSummaries() {
         try {
@@ -600,43 +1303,8 @@
         container.innerHTML = html;
     }
 
-    async function playRecording(recordingId) {
-        try {
-            const response = await fetch(`/api/recordings/${recordingId}`);
-            const data = await response.json();
-
-            if (data.success) {
-                const rec = data.recording;
-
-                document.getElementById('player-title').textContent = 'Call Recording';
-                document.getElementById('player-date').textContent = new Date(rec.call_date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit'
-                });
-                document.getElementById('player-duration').textContent = formatDuration(rec.duration_seconds);
-
-                document.getElementById('audio-source').src = rec.recording_url;
-                document.getElementById('audio-player').load();
-
-                if (rec.transcription) {
-                    document.getElementById('transcription-section').classList.remove('hidden');
-                    document.getElementById('transcription-content').textContent = rec.transcription.summary || 'Processing...';
-                } else {
-                    document.getElementById('transcription-section').classList.add('hidden');
-                }
-
-                document.getElementById('player-modal').classList.remove('hidden');
-
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-            }
-        } catch (error) {
-            console.error('Error loading recording:', error);
-            alert('Failed to load recording');
-        }
-    }
+    // Keep legacy modal function signature in case called elsewhere but no-op
+    async function playRecording(recordingId) { window.toggleInlinePlayer(recordingId); }
 
     function closePlayer() {
         document.getElementById('player-modal').classList.add('hidden');
@@ -651,9 +1319,40 @@
     }
 </script>
 
+
+<!-- Chart Maximized Modal -->
+<div id="chart-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black bg-opacity-60 transition-opacity">
+    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full overflow-hidden transform scale-95 transition-transform duration-300">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <h3 id="modal-chart-title" class="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <!-- Title injected here -->
+            </h3>
+            
+            <!-- Timeframe Filter inside modal -->
+            <div class="flex bg-gray-100 rounded-lg p-0.5 text-xs mr-4 ml-auto">
+                <button id="modal-btn-7d" onclick="changeModalTimeframe('7d')" class="px-2.5 py-1 rounded-md font-medium transition-all bg-white text-gray-800 shadow-sm border border-gray-200">7D</button>
+                <button id="modal-btn-30d" onclick="changeModalTimeframe('30d')" class="px-2.5 py-1 rounded-md font-medium transition-all text-gray-500 hover:text-gray-900">30D</button>
+                <button id="modal-btn-365d" onclick="changeModalTimeframe('365d')" class="px-2.5 py-1 rounded-md font-medium transition-all text-gray-500 hover:text-gray-900">365D</button>
+            </div>
+
+            <button onclick="closeChartModal()" class="text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-200">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <!-- Body -->
+        <div class="p-6">
+            <div class="relative w-full" style="height: 450px;">
+                <canvas id="maximizedChartCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     .tab-btn {
         transition: all 0.2s;
     }
 </style>
+
 {% endblock %}

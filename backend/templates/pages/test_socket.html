@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Socket.IO Test</title>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .info {
+            color: blue;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Socket.IO Connection Test</h1>
+
+    <div>
+        <button onclick="testConnection()">Test Connection</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <script>
+        let socket;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function testConnection() {
+            log('Starting Socket.IO connection test...', 'info');
+
+            try {
+                // Test 1: Connect to Socket.IO
+                log('Attempting to connect to Socket.IO server...', 'info');
+
+                socket = io({
+                    path: '/socket.io',
+                    transports: ['websocket', 'polling']
+                });
+
+                socket.on('connect', () => {
+                    log('✓ Successfully connected to Socket.IO!', 'success');
+                    log(`Socket ID: ${socket.id}`, 'success');
+
+                    // Test 2: Join a test room
+                    log('Attempting to join test room...', 'info');
+                    socket.emit('join_call', {
+                        room_id: 'test-room-123',
+                        user_type: 'user',
+                        user_name: 'Test User'
+                    });
+                });
+
+                socket.on('room_joined', (data) => {
+                    log('✓ Successfully joined room!', 'success');
+                    log(`Room data: ${JSON.stringify(data)}`, 'success');
+                });
+
+                socket.on('peer_joined', (data) => {
+                    log('✓ Peer joined event received!', 'success');
+                    log(`Peer data: ${JSON.stringify(data)}`, 'success');
+                });
+
+                socket.on('connect_error', (error) => {
+                    log(`✗ Connection error: ${error.message}`, 'error');
+                });
+
+                socket.on('disconnect', (reason) => {
+                    log(`✗ Disconnected: ${reason}`, 'error');
+                });
+
+                socket.on('error', (error) => {
+                    log(`✗ Error: ${JSON.stringify(error)}`, 'error');
+                });
+
+                // Test WebRTC support
+                log('Checking WebRTC support...', 'info');
+                if (typeof RTCPeerConnection !== 'undefined') {
+                    log('✓ RTCPeerConnection is supported', 'success');
+                } else {
+                    log('✗ RTCPeerConnection is NOT supported', 'error');
+                }
+
+                // Test getUserMedia support
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    log('✓ getUserMedia is supported', 'success');
+
+                    // Try to get microphone access
+                    log('Requesting microphone access...', 'info');
+                    navigator.mediaDevices.getUserMedia({ audio: true })
+                        .then(stream => {
+                            log('✓ Microphone access granted!', 'success');
+                            stream.getTracks().forEach(track => track.stop());
+                        })
+                        .catch(err => {
+                            log(`✗ Microphone access denied: ${err.message}`, 'error');
+                        });
+                } else {
+                    log('✗ getUserMedia is NOT supported', 'error');
+                }
+
+            } catch (error) {
+                log(`✗ Test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run test on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            log('Page loaded. Click "Test Connection" to start.', 'info');
+        });
+    </script>
+</body>
+
+</html>

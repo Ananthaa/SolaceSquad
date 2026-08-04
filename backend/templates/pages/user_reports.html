@@ -1,0 +1,1225 @@
+{% extends "layouts/protected.html" %}
+{% block title %}My Reports — SolaceSquad{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Design Tokens */
+    :root {
+        --rep-primary: #0d9488;
+        --rep-primary-hover: #0f766e;
+        --rep-primary-light: rgba(13, 148, 136, 0.1);
+        --rep-bg: #f9fafb;
+        --rep-card: #ffffff;
+        --rep-border: #e5e7eb;
+        --rep-text-main: #111827;
+        --rep-text-muted: #6b7280;
+        --rep-radius: 0.75rem;
+    }
+
+    .dark-mode-stub {
+        /* Future-proofing for dark mode if active */
+    }
+
+    .rep-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 4rem;
+    }
+
+    /* Page Header */
+    .rep-header {
+        background: linear-gradient(135deg, #134e4a 0%, #0f766e 100%);
+        border-radius: var(--rep-radius);
+        padding: 2.25rem 2rem;
+        margin-bottom: 2rem;
+        color: #ffffff;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .rep-header::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at top right, rgba(20, 184, 166, 0.3) 0%, transparent 60%);
+        pointer-events: none;
+    }
+
+    .rep-header h1 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .rep-header p {
+        color: #ccfbf1;
+        font-size: 0.95rem;
+        max-width: 600px;
+    }
+
+    /* Custom Navigation Tabs */
+    .rep-tabs {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 2px solid var(--rep-border);
+        margin-bottom: 2rem;
+        padding-bottom: 0.25rem;
+    }
+
+    .rep-tab-btn {
+        padding: 0.75rem 1.25rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: var(--rep-text-muted);
+        border: none;
+        background: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -0.3rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .rep-tab-btn:hover {
+        color: var(--rep-primary);
+    }
+
+    .rep-tab-btn.active {
+        color: var(--rep-primary);
+        border-bottom-color: var(--rep-primary);
+    }
+
+    /* Tab Content panels */
+    .rep-tab-panel {
+        display: none;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .rep-tab-panel.active {
+        display: block;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Upload Form Card */
+    .rep-card {
+        background: var(--rep-card);
+        border: 1px solid var(--rep-border);
+        border-radius: var(--rep-radius);
+        padding: 2rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    /* Dropzone area */
+    .rep-dropzone {
+        border: 2px dashed #cbd5e1;
+        border-radius: var(--rep-radius);
+        padding: 2.5rem 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: #f8fafc;
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+
+    .rep-dropzone:hover, .rep-dropzone.dragover {
+        border-color: var(--rep-primary);
+        background: var(--rep-primary-light);
+    }
+
+    .rep-dropzone-icon {
+        color: var(--rep-primary);
+        background: rgba(13, 148, 136, 0.15);
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        transition: transform 0.2s ease;
+    }
+
+    .rep-dropzone:hover .rep-dropzone-icon {
+        transform: translateY(-4px);
+    }
+
+    .rep-dropzone input[type=file] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .rep-dropzone-text {
+        font-size: 0.95rem;
+        color: var(--rep-text-main);
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    .rep-dropzone-subtext {
+        font-size: 0.8rem;
+        color: var(--rep-text-muted);
+    }
+
+    /* File preview card */
+    .rep-file-preview {
+        display: none;
+        background: #f0fdfa;
+        border: 1px solid #99f6e4;
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Form control layout */
+    .rep-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .rep-form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .rep-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .rep-field-full {
+        grid-column: 1 / -1;
+    }
+
+    .rep-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .rep-input {
+        width: 100%;
+        background: #ffffff;
+        border: 1px solid var(--rep-border);
+        border-radius: 0.5rem;
+        padding: 0.65rem 0.9rem;
+        color: var(--rep-text-main);
+        font-size: 0.9rem;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+
+    .rep-input:focus {
+        border-color: var(--rep-primary);
+        box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+    }
+
+    .rep-checkbox-container {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.75rem 0;
+    }
+
+    /* Toggle Switch styling */
+    .rep-switch {
+        position: relative;
+        display: inline-block;
+        width: 2.75rem;
+        height: 1.5rem;
+    }
+
+    .rep-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .rep-slider {
+        position: absolute;
+        cursor: pointer;
+        inset: 0;
+        background-color: #cbd5e1;
+        transition: .3s;
+        border-radius: 1.5rem;
+    }
+
+    .rep-slider:before {
+        position: absolute;
+        content: "";
+        height: 1.15rem;
+        width: 1.15rem;
+        left: 0.15rem;
+        bottom: 0.17rem;
+        background-color: white;
+        transition: .3s;
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+
+    input:checked + .rep-slider {
+        background-color: var(--rep-primary);
+    }
+
+    input:focus + .rep-slider {
+        box-shadow: 0 0 1px var(--rep-primary);
+    }
+
+    input:checked + .rep-slider:before {
+        transform: translateX(1.25rem);
+    }
+
+    /* Buttons */
+    .rep-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.7rem 1.5rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+    }
+
+    .rep-btn-primary {
+        background: var(--rep-primary);
+        color: #ffffff;
+    }
+
+    .rep-btn-primary:hover {
+        background: var(--rep-primary-hover);
+        box-shadow: 0 4px 6px -1px rgba(13, 148, 136, 0.2);
+    }
+
+    .rep-btn-primary:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    .rep-btn-outline {
+        border: 1px solid var(--rep-border);
+        background: #ffffff;
+        color: #4b5563;
+    }
+
+    .rep-btn-outline:hover {
+        background: #f9fafb;
+        color: var(--rep-text-main);
+    }
+
+    /* Virtual Folder Card styles */
+    .folder-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .folder-card {
+        background: var(--rep-card);
+        border: 1px solid var(--rep-border);
+        border-radius: var(--rep-radius);
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        display: flex;
+        flex-direction: column;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+    }
+
+    .folder-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02);
+        border-color: #cbd5e1;
+    }
+
+    .folder-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .folder-icon {
+        color: #eab308; /* Yellow folder theme */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .folder-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--rep-text-main);
+    }
+
+    .folder-badge {
+        margin-left: auto;
+        background: #f1f5f9;
+        color: #475569;
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 0.15rem 0.5rem;
+        border-radius: 1rem;
+    }
+
+    /* File List inside folders */
+    .file-item-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .file-item {
+        background: #f8fafc;
+        border: 1px solid #f1f5f9;
+        border-radius: 0.5rem;
+        padding: 0.85rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        transition: border-color 0.2s ease;
+    }
+
+    .file-item:hover {
+        border-color: #e2e8f0;
+    }
+
+    .file-main-info {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    .file-name-wrap {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+
+    .file-name-text {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--rep-text-main);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .file-icon-pdf { color: #ef4444; }
+    .file-icon-img { color: #3b82f6; }
+
+    .file-tag {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.25rem;
+        background: #e2e8f0;
+        color: #475569;
+        white-space: nowrap;
+    }
+
+    .file-tag-cbc { background: #e0f2fe; color: #0369a1; }
+    .file-tag-mri { background: #fae8ff; color: #86198f; }
+    .file-tag-x-ray { background: #fef3c7; color: #b45309; }
+    .file-tag-other { background: #f1f5f9; color: #475569; }
+
+    .file-description {
+        font-size: 0.8rem;
+        color: var(--rep-text-muted);
+        line-height: 1.4;
+    }
+
+    .file-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px dashed #e2e8f0;
+    }
+
+    .file-share-label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .file-action-buttons {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .file-action-btn {
+        padding: 0.35rem;
+        border-radius: 0.375rem;
+        color: #64748b;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .file-action-btn:hover {
+        background: #f1f5f9;
+        color: var(--rep-text-main);
+    }
+
+    .file-action-btn-danger:hover {
+        background: #fef2f2;
+        color: #ef4444;
+    }
+
+    /* Toast Notification styles */
+    .rep-toast-container {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .rep-toast {
+        background: #1e293b;
+        color: #ffffff;
+        padding: 0.85rem 1.25rem;
+        border-radius: var(--rep-radius);
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        animation: toastIn 0.25s cubic-bezier(0, 0, 0.2, 1);
+        border-left: 4px solid var(--rep-primary);
+    }
+
+    .rep-toast.toast-error {
+        border-left-color: #ef4444;
+    }
+
+    @keyframes toastIn {
+        from { transform: translateY(20px) scale(0.9); opacity: 0; }
+        to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    /* Empty state */
+    .rep-empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: var(--rep-card);
+        border: 1px solid var(--rep-border);
+        border-radius: var(--rep-radius);
+    }
+
+    .rep-empty-icon {
+        color: #cbd5e1;
+        margin: 0 auto 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .rep-empty-state h3 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--rep-text-main);
+        margin-bottom: 0.25rem;
+    }
+
+    .rep-empty-state p {
+        color: var(--rep-text-muted);
+        font-size: 0.85rem;
+        margin-bottom: 1.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="rep-container">
+    <!-- Header Block -->
+    <div class="rep-header">
+        <h1>My Diagnosis Reports</h1>
+        <p>Upload your lab, clinical, and medical reports. Keep them secure, organize them by test dates, and optionally share them with scheduled consultants.</p>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="rep-tabs">
+        <button class="rep-tab-btn active" onclick="switchTab('tab-view')">
+            <i data-lucide="folder" class="w-4 h-4"></i>
+            View Uploaded Files
+        </button>
+        <button class="rep-tab-btn" onclick="switchTab('tab-upload')">
+            <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+            Upload A Report
+        </button>
+    </div>
+
+    <!-- Panel 1: View Files -->
+    <div id="tab-view" class="rep-tab-panel active">
+        <div id="folders-loading" class="flex justify-center items-center py-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+        </div>
+        
+        <div id="folders-empty" class="rep-empty-state hidden">
+            <div class="rep-empty-icon">
+                <i data-lucide="folder-open" class="w-16 h-16"></i>
+            </div>
+            <h3>No reports uploaded yet</h3>
+            <p>Once you upload files, they will be cataloged here inside folders grouped by test dates.</p>
+            <button class="rep-btn rep-btn-primary" onclick="switchTab('tab-upload')">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                Upload Your First Report
+            </button>
+        </div>
+
+        <div id="folders-grid" class="folder-grid hidden">
+            <!-- Dynamic Folders go here -->
+        </div>
+    </div>
+
+    <!-- Panel 2: Upload Report -->
+    <div id="tab-upload" class="rep-tab-panel">
+        <div class="rep-card">
+            <form id="upload-form" onsubmit="handleFormSubmit(event)">
+                <!-- Drag and drop zone -->
+                <div class="rep-dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
+                    <div class="rep-dropzone-icon">
+                        <i data-lucide="upload" class="w-6 h-6"></i>
+                    </div>
+                    <div class="rep-dropzone-text">Drag and drop your report here, or click to browse</div>
+                    <div class="rep-dropzone-subtext">Supports PDF and image formats (PNG, JPG, JPEG, WEBP) up to 10MB</div>
+                    <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.webp" onchange="handleFileSelect(event)">
+                </div>
+
+                <!-- File preview area -->
+                <div class="rep-file-preview" id="file-preview">
+                    <div class="file-name-wrap">
+                        <i data-lucide="file-text" class="w-5 h-5 text-teal-600"></i>
+                        <span class="text-sm font-semibold text-teal-900" id="preview-filename">file_name.pdf</span>
+                        <span class="text-xs text-teal-600" id="preview-filesize">(0 KB)</span>
+                    </div>
+                    <button type="button" class="file-action-btn file-action-btn-danger" onclick="clearFileSelection()">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- Form Inputs -->
+                <div class="rep-form-grid">
+                    <!-- Date Input -->
+                    <div class="rep-field">
+                        <label class="rep-label" for="test-date">Test Conducted Date</label>
+                        <input type="date" id="test-date" class="rep-input" required>
+                    </div>
+
+                    <!-- Tag Selection -->
+                    <div class="rep-field">
+                        <label class="rep-label" for="tag-select">Report Tag / Category</label>
+                        <select id="tag-select" class="rep-input" onchange="handleTagSelectChange(event)">
+                            <option value="CBC">CBC (Complete Blood Count)</option>
+                            <option value="Lipid Profile">Lipid Profile</option>
+                            <option value="Thyroid Profile">Thyroid Profile</option>
+                            <option value="Liver Function (LFT)">Liver Function (LFT)</option>
+                            <option value="Kidney Function (KFT)">Kidney Function (KFT)</option>
+                            <option value="MRI">MRI Scan</option>
+                            <option value="X-Ray">X-Ray</option>
+                            <option value="CT Scan">CT Scan</option>
+                            <option value="Urine Test">Urine Test</option>
+                            <option value="Other">Other (Custom Tag)</option>
+                        </select>
+                    </div>
+
+                    <!-- Custom Tag Input (Conditional) -->
+                    <div class="rep-field rep-field-full hidden" id="custom-tag-field">
+                        <label class="rep-label" for="custom-tag-input">Custom Tag Name</label>
+                        <input type="text" id="custom-tag-input" class="rep-input" placeholder="e.g. ECG, Blood Sugar, Biopsy">
+                    </div>
+
+                    <!-- Description Input -->
+                    <div class="rep-field rep-field-full">
+                        <label class="rep-label" for="description">Description / Medical Notes</label>
+                        <textarea id="description" class="rep-input" rows="3" placeholder="Add details or notes about this report (e.g. doctors notes, normal/abnormal checks)"></textarea>
+                    </div>
+
+
+                </div>
+
+                <!-- Submit buttons -->
+                <div class="flex justify-end gap-3">
+                    <button type="button" class="rep-btn rep-btn-outline" onclick="resetUploadForm()">Cancel</button>
+                    <button type="submit" id="submit-btn" class="rep-btn rep-btn-primary" disabled>
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        Upload & Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notifications Container -->
+<div class="rep-toast-container" id="toast-container"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let selectedFile = null;
+    let reportsList = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Set default date to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('test-date').value = today;
+
+        // Setup drag and drop events
+        setupDragAndDrop();
+
+        // Fetch user's reports list
+        fetchReports();
+    });
+
+    // Setup Drag and Drop
+    function setupDragAndDrop() {
+        const dropzone = document.getElementById('dropzone');
+        if (!dropzone) return;
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove('dragover');
+            }, false);
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                processFile(files[0]);
+            }
+        }, false);
+    }
+
+    // Switch between tabs
+    function switchTab(tabId) {
+        document.querySelectorAll('.rep-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelectorAll('.rep-tab-panel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+
+        // Add active classes
+        const clickedBtn = Array.from(document.querySelectorAll('.rep-tab-btn')).find(btn => 
+            (tabId === 'tab-view' && btn.innerText.includes('View')) || 
+            (tabId === 'tab-upload' && btn.innerText.includes('Upload'))
+        );
+        if (clickedBtn) clickedBtn.classList.add('active');
+        
+        const activePanel = document.getElementById(tabId);
+        if (activePanel) activePanel.classList.add('active');
+
+        // Refetch reports if switching to view tab
+        if (tabId === 'tab-view') {
+            fetchReports();
+        }
+    }
+
+    // File Input selection
+    function handleFileSelect(e) {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            processFile(files[0]);
+        }
+    }
+
+    // Process selected file
+    function processFile(file) {
+        const allowedTypes = [
+            'application/pdf',
+            'image/png',
+            'image/jpeg',
+            'image/jpg',
+            'image/webp'
+        ];
+        
+        const ext = file.name.split('.').pop().toLowerCase();
+        const allowedExts = ['pdf', 'png', 'jpg', 'jpeg', 'webp'];
+
+        if (!allowedTypes.includes(file.type) && !allowedExts.includes(ext)) {
+            showToast('Only PDF and image formats (PNG, JPG, JPEG, WEBP) are allowed.', 'error');
+            return;
+        }
+
+        // Limit size to 10MB
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('File is too large. Maximum size is 10MB.', 'error');
+            return;
+        }
+
+        selectedFile = file;
+
+        // Display preview
+        document.getElementById('preview-filename').textContent = file.name;
+        document.getElementById('preview-filesize').textContent = `(${formatBytes(file.size)})`;
+        document.getElementById('file-preview').style.display = 'flex';
+        document.getElementById('dropzone').style.display = 'none';
+        
+        // Enable upload button
+        document.getElementById('submit-btn').disabled = false;
+        
+        // Auto fill tag if filename has hints
+        guessTagFromFilename(file.name);
+    }
+
+    // Clear file selection
+    function clearFileSelection() {
+        selectedFile = null;
+        document.getElementById('file-input').value = '';
+        document.getElementById('file-preview').style.display = 'none';
+        document.getElementById('dropzone').style.display = 'block';
+        document.getElementById('submit-btn').disabled = true;
+    }
+
+    // Guess tag from filename
+    function guessTagFromFilename(name) {
+        const lower = name.toLowerCase();
+        const select = document.getElementById('tag-select');
+        const customField = document.getElementById('custom-tag-field');
+
+        if (lower.includes('cbc') || lower.includes('blood') || lower.includes('count')) {
+            select.value = 'CBC';
+        } else if (lower.includes('lipid') || lower.includes('cholesterol')) {
+            select.value = 'Lipid Profile';
+        } else if (lower.includes('thyroid') || lower.includes('tsh')) {
+            select.value = 'Thyroid Profile';
+        } else if (lower.includes('lft') || lower.includes('liver')) {
+            select.value = 'Liver Function (LFT)';
+        } else if (lower.includes('kft') || lower.includes('kidney') || lower.includes('renal')) {
+            select.value = 'Kidney Function (KFT)';
+        } else if (lower.includes('mri')) {
+            select.value = 'MRI';
+        } else if (lower.includes('xray') || lower.includes('x-ray')) {
+            select.value = 'X-Ray';
+        } else if (lower.includes('ct') || lower.includes('scan')) {
+            select.value = 'CT Scan';
+        } else if (lower.includes('urine')) {
+            select.value = 'Urine Test';
+        }
+        
+        handleTagSelectChange();
+    }
+
+    // Handle tag dropdown changes
+    function handleTagSelectChange() {
+        const select = document.getElementById('tag-select');
+        const customField = document.getElementById('custom-tag-field');
+        const customInput = document.getElementById('custom-tag-input');
+
+        if (select.value === 'Other') {
+            customField.classList.remove('hidden');
+            customInput.required = true;
+        } else {
+            customField.classList.add('hidden');
+            customInput.required = false;
+        }
+    }
+
+    // Reset Form
+    function resetUploadForm() {
+        clearFileSelection();
+        document.getElementById('upload-form').reset();
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('test-date').value = today;
+        document.getElementById('tag-select').value = 'CBC';
+        handleTagSelectChange();
+    }
+
+    // Submit Form
+    async function handleFormSubmit(e) {
+        e.preventDefault();
+        if (!selectedFile) return;
+
+        const submitBtn = document.getElementById('submit-btn');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block mr-1"></span> Uploading...`;
+
+        const testDate = document.getElementById('test-date').value;
+        const description = document.getElementById('description').value;
+        const mainTag = document.getElementById('tag-select').value;
+        const customTag = document.getElementById('custom-tag-input').value;
+        const finalTag = mainTag === 'Other' ? customTag : mainTag;
+        const isShared = true;
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('test_date', testDate);
+        if (description) formData.append('description', description);
+        if (finalTag) formData.append('tag', finalTag);
+        formData.append('is_shared', isShared);
+
+        try {
+            const response = await fetch('/api/reports/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Report uploaded and saved successfully!', 'success');
+                    resetUploadForm();
+                    switchTab('tab-view');
+                } else {
+                    showToast(result.error || 'Failed to upload report.', 'error');
+                }
+            } else {
+                const errData = await response.json();
+                showToast(errData.detail || 'Failed to upload report.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Network error while uploading report.', 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    }
+
+    // Fetch reports list
+    async function fetchReports() {
+        const loading = document.getElementById('folders-loading');
+        const empty = document.getElementById('folders-empty');
+        const grid = document.getElementById('folders-grid');
+
+        if (loading) loading.classList.remove('hidden');
+        if (empty) empty.classList.add('hidden');
+        if (grid) grid.classList.add('hidden');
+
+        try {
+            const response = await fetch('/api/reports', { headers: { 'Cache-Control': 'no-cache' } });
+            if (response.ok) {
+                reportsList = await response.json();
+                renderReports();
+            } else {
+                showToast('Failed to fetch reports archive.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Network error while fetching reports.', 'error');
+        } finally {
+            if (loading) loading.classList.add('hidden');
+        }
+    }
+
+    // Render reports grouped by test date (Virtual Folders)
+    function renderReports() {
+        const empty = document.getElementById('folders-empty');
+        const grid = document.getElementById('folders-grid');
+
+        if (!reportsList || reportsList.length === 0) {
+            empty.classList.remove('hidden');
+            grid.classList.add('hidden');
+            return;
+        }
+
+        empty.classList.add('hidden');
+        grid.classList.remove('hidden');
+        grid.innerHTML = '';
+
+        // Group by test date
+        const groups = {};
+        reportsList.forEach(report => {
+            const dateStr = report.test_date; // YYYY-MM-DD
+            if (!groups[dateStr]) {
+                groups[dateStr] = [];
+            }
+            groups[dateStr].push(report);
+        });
+
+        // Sort dates descending
+        const sortedDates = Object.keys(groups).sort((a, b) => new Date(b) - new Date(a));
+
+        sortedDates.forEach(dateStr => {
+            const reports = groups[dateStr];
+            const formattedDate = formatDate(dateStr);
+
+            const folderCard = document.createElement('div');
+            folderCard.className = 'folder-card';
+            
+            // Header
+            const header = document.createElement('div');
+            header.className = 'folder-header';
+            
+            const folderIcon = document.createElement('div');
+            folderIcon.className = 'folder-icon';
+            folderIcon.innerHTML = `<i data-lucide="folder" class="w-6 h-6 fill-yellow-400 text-yellow-500"></i>`;
+            
+            const title = document.createElement('div');
+            title.className = 'folder-title';
+            title.textContent = formattedDate;
+
+            const badge = document.createElement('span');
+            badge.className = 'folder-badge';
+            badge.textContent = `${reports.length} ${reports.length === 1 ? 'file' : 'files'}`;
+
+            header.appendChild(folderIcon);
+            header.appendChild(title);
+            header.appendChild(badge);
+            folderCard.appendChild(header);
+
+            // File items container
+            const fileList = document.createElement('div');
+            fileList.className = 'file-item-list';
+
+            reports.forEach(report => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+
+                // Main Info
+                const mainInfo = document.createElement('div');
+                mainInfo.className = 'file-main-info';
+
+                const nameWrap = document.createElement('div');
+                nameWrap.className = 'file-name-wrap';
+
+                const isPdf = report.file_name.toLowerCase().endsWith('.pdf');
+                const fileIcon = document.createElement('i');
+                if (isPdf) {
+                    fileIcon.className = 'w-4 h-4 file-icon-pdf';
+                    fileIcon.setAttribute('data-lucide', 'file-text');
+                } else {
+                    fileIcon.className = 'w-4 h-4 file-icon-img';
+                    fileIcon.setAttribute('data-lucide', 'file-image');
+                }
+
+                const name = document.createElement('span');
+                name.className = 'file-name-text';
+                name.textContent = report.file_name;
+                name.title = report.file_name;
+
+                const tag = document.createElement('span');
+                const sanitizedTag = (report.tag || 'OTHER').replace(/\s+/g, '-').toLowerCase();
+                tag.className = `file-tag file-tag-${sanitizedTag}`;
+                tag.textContent = report.tag || 'OTHER';
+
+                nameWrap.appendChild(fileIcon);
+                nameWrap.appendChild(name);
+                nameWrap.appendChild(tag);
+                mainInfo.appendChild(nameWrap);
+                item.appendChild(mainInfo);
+
+                // Description
+                if (report.description) {
+                    const desc = document.createElement('div');
+                    desc.className = 'file-description';
+                    desc.textContent = report.description;
+                    item.appendChild(desc);
+                }
+
+                // Controls (Share toggle + View/Download/Delete)
+                const controls = document.createElement('div');
+                controls.className = 'file-controls';
+
+                // Consent-based access: no individual toggles needed
+
+                const actions = document.createElement('div');
+                actions.className = 'file-action-buttons';
+
+                // View Inline button
+                const viewBtn = document.createElement('button');
+                viewBtn.className = 'file-action-btn';
+                viewBtn.title = 'View Inline';
+                viewBtn.innerHTML = `<i data-lucide="eye" class="w-4 h-4"></i>`;
+                viewBtn.onclick = () => window.open(`/api/reports/${report.id}/file`, '_blank');
+                actions.appendChild(viewBtn);
+
+                // Download button
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'file-action-btn';
+                downloadBtn.title = 'Download File';
+                downloadBtn.innerHTML = `<i data-lucide="download" class="w-4 h-4"></i>`;
+                downloadBtn.onclick = () => window.open(`/api/reports/${report.id}/file?download=true`, '_blank');
+                actions.appendChild(downloadBtn);
+
+                // Delete button
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'file-action-btn file-action-btn-danger';
+                deleteBtn.title = 'Delete';
+                deleteBtn.innerHTML = `<i data-lucide="trash-2" class="w-4 h-4"></i>`;
+                deleteBtn.onclick = () => deleteReport(report.id);
+                actions.appendChild(deleteBtn);
+
+                controls.appendChild(actions);
+                item.appendChild(controls);
+                fileList.appendChild(item);
+            });
+
+            folderCard.appendChild(fileList);
+            grid.appendChild(folderCard);
+        });
+
+        // Initialize lucide icons in the dynamically added nodes
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+
+    // Toggle sharing status
+    async function toggleShare(reportId, isChecked) {
+        try {
+            const response = await fetch(`/api/reports/${reportId}/share`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ is_shared: isChecked })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    showToast(`Sharing ${result.is_shared ? 'enabled' : 'disabled'} for this report.`, 'success');
+                } else {
+                    showToast('Failed to update sharing preference.', 'error');
+                }
+            } else {
+                showToast('Failed to update sharing preference.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Network error while updating share preference.', 'error');
+        }
+    }
+
+    // Delete report
+    async function deleteReport(reportId) {
+        if (!confirm('Are you sure you want to delete this report permanently?')) return;
+
+        try {
+            const response = await fetch(`/api/reports/${reportId}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    showToast('Report deleted successfully.', 'success');
+                    fetchReports(); // Refresh
+                } else {
+                    showToast('Failed to delete report.', 'error');
+                }
+            } else {
+                showToast('Failed to delete report.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Network error while deleting report.', 'error');
+        }
+    }
+
+    // Helper: format dates
+    function formatDate(dateStr) {
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        // Date parser that avoids timezone offsets
+        const parts = dateStr.split('-');
+        const date = new Date(parts[0], parts[1] - 1, parts[2]);
+        return date.toLocaleDateString('en-US', options);
+    }
+
+    // Helper: format file bytes
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    // Toast notifications
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `rep-toast ${type === 'error' ? 'toast-error' : ''}`;
+        
+        const icon = document.createElement('i');
+        icon.className = 'w-4 h-4';
+        icon.setAttribute('data-lucide', type === 'error' ? 'alert-triangle' : 'check-circle');
+        
+        const text = document.createElement('span');
+        text.textContent = message;
+
+        toast.appendChild(icon);
+        toast.appendChild(text);
+        container.appendChild(toast);
+
+        if (window.lucide) {
+            window.lucide.createIcons({
+                nodeList: [toast]
+            });
+        }
+
+        // Auto remove toast
+        setTimeout(() => {
+            toast.style.animation = 'fadeOut 0.2s ease forwards';
+            setTimeout(() => {
+                toast.remove();
+            }, 200);
+        }, 3500);
+    }
+</script>
+
+<style>
+    @keyframes fadeOut {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(10px); }
+    }
+</style>
+{% endblock %}

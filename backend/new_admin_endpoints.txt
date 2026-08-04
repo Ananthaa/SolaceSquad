@@ -1,0 +1,68 @@
+
+# User profile API endpoint
+@app.get("/api/admin/users/{user_id}/profile")
+async def get_user_profile(request: Request, user_id: int, db: Session = Depends(get_db)):
+    """Get detailed user profile for admin"""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+    
+    # Get detailed stats
+    vitals_count = db.query(VitalsRecord).filter(VitalsRecord.user_id == user_id).count()
+    appointments_count = db.query(Appointment).filter(Appointment.user_id == user_id).count()
+    completed_appointments = db.query(Appointment).filter(
+        Appointment.user_id == user_id,
+        Appointment.status == "completed"
+    ).count()
+    chat_count = db.query(AIChatHistory).filter(AIChatHistory.user_id == user_id).count()
+    chat_time_minutes = chat_count * 2  # Estimate
+    
+    return JSONResponse({
+        "success": True,
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "last_login": user.last_login.isoformat() if user.last_login else None,
+            "is_active": user.is_active,
+            "vitals_count": vitals_count,
+            "appointments_count": appointments_count,
+            "completed_appointments": completed_appointments,
+            "chat_count": chat_count,
+            "chat_time_minutes": chat_time_minutes
+        }
+    })
+
+# Consultant fee update endpoint
+@app.post("/api/admin/consultants/{consultant_id}/fee")
+async def update_consultant_fee(
+    request: Request,
+    consultant_id: int,
+    db: Session = Depends(get_db)
+):
+    """Update consultant consultation fee"""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    # Get JSON body
+    import json
+    body = await request.body()
+    data = json.loads(body)
+    fee = data.get("fee", 0)
+    
+    consultant = db.query(ConsultantProfile).filter(ConsultantProfile.id == consultant_id).first()
+    if not consultant:
+        return JSONResponse({"success": False, "error": "Consultant not found"}, status_code=404)
+    
+    consultant.consultation_fee = fee
+    db.commit()
+    
+    return JSONResponse({"success": True, "fee": fee})

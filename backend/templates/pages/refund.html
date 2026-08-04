@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Refund &amp; Cancellation Policy | SolaceSquad{% endblock %}
+{% block meta_desc %}Read SolaceSquad's Refund and Cancellation Policy. Understand our fair refund conditions, session rescheduling rules, and 24-hour cancellation guidelines.{% endblock %}
+{% block og_title %}Refund &amp; Cancellation Policy | SolaceSquad{% endblock %}
+{% block og_desc %}SolaceSquad's refund and cancellation policy for wellness consultation sessions. Transparent, fair and client-friendly.{% endblock %}
+{% block tw_title %}Refund &amp; Cancellation Policy | SolaceSquad{% endblock %}
+{% block tw_desc %}SolaceSquad refund and cancellation policy — understand your options for rescheduling, cancellations, and refunds on wellness sessions.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","name":"Refund & Cancellation Policy","url":"{{ request.base_url }}refund","description":"SolaceSquad Refund and Cancellation Policy for wellness consultation sessions.","breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"{{ request.base_url }}"},{"@type":"ListItem","position":2,"name":"Refund & Cancellation Policy","item":"{{ request.base_url }}refund"}]}}
+</script>
+{% endblock %}
+
+{% block content %}
+{% include "components/header.html" %}
+
+<style>
+    .ss-page-section {
+        padding-top: 9rem;
+        padding-bottom: 4rem;
+        background: #f8faf9;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    .ss-page-inner {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+        box-sizing: border-box;
+    }
+
+    .ss-page-eyebrow {
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #2d6a5a;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+    }
+
+    .ss-page-title {
+        text-align: center;
+        font-size: clamp(1.4rem, 5vw, 1.75rem);
+        font-weight: 800;
+        color: #2d6a5a;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.5rem;
+    }
+
+    .ss-page-divider {
+        width: 3rem;
+        height: 3px;
+        background: linear-gradient(90deg, #2d6a5a, #1e4d40);
+        border-radius: 2px;
+        margin: 0 auto 1.75rem;
+    }
+
+    .ss-policy-card {
+        background: #fff;
+        border-radius: 0.75rem;
+        padding: 1.5rem 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(45, 106, 90, .08);
+    }
+
+    .ss-policy-card h2 {
+        font-size: clamp(1.1rem, 4vw, 1.5rem);
+        font-weight: 800;
+        color: #2d6a5a;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.4rem;
+        text-align: center;
+    }
+
+    .ss-policy-card .ss-page-divider {
+        margin-bottom: 1.25rem;
+    }
+
+    .ss-policy-card p {
+        font-size: 0.875rem;
+        color: #374151;
+        line-height: 1.8;
+        margin-bottom: 0.85rem;
+    }
+
+    .ss-policy-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .ss-policy-list li {
+        font-size: 0.875rem;
+        color: #2d6a5a;
+        line-height: 1.75;
+        padding: 0.6rem 0.75rem;
+        background: #f0faf7;
+        border-radius: 0.5rem;
+        border-left: 3px solid #2d6a5a;
+        box-sizing: border-box;
+    }
+</style>
+
+<section class="ss-page-section">
+    <div class="ss-page-inner">
+        <p class="ss-page-eyebrow">Policies</p>
+
+        <!-- REFUND POLICY -->
+        <div class="ss-policy-card">
+            <h2>REFUND POLICY</h2>
+            <div class="ss-page-divider"></div>
+
+            <p>The SolaceSquad&reg; will consider the following conditions and instances where a refund will be applicable.
+                Anything beyond these instances would be taken up by the management on a case-to-case basis.</p>
+
+            <ul class="ss-policy-list">
+                <li>If there was an accounting error and you were charged more than the actual amount, the overcharged
+                    amount will be refunded.</li>
+                <li>If there was any defect in services and the company can validate your feedback post investigation,
+                    the organization will re-perform the services instead of refunding.</li>
+                <li>If the dissatisfaction is noted with any consultation session, post the first session, you will be
+                    matched with another counsellor. If the dissatisfaction continues, a complete, partial, or pro-rated
+                    refund will be issued on a case-to-case basis. This is applied to only Paid session.</li>
+                <li>In case you wish to discontinue your Paid subscription plan, a pro rated refund will be credited
+                    back to your payment source account (min 1 day subscription charge will be applied in case of same
+                    day cancellation). All such refunds are taken care directly by the Payment gateway provider.
+                    SolaceSquad doesn't manually refund or credit the cancellation amount.</li>
+                <li>There is no refund for Emora Chat pack purchase.</li>
+                <li>Any refund for cancellation will take upto 14 working days.</li>
+                <li>In the review of individual cases, decisions taken by the SolaceSquad&reg; management team will be
+                    considered final.</li>
+            </ul>
+        </div>
+
+        <!-- CANCELLATION POLICY -->
+        <div class="ss-policy-card">
+            <h2>CANCELLATION POLICY</h2>
+            <div class="ss-page-divider"></div>
+
+            <ul class="ss-policy-list">
+                <li>If you're running more than 10 minutes late, the session will be cancelled and charged for (no refund).</li>
+                <li>24 hours prior: No charge.</li>
+                <li>Within 6 hours (first time): No charge.</li>
+                <li>Within 6 hours (second or multiple times): Entire session will be charged.</li>
+                <li>To reschedule any consultation session, cancel the session first and then book it again as per the
+                    availability. Refund in such case for cancellation will take upto 7 working days.</li>
+                <li>Emora chat pack once purchased can not be cancelled or transferred.</li>
+                <li>Subscription plans can be cancelled anytime (rollback to free plan), refund will be made as per company refund policy.</li>
+            </ul>
+        </div>
+
+    </div>
+</section>
+
+{% include "components/cta_section.html" %}
+{% include "components/footer.html" %}
+{% endblock %}

@@ -1,0 +1,346 @@
+{% extends "layouts/protected.html" %}
+
+{% block title %}Settings - SolaceSquad{% endblock %}
+
+{% block dashboard_content %}
+<div class="max-w-4xl mx-auto py-8 px-4">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-display font-bold text-gray-900">Account & Privacy Settings</h1>
+        <p class="text-sm text-gray-500 mt-1">Manage your personal information, active data consents, and privacy rights in compliance with India's DPDP Act, 2023.</p>
+    </div>
+
+    <!-- Layout container: Tabs Left, Content Right -->
+    <div class="flex flex-col md:flex-row gap-8">
+        
+        <!-- Sidebar Navigation -->
+        <div class="w-full md:w-64 flex-shrink-0">
+            <nav class="flex flex-row md:flex-col gap-1 bg-gray-50 p-2 rounded-xl border border-gray-200">
+                <button type="button" onclick="switchTab('profile')" id="tab-btn-profile" class="tab-btn active w-full text-left px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all">
+                    👤 Profile Details
+                </button>
+                <button type="button" onclick="switchTab('consent')" id="tab-btn-consent" class="tab-btn w-full text-left px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all">
+                    🛡️ Consent Manager
+                </button>
+                <button type="button" onclick="switchTab('rights')" id="tab-btn-rights" class="tab-btn w-full text-left px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all">
+                    🔑 Data & Rights
+                </button>
+            </nav>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-grow bg-white border border-gray-200 shadow-sm rounded-2xl p-6">
+            
+            <!-- Profile Tab -->
+            <div id="tab-content-profile" class="tab-content space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 mb-1">Profile Details</h2>
+                    <p class="text-xs text-gray-500">Update your account name, email address, or contact number. Inaccuracies can be corrected at any time.</p>
+                </div>
+                
+                <form id="profile-form" onsubmit="saveProfile(event)" class="space-y-4 max-w-lg">
+                    <div>
+                        <label for="prof-name" class="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">Full Name</label>
+                        <input type="text" id="prof-name" value="{{ user.name }}" class="form-input w-full px-3.5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" required>
+                    </div>
+
+                    <div>
+                        <label for="prof-email" class="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">Email Address</label>
+                        <input type="email" id="prof-email" value="{{ user.email }}" class="form-input w-full px-3.5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" required>
+                    </div>
+
+                    <div>
+                        <label for="prof-phone" class="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">Mobile Number</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm pointer-events-none">+91</span>
+                            <input type="tel" id="prof-phone" value="{{ user.phone_number or '' }}" class="form-input w-full pl-12 pr-3.5 py-2.5 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="98765 43210" pattern="[0-9]{10}">
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="submit" id="profile-save-btn" class="px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-semibold rounded-lg text-sm transition-colors shadow-sm">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Consent Manager Tab -->
+            <div id="tab-content-consent" class="tab-content hidden space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 mb-1">Consent Management Dashboard</h2>
+                    <p class="text-xs text-gray-500">View and manage your active data consents. You can withdraw your consent for optional processing activities at any time.</p>
+                </div>
+
+                <div class="divide-y divide-gray-100">
+                    <!-- Basic Account Consent (Mandatory) -->
+                    <div class="py-4 flex items-start justify-between gap-4">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-semibold text-gray-900">Basic Account Setup & Processing</h3>
+                                <span class="bg-gray-100 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Mandatory</span>
+                            </div>
+                            <p class="text-xs text-gray-500 leading-relaxed">Required to manage your credentials, authenticate your sessions, and maintain basic registration records. Withdrawal requires account closure.</p>
+                        </div>
+                        <div>
+                            <input type="checkbox" checked disabled class="h-5 w-5 rounded text-gray-400 focus:ring-0 cursor-not-allowed">
+                        </div>
+                    </div>
+
+                    <!-- Health/Wellness Vitals Consent -->
+                    <div class="py-4 flex items-start justify-between gap-4">
+                        <div class="space-y-1">
+                            <h3 class="text-sm font-semibold text-gray-900">Health & Wellbeing Vitals Sync</h3>
+                            <p class="text-xs text-gray-500 leading-relaxed">Allows SolaceSquad to collect, store, and display wellness vitals (steps, sleep, heart rate) synced from Fitbit, Strava, or Google Fit.</p>
+                        </div>
+                        <div class="flex items-center">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="consent-health" {% if user.consent_health %}checked{% endif %} onchange="toggleConsent('health', this.checked)" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Call Session Recording Consent -->
+                    <div class="py-4 flex items-start justify-between gap-4">
+                        <div class="space-y-1">
+                            <h3 class="text-sm font-semibold text-gray-900">Audio/Video Consultation Recording</h3>
+                            <p class="text-xs text-gray-500 leading-relaxed">Allows the platform to record audio/video streams during wellbeing consultation sessions for your personal review and records.</p>
+                        </div>
+                        <div class="flex items-center">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="consent-recording" {% if user.consent_recording %}checked{% endif %} onchange="toggleConsent('recording', this.checked)" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Consultant Note Sharing Consent -->
+                    <div class="py-4 flex items-start justify-between gap-4">
+                        <div class="space-y-1">
+                            <h3 class="text-sm font-semibold text-gray-900">Consultant Note Sharing</h3>
+                            <p class="text-xs text-gray-500 leading-relaxed">Allows our wellness consultants to share therapeutic/diagnostic notes internally if they refer you to a specialized counselor.</p>
+                        </div>
+                        <div class="flex items-center">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="consent-note-sharing" {% if user.consent_note_sharing %}checked{% endif %} onchange="toggleConsent('note_sharing', this.checked)" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rights & Data Tab -->
+            <div id="tab-content-rights" class="tab-content hidden space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-900 mb-1">Your Privacy Rights (DPDPA Section 9 & 10)</h2>
+                    <p class="text-xs text-gray-500">Access, download, or completely erase your personal data records from our servers.</p>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Download data block -->
+                    <div class="p-4 border border-gray-200 rounded-xl bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div class="space-y-0.5">
+                            <h3 class="text-sm font-semibold text-gray-900">Right to Access (Download Data)</h3>
+                            <p class="text-xs text-gray-500">Request a complete copy of all your personal and health records in a structured JSON file format.</p>
+                        </div>
+                        <div>
+                            <button type="button" onclick="downloadMyData()" class="w-full sm:w-auto px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg text-xs shadow-sm transition-colors whitespace-nowrap">
+                                📥 Download My Data
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Delete account block -->
+                    <div class="p-4 border border-red-100 rounded-xl bg-red-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div class="space-y-0.5">
+                            <h3 class="text-sm font-semibold text-red-900">Right to Erasure (Delete Account)</h3>
+                            <p class="text-xs text-red-700/80">Permanently erase your credentials, wellness history, and active profiles. This cannot be undone.</p>
+                        </div>
+                        <div>
+                            <button type="button" onclick="openDeleteModal()" class="w-full sm:w-auto px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg text-xs shadow-sm transition-colors whitespace-nowrap">
+                                🗑️ Delete My Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Account Deletion Confirmation Modal -->
+<div id="delete-overlay" style="display: none;" class="fixed inset-0 bg-black/55 backdrop-blur-sm z-[9999] items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl animate-fade-in">
+        <div class="p-6 text-center space-y-4">
+            <div class="text-3xl">⚠️</div>
+            <h3 class="text-lg font-bold text-gray-900">Are you absolutely sure?</h3>
+            <p class="text-xs text-gray-500 leading-relaxed">This action will trigger a complete cascade erasure of your account, vitals data, appointments, and credentials from our databases. This action is **permanent** and cannot be undone.</p>
+            
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="closeDeleteModal()" class="flex-1 px-4 py-2.5 border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg text-xs shadow-sm transition-colors">
+                    Go Back
+                </button>
+                <button type="button" onclick="confirmDeleteAccount()" id="delete-confirm-btn" class="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg text-xs shadow-sm transition-colors">
+                    Yes, Delete Everything
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tab-btn {
+        color: #4b5563;
+        background: transparent;
+    }
+    .tab-btn:hover {
+        background: #f3f4f6;
+        color: #1f2937;
+    }
+    .tab-btn.active {
+        background: #ede9fe;
+        color: #6d28d9;
+    }
+</style>
+
+<script>
+    // Tab switching logic
+    function switchTab(tabId) {
+        // Toggle Buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`tab-btn-${tabId}`).classList.add('active');
+
+        // Toggle Content
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+        document.getElementById(`tab-content-${tabId}`).classList.remove('hidden');
+    }
+
+    // Save Profile Details
+    async function saveProfile(event) {
+        event.preventDefault();
+        const name = document.getElementById('prof-name').value.trim();
+        const email = document.getElementById('prof-email').value.trim();
+        const phone = document.getElementById('prof-phone').value.trim();
+
+        const btn = document.getElementById('profile-save-btn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            const res = await fetch('/api/settings/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, phone })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showFlash('Profile updated successfully!', 'green');
+            } else {
+                showFlash(data.error || 'Failed to save changes.', 'red');
+            }
+        } catch (e) {
+            showFlash('Network error.', 'red');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Save Changes';
+        }
+    }
+
+    // Toggle consent switches
+    async function toggleConsent(consentType, agreed) {
+        try {
+            const res = await fetch('/api/settings/consent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ consent_type: consentType, agreed: agreed })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const action = agreed ? 'granted' : 'withdrawn';
+                showFlash(`Consent successfully ${action}!`, 'green');
+            } else {
+                showFlash(data.error || 'Failed to update consent preferences.', 'red');
+                // Revert checkbox state
+                document.getElementById(`consent-${consentType}`).checked = !agreed;
+            }
+        } catch (e) {
+            showFlash('Network error updating consent.', 'red');
+            document.getElementById(`consent-${consentType}`).checked = !agreed;
+        }
+    }
+
+    // Download User Data as JSON
+    async function downloadMyData() {
+        try {
+            const res = await fetch('/api/settings/download-data');
+            const data = await res.json();
+            
+            // Generate structured file download
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `solacesquad_user_data_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            showFlash('Data file generated and download started.', 'green');
+        } catch (e) {
+            showFlash('Failed to export user records.', 'red');
+        }
+    }
+
+    // Delete Account Modals
+    function openDeleteModal() {
+        const overlay = document.getElementById('delete-overlay');
+        overlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDeleteModal() {
+        const overlay = document.getElementById('delete-overlay');
+        overlay.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    async function confirmDeleteAccount() {
+        const btn = document.getElementById('delete-confirm-btn');
+        btn.disabled = true;
+        btn.textContent = 'Erasing...';
+
+        try {
+            const res = await fetch('/api/settings/delete-account', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = '/login?msg=account_deleted';
+            } else {
+                showFlash(data.error || 'Failed to process deletion request.', 'red');
+                btn.disabled = false;
+                btn.textContent = 'Yes, Delete Everything';
+                closeDeleteModal();
+            }
+        } catch (e) {
+            showFlash('Network error processing request.', 'red');
+            btn.disabled = false;
+            btn.textContent = 'Yes, Delete Everything';
+            closeDeleteModal();
+        }
+    }
+
+    // Flash message helper
+    function showFlash(msg, color) {
+        const existing = document.getElementById('flash-settings');
+        if (existing) existing.remove();
+        const div = document.createElement('div');
+        div.id = 'flash-settings';
+        div.className = `fixed bottom-4 right-4 z-[99999] px-5 py-3 rounded-xl shadow-lg text-sm font-semibold text-white ${color === 'green' ? 'bg-green-600' : 'bg-red-600'}`;
+        div.textContent = msg;
+        document.body.appendChild(div);
+        setTimeout(() => div.remove(), 4000);
+    }
+</script>
+{% endblock %}

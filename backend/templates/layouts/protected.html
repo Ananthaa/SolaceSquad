@@ -1,6 +1,12 @@
 {% extends "base.html" %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+<!-- Version: 2.0 - Added Homepage Builder -->
 
 {% block content %}
+{% set active_user_type = user_type if (user_type is defined and user_type is not none and user_type) else (user.user_type if (user is defined and user is not none and user.user_type) else request.session.get('user_type', 'user')) %}
+{% set active_user_name = user_name if (user_name is defined and user_name is not none and user_name) else (user.name if (user is defined and user is not none and user.name) else request.session.get('user_name', 'User')) %}
+{% set active_user_initials = user_initials if (user_initials is defined and user_initials is not none and user_initials) else (get_initials(active_user_name) if get_initials is defined else active_user_name[:2]|upper) %}
+{% set active_nav_items = nav_items if (nav_items is defined and nav_items is not none and nav_items) else get_nav_items(active_user_type) %}
 <!-- Top Bar -->
 <header class="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 h-16">
     <div class="flex items-center justify-between h-full px-4">
@@ -16,39 +22,183 @@
         </div>
 
         <!-- User Menu -->
-        <div class="flex items-center gap-4">
-            <div class="text-right hidden sm:block">
-                <div class="text-sm font-medium text-gray-900">{{ user_name }}</div>
-                <div class="text-xs text-gray-500 capitalize">{{ user_type }} Account</div>
+        <div class="flex items-center gap-3">
+            <div class="text-right hidden sm:flex flex-col items-end">
+                <div class="text-sm font-medium text-gray-900">{{ active_user_name }}</div>
+                <div id="header-plan-pill" class="hidden text-[0.6rem] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full mt-0.5 border" style="background:#fff;"></div>
+                <div id="header-account-type" class="text-xs text-gray-500 capitalize">{{ active_user_type }} Account</div>
             </div>
-            <div
-                class="w-10 h-10 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center text-white font-semibold">
-                {{ user_initials }}
+            <div id="header-avatar"
+                class="w-10 h-10 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center text-white font-semibold transition-all" style="border: 2px solid transparent; padding: 2px; background-clip: content-box;">
+                {{ active_user_initials }}
             </div>
         </div>
     </div>
 </header>
 
-<!-- Sidebar -->
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Only fetch if user is a normal user, not admin/consultant
+        if ('{{ active_user_type }}' !== 'user') return;
+        try {
+            const res = await fetch('/api/plans', { headers: { 'Cache-Control': 'no-cache' } });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.plans && data.current_plan_id) {
+                    const plan = data.plans.find(p => p.id === data.current_plan_id);
+                    if (plan) {
+                        let color = plan.colour || '#0d9488';
+                        const planName = (plan.name || 'Unknown').toLowerCase();
+                        let bgColor = color + '15';
+                        let borderColor = color;
+                        let textColor = color;
+                        
+                        // Custom logic based on plan name
+                        if (planName.includes('free')) {
+                            borderColor = '#d1d5db'; // gray-300
+                            textColor = '#6b7280'; // gray-500
+                            bgColor = 'transparent';
+                            color = '#d1d5db'; // for avatar border
+                        } else if (planName.includes('white')) {
+                            borderColor = '#d1d5db'; // gray-300 so it's visible on white bg
+                            textColor = '#374151'; // dark gray text
+                            bgColor = '#ffffff';
+                            color = '#d1d5db'; // for avatar border
+                        }
+                        
+                        const typeEl = document.getElementById('header-account-type');
+                        const pillEl = document.getElementById('header-plan-pill');
+                        const avatarEl = document.getElementById('header-avatar');
+                        
+                        if (typeEl) typeEl.style.display = 'none';
+                        if (pillEl) {
+                            pillEl.style.display = 'inline-block';
+                            // Ensure caption says exactly "Green", "Free", etc.
+                            pillEl.textContent = plan.name.replace(/Plan\s+/i, '').trim();
+                            pillEl.style.color = textColor;
+                            pillEl.style.borderColor = borderColor;
+                            pillEl.style.backgroundColor = bgColor;
+                        }
+                        if (avatarEl) {
+                            avatarEl.style.borderColor = color;
+                        }
+                    }
+                }
+            }
+        } catch (e) { console.error('Failed to load plan pill', e); }
+    });
+</script>
+
+<!-- Sidebar (Desktop) -->
 <aside id="sidebar"
-    class="sidebar fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 z-30 lg:translate-x-0">
-    <nav class="p-4 space-y-1">
-        {% for item in nav_items %}
+    class="sidebar fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 z-30 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
+    <nav class="p-4 space-y-1 overflow-y-auto h-full pb-20">
+        {% if request.session.get("impersonate_user_id") %}
+        <div class="mb-4">
+            <a href="/admin/stop-impersonate"
+                class="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-sm transition-all text-sm">
+                <i data-lucide="alert-triangle" class="w-5 h-5 flex-shrink-0"></i>
+                <span>Stop Impersonation</span>
+            </a>
+        </div>
+        {% endif %}
+        {% if active_user_type == 'admin' %}
+        <a href="/admin"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'dashboard' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="/admin/users"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'users' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="users" class="w-5 h-5"></i>
+            <span>Manage Users</span>
+        </a>
+        <a href="/admin/book-on-behalf"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'book-on-behalf' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="calendar-plus" class="w-5 h-5"></i>
+            <span>Book on Behalf</span>
+        </a>
+        <a href="/admin/videos"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'videos' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="video" class="w-5 h-5"></i>
+            <span>Video Library</span>
+        </a>
+        <a href="/admin/demo-videos"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'demo-videos' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="play-circle" class="w-5 h-5"></i>
+            <span>Demo Videos</span>
+        </a>
+        <a href="/admin/homepage-builder"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'homepage-builder' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="layout" class="w-5 h-5"></i>
+            <span>Home Page Builder</span>
+        </a>
+        <a href="/admin/plans"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'plans' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="package" class="w-5 h-5"></i>
+            <span>Usage Plans</span>
+        </a>
+        <a href="/admin/vouchers"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'vouchers' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="ticket" class="w-5 h-5"></i>
+            <span>Vouchers</span>
+        </a>
+        <a href="/admin/push-offers"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'push-offers' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="bell" class="w-5 h-5"></i>
+            <span>Push Notifications</span>
+        </a>
+        <a href="/admin/push-schedules"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'push-schedules' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="calendar" class="w-5 h-5"></i>
+            <span>Push Schedules</span>
+        </a>
+        <a href="/admin/finance"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'finance' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="indian-rupee" class="w-5 h-5"></i>
+            <span>Finance</span>
+        </a>
+        <a href="/admin/blogs"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'blogs' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="pen-line" class="w-5 h-5"></i>
+            <span>Blog Studio</span>
+        </a>
+        <a href="/admin/events"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'events' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="calendar-range" class="w-5 h-5"></i>
+            <span>Events</span>
+        </a>
+        <a href="/admin/admins"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'admins' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="shield" class="w-5 h-5"></i>
+            <span>Admins</span>
+        </a>
+        <a href="/admin/assistants"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'assistants' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="user-cog" class="w-5 h-5"></i>
+            <span>Assistants</span>
+        </a>
+
+        {% else %}
+        {% for item in active_nav_items %}
         <a href="{{ item.href }}"
-            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == item.key %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == item.key %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}"
+            {% if item.key == 'messages' %}id="nav-link-messages"{% endif %}>
             <i data-lucide="{{ item.icon }}" class="w-5 h-5"></i>
-            <span>{{ item.label }}</span>
+            <span class="flex-1">{{ item.label }}</span>
+            {% if item.key == 'messages' %}<span id="msg-nav-badge" class="hidden ml-auto text-xs font-bold bg-red-500 text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1"></span>{% endif %}
         </a>
         {% endfor %}
+        {% endif %}
 
         <div class="pt-4 mt-4 border-t border-gray-200 space-y-1">
             <a href="/settings"
-                class="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">
+                class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'settings' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
                 <i data-lucide="settings" class="w-5 h-5"></i>
                 <span>Settings</span>
             </a>
 
-            <a href="/login"
+            <a href="/logout"
                 class="flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors">
                 <i data-lucide="log-out" class="w-5 h-5"></i>
                 <span>Logout</span>
@@ -58,14 +208,339 @@
 </aside>
 
 <!-- Main Content -->
-<main class="lg:ml-64 pt-16 min-h-screen">
-    <div class="p-6">
+<main class="lg:ml-64 pt-16 pb-20 lg:pb-6 min-h-screen bg-gray-50">
+    {% if request.session.get("impersonate_user_id") %}
+    <div class="bg-amber-500 text-white px-4 py-3 flex items-center justify-between text-sm font-semibold shadow-md sticky top-16 z-20">
+        <div class="flex items-center gap-2">
+            <i data-lucide="alert-triangle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>Acting on behalf of: <strong class="underline">{{ request.session.get("impersonate_user_name") }}</strong> (ID: {{ request.session.get("impersonate_user_id") }})</span>
+        </div>
+        <a href="/admin/stop-impersonate" class="bg-white text-amber-700 px-3 py-1 rounded hover:bg-amber-50 transition-colors text-xs uppercase tracking-wider font-bold">Stop acting</a>
+    </div>
+    {% endif %}
+    <div class="p-3 sm:p-4 md:p-6">
         {% block dashboard_content %}{% endblock %}
     </div>
 </main>
 
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 lg:hidden z-50">
+    {% if active_user_type == 'admin' %}
+    <div class="grid h-16" style="grid-template-columns: repeat(5, 1fr);">
+        <a href="/admin"
+            class="flex flex-col items-center justify-center {% if active_page == 'dashboard' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="layout-dashboard" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Dashboard</span>
+        </a>
+        <a href="/admin/users"
+            class="flex flex-col items-center justify-center {% if active_page == 'users' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="users" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Users</span>
+        </a>
+        <a href="/admin/finance"
+            class="flex flex-col items-center justify-center {% if active_page == 'finance' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="indian-rupee" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Finance</span>
+        </a>
+        <a href="/admin/vouchers"
+            class="flex flex-col items-center justify-center {% if active_page == 'vouchers' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="ticket" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Vouchers</span>
+        </a>
+        <a href="/logout"
+            class="flex flex-col items-center justify-center text-red-600 hover:text-red-700 transition-colors">
+            <i data-lucide="log-out" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Logout</span>
+        </a>
+    </div>
+    {% elif active_user_type == 'consultant' %}
+    <div class="grid h-16" style="grid-template-columns: repeat(5, 1fr);">
+        <a href="/consultant"
+            class="flex flex-col items-center justify-center {% if active_page == 'dashboard' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="layout-dashboard" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Dashboard</span>
+        </a>
+        <a href="/consultant/schedule"
+            class="flex flex-col items-center justify-center {% if active_page == 'schedule' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="calendar" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Schedule</span>
+        </a>
+        <a href="/consultant/clients"
+            class="flex flex-col items-center justify-center {% if active_page == 'clients' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="users" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Clients</span>
+        </a>
+        <a href="/consultant/messages"
+            class="flex flex-col items-center justify-center {% if active_page == 'messages' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="message-circle" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Messages</span>
+        </a>
+        <a href="/consultant/profile"
+            class="flex flex-col items-center justify-center {% if active_page == 'profile' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="user" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Profile</span>
+        </a>
+    </div>
+    {% elif active_user_type == 'admin_assistant' %}
+    <div class="grid h-16" style="grid-template-columns: repeat(3, 1fr);">
+        <a href="/assistant/consultants"
+            class="flex flex-col items-center justify-center {% if active_page == 'consultants' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="clipboard-list" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Forms</span>
+        </a>
+        <a href="/admin/blogs"
+            class="flex flex-col items-center justify-center {% if active_page == 'blogs' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="pen-line" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Blogs</span>
+        </a>
+        <a href="/logout"
+            class="flex flex-col items-center justify-center text-red-600 hover:text-red-700 transition-colors">
+            <i data-lucide="log-out" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Logout</span>
+        </a>
+    </div>
+    {% else %}
+    <div class="grid h-16" style="grid-template-columns: repeat(5, 1fr);">
+        <a href="/app"
+            class="flex flex-col items-center justify-center {% if active_page == 'dashboard' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="home" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Home</span>
+        </a>
+        <a href="/app/consultants"
+            class="flex flex-col items-center justify-center {% if active_page == 'consultants' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="calendar" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Book</span>
+        </a>
+        <a href="/app/reports"
+            class="flex flex-col items-center justify-center {% if active_page == 'reports' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="file-text" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Reports</span>
+        </a>
+        <a href="/app/ai-chat"
+            class="flex flex-col items-center justify-center {% if active_page == 'ai-chat' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="message-square" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Emora</span>
+        </a>
+        <a href="/app/profile"
+            class="flex flex-col items-center justify-center {% if active_page == 'profile' %}text-primary-600{% else %}text-gray-600{% endif %} hover:text-primary-600 transition-colors">
+            <i data-lucide="user" class="w-5 h-5 mb-0.5"></i>
+            <span class="text-[10px]">Profile</span>
+        </a>
+    </div>
+    {% endif %}
+</nav>
+
+
+<script>
+    // Toggle bottom navigation expanded row
+    window.toggleBottomNav = function () {
+        const expanded = document.getElementById('bottom-nav-expanded');
+        const moreBtn = document.getElementById('more-btn');
+
+        if (expanded) {
+            expanded.classList.toggle('hidden');
+
+            // Update icon and text
+            if (moreBtn) {
+                const icon = moreBtn.querySelector('i');
+                const text = moreBtn.querySelector('span');
+
+                if (expanded.classList.contains('hidden')) {
+                    // Collapsed state
+                    if (icon) {
+                        icon.setAttribute('data-lucide', 'chevron-up');
+                    }
+                    if (text) {
+                        text.textContent = 'More';
+                    }
+                } else {
+                    // Expanded state
+                    if (icon) {
+                        icon.setAttribute('data-lucide', 'chevron-down');
+                    }
+                    if (text) {
+                        text.textContent = 'Less';
+                    }
+                }
+
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+        }
+    }
+
+    // Global Plan Lock Alert/Toast
+    window.showGlobalPlanLockToast = function(message) {
+        let lockToast = document.getElementById('global-plan-lock-toast');
+        if (!lockToast) {
+            lockToast = document.createElement('div');
+            lockToast.id = 'global-plan-lock-toast';
+            lockToast.className = 'fixed top-20 left-1/2 -translate-x-1/2 md:right-4 md:left-auto md:translate-x-0 z-[10000] ' +
+                                 'bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl shadow-xl ' +
+                                 'flex items-center gap-3 max-w-[90vw] md:max-w-md transition-all duration-300 ' +
+                                 'opacity-0 -translate-y-4';
+            document.body.appendChild(lockToast);
+        }
+        
+        lockToast.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <span class="text-sm font-medium">${message}</span>
+        `;
+        
+        setTimeout(() => {
+            lockToast.classList.remove('opacity-0', '-translate-y-4');
+            lockToast.classList.add('opacity-100', 'translate-y-0');
+        }, 10);
+        
+        clearTimeout(window.globalPlanLockToastTimer);
+        window.globalPlanLockToastTimer = setTimeout(() => {
+            lockToast.classList.remove('opacity-100', 'translate-y-0');
+            lockToast.classList.add('opacity-0', '-translate-y-4');
+            setTimeout(() => lockToast.remove(), 300);
+        }, 6000);
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Check redirected query params first
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('plan_lock') === 'messages') {
+            setTimeout(() => {
+                window.showGlobalPlanLockToast('⚠️ Messaging is only available on the White plan and above. Upgrade your plan to unlock.');
+            }, 500);
+        }
+
+        // Fetch subscription status to lock elements if on Free plan
+        {% if active_user_type == 'user' %}
+        fetch('/api/subscription/status')
+            .then(r => r.json())
+            .then(d => {
+                if (d.success && d.subscription && d.subscription.is_free) {
+                    const msgLink = document.getElementById('nav-link-messages');
+                    const mobileMsgLink = document.getElementById('mobile-nav-link-messages');
+                    
+                    [msgLink, mobileMsgLink].forEach(link => {
+                        if (link) {
+                            link.style.opacity = '0.6';
+                            const icon = link.querySelector('[data-lucide]');
+                            if (icon) {
+                                icon.setAttribute('data-lucide', 'lock');
+                            }
+                            link.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.showGlobalPlanLockToast('⚠️ Messaging is only available on the White plan and above. Upgrade your plan to unlock.');
+                            });
+                        }
+                    });
+                    
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                }
+            })
+            .catch(err => console.error('[NavLock] Error checking sub status:', err));
+        {% endif %}
+    });
+</script>
+
 <!-- Mobile Sidebar Overlay -->
 <div id="sidebar-overlay" onclick="closeSidebar()" class="fixed inset-0 bg-black/50 z-20 lg:hidden hidden"></div>
 
-<script src="{{ url_for('static', path='/js/main.js') }}"></script>
+<script src="/static/js/main.js"></script>
+
+<!-- ── Global Message Notification Poller ── -->
+<style>
+  #msg-toast-notif {
+    position:fixed; top:72px; right:1rem; z-index:9999;
+    background:#1e293b; color:#fff;
+    padding:0.75rem 1.1rem; border-radius:14px;
+    display:flex; align-items:center; gap:0.7rem;
+    box-shadow:0 8px 32px rgba(0,0,0,0.22);
+    font-size:0.84rem; max-width:320px;
+    transform:translateY(-10px); opacity:0;
+    transition:transform 0.3s ease, opacity 0.3s ease;
+    pointer-events:none;
+  }
+  #msg-toast-notif.show { transform:translateY(0); opacity:1; pointer-events:auto; }
+  #msg-toast-notif .notif-icon { width:34px;height:34px;background:linear-gradient(135deg,#2d6a5a,#059669);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+  #msg-toast-notif a { color:#6ee7b7; text-decoration:underline; font-weight:600; }
+</style>
+<div id="msg-toast-notif">
+  <div class="notif-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+  <div><div id="notif-text" style="font-weight:600;margin-bottom:2px">New message</div><div style="font-size:0.75rem;color:#94a3b8">Tap to open &rarr; <a href="{% if active_user_type == 'consultant' %}/consultant/messages{% else %}/app/messages{% endif %}">Messages</a></div></div>
+</div>
+
+<script>
+(function(){
+  const POLL_MS = 20000; // poll every 20s
+  let prevCount = null;
+  const badge   = document.getElementById('msg-nav-badge');
+  const toast   = document.getElementById('msg-toast-notif');
+  const notifTxt= document.getElementById('notif-text');
+  let toastTimer = null;
+
+  function showToast(sender) {
+    notifTxt.textContent = sender ? sender + ' sent you a message' : 'You have a new message';
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> toast.classList.remove('show'), 5000);
+  }
+
+  function updateBadge(count) {
+    if (!badge) return;
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+    // Update page title
+    const base = document.title.replace(/^\(\d+\+?\) /, '');
+    document.title = count > 0 ? `(${count}) ${base}` : base;
+  }
+
+  function requestNotifPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }
+
+  function sendBrowserNotif(sender, count) {
+    if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+      const n = new Notification('New message on SolaceSquad', {
+        body: sender ? `${sender} sent you a message` : `You have ${count} new message${count>1?'s':''}`,
+        icon: '/static/images/logo.png',
+        tag: 'solacesquad-msg'
+      });
+      n.onclick = function() { window.focus(); n.close(); };
+    }
+  }
+
+  async function poll() {
+    try {
+      const r = await fetch('/api/messages/unread-count?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+      const count = d.count || 0;
+      updateBadge(count);
+      if (prevCount !== null && count > prevCount) {
+        // New message arrived
+        showToast(d.sender_name);
+        sendBrowserNotif(d.sender_name, count);
+      }
+      prevCount = count;
+    } catch(e) {}
+  }
+
+  // Start polling after page load
+  window.addEventListener('DOMContentLoaded', () => {
+    requestNotifPermission();
+    poll(); // immediate first poll
+    setInterval(poll, POLL_MS);
+  });
+})();
+</script>
 {% endblock %}

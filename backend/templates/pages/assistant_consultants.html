@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Incomplete Consultants — SolaceSquad Assistant{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --teal: #0d9488; --teal-dark: #0f766e; --teal-light: #f0fdf4; --teal-mid: #ccfbf1;
+    --slate: #1e293b; --muted: #64748b; --border: #e2e8f0; --bg: #f8fafc; --card: #fff;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; }
+
+  .asst-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999; height: 58px;
+    background: linear-gradient(90deg, var(--teal-dark), var(--teal));
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; box-shadow: 0 2px 12px rgba(0,0,0,.18);
+  }
+  .asst-nav-brand { display: flex; align-items: center; gap: 10px; color: #fff; font-size: 1.05rem; font-weight: 800; text-decoration: none; }
+  .asst-nav-right { display: flex; align-items: center; gap: 14px; }
+  .asst-nav-badge { background: rgba(255,255,255,.18); color: rgba(255,255,255,.7); font-size: .7rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; }
+  .asst-logout { color: rgba(255,255,255,.65); font-size: .8rem; text-decoration: none; padding: 5px 12px; border: 1px solid rgba(255,255,255,.25); border-radius: 7px; transition: all .2s; }
+  .asst-logout:hover { background: rgba(255,255,255,.15); color: #fff; }
+
+  .page-wrap { max-width: 960px; margin: 0 auto; padding: 78px 20px 56px; }
+
+  .page-header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; flex-wrap: wrap; }
+  .back-btn { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: .875rem; text-decoration: none; padding: 7px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); transition: all .15s; }
+  .back-btn:hover { background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark); }
+  .page-header h1 { font-size: 1.5rem; font-weight: 800; color: var(--slate); margin: 0; }
+  .count-badge { background: #fef3c7; color: #92400e; font-size: .8rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; border: 1px solid #fde68a; }
+
+  .search-bar { margin-bottom: 20px; position: relative; }
+  .search-bar input { width: 100%; padding: .65rem 1rem .65rem 2.5rem; border: 1px solid var(--border); border-radius: 10px; font-size: .9rem; outline: none; background: var(--card); }
+  .search-bar input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(13,148,136,.1); }
+  .search-bar svg { position: absolute; left: .75rem; top: 50%; transform: translateY(-50%); color: var(--muted); }
+
+  .consultant-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .cons-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px 20px; display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 1px 6px rgba(0,0,0,.04); transition: box-shadow .2s, transform .15s;
+    flex-wrap: wrap;
+  }
+  .cons-card:hover { box-shadow: 0 4px 18px rgba(13,148,136,.1); transform: translateY(-1px); }
+
+  .cons-avatar {
+    width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, #134e4a, var(--teal));
+    color: #fff; font-weight: 800; font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cons-info { flex: 1; min-width: 160px; }
+  .cons-name { font-weight: 700; font-size: .95rem; color: var(--slate); margin-bottom: 2px; }
+  .cons-email { font-size: .8rem; color: var(--muted); }
+  .cons-date { font-size: .75rem; color: var(--muted); margin-top: 3px; }
+
+  .progress-wrap { flex: 1; min-width: 140px; }
+  .progress-label { font-size: .72rem; color: var(--muted); font-weight: 600; margin-bottom: 5px; text-transform: uppercase; letter-spacing: .05em; }
+  .progress-bar { background: #e5e7eb; border-radius: 20px; height: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 20px; background: linear-gradient(90deg, var(--teal-dark), var(--teal)); transition: width .4s; }
+  .progress-fill.empty { background: #fca5a5; }
+  .progress-pct { font-size: .8rem; font-weight: 700; color: var(--teal-dark); margin-top: 4px; }
+
+  .fill-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 18px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--teal-dark), var(--teal));
+    color: #fff; font-weight: 700; font-size: .875rem;
+    text-decoration: none; transition: all .2s; flex-shrink: 0;
+  }
+  .fill-btn:hover { box-shadow: 0 4px 14px rgba(13,148,136,.3); transform: translateY(-1px); }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state svg { width: 56px; height: 56px; color: #d1d5db; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 1.1rem; font-weight: 700; color: var(--slate); margin: 0 0 8px; }
+</style>
+
+<nav class="asst-nav">
+  <a href="/assistant" class="asst-nav-brand">🌿 SolaceSquad</a>
+  <div class="asst-nav-right">
+    <span class="asst-nav-badge">Assistant</span>
+    <a href="/logout" class="asst-logout">Sign Out</a>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <a href="/assistant" class="back-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+      Back
+    </a>
+    <h1>📋 Incomplete Consultant Forms</h1>
+    <span class="count-badge" id="totalCount">Loading…</span>
+  </div>
+
+  <div class="search-bar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="searchInput" placeholder="Search by name or email…" oninput="filterList()">
+  </div>
+
+  <div class="consultant-list" id="consultantList">
+    <div style="text-align:center;padding:40px;color:var(--muted);">⏳ Loading consultants…</div>
+  </div>
+</div>
+
+<script>
+  let allConsultants = [];
+
+  function renderList(items) {
+    const list = document.getElementById('consultantList');
+    if (!items.length) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 4.97-4.03 9-9 9S3 16.97 3 12 7.03 3 12 3s9 4.03 9 9z"/></svg>
+          <h3>All caught up!</h3>
+          <p>No incomplete consultant forms at the moment.</p>
+        </div>`;
+      return;
+    }
+    list.innerHTML = items.map(c => {
+      const initials = (c.name || 'C').slice(0, 2).toUpperCase();
+      const pct = c.completion_pct || 0;
+      const fillCls = pct === 0 ? 'empty' : '';
+      const joined = c.created_at ? new Date(c.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '';
+      return `
+        <div class="cons-card">
+          <div class="cons-avatar">${initials}</div>
+          <div class="cons-info">
+            <div class="cons-name">${c.name || 'Unnamed Consultant'}</div>
+            <div class="cons-email">${c.email || ''}</div>
+            ${joined ? `<div class="cons-date">Joined ${joined}</div>` : ''}
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-label">Form completion</div>
+            <div class="progress-bar"><div class="progress-fill ${fillCls}" style="width:${pct}%"></div></div>
+            <div class="progress-pct" style="color:${pct===0?'#dc2626':'var(--teal-dark)'};">${pct === 0 ? 'Not started' : pct + '%'}</div>
+          </div>
+          ${c.profile_id
+            ? `<a href="/assistant/consultant/${c.profile_id}/fill" class="fill-btn">✏️ Fill Form</a>`
+            : `<a href="/assistant/consultant/user/${c.user_id}/fill" class="fill-btn">✏️ Start Form</a>`
+          }
+        </div>`;
+    }).join('');
+  }
+
+  function filterList() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = allConsultants.filter(c =>
+      (c.name || '').toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q)
+    );
+    renderList(filtered);
+  }
+
+  (async () => {
+    try {
+      const res = await fetch('/api/assistant/incomplete-consultants');
+      const data = await res.json();
+      allConsultants = data.consultants || [];
+      document.getElementById('totalCount').textContent = allConsultants.length + ' incomplete';
+      renderList(allConsultants);
+    } catch(e) {
+      document.getElementById('consultantList').innerHTML =
+        '<div style="text-align:center;padding:40px;color:#dc2626;">⚠️ Failed to load consultants</div>';
+    }
+  })();
+</script>
+{% endblock %}

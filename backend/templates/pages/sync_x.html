@@ -1,0 +1,502 @@
+{% extends "layouts/protected.html" %}
+{% block title %}Sync-X — Fitness Data Hub | SolaceSquad{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Page Shell ── */
+  .sx-page { background: #0a0c14; min-height: 100vh; padding: 1.5rem 1rem 5rem; }
+
+  /* ── Hero ── */
+  .sx-hero {
+    max-width: 860px; margin: 0 auto 2rem;
+    background: linear-gradient(135deg, #0d1b3e 0%, #0f172a 50%, #0d2818 100%);
+    border: 1px solid rgba(255,255,255,.08); border-radius: 1.25rem;
+    padding: 2rem 2.5rem; display: flex; align-items: center; gap: 1.5rem;
+    position: relative; overflow: hidden;
+  }
+  .sx-hero::before {
+    content: ''; position: absolute; top: -40px; right: -40px;
+    width: 200px; height: 200px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,.15) 0%, transparent 70%);
+  }
+  .sx-hero-icon {
+    width: 64px; height: 64px; border-radius: 1rem; flex-shrink: 0;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; box-shadow: 0 8px 24px rgba(99,102,241,.35);
+  }
+  .sx-hero h1 { font-size: 1.6rem; font-weight: 800; color: #f1f5f9; margin: 0 0 .3rem; }
+  .sx-hero p  { font-size: .9rem; color: #94a3b8; margin: 0; line-height: 1.5; }
+  .sx-badge {
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: rgba(99,102,241,.15); border: 1px solid rgba(99,102,241,.3);
+    color: #a5b4fc; border-radius: 999px; padding: .2rem .75rem; font-size: .75rem; font-weight: 600;
+    margin-top: .5rem;
+  }
+  .sx-badge::before { content: '●'; font-size: .5rem; color: #6366f1; }
+
+  /* ── Section Header ── */
+  .sx-section { max-width: 860px; margin: 0 auto 1.25rem; }
+  .sx-section-title {
+    font-size: .7rem; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: #475569; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .sx-section-title::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,.06); }
+
+  /* ── Provider Grid ── */
+  .sx-grid {
+    max-width: 860px; margin: 0 auto 2rem;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem;
+  }
+
+  /* ── Provider Card ── */
+  .sx-card {
+    background: #111827; border: 1px solid rgba(255,255,255,.07);
+    border-radius: 1rem; padding: 1.5rem; position: relative;
+    transition: transform .2s, border-color .2s, box-shadow .2s;
+    display: flex; flex-direction: column; gap: 1rem;
+  }
+  .sx-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.12); box-shadow: 0 8px 32px rgba(0,0,0,.35); }
+  .sx-card.connected { border-color: rgba(52,211,153,.2); }
+  .sx-card.coming-soon { opacity: .65; }
+
+  .sx-card-header { display: flex; align-items: center; gap: .85rem; }
+  .sx-logo {
+    width: 44px; height: 44px; border-radius: .65rem; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; font-weight: 800;
+  }
+  .sx-provider-name { font-size: 1rem; font-weight: 700; color: #f1f5f9; }
+  .sx-provider-desc { font-size: .8rem; color: #64748b; margin-top: .15rem; line-height: 1.4; }
+
+  /* Status badge */
+  .sx-status {
+    display: inline-flex; align-items: center; gap: .35rem;
+    font-size: .72rem; font-weight: 600; border-radius: 999px;
+    padding: .2rem .65rem;
+  }
+  .sx-status.connected    { background: rgba(52,211,153,.12); color: #34d399; }
+  .sx-status.disconnected { background: rgba(100,116,139,.1); color: #64748b; }
+  .sx-status.coming-soon  { background: rgba(251,191,36,.1);  color: #fbbf24; }
+  .sx-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Last sync */
+  .sx-last-sync { font-size: .75rem; color: #475569; margin-top: .25rem; }
+
+  /* Action buttons */
+  .sx-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: auto; }
+  .sx-btn {
+    flex: 1; padding: .6rem .85rem; border: none; border-radius: .55rem;
+    font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .18s;
+    display: flex; align-items: center; justify-content: center; gap: .4rem; min-width: 0;
+  }
+  .sx-btn-connect {
+    background: linear-gradient(135deg, #6366f1, #4f46e5); color: #fff;
+    box-shadow: 0 4px 12px rgba(99,102,241,.3);
+  }
+  .sx-btn-connect:hover { opacity: .9; transform: translateY(-1px); }
+  .sx-btn-sync {
+    background: rgba(52,211,153,.15); color: #34d399;
+    border: 1px solid rgba(52,211,153,.25);
+  }
+  .sx-btn-sync:hover { background: rgba(52,211,153,.25); }
+  .sx-btn-sync.loading { opacity: .6; pointer-events: none; }
+  .sx-btn-disconnect {
+    background: rgba(239,68,68,.1); color: #f87171;
+    border: 1px solid rgba(239,68,68,.2);
+  }
+  .sx-btn-disconnect:hover { background: rgba(239,68,68,.2); }
+  .sx-btn-upload {
+    background: rgba(251,191,36,.12); color: #fbbf24;
+    border: 1px solid rgba(251,191,36,.25);
+  }
+  .sx-btn-upload:hover { background: rgba(251,191,36,.22); }
+  .sx-btn-disabled {
+    background: rgba(100,116,139,.1); color: #475569;
+    cursor: not-allowed; pointer-events: none;
+  }
+
+  /* Migration banner */
+  .sx-migration-banner {
+    max-width: 860px; margin: 0 auto 1.5rem;
+    background: linear-gradient(135deg, rgba(251,191,36,.08), rgba(245,158,11,.05));
+    border: 1px solid rgba(251,191,36,.25); border-radius: 1rem;
+    padding: 1rem 1.25rem; display: flex; align-items: center; gap: 1rem;
+  }
+  .sx-migration-banner .icon { font-size: 1.5rem; flex-shrink: 0; }
+  .sx-migration-banner h4 { color: #fbbf24; font-size: .9rem; font-weight: 700; margin: 0 0 .2rem; }
+  .sx-migration-banner p  { color: #94a3b8; font-size: .8rem; margin: 0; }
+  .sx-migration-btn {
+    flex-shrink: 0; padding: .55rem 1rem; border-radius: .55rem;
+    background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff;
+    font-size: .82rem; font-weight: 700; text-decoration: none;
+    white-space: nowrap; transition: opacity .18s;
+  }
+  .sx-migration-btn:hover { opacity: .9; }
+
+  /* Toast */
+  #sx-toast {
+    position: fixed; bottom: 5rem; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #1e293b; color: #f1f5f9; border-radius: .65rem;
+    padding: .75rem 1.25rem; font-size: .85rem; font-weight: 600;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5); opacity: 0; transition: all .3s; z-index: 9999;
+    pointer-events: none; white-space: nowrap;
+  }
+  #sx-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #sx-toast.success { border-left: 3px solid #34d399; }
+  #sx-toast.error   { border-left: 3px solid #f87171; }
+
+  /* Apple Upload Panel */
+  .ah-panel {
+    max-width: 860px; margin: 0 auto 1.5rem;
+    background: #111827; border: 1px solid rgba(255,255,255,.07);
+    border-radius: 1rem; overflow: hidden;
+  }
+  .ah-panel-header {
+    padding: 1rem 1.5rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .ah-panel-header h3 { color: #f1f5f9; font-size: .95rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: .6rem; }
+  .ah-panel-body { padding: 1.5rem; display: none; }
+  .ah-panel-body.open { display: block; }
+  .ah-steps  { list-style: none; padding: 0; margin: 0 0 1.25rem; }
+  .ah-steps li { display: flex; gap: .75rem; align-items: flex-start; padding: .55rem 0; border-bottom: 1px solid rgba(255,255,255,.05); font-size: .84rem; color: #cbd5e1; }
+  .ah-steps li:last-child { border: none; }
+  .ah-step-num { width: 22px; height: 22px; min-width: 22px; border-radius: 50%; background: #FF3B30; color: #fff; display: flex; align-items: center; justify-content: center; font-size: .72rem; font-weight: 700; margin-top: .1rem; }
+  .ah-drop {
+    border: 2px dashed rgba(255,255,255,.12); border-radius: .75rem;
+    padding: 1.75rem; text-align: center; cursor: pointer; transition: border-color .2s; margin-bottom: 1rem;
+  }
+  .ah-drop:hover, .ah-drop.drag-over { border-color: #FF3B30; }
+  .ah-drop input[type=file] { display: none; }
+  .ah-drop-icon { font-size: 2rem; margin-bottom: .5rem; }
+  .ah-drop-label { color: #94a3b8; font-size: .85rem; }
+  .ah-drop-label b { color: #f1f5f9; }
+  .ah-import-btn {
+    width: 100%; padding: .85rem; border: none; border-radius: .65rem;
+    background: linear-gradient(135deg, #FF3B30, #cc2a20); color: #fff;
+    font-size: .9rem; font-weight: 700; cursor: pointer; transition: opacity .2s;
+  }
+  .ah-import-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .ah-result { margin-top: 1rem; padding: .85rem 1rem; border-radius: .55rem; font-size: .84rem; display: none; }
+  .ah-result.success { background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.3); color: #6ee7b7; }
+  .ah-result.error   { background: rgba(239,68,68,.1);   border: 1px solid rgba(239,68,68,.3);   color: #fca5a5; }
+
+  /* Connected sparkline area */
+  .sx-connected-info { padding: .65rem .9rem; background: rgba(52,211,153,.07); border-radius: .55rem; border: 1px solid rgba(52,211,153,.15); }
+  .sx-connected-info span { font-size: .78rem; color: #6ee7b7; }
+
+  @media (max-width: 600px) {
+    .sx-hero { flex-direction: column; padding: 1.5rem; }
+    .sx-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="sx-page">
+
+  <!-- Hero -->
+  <div class="sx-hero">
+    <div class="sx-hero-icon">⚡</div>
+    <div>
+      <h1>Sync-X</h1>
+      <p>Your unified fitness data hub. Connect wearables and health apps to power your THRYVEQ™ wellness score automatically.</p>
+      <div class="sx-badge">Plugin-powered · Add any device</div>
+    </div>
+  </div>
+
+  <!-- Migration Banner (shown if user has legacy Fitbit but no Google Health) -->
+  {% if fitbit_legacy and not google_health_connected %}
+  <div class="sx-migration-banner">
+    <div class="icon">⚠️</div>
+    <div>
+      <h4>Your Fitbit connection needs upgrading</h4>
+      <p>Google is retiring the Fitbit API on <strong>Sep 30, 2026</strong>. Reconnect via Google Health to keep your data syncing.</p>
+    </div>
+    <a href="/auth/google-health/connect" class="sx-migration-btn">Upgrade Now →</a>
+  </div>
+  {% endif %}
+
+  <!-- Success / Error banners from OAuth redirect -->
+  {% if request.query_params.get('google_health_connected') %}
+  <div style="max-width:860px;margin:0 auto 1.25rem;">
+    <div style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:.75rem;padding:.85rem 1.25rem;color:#6ee7b7;font-size:.88rem;font-weight:600;">
+      ✅ Google Health connected! Your workouts will sync automatically.
+    </div>
+  </div>
+  {% endif %}
+  {% if request.query_params.get('error') %}
+  <div style="max-width:860px;margin:0 auto 1.25rem;">
+    <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:.75rem;padding:.85rem 1.25rem;color:#fca5a5;font-size:.88rem;font-weight:600;">
+      ⚠️ {{ request.query_params.get('error') | replace('_', ' ') | title }}. Please try again.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Active Connections -->
+  <div class="sx-section">
+    <div class="sx-section-title">Active Connections</div>
+  </div>
+  <div class="sx-grid" id="active-grid">
+    <!-- Populated by JS from /api/sync-x/providers -->
+  </div>
+
+  <!-- Apple Health — always shown, file import -->
+  <div class="sx-section">
+    <div class="sx-section-title">Apple Health</div>
+  </div>
+
+  <div class="ah-panel" id="ah-panel">
+    <div class="ah-panel-header" onclick="toggleAhPanel()">
+      <h3>
+        <span style="font-size:1.4rem;">🍎</span>
+        Apple Health — Upload Export
+        <span class="sx-status {% if apple_imported %}connected{% else %}disconnected{% endif %}" style="margin-left:.5rem;">
+          <span class="sx-status-dot"></span>
+          {% if apple_imported %}{{ apple_imported }} workouts imported{% else %}Not yet imported{% endif %}
+        </span>
+      </h3>
+      <span id="ah-chevron" style="color:#475569;font-size:1.1rem;transition:transform .2s;">▼</span>
+    </div>
+    <div class="ah-panel-body" id="ah-body">
+      <p style="font-size:.85rem;color:#64748b;margin:0 0 1rem;">iOS only — export your Apple Health data and upload the ZIP file here. No ongoing connection required.</p>
+      <ol class="ah-steps">
+        <li><span class="ah-step-num">1</span><span>Open the <b>Health</b> app on your iPhone</span></li>
+        <li><span class="ah-step-num">2</span><span>Tap your <b>profile picture</b> (top right) → scroll down → <b>"Export All Health Data"</b></span></li>
+        <li><span class="ah-step-num">3</span><span>Share the <b>apple_health_export.zip</b> to this device</span></li>
+        <li><span class="ah-step-num">4</span><span>Upload the <b>.zip</b> file below</span></li>
+      </ol>
+      <div class="ah-drop" id="ah-drop" onclick="document.getElementById('ah-file').click()">
+        <div class="ah-drop-icon">📁</div>
+        <div class="ah-drop-label"><b>Click to choose file</b> or drag &amp; drop<br><span style="font-size:.78rem;opacity:.7;">apple_health_export.zip or Export.xml</span></div>
+        <input type="file" id="ah-file" accept=".zip,.xml" onchange="ahSetFile(this)">
+      </div>
+      <div id="ah-selected" style="display:none;font-size:.82rem;color:#94a3b8;margin-bottom:.75rem;text-align:center;"></div>
+      <button class="ah-import-btn" id="ah-btn" onclick="ahDoImport()" disabled>🍎 Import Workouts</button>
+      <div class="ah-result" id="ah-result"></div>
+      <p style="font-size:.75rem;color:#334155;margin-top:1rem;">Only workouts not already in your log will be imported (no duplicates).</p>
+    </div>
+  </div>
+
+  <!-- Coming Soon -->
+  <div class="sx-section" style="margin-top:1.5rem;">
+    <div class="sx-section-title">Coming Soon</div>
+  </div>
+  <div class="sx-grid">
+    <div class="sx-card coming-soon">
+      <div class="sx-card-header">
+        <div class="sx-logo" style="background:linear-gradient(135deg,#1a1a2e,#16213e);font-size:1rem;color:#fff;font-weight:900;">G</div>
+        <div>
+          <div class="sx-provider-name">Garmin</div>
+          <div class="sx-provider-desc">GPS & performance metrics from Garmin wearables</div>
+        </div>
+      </div>
+      <div><span class="sx-status coming-soon"><span class="sx-status-dot"></span>Pending approval</span></div>
+      <div class="sx-actions">
+        <button class="sx-btn sx-btn-disabled">⏳ Coming Soon</button>
+      </div>
+    </div>
+    <div class="sx-card coming-soon">
+      <div class="sx-card-header">
+        <div class="sx-logo" style="background:linear-gradient(135deg,#1428a0,#0a1a7a);font-size:1rem;color:#fff;font-weight:900;">S</div>
+        <div>
+          <div class="sx-provider-name">Samsung Health</div>
+          <div class="sx-provider-desc">Galaxy Watch &amp; Samsung wearables (Android app)</div>
+        </div>
+      </div>
+      <div><span class="sx-status coming-soon"><span class="sx-status-dot"></span>Android app required</span></div>
+      <div class="sx-actions">
+        <button class="sx-btn sx-btn-disabled">⏳ Coming Soon</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div id="sx-toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Fetch & Render Provider Cards ─────────────────────────────────────────────
+async function loadProviders() {
+  try {
+    const res = await fetch('/api/sync-x/providers');
+    const data = await res.json();
+    renderCards(data.providers || []);
+  } catch(e) {
+    console.error('Sync-X providers load failed', e);
+  }
+}
+
+function renderCards(providers) {
+  const grid = document.getElementById('active-grid');
+  grid.innerHTML = '';
+
+  const logoMap = {
+    google_health: { bg: 'linear-gradient(135deg,#4285F4,#34A853)', text: 'G', emoji: null },
+    strava:        { bg: 'linear-gradient(135deg,#FC4C02,#e63d00)', text: 'S', emoji: '🏃' },
+  };
+
+  const configured = providers.filter(p => p.is_configured);
+  if (!configured.length) {
+    grid.innerHTML = '<div style="color:#475569;font-size:.85rem;padding:1rem;grid-column:1/-1;">No active integrations configured yet.</div>';
+    return;
+  }
+
+  configured.forEach(p => {
+    const lm = logoMap[p.provider_id] || { bg: 'linear-gradient(135deg,#374151,#1f2937)', text: p.display_name[0] };
+    const isConnected = p.is_connected;
+    const lastSync = p.last_sync ? new Date(p.last_sync).toLocaleString('en-IN', {dateStyle:'short', timeStyle:'short'}) : null;
+
+    let actionsHtml = '';
+    if (isConnected) {
+      actionsHtml = `
+        <button class="sx-btn sx-btn-sync" id="sync-btn-${p.provider_id}" onclick="syncProvider('${p.provider_id}', '${p.display_name}')">
+          ↻ Sync Now
+        </button>
+        <button class="sx-btn sx-btn-disconnect" onclick="disconnectProvider('${p.provider_id}', '${p.display_name}')">
+          Disconnect
+        </button>`;
+    } else {
+      actionsHtml = `
+        <a href="${p.connect_url}" class="sx-btn sx-btn-connect">
+          ⚡ Connect ${p.display_name}
+        </a>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = `sx-card ${isConnected ? 'connected' : ''}`;
+    card.id = `card-${p.provider_id}`;
+    card.innerHTML = `
+      <div class="sx-card-header">
+        <div class="sx-logo" style="background:${lm.bg};color:#fff;">${lm.emoji || lm.text}</div>
+        <div>
+          <div class="sx-provider-name">${p.display_name}</div>
+          <div class="sx-provider-desc">${p.description}</div>
+        </div>
+      </div>
+      <div>
+        <span class="sx-status ${isConnected ? 'connected' : 'disconnected'}">
+          <span class="sx-status-dot"></span>
+          ${isConnected ? 'Connected' : 'Not connected'}
+        </span>
+        ${isConnected && lastSync ? `<div class="sx-last-sync">Last sync: ${lastSync}</div>` : ''}
+      </div>
+      ${isConnected ? `<div class="sx-connected-info"><span>✓ Workouts syncing automatically to your THRYVEQ score</span></div>` : ''}
+      <div class="sx-actions">${actionsHtml}</div>`;
+    grid.appendChild(card);
+  });
+}
+
+async function syncProvider(providerId, name) {
+  const btn = document.getElementById(`sync-btn-${providerId}`);
+  if (btn) { btn.classList.add('loading'); btn.textContent = '↻ Syncing…'; }
+  try {
+    const res = await fetch(`/api/sync-x/sync/${providerId}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`✅ ${name} synced — ${data.workouts_saved} new workouts`, 'success');
+      setTimeout(loadProviders, 800);
+    } else {
+      showToast(`⚠️ ${data.error || 'Sync failed'}`, 'error');
+    }
+  } catch(e) {
+    showToast('⚠️ Network error — please try again', 'error');
+  } finally {
+    if (btn) { btn.classList.remove('loading'); btn.textContent = '↻ Sync Now'; }
+  }
+}
+
+async function disconnectProvider(providerId, name) {
+  if (!confirm(`Disconnect ${name}? Your existing workout data will be kept.`)) return;
+  try {
+    const res = await fetch(`/api/sync-x/disconnect/${providerId}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`${name} disconnected`, 'success');
+      setTimeout(loadProviders, 500);
+    }
+  } catch(e) {
+    showToast('Error disconnecting — please try again', 'error');
+  }
+}
+
+// ── Apple Health Upload ───────────────────────────────────────────────────────
+let ahFile = null;
+const ahDrop = document.getElementById('ah-drop');
+
+ahDrop.addEventListener('dragover', e => { e.preventDefault(); ahDrop.classList.add('drag-over'); });
+ahDrop.addEventListener('dragleave', () => ahDrop.classList.remove('drag-over'));
+ahDrop.addEventListener('drop', e => {
+  e.preventDefault(); ahDrop.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) ahSetFile({ files: e.dataTransfer.files });
+});
+
+function ahSetFile(input) {
+  const f = input.files[0];
+  if (!f) return;
+  ahFile = f;
+  const info = document.getElementById('ah-selected');
+  info.textContent = `📎 ${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`;
+  info.style.display = 'block';
+  document.getElementById('ah-btn').disabled = false;
+}
+
+async function ahDoImport() {
+  if (!ahFile) return;
+  const btn = document.getElementById('ah-btn');
+  const res = document.getElementById('ah-result');
+  btn.disabled = true; btn.textContent = 'Importing…'; res.style.display = 'none';
+  const form = new FormData();
+  form.append('file', ahFile);
+  try {
+    const r = await fetch('/api/import/apple-health', { method: 'POST', body: form });
+    const d = await r.json();
+    if (d.success) {
+      res.className = 'ah-result success';
+      res.innerHTML = `✅ ${d.message || 'Import complete!'}<br><small style="opacity:.75">${d.imported} of ${d.total} records imported.</small>`;
+      btn.textContent = '✅ Import Complete';
+      showToast(`✅ Imported ${d.imported} Apple Health workouts`, 'success');
+    } else {
+      res.className = 'ah-result error';
+      res.textContent = '⚠ ' + (d.error || 'Import failed');
+      btn.disabled = false; btn.textContent = '🍎 Import Workouts';
+    }
+    res.style.display = 'block';
+  } catch(e) {
+    res.className = 'ah-result error'; res.textContent = '⚠ Network error — please try again';
+    res.style.display = 'block'; btn.disabled = false; btn.textContent = '🍎 Import Workouts';
+  }
+}
+
+function toggleAhPanel() {
+  const body = document.getElementById('ah-body');
+  const chev = document.getElementById('ah-chevron');
+  const open = body.classList.toggle('open');
+  chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('sx-toast');
+  t.textContent = msg; t.className = `show ${type}`;
+  setTimeout(() => { t.className = ''; }, 3500);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadProviders();
+
+// Auto-open Apple Health panel if just imported
+{% if apple_last_import %}
+  // show collapsed by default
+{% endif %}
+
+// Auto-sync on page load if connected (optional background refresh)
+setTimeout(() => { loadProviders(); }, 10000);
+</script>
+{% endblock %}

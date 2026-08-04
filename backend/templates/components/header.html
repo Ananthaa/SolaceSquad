@@ -1,4 +1,38 @@
-<header class="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm" style="z-index: 9999;">
+<style>
+    /* ── Header nav: desktop vs mobile visibility ── */
+    .hdr-desktop-nav,
+    .hdr-desktop-auth {
+        display: none;
+    }
+    .hdr-mobile-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #fff !important;
+        border-bottom: 1.5px solid #f3f4f6;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+        z-index: 9999;
+    }
+    @media (min-width: 768px) {
+        .hdr-desktop-nav {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+        .hdr-desktop-auth {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .hdr-mobile-menu {
+            display: none !important;
+        }
+    }
+</style>
+
+<header class="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm" style="z-index:9999;">
     <nav class="container-custom">
         <div class="flex items-center justify-between h-20">
             <!-- Logo -->
@@ -7,64 +41,350 @@
             </a>
 
             <!-- Desktop Navigation -->
-            <div class="hidden md:flex items-center gap-8">
-                <a href="/#services" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">
-                    Services
-                </a>
+            <div class="hdr-desktop-nav">
                 <a href="/#why-us" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">
                     Why Us
                 </a>
                 <a href="/#testimonials" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">
                     Testimonials
                 </a>
-                <a href="/consultant" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">
-                    For Consultants
+
+                <!-- Book Consultation — opens login modal -->
+                <a href="#" onclick="openBookModal(); return false;"
+                    class="text-gray-700 hover:text-primary-600 font-medium transition-colors">
+                    Book Consultation
+                </a>
+                <a href="/#age-groups" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">
+                    Services
+                </a>
+                <a href="/#pricing" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">
+                    Price Plans
+                </a>
+                <a href="/blog" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">
+                    Blog
+                </a>
+                <a href="/events" class="text-gray-700 hover:text-primary-600 font-medium transition-colors">
+                    Events
                 </a>
             </div>
 
             <!-- Auth Buttons - Desktop -->
-            <div class="hidden md:flex items-center gap-4">
-                <a href="/login" class="text-primary-700 hover:text-primary-800 font-medium transition-colors">
+            <div class="hdr-desktop-auth">
+                <a href="/login" style="display:inline-flex;align-items:center;padding:0.45rem 1.1rem;border:1.5px solid #2d6a5a;border-radius:8px;color:#2d6a5a;font-weight:600;font-size:0.9rem;text-decoration:none;background:#fff;transition:background 0.2s,color 0.2s;white-space:nowrap;" onmouseover="this.style.background='#2d6a5a';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#2d6a5a'">
                     Login
                 </a>
-                <a href="/signup" class="btn btn-primary">
+                <a href="/signup" style="display:inline-flex;align-items:center;padding:0.45rem 1.2rem;background:#2d6a5a;border-radius:8px;color:#fff;font-weight:600;font-size:0.9rem;text-decoration:none;border:none;box-shadow:0 2px 8px rgba(45,106,90,0.28);transition:background 0.2s,box-shadow 0.2s;white-space:nowrap;" onmouseover="this.style.background='#1e4d40';this.style.boxShadow='0 4px 14px rgba(45,106,90,0.40)'" onmouseout="this.style.background='#2d6a5a';this.style.boxShadow='0 2px 8px rgba(45,106,90,0.28)'">
                     Get Started
                 </a>
             </div>
 
-            <!-- Mobile Menu Button -->
-            <button id="mobile-menu-button" onclick="toggleMobileMenu()"
-                class="md:hidden p-2 text-gray-700 hover:text-primary-600">
-                <i data-lucide="menu" class="w-6 h-6"></i>
+            <!-- Hamburger Button - Mobile -->
+            <button id="mobile-menu-button" onclick="toggleMobileMenu()" class="md:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 focus:outline-none flex items-center justify-center" aria-label="Toggle Menu">
+                <i id="icon-hamburger" data-lucide="menu" class="w-6 h-6"></i>
+                <i id="icon-close" data-lucide="x" class="w-6 h-6 hidden"></i>
             </button>
         </div>
 
-        <!-- Mobile Navigation -->
-        <div id="mobile-menu" class="mobile-menu md:hidden">
-            <div class="flex flex-col gap-4 py-4">
-                <a href="/#services" class="text-gray-700 hover:text-primary-600 font-medium py-2">
-                    Services
-                </a>
-                <a href="/#why-us" class="text-gray-700 hover:text-primary-600 font-medium py-2">
-                    Why Us
-                </a>
-                <a href="/#testimonials" class="text-gray-700 hover:text-primary-600 font-medium py-2">
-                    Testimonials
-                </a>
-                <a href="/consultant" class="text-gray-700 hover:text-primary-600 font-medium py-2">
-                    For Consultants
-                </a>
-                <div class="flex flex-col gap-2 pt-4 border-t">
-                    <a href="/login" class="btn btn-secondary w-full">
-                        Login
+        <!-- Mobile Navigation Dropdown -->
+        <div id="mobile-menu" class="hdr-mobile-menu">
+            <div class="container-custom py-4">
+                <style>
+                    .mob-nav-grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 0.4rem;
+                        padding: 0.5rem 0 0.3rem;
+                    }
+
+                    .mob-nav-tile {
+                        display: flex;
+                        align-items: center;
+                        gap: 0.4rem;
+                        padding: 0.4rem 0.6rem;
+                        background: #f9fafb;
+                        border: 1.5px solid #e5e7eb;
+                        border-radius: 0.65rem;
+                        text-decoration: none;
+                        color: #374151;
+                        font-size: 0.72rem;
+                        font-weight: 600;
+                        transition: all 0.15s;
+                        cursor: pointer;
+                        white-space: normal;
+                        line-height: 1.25;
+                    }
+
+                    .mob-nav-tile:hover,
+                    .mob-nav-tile:active {
+                        background: #f0fdfa;
+                        border-color: #0d9488;
+                        color: #0d9488;
+                    }
+
+                    .mob-nav-icon {
+                        width: 22px;
+                        height: 22px;
+                        border-radius: 0.35rem;
+                        background: linear-gradient(135deg, #0f766e, #0d9488);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        flex-shrink: 0;
+                    }
+
+                    .mob-nav-icon i {
+                        width: 11px;
+                        height: 11px;
+                        color: #fff;
+                    }
+
+                    .mob-cta-row {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 0.4rem;
+                        padding-top: 0.4rem;
+                        padding-bottom: 0.3rem;
+                        border-top: 1px solid #e5e7eb;
+                        margin-top: 0.15rem;
+                    }
+
+                    /* ── PWA standalone: transparent + compact header ── */
+                    @media (display-mode: standalone) {
+                        header {
+                            background: transparent !important;
+                            background-color: transparent !important;
+                            box-shadow: none !important;
+                            border-bottom: none !important;
+                            backdrop-filter: none !important;
+                        }
+
+                        header nav,
+                        header .container-custom {
+                            background: transparent !important;
+                        }
+
+                        /* Shrink nav row height to avoid ribbon overlap */
+                        header .flex.justify-between {
+                            height: 2.8rem !important;
+                            min-height: 0 !important;
+                        }
+
+                        /* Smaller Login / Get Started buttons */
+                        header .mob-cta-row a,
+                        header a.btn {
+                            font-size: 0.65rem !important;
+                            padding: 0.2rem 0.5rem !important;
+                            border-radius: 0.4rem !important;
+                        }
+
+                        /* Keep nav text visible on transparent bg */
+                        header a {
+                            color: #2d6a5a !important;
+                        }
+                    }
+                </style>
+
+                <div class="mob-nav-grid">
+                    <a href="/#why-us" class="mob-nav-tile">
+                        <div class="mob-nav-icon"><i data-lucide="star"></i></div>
+                        Why Us
                     </a>
-                    <a href="/signup" class="btn btn-primary w-full">
-                        Get Started
+                    <a href="/#testimonials" class="mob-nav-tile">
+                        <div class="mob-nav-icon"><i data-lucide="message-circle"></i></div>
+                        Testimonials
+                    </a>
+
+                    <a href="#" onclick="openBookModal(); return false;" class="mob-nav-tile">
+                        <div class="mob-nav-icon"><i data-lucide="calendar"></i></div>
+                        Book Consultation
+                    </a>
+                    <a href="/#age-groups" class="mob-nav-tile">
+                        <div class="mob-nav-icon"><i data-lucide="users"></i></div>
+                        Services
+                    </a>
+                    <a href="/#pricing" class="mob-nav-tile">
+                        <div class="mob-nav-icon"><i data-lucide="tag"></i></div>
+                        Price Plans
+                    </a>
+                    <a href="/blog" class="mob-nav-tile">
+                        <div class="mob-nav-icon"><i data-lucide="pen-line"></i></div>
+                        Blog
+                    </a>
+                    <a href="/events" class="mob-nav-tile">
+                        <div class="mob-nav-icon"><i data-lucide="calendar"></i></div>
+                        Events
                     </a>
                 </div>
-            </div>
-        </div>
+
+                <div class="mob-cta-row">
+                    <a href="/login" style="display:flex;align-items:center;justify-content:center;padding:0.3rem 0.6rem;border:1.5px solid #2d6a5a;border-radius:8px;color:#2d6a5a;font-weight:600;font-size:0.72rem;text-decoration:none;background:#fff;text-align:center;">
+                        Login
+                    </a>
+                    <a href="/signup" style="display:flex;align-items:center;justify-content:center;padding:0.3rem 0.6rem;background:#2d6a5a;border-radius:8px;color:#fff;font-weight:600;font-size:0.72rem;text-decoration:none;text-align:center;">
+                        Get Started
+                    </a>
+                </div><!-- /mob-cta-row -->
+            </div><!-- /container-custom -->
+        </div><!-- /mobile-menu -->
     </nav>
 </header>
 
-<script src="{{ url_for('static', path='/js/main.js') }}"></script>
+<!-- ══════════════════════════════════════════════════════════
+     BOOK CONSULTATION — Login Modal
+     Posts to /login with next_url=/app/consultants
+     Normal Login link is completely unchanged.
+══════════════════════════════════════════════════════════ -->
+<div id="book-consult-modal" style="display:none;position:fixed;inset:0;z-index:99999;
+           background:rgba(0,0,0,0.55);backdrop-filter:blur(5px);
+           align-items:center;justify-content:center;padding:1rem;">
+
+    <div style="background:#fff;border-radius:20px;padding:2.5rem 2rem;
+                width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,0.25);
+                position:relative;animation:bcSlideUp 0.25s ease;">
+
+        <!-- Close button -->
+        <button onclick="closeBookModal()" style="position:absolute;top:1rem;right:1rem;border:none;background:none;
+                   font-size:1.6rem;line-height:1;cursor:pointer;color:#9ca3af;
+                   width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+                   border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='#f3f4f6'"
+            onmouseout="this.style.background='none'" aria-label="Close">&times;</button>
+
+        <!-- Header -->
+        <div style="text-align:center;margin-bottom:1.75rem;">
+            <div style="width:60px;height:60px;
+                        background:linear-gradient(135deg,#0d9488,#0f766e);
+                        border-radius:16px;display:flex;align-items:center;
+                        justify-content:center;margin:0 auto 1rem;
+                        box-shadow:0 8px 20px rgba(13,148,136,0.35);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+            </div>
+            <h2 style="margin:0 0 0.4rem;font-size:1.5rem;font-weight:700;color:#111827;">Book a Consultation</h2>
+            <p style="margin:0;color:#6b7280;font-size:0.9rem;">Sign in to browse our expert consultants and book your
+                session</p>
+        </div>
+
+        <!-- Login Form -->
+        <form method="POST" action="/login" style="display:flex;flex-direction:column;gap:1rem;">
+            <input type="hidden" name="next_url" value="/app/consultants">
+
+            <div>
+                <label style="display:block;font-size:0.82rem;font-weight:600;
+                              color:#374151;margin-bottom:0.4rem;">Email Address</label>
+                <input type="email" name="email" required placeholder="you@example.com" style="width:100%;padding:0.7rem 1rem;border:1.5px solid #d1d5db;
+                           border-radius:10px;font-size:0.95rem;outline:none;box-sizing:border-box;
+                           transition:border-color 0.15s;" onfocus="this.style.borderColor='#0d9488'"
+                    onblur="this.style.borderColor='#d1d5db'">
+            </div>
+
+            <div>
+                <label style="display:block;font-size:0.82rem;font-weight:600;
+                              color:#374151;margin-bottom:0.4rem;">Password</label>
+                <input type="password" name="password" required placeholder="••••••••" style="width:100%;padding:0.7rem 1rem;border:1.5px solid #d1d5db;
+                           border-radius:10px;font-size:0.95rem;outline:none;box-sizing:border-box;
+                           transition:border-color 0.15s;" onfocus="this.style.borderColor='#0d9488'"
+                    onblur="this.style.borderColor='#d1d5db'">
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <label style="display:flex;align-items:center;gap:0.4rem;
+                              font-size:0.82rem;color:#6b7280;cursor:pointer;">
+                    <input type="checkbox" style="accent-color:#0d9488;"> Remember me
+                </label>
+                <a href="/forgot-password" style="font-size:0.82rem;color:#0d9488;
+                                                  text-decoration:none;font-weight:500;">
+                    Forgot password?
+                </a>
+            </div>
+
+            <button type="submit" style="width:100%;padding:0.85rem;
+                       background:linear-gradient(135deg,#0d9488,#0f766e);
+                       color:#fff;border:none;border-radius:10px;
+                       font-size:1rem;font-weight:600;cursor:pointer;
+                       letter-spacing:0.02em;
+                       box-shadow:0 4px 14px rgba(13,148,136,0.4);
+                       transition:opacity 0.2s,transform 0.1s;"
+                onmouseover="this.style.opacity='0.92';this.style.transform='translateY(-1px)'"
+                onmouseout="this.style.opacity='1';this.style.transform='none'">
+                Sign In &amp; Book Consultation →
+            </button>
+
+            <p style="text-align:center;margin:0;font-size:0.85rem;color:#6b7280;">
+                Don't have an account?&nbsp;
+                <a href="/signup" style="color:#0d9488;font-weight:600;text-decoration:none;">
+                    Sign up free
+                </a>
+            </p>
+        </form>
+    </div>
+</div>
+
+<style>
+    @keyframes bcSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.97);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+</style>
+
+<script>
+    function openBookModal() {
+        var m = document.getElementById('book-consult-modal');
+        if (m) {
+            m.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    function closeBookModal() {
+        var m = document.getElementById('book-consult-modal');
+        if (m) {
+            m.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    }
+    // Close on backdrop click
+    document.addEventListener('DOMContentLoaded', function () {
+        var m = document.getElementById('book-consult-modal');
+        if (m) {
+            m.addEventListener('click', function (e) {
+                if (e.target === m) closeBookModal();
+            });
+        }
+    });
+    // ESC key closes modal
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeBookModal();
+    });
+</script>
+
+<script src="/static/js/main.js"></script>
+<script>
+    /* ── Auto-clear fixed header on all pages ── */
+    (function () {
+        function fixHeroSpacing() {
+            var hdr = document.querySelector('header');
+            var hero = document.querySelector('body > section, main > section, section');
+            if (!hdr || !hero) return;
+            var hdrH = hdr.getBoundingClientRect().height;
+            /* Only adjust on mobile where nav tiles stack (header > standard h-20 / 80px) */
+            if (hdrH > 80) {
+                hero.style.setProperty('padding-top', (hdrH + 16) + 'px', 'important');
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fixHeroSpacing);
+        } else { fixHeroSpacing(); }
+        window.addEventListener('resize', fixHeroSpacing);
+    })();
+</script>

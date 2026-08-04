@@ -1,0 +1,1190 @@
+{% extends "layouts/protected.html" %}
+
+
+{% block dashboard_content %}
+<style>
+  .plans-page { max-width:1000px; margin:0 auto; }
+
+  /* ── Subscription Management Card ─────────────────────────────── */
+  .sub-card {
+    background: #fff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 1.35rem 1.6rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.05);
+    position: relative;
+  }
+  .sub-card-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+  .sub-card-title { font-size:.95rem; font-weight:800; color:#1f2937; display:flex; align-items:center; gap:.45rem; }
+  .sub-status-badge {
+    display:inline-flex; align-items:center; gap:.3rem;
+    padding:.25rem .75rem; border-radius:9999px;
+    font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+  }
+  .sub-status-badge.active   { background:#dcfce7; color:#15803d; }
+  .sub-status-badge.paused   { background:#fef3c7; color:#92400e; }
+  .sub-status-badge.cancelled{ background:#fee2e2; color:#991b1b; }
+  .sub-status-badge.grace    { background:#ffedd5; color:#c2410c; }
+  .sub-info-row { display:flex; flex-wrap:wrap; gap:1.25rem 2.5rem; margin-bottom:1.1rem; }
+  .sub-info-item { font-size:.84rem; color:#6b7280; }
+  .sub-info-item strong { color:#1f2937; }
+  /* Auto-renew toggle */
+  .ar-toggle-row { display:flex; align-items:center; gap:.9rem; margin-bottom:1rem; }
+  .ar-toggle-label { font-size:.88rem; font-weight:700; color:#374151; }
+  .toggle-switch { position:relative; width:44px; height:24px; display:inline-block; }
+  .toggle-switch input { opacity:0; width:0; height:0; }
+  .toggle-slider {
+    position:absolute; inset:0; background:#d1d5db; border-radius:9999px; cursor:pointer;
+    transition:background .25s;
+  }
+  .toggle-slider:before {
+    content:''; position:absolute; width:18px; height:18px; left:3px; top:3px;
+    background:#fff; border-radius:50%; transition:transform .25s;
+  }
+  .toggle-switch input:checked + .toggle-slider { background:#0d9488; }
+  .toggle-switch input:checked + .toggle-slider:before { transform:translateX(20px); }
+  /* Action buttons */
+  .sub-actions { display:flex; gap:.65rem; flex-wrap:wrap; }
+  .sub-btn {
+    padding:.45rem 1rem; border-radius:.6rem; border:none; font-size:.8rem;
+    font-weight:700; cursor:pointer; transition:all .18s;
+  }
+  .sub-btn.outline { background:#fff; color:#374151; border:1.5px solid #d1d5db; }
+  .sub-btn.outline:hover { border-color:#9ca3af; }
+  .sub-btn.danger  { background:#fee2e2; color:#991b1b; border:1.5px solid #fca5a5; }
+  .sub-btn.danger:hover { background:#fecaca; }
+  .sub-btn.success { background:#dcfce7; color:#15803d; border:1.5px solid #86efac; }
+  /* Grace warning */
+  .grace-banner {
+    background:#ffedd5; border-left:3px solid #f97316;
+    padding:.75rem 1rem; border-radius:8px; font-size:.82rem; color:#c2410c;
+    margin-bottom:1rem; font-weight:600;
+  }
+  /* Pause info banner */
+  .pause-banner {
+    background:#eff6ff; border-left:3px solid #3b82f6;
+    padding:.75rem 1rem; border-radius:8px; font-size:.82rem; color:#1e40af;
+    margin-bottom:1rem; font-weight:600;
+  }
+  /* Auto-renew checkbox inside modal */
+  .ar-checkbox-row {
+    display:flex; align-items:flex-start; gap:.7rem;
+    background:#f0fdf4; border:1.5px solid #6ee7b7;
+    border-radius:10px; padding:.85rem 1rem; margin:.5rem 0 1.25rem;
+    cursor:pointer; text-align:left;
+  }
+  .ar-checkbox-row input[type=checkbox] { width:16px; height:16px; margin-top:2px; flex-shrink:0; accent-color:#0d9488; }
+  .ar-checkbox-text { font-size:.83rem; color:#374151; line-height:1.45; }
+  .ar-checkbox-text strong { color:#0f766e; display:block; margin-bottom:.2rem; }
+
+
+  .plans-hero { text-align:center; padding:2rem 0 1.5rem; }
+  .plans-hero h1 { font-size:1.9rem; font-weight:900; color:#1f2937; margin:0 0 .35rem; }
+  .plans-hero p  { color:#6b7280; font-size:.95rem; margin:0; }
+
+  /* Current plan pill */
+  .current-pill { display:inline-flex; align-items:center; gap:.5rem; background:#f0fdf4; border:1.5px solid #6ee7b7; border-radius:9999px; padding:.4rem 1rem; font-size:.85rem; font-weight:700; color:#0f766e; margin:1rem auto; }
+
+  /* Table layout for plans */
+  .plans-table-wrapper { width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; margin:1.5rem 0 2rem; border-radius:12px; border:1px solid #e5e7eb; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,.05); }
+  .plans-table { width:100%; border-collapse:collapse; text-align:left; min-width: 940px; table-layout: fixed; }
+  .plans-table th, .plans-table td { padding:1.2rem 1rem; border-bottom:1px solid #e5e7eb; overflow:hidden; text-overflow:ellipsis; }
+  .plans-table th { background:#f9fafb; color:#374151; font-size:.9rem; font-weight:normal; }
+  .plans-table thead th { border-bottom:2px solid #e5e7eb; text-align:center; vertical-align:bottom; padding-top:1.5rem; }
+  .plans-table thead th:first-child { text-align:left; vertical-align:bottom; width: 220px; }
+  .plans-table thead th:not(:first-child) { width: 180px; }
+  .plans-table tbody td:not(:first-child) { text-align:center; }
+  .plans-table tbody tr:last-child td { border-bottom:none; }
+  
+  .feature-label { font-weight:700; color:#374151; font-size:.88rem; }
+  .feature-value { font-size:.85rem; color:#4b5563; }
+  
+  .plan-header-name { font-size:1.15rem; font-weight:800; color:#1f2937; margin-bottom:.35rem; }
+  .plan-header-price { font-size:1.5rem; font-weight:900; color:#0d9488; margin-bottom:1rem; line-height:1.1; }
+  .plan-header-price span { font-size:.8rem; font-weight:500; color:#6b7280; }
+  .plan-current-badge { display:inline-block; background:#0d9488; color:#fff; font-size:.7rem; font-weight:800; padding:.2rem .6rem; border-radius:9999px; margin-bottom:.5rem; text-transform:uppercase; letter-spacing:0.05em; }
+  .plan-best-badge { display:inline-block; background:linear-gradient(135deg,#3b82f6,#1d4ed8); color:#fff; font-size:.7rem; font-weight:800; padding:.2rem .6rem; border-radius:9999px; margin-bottom:.5rem; text-transform:uppercase; letter-spacing:0.05em; box-shadow:0 2px 6px rgba(37,99,235,0.25); }
+
+  /* CTA */
+  .btn-subscribe { display:inline-block; width:100%; max-width:170px; box-sizing:border-box; padding:.6rem .8rem; border-radius:.5rem; font-weight:700; font-size:.85rem; border:1.5px solid transparent; cursor:pointer; transition:all .2s; white-space:nowrap; }
+  .btn-subscribe.primary { background:linear-gradient(135deg,#0f766e,#0d9488); color:#fff; }
+  .btn-subscribe.primary:hover { opacity:.88; }
+  .btn-subscribe.current-plan { background:#f0fdf4; color:#0d9488; border:1.5px solid #6ee7b7; cursor:default; }
+  .btn-subscribe.disabled { background:#f3f4f6; color:#9ca3af; cursor:not-allowed; }
+  .btn-subscribe.downgrade { background:linear-gradient(135deg,#dc2626,#b91c1c); color:#fff; }
+  .btn-subscribe.downgrade:hover { opacity:.88; }
+
+  /* Usage bar */
+  .usage-section { background:#fff; border-radius:14px; border:1px solid #e5e7eb; padding:1.25rem 1.5rem; margin-bottom:1.5rem; }
+  .usage-section h3 { font-size:.9rem; font-weight:700; color:#374151; margin:0 0 .75rem; }
+  .usage-bar-row { display:flex; align-items:center; gap:.75rem; margin-bottom:.6rem; }
+  .usage-bar-label { font-size:.8rem; color:#6b7280; min-width:140px; }
+  .usage-bar-track { flex:1; background:#f3f4f6; border-radius:9999px; height:8px; }
+  .usage-bar-fill  { height:8px; border-radius:9999px; background:linear-gradient(90deg,#0d9488,#6ee7b7); transition:width .4s; }
+  .usage-bar-num   { font-size:.78rem; font-weight:700; color:#374151; min-width:50px; text-align:right; }
+
+  /* ── Emora Pack cards ──────────────────────────────────────────────── */
+  .emora-packs-section { margin-top:2.5rem; }
+  .emora-packs-section h2 { font-size:1.25rem; font-weight:900; color:#1f2937; margin:0 0 .3rem; }
+  .emora-packs-section .subtitle { font-size:.85rem; color:#6b7280; margin:0 0 1.25rem; }
+  .emora-packs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1rem; }
+  .ep-card {
+    border-radius:18px; border:2px solid #e5e7eb; padding:1.4rem 1.5rem;
+    background:#fff; transition:border-color .2s,box-shadow .2s,transform .15s;
+    display:flex; flex-direction:column; gap:.75rem;
+  }
+  .ep-card:hover { box-shadow:0 8px 28px rgba(0,0,0,.1); transform:translateY(-2px); }
+  .ep-card-header { display:flex; align-items:center; gap:.75rem; }
+  .ep-card-icon { font-size:2rem; }
+  .ep-card-name { font-size:1.05rem; font-weight:900; color:#1f2937; }
+  .ep-card-msgs { font-size:.78rem; color:#6b7280; margin-top:.1rem; }
+  .ep-pill { display:inline-block; font-size:.62rem; font-weight:800; padding:.18rem .55rem;
+    border-radius:999px; text-transform:uppercase; letter-spacing:.04em; margin-left:.3rem; vertical-align:middle; }
+  .ep-price { font-size:1.5rem; font-weight:900; color:#1f2937; line-height:1.1; }
+  .ep-price-orig { font-size:.8rem; text-decoration:line-through; color:#9ca3af; margin-right:.3rem; font-weight:500; }
+  .ep-validity { font-size:.72rem; color:#9ca3af; margin-top:.15rem; }
+  .ep-buy-btn {
+    width:100%; padding:.7rem; border-radius:12px; border:none; color:#fff;
+    font-weight:800; font-size:.9rem; cursor:pointer; transition:opacity .2s,transform .1s;
+    letter-spacing:.01em;
+  }
+  .ep-buy-btn:hover { opacity:.88; transform:scale(0.98); }
+  .ep-discount-banner {
+    background:linear-gradient(135deg,#7c3aed10,#7c3aed20);
+    border:1.5px solid #c4b5fd; border-radius:10px; padding:.6rem 1rem;
+    font-size:.78rem; color:#5b21b6; font-weight:700; text-align:center; margin-bottom:.75rem;
+  }
+  .emora-packs-loading { text-align:center; padding:2rem; color:#9ca3af; font-size:.9rem; }
+  @media(max-width:480px) { .emora-packs-grid { grid-template-columns:1fr; } }
+</style>
+
+<div class="plans-page">
+
+  <!-- ══ Subscription Status Card ═══════════════════════════════════════ -->
+  <div id="subCardWrap"></div>
+
+  <div class="plans-hero">
+    <h1>🚀 Choose Your Plan</h1>
+    <p>Unlock more features as you grow. Switch plans anytime.</p>
+    <div id="currentPillWrap"></div>
+  </div>
+
+
+
+  <!-- Plans table -->
+  <div id="plansGrid">
+    <div style="text-align:center;padding:2rem;color:#9ca3af;">Loading plans…</div>
+  </div>
+
+  <!-- ══ Emora Chat Packs ═══════════════════════════════════════════ -->
+  <div class="emora-packs-section">
+    <h2>🚀 Emora Chat Packs</h2>
+    <p class="subtitle">Lifetime message top-ups — never expire, use whenever you need them</p>
+    <div id="emoraPackDiscountBanner" style="display:none;" class="ep-discount-banner">
+      🎉 Your Blue plan discount is applied to the prices below!
+    </div>
+    <div class="emora-packs-grid" id="emoraPacksGrid">
+      <div class="emora-packs-loading">Loading packs…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Razorpay checkout — pre-loaded so it's ready when user clicks Pay -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+  // Server-signed auth token — lets API calls authenticate without cookie
+  const PAGE_TOKEN = "{{ page_token | default('') }}";
+  let RZ_KEY = '';
+  let plans = [];
+  let currentPlanId = null;
+  let proratedDiscount = 0.0;
+
+  // ── Billing cycle → human-readable label ─────────────────────────────────
+  function cycleLabel(cycle, planName) {
+    if (planName && planName.toLowerCase() === 'blue') {
+      return '/year';
+    }
+    if (!cycle) return '';
+    switch (cycle.toLowerCase()) {
+      case 'monthly':  return '/month';
+      case 'annual':   return '/year';
+      case 'yearly':   return '/year';
+      case 'weekly':   return '/week';
+      case 'one_time': return ' one-time';
+      default:         return '/' + cycle;
+    }
+  }
+
+  async function loadPlans() {
+    try {
+      const r = await fetch('/api/plans', {
+        credentials: 'include',
+        headers: { 'X-Page-Token': PAGE_TOKEN },
+      });
+      const d = await r.json();
+      if (!d.success) return;
+      plans = d.plans;
+      currentPlanId = d.current_plan_id;
+      proratedDiscount = d.prorated_discount || 0.0;
+      RZ_KEY = d.razorpay_key_id || '';
+      renderPlans();
+    } catch(e) {
+      console.error('loadPlans error:', e);
+    }
+  }
+
+  function capTableValue(caps, key) {
+    const c = caps.find(c => c.feature_key === key);
+    if (!c) return 'Included';
+    if (c.limit_value === -1) return 'Unlimited';
+    if (c.limit_value === 0)  return 'None';
+    let txt = '';
+    if (c.limit_first_week !== null && c.limit_post_week !== null) {
+      if (c.limit_post_week === 0) {
+        txt += `${c.limit_first_week} (Week 1 only)`;
+      } else {
+        txt += `${c.limit_first_week} (wk 1) <br> ${c.limit_post_week}/day after`;
+      }
+    } else {
+      txt += c.limit_value + '/month';
+    }
+    if (c.extend_price > 0) txt += `<br><small style="color:#0d9488;font-weight:600;">(+&#8377;${c.extend_price} for ${c.extend_quota})</small>`;
+    return txt;
+  }
+
+  // ── All feature rows in the desired display order ──────────────────────────
+  // Unified list: { label, capKey (optional for dynamic cap lookup), cells (optional override fn) }
+  const ALL_FEATURE_ROWS = [
+    {
+      // 1. Vital Scans — dynamic cap
+      label: 'Vital Scans',
+      capKey: 'vitals_scans',
+    },
+    {
+      // 2. Journal Entries — dynamic cap
+      label: 'Journal Entries',
+      capKey: 'journal_entries',
+    },
+    {
+      // 3. Mood Tracker
+      label: 'Mood Tracker',
+      cells: plan => ({ icon: 'check', text: 'Included' }),
+    },
+    {
+      // 4. Emora Chat Buddy — dynamic cap + footnote
+      label: 'Emora Chat Buddy',
+      capKey: 'ai_chat',
+      footnote: (plan) => {
+        const n = (plan.name || '').toLowerCase();
+        if (plan.is_free || n === 'white') return '<span style="display:block;font-size:.85rem;color:#6b7280;margin-top:2px;font-weight:600;">Text only</span>';
+        let f = '<span style="display:block;font-size:.85rem;color:#6b7280;margin-top:2px;font-weight:600;">Text + Voice</span>';
+        if (n === 'blue') {
+          f += '<span style="display:block;font-size:.85rem;color:#7c3aed;margin-top:2px;font-weight:600;">✦ 25% off Emora packages</span>';
+        }
+        return f;
+      },
+    },
+    {
+      // 5. Consultation Sessions
+      label: 'Consultation Sessions',
+      cells: plan => {
+        if ((plan.name || '').toLowerCase() === 'blue') {
+          return { icon:'check', text:'1 Free × 30 min<span style="display:block;font-size:.85rem;color:#7c3aed;font-weight:600;margin-top:2px;">✦ 25% off paid consultations</span>' };
+        }
+        return { icon:'check', text:'1 Free × 30 min' };
+      },
+    },
+    {
+      // 6. Workout Log
+      label: 'Workout Log',
+      cells: plan => {
+        const n = (plan.name || '').toLowerCase();
+        if (n === 'free')  return { icon: 'check', text: 'Manual entry only' };
+        return { icon: 'check', text: 'Manual entry + Sync with Google Fit' };
+      },
+    },
+    {
+      // 7. THRYVEQ Score
+      label: 'THRYVEQ Score',
+      cells: plan => {
+        const n = (plan.name || '').toLowerCase();
+        if (n === 'free')   return { icon:'info',  text:'Daily track only' };
+        if (n === 'white')  return { icon:'check', text:'Daily · Weekly' };
+        if (n === 'blue')   return { icon:'check', text:'Daily · Weekly<br>Monthly · Annual' };
+        return { icon:'check', text:'Daily · Weekly · Monthly' };
+      },
+    },
+    {
+      // 8. Health Score and Vitals Tracking
+      label: 'Health Score and Vitals Tracking',
+      cells: plan => {
+        const n = (plan.name || '').toLowerCase();
+        if (n === 'free')   return { icon:'info',  text:'Daily track only' };
+        if (n === 'white')  return { icon:'check', text:'Daily · Weekly' };
+        if (n === 'green')  return { icon:'check', text:'Daily · Weekly · Monthly' };
+        return { icon:'check', text:'Daily · Weekly<br>Monthly · Annual' };
+      },
+    },
+    {
+      // 8. Call Recording Access
+      label: 'Call Recording Access',
+      cells: plan => {
+        const n = (plan.name || '').toLowerCase();
+        if (n === 'green' || n === 'blue') return { icon:'check', text:'Included' };
+        return { icon:'cross', text:'Not included' };
+      },
+    },
+    {
+      // 9. Chat with Consultants
+      label: 'Chat with Consultants',
+      cells: plan => {
+        const n = (plan.name || '').toLowerCase();
+        if (n === 'green' || n === 'blue') return { icon:'check', text:'Last 3 consultants' };
+        return { icon:'cross', text:'Not included' };
+      },
+    },
+    {
+      // 10. Expert Pro-Tips
+      label: 'Expert Pro-Tips',
+      cells: plan => {
+        const n = (plan.name || '').toLowerCase();
+        if (n === 'free' || n === 'white') return { icon: 'cross', text: 'Not included' };
+        return { icon: 'none', text: 'Coming Soon' };
+      },
+    },
+    {
+      // 11. Music Library
+      label: 'Music Library',
+      cells: plan => {
+        const n = (plan.name || '').toLowerCase();
+        if (n === 'free' || n === 'white' || n === 'green') return { icon: 'cross', text: 'Not included' };
+        return { icon: 'none', text: 'Coming Soon' };
+      },
+    },
+  ];
+
+  function renderPlans() {
+    const grid = document.getElementById('plansGrid');
+    if (!plans.length) { grid.innerHTML='<p style="color:#9ca3af;text-align:center;">No plans available.</p>'; return; }
+
+    const curPlan = plans.find(p=>p.id===currentPlanId);
+    if (curPlan) {
+      document.getElementById('currentPillWrap').innerHTML =
+        `<div class="current-pill">&#10003; You're on the <strong style="margin-left:.25rem;">${curPlan.name}</strong> plan</div>`;
+    }
+
+
+    let html = '<div class="plans-table-wrapper"><table class="plans-table"><thead><tr><th>Features</th>';
+    
+    // Header row (Plan names, prices, CTA buttons)
+    plans.forEach(plan => {
+      const isCurrent = plan.id === currentPlanId;
+      const priceHtml = plan.is_free
+        ? '<div class="plan-header-price">Free</div>'
+        : `<div class="plan-header-price">&#8377;${plan.price} <span style="font-size:0.85rem;color:#4b5563;font-weight:600;margin-left:2px;">+ GST</span><span>${cycleLabel(plan.billing_cycle, plan.name)}</span></div>`;
+        
+      let btnHtml = '';
+      if (isCurrent) {
+        btnHtml = `<button class="btn-subscribe current-plan" disabled>&#10003; Current Plan</button>`;
+      } else {
+        const curPlanForBtn = plans.find(p => p.id === currentPlanId);
+        const isDowngrade = curPlanForBtn && !curPlanForBtn.is_free && plan.price < curPlanForBtn.price;
+        if (isDowngrade) {
+          btnHtml = `<button class="btn-subscribe primary" onclick="downgrade(${plan.id})">Switch to ${plan.name}</button>`;
+        } else {
+          btnHtml = `<button class="btn-subscribe primary" onclick="subscribe(${plan.id})">Switch to ${plan.name}</button>`;
+        }
+      }
+
+      html += `<th>
+        ${isCurrent ? '<div class="plan-current-badge">Current Plan</div>' : ''}
+        ${(plan.name || '').toLowerCase() === 'blue' ? '<div class="plan-best-badge">Best Plan</div>' : ''}
+        <div class="plan-header-name">${plan.name}</div>
+        ${priceHtml}
+        ${btnHtml}
+      </th>`;
+    });
+    
+    html += '</tr></thead><tbody>';
+
+    // ── Single unified loop — renders rows in the exact order defined above ──
+    ALL_FEATURE_ROWS.forEach(row => {
+      html += `<tr><td><span class="feature-label">${row.label}</span></td>`;
+
+      plans.forEach(plan => {
+        let iconHtml = '', valueHtml = '';
+
+        if (row.cells) {
+          // Custom override cell
+          const cell = row.cells(plan);
+          if (cell.icon === 'check') {
+            iconHtml = '<span style="color:#10b981;font-weight:900;margin-right:4px;">✓</span>';
+          } else if (cell.icon === 'cross') {
+            iconHtml = '<span style="color:#ef4444;font-weight:900;margin-right:4px;">✕</span>';
+          } else if (cell.icon === 'info') {
+            iconHtml = '<span style="color:#0d9488;font-weight:900;margin-right:4px;">✓</span>';
+          }
+          valueHtml = `<span class="feature-value">${cell.text}</span>`;
+          html += `<td>${iconHtml}${valueHtml}</td>`;
+
+        } else if (row.capKey) {
+          // Dynamic cap-driven cell
+          const val = capTableValue(plan.caps, row.capKey);
+          if (val === 'Included' || val === 'Unlimited') {
+            iconHtml = '<span style="color:#10b981;font-weight:900;margin-right:4px;">✓</span>';
+          } else if (val === 'None') {
+            iconHtml = '<span style="color:#ef4444;font-weight:900;margin-right:4px;">✕</span>';
+          } else {
+            iconHtml = '<span style="color:#0d9488;font-weight:900;margin-right:4px;">✓</span>';
+          }
+          const footnote = row.footnote ? row.footnote(plan) : '';
+          html += `<td>${iconHtml}<span class="feature-value">${val}</span>${footnote}</td>`;
+        }
+      });
+
+      html += '</tr>';
+    });
+
+
+
+    html += '</tbody></table></div>';
+    grid.innerHTML = html;
+  }
+
+
+
+  function showError(msg) {
+    // Show error in a visible div — alerts can be suppressed in PWA/WebView
+    let box = document.getElementById('planErrorBox');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'planErrorBox';
+      box.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);background:#fee2e2;border:1.5px solid #fca5a5;color:#991b1b;padding:.75rem 1.25rem;border-radius:.75rem;font-size:.875rem;font-weight:600;z-index:99999;max-width:90%;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.15);cursor:pointer;';
+      box.onclick = () => box.remove();
+      document.body.appendChild(box);
+    }
+    box.textContent = msg + ' (tap to dismiss)';
+    setTimeout(() => box?.remove(), 8000);
+  }
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#10b981;color:#fff;padding:.65rem 1.25rem;border-radius:.75rem;font-size:.875rem;font-weight:700;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+  }
+
+  let appliedVoucherCode = null;
+  let emoraPacks = [];
+
+  function closeModal() {
+    document.getElementById('upgradeModal')?.remove();
+  }
+
+  async function subscribe(planId) {
+    const plan = plans.find(p=>p.id===planId);
+    if (!plan) return;
+
+    closeModal();
+    appliedVoucherCode = null; // reset
+    const modal = document.createElement('div');
+    modal.id = 'upgradeModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+    const autoRenewSection = plan.is_free ? '' : `
+      <label class="ar-checkbox-row" for="arCheckbox" style="margin-bottom:0.75rem;">
+        <input type="checkbox" id="arCheckbox" checked>
+        <div class="ar-checkbox-text">
+          <strong>&#128260; Enable Auto-Renewal</strong>
+          This plan will be auto renewed every ${('annual,yearly'.includes(plan.billing_cycle) || plan.name.toLowerCase() === 'blue') ? 'year' : 'month'} and you can stop auto renewals anytime from your plan settings.
+        </div>
+      </label>`;
+
+    const voucherSection = plan.is_free ? '' : `
+      <div style="margin: 0 0 1.25rem; text-align: left;">
+        <label style="display:block;font-size:.8rem;font-weight:700;color:#4b5563;margin-bottom:.3rem;">Have a voucher code?</label>
+        <div style="display:flex;gap:.4rem;">
+          <input type="text" id="voucherInput" placeholder="ENTER CODE" style="flex:1;padding:.5rem .75rem;border-radius:.5rem;border:1.5px solid #d1d5db;font-size:.85rem;font-family:monospace;text-transform:uppercase;">
+          <button type="button" onclick="applyVoucher('plan', ${plan.id})" style="padding:.5rem 1rem;border-radius:.5rem;border:none;background:#1f2937;color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Apply</button>
+        </div>
+        <div id="voucherMessage" style="margin-top:.35rem;font-size:.78rem;display:none;"></div>
+      </div>`;
+
+    const currentPlan = plans.find(p => p.id === currentPlanId);
+    const oldPlanPrice = currentPlan ? currentPlan.price : 0;
+    const isUpgrade = plan.price > oldPlanPrice;
+    const effectiveDiscount = isUpgrade ? proratedDiscount : 0.0;
+
+    const finalPrice = Math.max(0.0, plan.price - effectiveDiscount);
+    const totalAmt = finalPrice * 1.18;
+    let discountSection = '';
+    if (effectiveDiscount > 0 && plan.price > 0) {
+      const actualDiscount = Math.min(effectiveDiscount, plan.price);
+      discountSection = `
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:.5rem;margin-bottom:1rem;font-size:.78rem;color:#166534;font-weight:600;display:flex;justify-content:space-between;">
+          <span>Prorated discount:</span>
+          <span>-&#8377;${actualDiscount.toFixed(2)}</span>
+        </div>`;
+    }
+
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:20px;padding:2rem;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center;">
+        <div style="font-size:2.5rem;margin-bottom:.75rem;">&#128260;</div>
+        <h2 style="font-size:1.2rem;font-weight:800;color:#1f2937;margin:0 0 .5rem;">Switch to ${plan.name} Plan</h2>
+        <p id="upgradeChargeText" style="font-size:.88rem;color:#6b7280;margin:0 0 1rem;line-height:1.5;">
+          ${plan.is_free
+            ? 'You will switch to the free plan immediately.'
+            : `You will be charged <strong style="color:#0d9488;">&#8377;${totalAmt.toFixed(2)} (&#8377;${finalPrice.toFixed(2)} + 18% GST)</strong> via Razorpay.`}
+        </p>
+        ${discountSection}
+        <div id="voucherDiscountContainer"></div>
+        ${voucherSection}
+        ${autoRenewSection}
+        <div style="display:flex;gap:.75rem;">
+          <button onclick="closeModal()" style="flex:1;padding:.75rem;border-radius:.75rem;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-weight:700;font-size:.9rem;cursor:pointer;">Cancel</button>
+          <button id="confirmUpgradeBtn" onclick="confirmSubscribe(${plan.id})" style="flex:1;padding:.75rem;border-radius:.75rem;border:none;background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;">${plan.is_free ? 'Switch Now' : 'Pay &#8377;' + totalAmt.toFixed(2)}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+
+  async function applyVoucher(type, targetId) {
+    const codeInput = document.getElementById('voucherInput');
+    const code = (codeInput?.value || '').trim().toUpperCase();
+    const msgEl = document.getElementById('voucherMessage');
+    if (!code) return;
+
+    try {
+      const response = await fetch('/api/vouchers/apply', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code, type, target_id: targetId})
+      });
+      const data = await response.json();
+      if (data.success) {
+        appliedVoucherCode = code;
+        msgEl.style.color = '#15803d';
+        msgEl.style.fontWeight = 'bold';
+        msgEl.innerText = `✓ Code ${code} applied: ₹${data.discount_amount.toFixed(2)} off!`;
+        msgEl.style.display = 'block';
+
+        const finalPrice = data.final_price;
+        const totalWithGst = finalPrice * 1.18;
+        
+        const vContainer = document.getElementById('voucherDiscountContainer');
+        vContainer.innerHTML = `
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:.5rem;margin-bottom:1rem;font-size:.78rem;color:#15803d;font-weight:600;display:flex;justify-content:space-between;">
+            <span>Voucher Discount (${code}):</span>
+            <span>-₹${data.discount_amount.toFixed(2)}</span>
+          </div>`;
+
+        const chargeTextEl = document.getElementById('upgradeChargeText');
+        const packChargeTextEl = document.getElementById('packChargeText');
+        
+        if (chargeTextEl) {
+          if (totalWithGst === 0) {
+             chargeTextEl.innerHTML = `You will switch to this plan for <strong style="color:#0d9488;">₹0.00 (100% off)</strong>.`;
+          } else {
+             chargeTextEl.innerHTML = `You will be charged <strong style="color:#0d9488;">₹${totalWithGst.toFixed(2)} (₹${finalPrice.toFixed(2)} + 18% GST)</strong>.`;
+          }
+        }
+        if (packChargeTextEl) {
+          if (totalWithGst === 0) {
+             packChargeTextEl.innerHTML = `You will get this package for <strong style="color:#7c3aed;">₹0.00 (100% off)</strong>.`;
+          } else {
+             packChargeTextEl.innerHTML = `You will be charged <strong style="color:#7c3aed;">₹${totalWithGst.toFixed(2)} (₹${finalPrice.toFixed(2)} + 18% GST)</strong>.`;
+          }
+        }
+        
+        const btn = document.getElementById('confirmUpgradeBtn');
+        if (btn) {
+          btn.innerHTML = totalWithGst === 0 ? 'Switch Now' : `Pay ₹${totalWithGst.toFixed(2)}`;
+        }
+        const packBtn = document.getElementById('confirmPackBtn');
+        if (packBtn) {
+          packBtn.innerHTML = totalWithGst === 0 ? 'Claim Now' : `Pay ₹${totalWithGst.toFixed(2)}`;
+        }
+      } else {
+        appliedVoucherCode = null;
+        msgEl.style.color = '#dc2626';
+        msgEl.style.fontWeight = 'bold';
+        msgEl.innerText = '✗ ' + (data.error || 'Invalid voucher code');
+        msgEl.style.display = 'block';
+        
+        document.getElementById('voucherDiscountContainer').innerHTML = '';
+        resetModalPricing(type, targetId);
+      }
+    } catch(err) {
+      showError('Error validating voucher: ' + err.message);
+    }
+  }
+
+  function resetModalPricing(type, targetId) {
+    if (type === 'plan') {
+      const plan = plans.find(p=>p.id===targetId);
+      if (!plan) return;
+      const currentPlan = plans.find(p => p.id === currentPlanId);
+      const oldPlanPrice = currentPlan ? currentPlan.price : 0;
+      const isUpgrade = plan.price > oldPlanPrice;
+      const effectiveDiscount = isUpgrade ? proratedDiscount : 0.0;
+      const finalPrice = Math.max(0.0, plan.price - effectiveDiscount);
+      const totalWithGst = finalPrice * 1.18;
+      
+      const chargeTextEl = document.getElementById('upgradeChargeText');
+      if (chargeTextEl) {
+         chargeTextEl.innerHTML = `You will be charged <strong style="color:#0d9488;">₹${totalWithGst.toFixed(2)} (₹${finalPrice.toFixed(2)} + 18% GST)</strong>.`;
+      }
+      const btn = document.getElementById('confirmUpgradeBtn');
+      if (btn) {
+         btn.innerHTML = `Pay ₹${totalWithGst.toFixed(2)}`;
+      }
+    } else {
+       const pack = emoraPacks.find(p => p.pack_id === targetId);
+       if (!pack) return;
+       const totalWithGst = pack.price * 1.18;
+       const chargeTextEl = document.getElementById('packChargeText');
+       if (chargeTextEl) {
+          chargeTextEl.innerHTML = `You will be charged <strong style="color:#7c3aed;">₹${totalWithGst.toFixed(2)} (₹${pack.price.toFixed(2)} + 18% GST)</strong>.`;
+       }
+       const btn = document.getElementById('confirmPackBtn');
+       if (btn) {
+          btn.innerHTML = `Pay ₹${totalWithGst.toFixed(2)}`;
+       }
+    }
+  }
+
+  // ── Plan Downgrade with Pro-Rated Refund ──────────────────────────────────
+
+  async function downgrade(planId) {
+    const plan = plans.find(p => p.id === planId);
+    if (!plan) return;
+
+    // Fetch refund preview from server
+    let preview;
+    try {
+      const r = await fetch(`/api/plans/downgrade/preview?plan_id=${planId}`, {
+        credentials: 'include',
+      });
+      preview = await r.json();
+      if (!preview.success) {
+        showError(preview.error || 'Could not calculate refund. Please try again.');
+        return;
+      }
+    } catch(e) {
+      showError('Network error: ' + e.message);
+      return;
+    }
+
+    closeModal();
+    const modal = document.createElement('div');
+    modal.id = 'upgradeModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+    const refundAmt = preview.refund_amount || 0;
+    const refundRow = refundAmt > 0
+      ? `<div style="display:flex;justify-content:space-between;font-size:.9rem;font-weight:800;color:#059669;padding:.6rem .75rem;background:#f0fdf4;border-radius:.5rem;margin-top:.25rem;">
+           <span>&#x1F4B0; Refund to your account</span>
+           <span>+&#8377;${refundAmt.toFixed(2)}</span>
+         </div>`
+      : `<div style="font-size:.8rem;color:#6b7280;text-align:center;margin-top:.25rem;">No refund applicable.</div>`;
+
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:20px;padding:2rem;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="text-align:center;margin-bottom:1rem;">
+          <div style="font-size:2.5rem;">&#11015;&#65039;</div>
+          <h2 style="font-size:1.15rem;font-weight:800;color:#1f2937;margin:.5rem 0 .25rem;">Downgrade to ${preview.new_plan_name} Plan</h2>
+          <p style="font-size:.82rem;color:#6b7280;margin:0;">Your pro-rated refund breakdown</p>
+        </div>
+        <div style="background:#f9fafb;border-radius:.75rem;padding:1rem;display:flex;flex-direction:column;gap:.4rem;font-size:.85rem;margin-bottom:1rem;">
+          <div style="display:flex;justify-content:space-between;color:#374151;">
+            <span>Amount paid for ${preview.current_plan_name} (incl. GST)</span>
+            <span style="font-weight:700;">&#8377;${preview.previous_plan_paid.toFixed(2)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;color:#374151;">
+            <span>Usage deduction (${preview.days_used} of ${preview.billing_days} days)</span>
+            <span style="font-weight:700;color:#dc2626;">&#x2212;&#8377;${preview.amount_to_deduct.toFixed(2)}</span>
+          </div>
+          ${preview.new_plan_cost_with_gst > 0 ? `
+          <div style="display:flex;justify-content:space-between;color:#374151;">
+            <span>${preview.new_plan_name} plan activation (incl. GST)</span>
+            <span style="font-weight:700;color:#dc2626;">&#x2212;&#8377;${preview.new_plan_cost_with_gst.toFixed(2)}</span>
+          </div>` : ''}
+          <div style="border-top:1px solid #e5e7eb;margin-top:.25rem;padding-top:.25rem;">
+            ${refundRow}
+          </div>
+        </div>
+        ${refundAmt > 0 ? '<p style="font-size:.75rem;color:#9ca3af;text-align:center;margin:0 0 1rem;">Refund credited within 5&#x2013;7 working days via your original payment method.</p>' : ''}
+        <div style="display:flex;gap:.75rem;">
+          <button onclick="closeModal()" style="flex:1;padding:.75rem;border-radius:.75rem;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-weight:700;font-size:.9rem;cursor:pointer;">Cancel</button>
+          <button id="confirmDowngradeBtn" onclick="confirmDowngrade(${planId})" style="flex:1;padding:.75rem;border-radius:.75rem;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;">Confirm Downgrade</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+
+  async function confirmDowngrade(planId) {
+    const btn = document.getElementById('confirmDowngradeBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Processing\u2026'; }
+    try {
+      const r = await fetch('/api/plans/downgrade', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({plan_id: planId}),
+      });
+      const d = await r.json();
+      closeModal();
+      if (d.success) {
+        const refundMsg = d.refund_amount > 0
+          ? ` \u20B9${d.refund_amount.toFixed(2)} refund initiated.`
+          : '';
+        showToast(`Downgraded to ${d.new_plan} plan.${refundMsg} \u2713`);
+        setTimeout(() => location.reload(), 2200);
+      } else {
+        showError(d.error || 'Downgrade failed. Please try again.');
+      }
+    } catch(e) {
+      closeModal();
+      showError('Network error: ' + e.message);
+    }
+  }
+
+  async function confirmSubscribe(planId) {
+    const btn = document.getElementById('confirmUpgradeBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Creating order\u2026'; }
+
+    // Read auto-renew checkbox (only present for paid plans)
+    const arCb = document.getElementById('arCheckbox');
+    const enableAutoRenew = arCb ? arCb.checked : false;
+
+    let d;
+    try {
+      const r = await fetch('/api/plans/subscribe', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({plan_id: planId, page_token: PAGE_TOKEN, enable_auto_renew: enableAutoRenew, voucher_code: appliedVoucherCode}),
+      });
+      d = await r.json();
+    } catch(e) {
+      closeModal();
+      showError('Network error: ' + e.message + '. Please try again.');
+      return;
+    }
+
+    if (!d || !d.success) {
+      closeModal();
+      showError(d?.error || 'Server error. Please try again.');
+      return;
+    }
+
+    if (d.activated) {
+      closeModal();
+      showToast('Plan activated! \u2713');
+      setTimeout(() => location.reload(), 1200);
+      return;
+    }
+
+    // Paid — open Razorpay
+    if (!RZ_KEY) {
+      closeModal();
+      showError('Payment gateway key missing. Contact support.');
+      return;
+    }
+
+    if (!window.Razorpay) {
+      closeModal();
+      showError('Razorpay not loaded. Please refresh the page and try again.');
+      return;
+    }
+
+    closeModal();
+
+    const totalAmt = d.amount / 100;
+    const baseAmt = totalAmt / 1.18;
+    const gstAmt = totalAmt - baseAmt;
+
+    const options = {
+      key:         RZ_KEY,
+      amount:      d.amount,
+      currency:    'INR',
+      name:        'SolaceSquad',
+      description: d.plan_name + ' Plan (Base: ₹' + baseAmt.toFixed(2) + ' + 18% GST: ₹' + gstAmt.toFixed(2) + ')',
+      order_id:    d.order_id,
+      prefill:     {},
+      theme:       { color: '#0d9488' },
+      handler: async function(resp) {
+        try {
+          const v = await fetch('/api/plans/payment-verify', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(resp),
+          });
+          const vd = await v.json();
+          if (vd.success) {
+            showToast('Payment successful! Plan activated \u2713');
+            setTimeout(() => location.reload(), 1500);
+          } else {
+            showError('Payment verification failed. Contact support@solacesquad.com');
+          }
+        } catch(e) {
+          showError('Verification network error: ' + e.message);
+        }
+      },
+      modal: {
+        ondismiss: function() {
+          showToast('Payment cancelled — your previous plan is still active.');
+          setTimeout(() => location.reload(), 1500);
+        }
+      },
+    };
+
+    try {
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function(resp) {
+        showError('Payment failed: ' + (resp.error?.description || 'Unknown error'));
+      });
+      rzp.open();
+    } catch(e) {
+      showError('Could not open payment gateway: ' + e.message);
+    }
+  }
+
+  loadPlans();
+
+  // ══ Subscription Status Card ══════════════════════════════════════════
+
+  function fmtDate(iso) {
+    if (!iso) return 'N/A';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'});
+  }
+
+  async function loadSubscriptionCard() {
+    try {
+      const r = await fetch('/api/subscription/status', {credentials:'include'});
+      const d = await r.json();
+      if (!d.success) return;
+      const sub = d.subscription;
+      const wrap = document.getElementById('subCardWrap');
+      if (!sub || sub.is_free) { wrap.innerHTML = ''; return; }
+
+      // Determine badge
+      let badge = '', bannerHtml = '', actionsHtml = '';
+      const gracePeriodEnds = sub.grace_period_ends_at ? fmtDate(sub.grace_period_ends_at) : null;
+
+      if (gracePeriodEnds) {
+        bannerHtml = `<div class="grace-banner">&#9888; Payment failed &mdash; your access continues until <strong>${gracePeriodEnds}</strong>. Please re-subscribe to avoid downgrade.</div>`;
+        badge = '<span class="sub-status-badge grace">&#9888; Grace Period</span>';
+      } else if (sub.status === 'paused') {
+        badge = '<span class="sub-status-badge paused">&#9646;&#9646; Paused</span>';
+      } else if (sub.cancelled_at && !sub.auto_renew) {
+        badge = '<span class="sub-status-badge cancelled">&#10007; Auto-Renew Off</span>';
+      } else {
+        badge = '<span class="sub-status-badge active">&#10003; Active</span>';
+      }
+
+      // Info rows
+      const expiryLabel = sub.auto_renew && sub.next_renewal_at
+        ? `Next renewal: <strong>${fmtDate(sub.next_renewal_at)}</strong> &middot; &#8377;${sub.plan_price.toLocaleString('en-IN')}`
+        : `Expires: <strong>${fmtDate(sub.expires_at)}</strong>`;
+
+      // Action buttons based on state
+      if (sub.status === 'paused') {
+        const pausedUntil = sub.expires_at ? ` until ${fmtDate(sub.expires_at)}` : '';
+        bannerHtml += `<div class="pause-banner">&#9646;&#9646; Your plan is paused. You still have full access${pausedUntil}. Resume anytime to re-activate auto-renewal.</div>`;
+        actionsHtml = `
+          <button class="sub-btn success" onclick="subAction('resume')">&#9654; Resume Plan</button>
+          <button class="sub-btn danger" onclick="subAction('cancel')">Cancel Plan</button>`;
+      } else if (sub.auto_renew) {
+        // Auto-renewal is ON — show cancel auto-renewal
+        actionsHtml = `
+          <button class="sub-btn danger" onclick="subAction('cancel')">Cancel Auto-Renewal</button>`;
+      } else {
+        // Auto-renewal is OFF — show enable auto-renewal
+        actionsHtml = `
+          <button class="sub-btn success" onclick="enableAutoRenewFromCard()">&#128260; Enable Auto-Renewal</button>`;
+      }
+
+      const toggleChecked = sub.auto_renew ? 'checked' : '';
+      const toggleDisabled = sub.status === 'paused' ? 'disabled' : '';
+
+      wrap.innerHTML = `
+        <div class="sub-card">
+          <div class="sub-card-header">
+            <div class="sub-card-title">&#128203; My Subscription</div>
+            ${badge}
+          </div>
+          ${bannerHtml}
+          <div class="sub-info-row">
+            <div class="sub-info-item">Plan: <strong>${sub.plan_name}</strong></div>
+            <div class="sub-info-item">${expiryLabel}</div>
+          </div>
+          ${sub.status !== 'paused' ? `
+          <div class="ar-toggle-row">
+            <label class="toggle-switch">
+              <input type="checkbox" id="arDashToggle" ${toggleChecked} ${toggleDisabled} onchange="toggleAutoRenew(this)">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="ar-toggle-label">Auto-Renewal ${sub.auto_renew ? 'ON' : 'OFF'}</span>
+          </div>` : ''}
+          <div class="sub-actions">${actionsHtml}</div>
+        </div>`;
+    } catch(e) { console.error('loadSubscriptionCard:', e); }
+  }
+
+  async function toggleAutoRenew(cb) {
+    cb.disabled = true;
+    try {
+      const r = await fetch('/api/subscription/toggle-autorenew', {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+      });
+      const d = await r.json();
+      if (d.success) {
+        showToast(d.auto_renew ? 'Auto-renewal enabled ✓' : 'Auto-renewal disabled');
+        setTimeout(() => loadSubscriptionCard(), 600);
+      } else {
+        showError(d.error || 'Could not update auto-renewal');
+        cb.checked = !cb.checked;
+      }
+    } catch(e) {
+      showError('Network error. Please try again.');
+      cb.checked = !cb.checked;
+    } finally { cb.disabled = false; }
+  }
+
+  async function enableAutoRenewFromCard() {
+    const r = await fetch('/api/subscription/toggle-autorenew', {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+    });
+    const d = await r.json();
+    if (d.success) { showToast('Auto-renewal enabled ✓'); loadSubscriptionCard(); }
+    else showError(d.error || 'Could not enable auto-renewal');
+  }
+
+  async function subAction(action) {
+    const labels = {
+      pause:  {msg:'Pause your plan?\n\n✅ You keep full access until your billing cycle ends.\n⏸ Auto-renewal will stop.\n▶ You can resume anytime to re-activate.', btn:'Pause Plan'},
+      resume: {msg:'Resume your plan?\n\n✅ Your plan will become active again.\n🔄 You can re-enable auto-renewal after resuming.', btn:'Resume Plan'},
+      cancel: {msg:'Cancel your plan?\n\n⚠️ Auto-renewal will be turned off.\n✅ You keep access until your current billing cycle ends.\nThis cannot be undone.', btn:'Cancel Plan'},
+    };
+    const l = labels[action];
+    if (!l) return;
+    if (!confirm(l.msg)) return;
+    try {
+      const r = await fetch(`/api/subscription/${action}`, {
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+      });
+      const d = await r.json();
+      if (d.success) {
+        showToast(d.message || 'Done ✓');
+        setTimeout(() => { loadSubscriptionCard(); loadPlans(); }, 800);
+      } else {
+        showError(d.error || 'Action failed. Please try again.');
+      }
+    } catch(e) { showError('Network error: ' + e.message); }
+  }
+
+  // ══ Emora Pack Store ══════════════════════════════════════════════
+
+  const EP_COLOURS = {
+    S: { bg:'#f0fdf4', border:'#6ee7b7', btn:'linear-gradient(135deg,#059669,#0d9488)', pill:'#d1fae5', pillTxt:'#065f46', icon:'💬' },
+    M: { bg:'#f5f3ff', border:'#c4b5fd', btn:'linear-gradient(135deg,#7c3aed,#6d28d9)', pill:'#ede9fe', pillTxt:'#5b21b6', icon:'⚡' },
+    L: { bg:'#fff1f2', border:'#fca5a5', btn:'linear-gradient(135deg,#dc2626,#b91c1c)', pill:'#fee2e2', pillTxt:'#991b1b', icon:'🚀' },
+  };
+
+  async function loadEmoraPacks() {
+    try {
+      const r = await fetch('/api/emora-packs');
+      const d = await r.json();
+      if (!d.success) throw new Error('API error');
+
+      const packs = d.packs || [];
+      emoraPacks = packs; // store globally
+      const grid  = document.getElementById('emoraPacksGrid');
+      const banner = document.getElementById('emoraPackDiscountBanner');
+
+      const hasDiscount = packs.some(p => p.discount_pct > 0);
+      if (hasDiscount && banner) banner.style.display = 'block';
+
+      if (!packs.length) {
+        grid.innerHTML = '<p style="color:#9ca3af;text-align:center;">No packs available.</p>';
+        return;
+      }
+
+      grid.innerHTML = packs.map(pack => {
+        const c = EP_COLOURS[pack.pack_id] || EP_COLOURS.S;
+        const discountBadge = pack.discount_pct > 0
+          ? `<span class="ep-pill" style="background:${c.pill};color:${c.pillTxt};">-${pack.discount_pct}% off</span>`
+          : '';
+        const priceHtml = pack.discount_pct > 0
+          ? `<span class="ep-price-orig">₹${pack.original_price.toLocaleString('en-IN')}</span><span class="ep-price">₹${pack.price.toLocaleString('en-IN')} + GST</span>`
+          : `<span class="ep-price">₹${pack.price.toLocaleString('en-IN')} + GST</span>`;
+
+        return `
+          <div class="ep-card" style="background:${c.bg};border-color:${c.border};">
+            <div class="ep-card-header">
+              <div class="ep-card-icon">${c.icon}</div>
+              <div>
+                <div class="ep-card-name">${pack.name}${discountBadge}</div>
+                <div class="ep-card-msgs">${pack.messages.toLocaleString('en-IN')} messages</div>
+              </div>
+            </div>
+            <div>
+              <div>${priceHtml}</div>
+              <div class="ep-validity">♾️ Lifetime &mdash; never expire</div>
+            </div>
+            <button class="ep-buy-btn" style="background:${c.btn};" onclick="buyEmoraPack('${pack.pack_id}')">
+              Buy Now
+            </button>
+          </div>`;
+      }).join('');
+    } catch(e) {
+      document.getElementById('emoraPacksGrid').innerHTML =
+        '<p style="color:#ef4444;text-align:center;font-size:.85rem;">Could not load packs. Please refresh and try again.</p>';
+    }
+  }
+
+  async function buyEmoraPack(packId) {
+    const pack = emoraPacks.find(p=>p.pack_id===packId);
+    if (!pack) return;
+
+    closeModal();
+    appliedVoucherCode = null; // reset
+    const modal = document.createElement('div');
+    modal.id = 'upgradeModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+    const voucherSection = `
+      <div style="margin: 0 0 1.25rem; text-align: left;">
+        <label style="display:block;font-size:.8rem;font-weight:700;color:#4b5563;margin-bottom:.3rem;">Have a voucher code?</label>
+        <div style="display:flex;gap:.4rem;">
+          <input type="text" id="voucherInput" placeholder="ENTER CODE" style="flex:1;padding:.5rem .75rem;border-radius:.5rem;border:1.5px solid #d1d5db;font-size:.85rem;font-family:monospace;text-transform:uppercase;">
+          <button type="button" onclick="applyVoucher('package', '${pack.pack_id}')" style="padding:.5rem 1rem;border-radius:.5rem;border:none;background:#1f2937;color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;">Apply</button>
+        </div>
+        <div id="voucherMessage" style="margin-top:.35rem;font-size:.78rem;display:none;"></div>
+      </div>`;
+
+    const totalAmt = pack.price * 1.18;
+
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:20px;padding:2rem;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center;">
+        <div style="font-size:2.5rem;margin-bottom:.75rem;">💬</div>
+        <h2 style="font-size:1.2rem;font-weight:800;color:#1f2937;margin:0 0 .5rem;">Buy ${pack.name}</h2>
+        <p id="packChargeText" style="font-size:.88rem;color:#6b7280;margin:0 0 1rem;line-height:1.5;">
+          You will be charged <strong style="color:#7c3aed;">₹${totalAmt.toFixed(2)} (₹${pack.price.toFixed(2)} + 18% GST)</strong> via Razorpay.
+        </p>
+        <div id="voucherDiscountContainer"></div>
+        ${voucherSection}
+        <div style="display:flex;gap:.75rem;">
+          <button onclick="closeModal()" style="flex:1;padding:.75rem;border-radius:.75rem;border:1.5px solid #e5e7eb;background:#fff;color:#6b7280;font-weight:700;font-size:.9rem;cursor:pointer;">Cancel</button>
+          <button id="confirmPackBtn" onclick="confirmBuyEmoraPack('${pack.pack_id}')" style="flex:1;padding:.75rem;border-radius:.75rem;border:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;">Pay ₹${totalAmt.toFixed(2)}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+
+  async function confirmBuyEmoraPack(packId) {
+    const btn = document.getElementById('confirmPackBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Creating order\u2026'; }
+
+    let d;
+    try {
+      const r = await fetch('/api/emora-packs/buy', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ pack_id: packId, voucher_code: appliedVoucherCode }),
+      });
+      d = await r.json();
+    } catch(e) {
+      closeModal();
+      showError('Network error: ' + e.message + '. Please try again.');
+      return;
+    }
+
+    if (!d || !d.success) {
+      closeModal();
+      showError(d?.error || 'Could not create order. Please try again.');
+      return;
+    }
+
+    if (d.activated) {
+      closeModal();
+      showToast('✅ ' + (d.messages_credited || 0).toLocaleString('en-IN') + ' Emora messages added! 🎉');
+      setTimeout(() => location.reload(), 1200);
+      return;
+    }
+
+    if (!RZ_KEY) {
+      closeModal();
+      showError('Payment gateway key missing. Contact support.');
+      return;
+    }
+    if (!window.Razorpay) {
+      closeModal();
+      showError('Razorpay not loaded. Please refresh and try again.');
+      return;
+    }
+
+    closeModal();
+
+    const totalAmt = d.amount / 100;
+    const baseAmt = totalAmt / 1.18;
+    const gstAmt = totalAmt - baseAmt;
+
+    const options = {
+      key:         RZ_KEY,
+      amount:      d.amount,
+      currency:    'INR',
+      name:        'SolaceSquad',
+      description: d.pack_name + ' — ' + (d.messages || 0).toLocaleString('en-IN') + ' messages (Base: ₹' + baseAmt.toFixed(2) + ' + 18% GST: ₹' + gstAmt.toFixed(2) + ')',
+      order_id:    d.order_id,
+      prefill:     {},
+      theme:       { color: '#7c3aed' },
+      handler: async function(resp) {
+        try {
+          const v  = await fetch('/api/emora-packs/verify', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(resp),
+          });
+          const vd = await v.json();
+          if (vd.success) {
+            showToast('✅ ' + (d.messages || 0).toLocaleString('en-IN') + ' Emora messages added! 🎉');
+            setTimeout(() => location.reload(), 1800);
+          } else {
+            showError('⚠️ Payment received but verification failed. Contact support@solacesquad.com');
+          }
+        } catch(e) {
+          showError('Verification network error: ' + e.message);
+        }
+      },
+      modal: {
+        ondismiss: function() {
+          showToast('Purchase cancelled.');
+        }
+      }
+    };
+
+    try {
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', resp => {
+        showError('Payment failed: ' + (resp.error?.description || 'Unknown error'));
+      });
+      rzp.open();
+    } catch(e) {
+      showError('Could not open payment gateway: ' + e.message);
+    }
+  }
+
+  loadPlans();
+  loadEmoraPacks();
+  loadSubscriptionCard();
+
+</script>
+{% endblock %}

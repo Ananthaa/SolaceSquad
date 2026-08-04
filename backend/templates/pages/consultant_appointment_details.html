@@ -1,0 +1,275 @@
+{% extends "layouts/protected.html" %}
+
+
+{% block content %}
+<!-- Header -->
+<div class="mb-6">
+    <div class="flex items-center gap-3 mb-4">
+        <a href="/consultant" class="text-gray-600 hover:text-gray-900">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+        </a>
+        <h1 class="text-3xl font-display font-bold text-gray-900">
+            Appointment Details
+        </h1>
+    </div>
+</div>
+
+<!-- Loading State -->
+<div id="loading" class="text-center py-12">
+    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+    <p class="mt-4 text-gray-600">Loading appointment details...</p>
+</div>
+
+<!-- Main Content (Hidden until loaded) -->
+<div id="content" class="hidden">
+    <!-- Appointment Info Card -->
+    <div class="card mb-6">
+        <div class="flex items-start justify-between mb-6">
+            <div class="flex items-center gap-4">
+                <div id="client-avatar"
+                    class="w-16 h-16 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center text-white font-semibold text-xl">
+                </div>
+                <div>
+                    <h2 id="client-name" class="text-2xl font-display font-bold text-gray-900"></h2>
+                    <div class="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                            <span id="appointment-date"></span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="clock" class="w-4 h-4"></i>
+                            <span id="appointment-time"></span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="timer" class="w-4 h-4"></i>
+                            <span id="appointment-duration"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="status-badge" class="px-4 py-2 rounded-full text-sm font-medium">
+            </div>
+        </div>
+
+        <!-- Notes (if any) -->
+        <div id="appointment-notes" class="hidden">
+            <div class="border-t pt-4">
+                <h3 class="text-sm font-semibold text-gray-700 mb-2">Appointment Notes</h3>
+                <p id="notes-content" class="text-gray-600"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card">
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="flex gap-6">
+                <button onclick="switchDetailsTab('summary')" id="tab-summary"
+                    class="details-tab-button active pb-3 px-1 border-b-2 border-primary-600 text-primary-600 font-medium">
+                    Consultation Summary
+                </button>
+                <button onclick="switchDetailsTab('recording')" id="tab-recording"
+                    class="details-tab-button pb-3 px-1 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium">
+                    Recording
+                </button>
+                <button onclick="switchDetailsTab('notes')" id="tab-notes"
+                    class="details-tab-button pb-3 px-1 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium">
+                    Consultation Notes
+                </button>
+            </nav>
+        </div>
+
+        <!-- Summary Tab -->
+        <div id="summary-tab" class="details-tab-content">
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Session Overview</h3>
+                    <div id="summary-content" class="prose max-w-none">
+                        <p class="text-gray-600">No summary available for this appointment.</p>
+                    </div>
+                </div>
+
+                <div class="border-t pt-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Key Points</h3>
+                    <ul id="key-points" class="space-y-2">
+                        <li class="text-gray-600">No key points recorded</li>
+                    </ul>
+                </div>
+
+                <div class="border-t pt-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Follow-up Actions</h3>
+                    <ul id="follow-up" class="space-y-2">
+                        <li class="text-gray-600">No follow-up actions</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recording Tab -->
+        <div id="recording-tab" class="details-tab-content hidden">
+            <div id="recording-player" class="bg-gray-50 rounded-xl p-8 text-center">
+                <i data-lucide="video-off" class="w-16 h-16 mx-auto mb-4 text-gray-400"></i>
+                <p class="text-gray-600 font-medium">No recording available</p>
+                <p class="text-sm text-gray-500 mt-2">Recordings are automatically saved when you join a call</p>
+            </div>
+        </div>
+
+        <!-- Notes Tab -->
+        <div id="notes-tab" class="details-tab-content hidden">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Consultation Notes</h3>
+                <div id="consultation-notes" class="prose max-w-none">
+                    <p class="text-gray-600">No consultation notes available.</p>
+                </div>
+            </div>
+
+            <!-- Add Notes Form -->
+            <div class="border-t mt-6 pt-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Add/Edit Notes</h3>
+                <form id="notes-form" class="space-y-4">
+                    <textarea id="notes-input" rows="6"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
+                        placeholder="Enter consultation notes..."></textarea>
+                    <button type="submit" class="btn btn-primary">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        Save Notes
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const appointmentId = window.location.pathname.split('/').pop();
+
+    // Tab switching
+    function switchDetailsTab(tab) {
+        document.querySelectorAll('.details-tab-button').forEach(btn => {
+            btn.classList.remove('active', 'border-primary-600', 'text-primary-600');
+            btn.classList.add('border-transparent', 'text-gray-600');
+        });
+
+        const activeTab = document.getElementById(`tab-${tab}`);
+        activeTab.classList.add('active', 'border-primary-600', 'text-primary-600');
+        activeTab.classList.remove('border-transparent', 'text-gray-600');
+
+        document.querySelectorAll('.details-tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+        document.getElementById(`${tab}-tab`).classList.remove('hidden');
+    }
+
+    // Load appointment details
+    window.addEventListener('DOMContentLoaded', function () {
+        loadAppointmentDetails();
+    });
+
+    function loadAppointmentDetails() {
+        fetch(`/api/appointments/${appointmentId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.appointment) {
+                    const appt = data.appointment;
+
+                    // Update header info
+                    const initials = getInitials(appt.client_name);
+                    document.getElementById('client-avatar').textContent = initials;
+                    document.getElementById('client-name').textContent = appt.client_name;
+
+                    const date = new Date(appt.appointment_date);
+                    document.getElementById('appointment-date').textContent = date.toLocaleDateString('en-US', {
+                        month: 'long', day: 'numeric', year: 'numeric'
+                    });
+                    document.getElementById('appointment-time').textContent = date.toLocaleTimeString('en-US', {
+                        hour: 'numeric', minute: '2-digit', hour12: true
+                    });
+                    document.getElementById('appointment-duration').textContent = `${appt.duration_minutes} minutes`;
+
+                    // Status badge
+                    const statusBadge = document.getElementById('status-badge');
+                    if (appt.status === 'completed') {
+                        statusBadge.className = 'px-4 py-2 rounded-full text-sm font-medium bg-green-100 text-green-700';
+                        statusBadge.textContent = 'Completed';
+                    } else {
+                        statusBadge.className = 'px-4 py-2 rounded-full text-sm font-medium bg-gray-100 text-gray-700';
+                        statusBadge.textContent = 'Expired';
+                    }
+
+                    // Appointment notes
+                    if (appt.notes) {
+                        document.getElementById('appointment-notes').classList.remove('hidden');
+                        document.getElementById('notes-content').textContent = appt.notes;
+                    }
+
+                    // Load consultation notes if available
+                    if (appt.consultation_notes) {
+                        document.getElementById('consultation-notes').innerHTML = `<p class="text-gray-900">${appt.consultation_notes.replace(/\n/g, '<br>')}</p>`;
+                        document.getElementById('notes-input').value = appt.consultation_notes;
+                    }
+
+                    // Show content, hide loading
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('content').classList.remove('hidden');
+
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                } else {
+                    showError('Appointment not found');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading appointment:', error);
+                showError('Error loading appointment details');
+            });
+    }
+
+    function getInitials(name) {
+        const parts = name.split(' ');
+        if (parts.length >= 2) {
+            return parts[0][0] + parts[parts.length - 1][0];
+        }
+        return name.substring(0, 2);
+    }
+
+    function showError(message) {
+        document.getElementById('loading').innerHTML = `
+            <div class="text-center py-12">
+                <i data-lucide="alert-circle" class="w-16 h-16 mx-auto mb-4 text-red-500"></i>
+                <p class="text-red-600 font-medium">${message}</p>
+                <a href="/consultant" class="btn btn-primary mt-4">Back to Dashboard</a>
+            </div>
+        `;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Handle notes form submission
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('notes-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const notes = document.getElementById('notes-input').value;
+
+            fetch(`/api/appointments/${appointmentId}/notes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ consultation_notes: notes })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Notes saved successfully!');
+                        document.getElementById('consultation-notes').innerHTML = `<p class="text-gray-900">${notes.replace(/\n/g, '<br>')}</p>`;
+                    } else {
+                        alert('Error saving notes: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving notes:', error);
+                    alert('Error saving notes');
+                });
+        });
+    });
+</script>
+{% endblock %}

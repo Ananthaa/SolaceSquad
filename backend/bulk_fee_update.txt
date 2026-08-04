@@ -1,0 +1,61 @@
+
+# Bulk update consultant fees endpoint
+@app.post("/api/admin/consultants/bulk-update-fees")
+async def bulk_update_consultant_fees(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Set default fee for all consultants who have 0 fee"""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    # Get JSON body
+    import json
+    body = await request.body()
+    data = json.loads(body)
+    default_fee = data.get("default_fee", 500.0)  # Default to 500 if not specified
+    
+    # Update all consultants with 0 fee
+    consultants = db.query(ConsultantProfile).filter(
+        ConsultantProfile.consultation_fee == 0.0
+    ).all()
+    
+    updated_count = 0
+    for consultant in consultants:
+        consultant.consultation_fee = default_fee
+        updated_count += 1
+    
+    db.commit()
+    
+    return JSONResponse({
+        "success": True, 
+        "message": f"Updated {updated_count} consultants with fee ₹{default_fee}",
+        "updated_count": updated_count
+    })
+
+# Get all consultant fees endpoint
+@app.get("/api/admin/consultants/fees")
+async def get_all_consultant_fees(request: Request, db: Session = Depends(get_db)):
+    """Get all consultant fees for debugging"""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    consultants = db.query(ConsultantProfile).join(User).filter(
+        ConsultantProfile.is_approved == True
+    ).all()
+    
+    fees_data = []
+    for c in consultants:
+        fees_data.append({
+            "id": c.id,
+            "name": c.user.name,
+            "email": c.user.email,
+            "consultation_fee": c.consultation_fee,
+            "hourly_rate": c.hourly_rate
+        })
+    
+    return JSONResponse({"success": True, "consultants": fees_data})

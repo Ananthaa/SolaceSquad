@@ -1,0 +1,21 @@
+
+# Admin consultant fix page
+@app.get("/admin/consultant-fix", response_class=HTMLResponse)
+async def admin_consultant_fix_page(request: Request, db: Session = Depends(get_db)):
+    """Admin page for fixing consultant profiles"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+    
+    return templates.TemplateResponse(
+        "pages/admin_consultant_fix.html",
+        {
+            "request": request,
+            "page_title": "Fix Consultants - Admin",
+            "user": user
+        }
+    )

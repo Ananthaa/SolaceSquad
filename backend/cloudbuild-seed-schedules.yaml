@@ -1,0 +1,11 @@
+steps:
+  - name: 'python:3.11-slim'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        pip install pg8000 cloud-sql-python-connector sqlalchemy -q 2>/dev/null
+        python3 seed_schedules_backfill.py
+    dir: '.'
+
+timeout: 300s

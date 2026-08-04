@@ -1,520 +1,1624 @@
 {% extends "layouts/protected.html" %}
 
 {# Navigation items with Profile button added #}
-{% set nav_items = [
-{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
-{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
-{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
-{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
-{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
-{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
-{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
-{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
-{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
-{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'},
-{'icon': 'user', 'label': 'Profile', 'href': '/app/profile', 'key': 'profile'}
-] %}
 
 {% block dashboard_content %}
-<!-- Welcome Section -->
-<div class="mb-8">
-    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
-        Welcome back, {{ user.name }}! 👋
-    </h1>
-    <p class="text-gray-600">
-        Here's your wellbeing overview for today
-    </p>
+<style>
+    /* ── PWA Dashboard Layout ─────────────────────────────────────────── */
+    .db-root {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    /* Header strip */
+    .db-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .db-greeting h1 {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #111827;
+        letter-spacing: -.02em;
+        margin: 0 0 .15rem;
+    }
+
+    .db-greeting p {
+        color: #6b7280;
+        font-size: .9rem;
+        margin: 0;
+    }
+
+    /* Scan note pill */
+    .db-scan-pill {
+        display: none;
+        align-items: center;
+        gap: .5rem;
+        background: #f0fdfa;
+        border: 1px solid #99f6e4;
+        border-radius: 999px;
+        padding: .35rem .85rem;
+        font-size: .78rem;
+        color: #0f766e;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .db-scan-pill a {
+        color: #0d9488;
+        font-weight: 700;
+        text-decoration: none;
+        margin-left: .25rem;
+    }
+
+    /* ── Section labels ─────────────────── */
+    .db-section-label {
+        font-size: .7rem;
+        font-weight: 800;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+        color: #9ca3af;
+        margin-bottom: .6rem;
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+    }
+
+    /* ── THRYVEQ score band ─────────────── */
+    .ws-band {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: .75rem;
+    }
+
+    @media (max-width: 600px) {
+        .ws-band {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .ws-tile {
+        background: #fff;
+        border-radius: 1rem;
+        box-shadow: 0 1px 10px rgba(0, 0, 0, .07);
+        overflow: hidden;
+        transition: transform .18s, box-shadow .18s;
+    }
+
+    .ws-tile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, .11);
+    }
+
+    .ws-tile-hd {
+        background: linear-gradient(135deg, #0f766e, #0d9488);
+        color: #fff;
+        font-size: .66rem;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        padding: 7px 12px;
+    }
+
+    .ws-tile-bd {
+        padding: 14px 12px 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .ws-score {
+        font-size: 2.4rem;
+        font-weight: 900;
+        color: #22c55e;
+        line-height: 1;
+        letter-spacing: -.03em;
+    }
+
+    .ws-score.na {
+        font-size: 1.4rem;
+        color: #d1d5db;
+    }
+
+    .ws-badge {
+        display: block;
+        width: 100%;
+        text-align: center;
+        padding: 4px 0;
+        border-radius: 40px;
+        font-size: .72rem;
+        font-weight: 800;
+        letter-spacing: .04em;
+    }
+
+    .ws-badge.trend-Improving {
+        background: #16a34a;
+        color: #fff;
+    }
+
+    .ws-badge.trend-Stable {
+        background: #0d9488;
+        color: #fff;
+    }
+
+    .ws-badge.trend-Decreasing {
+        background: #e11d48;
+        color: #fff;
+    }
+
+    .ws-badge.trend-New {
+        background: #ca8a04;
+        color: #fff;
+    }
+
+    .ws-badge.trend-NA {
+        background: #f1f5f9;
+        color: #94a3b8;
+    }
+
+    .ws-compare {
+        font-size: .62rem;
+        color: #9ca3af;
+        font-weight: 500;
+    }
+
+    .ws-accent {
+        height: 3px;
+        background: linear-gradient(90deg, #14b8a6, #0d9488);
+    }
+
+    .ws-lock-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(248,250,252,.82);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: .3rem;
+        border-radius: 1rem;
+        backdrop-filter: blur(2px);
+        z-index: 2;
+    }
+    .ws-lock-icon { font-size: 1.4rem; }
+    .ws-lock-msg  { font-size: .72rem; font-weight: 700; color: #6b7280; }
+
+    .ws-tile { position: relative; } /* needed for overlay positioning */
+
+    .db-main {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 1.25rem;
+        align-items: start;
+    }
+
+    @media (max-width: 900px) {
+        .db-main {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ── Cards ──────────────────────────── */
+    .db-card {
+        background: #fff;
+        border-radius: 1.1rem;
+        box-shadow: 0 1px 10px rgba(0, 0, 0, .07);
+        padding: 1.25rem;
+    }
+
+    .db-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #111827;
+        margin: 0 0 1rem;
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    .db-card-title i {
+        width: 17px;
+        height: 17px;
+        color: #0d9488;
+    }
+
+    .db-card-title .db-card-sub {
+        margin-left: auto;
+        font-size: .72rem;
+        font-weight: 400;
+        color: #9ca3af;
+    }
+
+    /* ── Vitals row ─────────────────────── */
+    .vitals-row {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: .65rem;
+    }
+
+    @media (max-width: 700px) {
+        .vitals-row {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 420px) {
+        .vitals-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .vital-chip {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: .85rem;
+        padding: .85rem .6rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: .35rem;
+        text-align: center;
+    }
+
+    .vital-chip-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: .65rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .vital-chip-icon i {
+        width: 18px;
+        height: 18px;
+    }
+
+    .vital-chip-val {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #111827;
+        line-height: 1;
+    }
+
+    .vital-chip-val span {
+        font-size: .7rem;
+        font-weight: 400;
+        color: #6b7280;
+    }
+
+    .vital-chip-label {
+        font-size: .67rem;
+        color: #6b7280;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    /* ── Sub-score cards ────────────────── */
+    .sub-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: .65rem;
+    }
+
+    .sub-card {
+        border-radius: .85rem;
+        padding: .9rem;
+    }
+
+    .sub-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: .5rem;
+    }
+
+    .sub-card-label {
+        font-size: .67rem;
+        font-weight: 800;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+    }
+
+    .sub-card-num {
+        font-size: 1.35rem;
+        font-weight: 900;
+    }
+
+    .sub-bar {
+        border-radius: 999px;
+        height: 5px;
+        overflow: hidden;
+    }
+
+    .sub-bar-fill {
+        height: 100%;
+        border-radius: 999px;
+        transition: width .7s ease;
+    }
+
+    .sub-card-note {
+        font-size: .65rem;
+        margin-top: .35rem;
+    }
+
+    /* ── Mood picker ─────────────────────── */
+    .mood-row {
+        display: flex;
+        gap: .4rem;
+        flex-wrap: nowrap;
+        overflow-x: visible;
+    }
+
+    .mood-btn {
+        flex: 1;
+        min-width: 0;
+        padding: .55rem .15rem;
+        background: #fff;
+        border: 2px solid #e5e7eb;
+        border-radius: .85rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: .2rem;
+        cursor: pointer;
+        transition: all .18s;
+        font-family: inherit;
+    }
+
+    .mood-btn:hover {
+        border-color: #0d9488;
+        background: #f0fdfa;
+        transform: translateY(-2px);
+    }
+
+    .mood-btn .mood-emoji {
+        font-size: 1.75rem;
+        line-height: 1;
+    }
+
+    .mood-btn .mood-label {
+        font-size: .67rem;
+        font-weight: 600;
+        color: #6b7280;
+    }
+
+    /* ── Quick Actions ──────────────────── */
+    .qa-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .6rem;
+    }
+
+    .qa-btn {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        padding: .8rem;
+        border-radius: .85rem;
+        text-decoration: none;
+        transition: all .18s;
+        border: 1.5px solid transparent;
+    }
+
+    .qa-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 14px rgba(0, 0, 0, .1);
+    }
+
+    .qa-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: .6rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .qa-icon i {
+        width: 17px;
+        height: 17px;
+        color: #fff;
+    }
+
+    .qa-text-title {
+        font-size: .82rem;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .qa-text-sub {
+        font-size: .7rem;
+        color: #6b7280;
+    }
+
+    /* ── Disclaimer banner ──────────────── */
+    .db-disclaimer {
+        display: flex;
+        align-items: flex-start;
+        gap: .6rem;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: .85rem;
+        padding: .75rem 1rem;
+        font-size: .78rem;
+        color: #92400e;
+    }
+
+    .db-disclaimer i {
+        width: 15px;
+        height: 15px;
+        color: #d97706;
+        flex-shrink: 0;
+        margin-top: .1rem;
+    }
+
+    /* Mood badge pill */
+    .mood-badge-pill {
+        display: none;
+        align-items: center;
+        gap: .5rem;
+        background: #fff;
+        border: 2px solid #e5e7eb;
+        border-radius: 999px;
+        padding: .3rem .85rem .3rem .5rem;
+        font-size: .8rem;
+    }
+
+    .mood-badge-pill .mb-emoji {
+        font-size: 1.2rem;
+    }
+
+    .mood-badge-pill .mb-label-tiny {
+        font-size: .6rem;
+        font-weight: 700;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        line-height: 1;
+    }
+
+    .mood-badge-pill .mb-label {
+        font-size: .85rem;
+        font-weight: 700;
+        color: #374151;
+        line-height: 1;
+    }
+
+    /* Upcoming sessions card */
+    .appt-list {
+        max-height: 340px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .appt-list::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    .appt-list::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    .appt-list::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 10px;
+    }
+
+    .btn-book {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .4rem;
+        width: 100%;
+        margin-top: .75rem;
+        padding: .6rem;
+        background: #f0fdfa;
+        border: 1.5px solid #99f6e4;
+        border-radius: .75rem;
+        color: #0d9488;
+        font-weight: 700;
+        font-size: .85rem;
+        text-decoration: none;
+        transition: all .15s;
+    }
+
+    .btn-book:hover {
+        background: #ccfbf1;
+    }
+
+    @keyframes moodCardIn {
+        from {
+            opacity: 0;
+            transform: scale(0.88) translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    .checkin-mood-btn:hover {
+        transform: scale(1.08);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
+    }
+
+    .checkin-mood-btn.selected {
+        transform: scale(1.1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, .15);
+    }
+</style>
+
+<div class="db-root">
+
+    <!-- ① Header ──────────────────────────────────────────────────────── -->
+    <div class="db-header">
+        <div class="db-greeting">
+            <h1>
+                {% if now_hour < 12 %}Good morning{% elif now_hour < 17 %}Good afternoon{% else %}Good evening{% endif %},
+                {{ user.name.split()[0] }}! 👋
+            </h1>
+            <p>Here's your wellbeing overview for today</p>
+        </div>
+
+        <!-- Today's mood badge -->
+        <div id="todayMoodBadge" class="mood-badge-pill">
+            <span class="mb-emoji" id="todayMoodEmoji">😐</span>
+            <div>
+                <div class="mb-label-tiny">Today's Mood</div>
+                <div class="mb-label" id="todayMoodLabel">Neutral</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ② Vitals scan pill ─────────────────────────────────────────────── -->
+    <div id="latest-scan-note" class="db-scan-pill">
+        <i data-lucide="activity" style="width:13px;height:13px;flex-shrink:0;"></i>
+        <span id="latest-scan-text"></span>
+        <a href="/app/vitals">Scan again →</a>
+    </div>
+
+    <!-- ③ THRYVEQ score band ──────────────────────────────────────────── -->
+    <div>
+        <div class="db-section-label" style="align-items:center; gap:0.4rem;">
+            <img src="/static/images/thryveq_logo.png" alt="THRYVEQ"
+                style="height:52px; width:auto; object-fit:contain; vertical-align:middle;">
+
+        </div>
+        <div class="ws-band" id="wellnessGrid">
+            {% for tile in [('ws-latest','wt-latest','wc-latest','Latest','vs Yesterday','latest'),
+            ('ws-week','wt-week','wc-week','This Week','vs Last Week','this_week'),
+            ('ws-month','wt-month','wc-month','This Month','vs Last Month','this_month'),
+            ('ws-year','wt-year','wc-year','This Year','vs Last Year','this_year')] %}
+            <div class="ws-tile" id="tile-{{ tile[5] }}">
+                <div class="ws-tile-hd">{{ tile[3] }}</div>
+                <div class="ws-tile-bd">
+                    <div class="ws-score na" id="{{ tile[0] }}">--</div>
+                    <span class="ws-badge trend-NA" id="{{ tile[1] }}">--</span>
+                    <div class="ws-compare" id="{{ tile[2] }}">{{ tile[4] }}</div>
+                </div>
+                <div class="ws-accent"></div>
+                <div class="ws-lock-overlay" id="lock-{{ tile[5] }}" style="display:none;">
+                    <span class="ws-lock-icon">🔒</span>
+                    <span class="ws-lock-msg">Upgrade Plan</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ④ Main 2-column grid ───────────────────────────────────────────── -->
+    <div class="db-main">
+
+        <!-- LEFT column -->
+        <div style="display:flex;flex-direction:column;gap:1.1rem;">
+
+            <!-- Vitals quick-stats -->
+            <div class="db-card">
+                <div class="db-card-title">
+                    <i data-lucide="heart-pulse"></i> Latest Vitals
+                    <span class="db-card-sub">From last scan</span>
+                </div>
+                <div class="vitals-row">
+                    <div class="vital-chip">
+                        <div class="vital-chip-icon" style="background:#fee2e2;">
+                            <i data-lucide="heart" style="color:#dc2626;"></i>
+                        </div>
+                        <div class="vital-chip-val" id="vital-heart-rate"><span class="text-gray-400">--</span></div>
+                        <div class="vital-chip-label">Heart Rate</div>
+                    </div>
+                    <div class="vital-chip">
+                        <div class="vital-chip-icon" style="background:#ffedd5;">
+                            <i data-lucide="thermometer" style="color:#ea580c;"></i>
+                        </div>
+                        <div class="vital-chip-val" id="vital-temperature"><span class="text-gray-400">--</span></div>
+                        <div class="vital-chip-label">Temp</div>
+                    </div>
+                    <div class="vital-chip">
+                        <div class="vital-chip-icon" style="background:#ede9fe;">
+                            <i data-lucide="gauge" style="color:#7c3aed;"></i>
+                        </div>
+                        <div class="vital-chip-val" id="vital-blood-pressure"><span class="text-gray-400">--</span>
+                        </div>
+                        <div class="vital-chip-label">Blood Pressure</div>
+                    </div>
+                    <div class="vital-chip">
+                        <div class="vital-chip-icon" style="background:#dbeafe;">
+                            <i data-lucide="droplet" style="color:#2563eb;"></i>
+                        </div>
+                        <div class="vital-chip-val" id="vital-spo2"><span class="text-gray-400">--</span></div>
+                        <div class="vital-chip-label">SpO₂</div>
+                    </div>
+                    <div class="vital-chip">
+                        <div class="vital-chip-icon" style="background:#ccfbf1;">
+                            <i data-lucide="wind" style="color:#0f766e;"></i>
+                        </div>
+                        <div class="vital-chip-val" id="vital-breathing"><span class="text-gray-400">--</span></div>
+                        <div class="vital-chip-label">Breathing</div>
+                    </div>
+                </div>
+                <div style="margin-top:.85rem;">
+                    <a href="/app/vitals"
+                        style="display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;font-weight:700;color:#0d9488;text-decoration:none;">
+                        <i data-lucide="scan" style="width:13px;height:13px;"></i> Scan now →
+                    </a>
+                </div>
+            </div>
+
+            <!-- Score breakdown -->
+            <div class="db-card">
+                <div class="db-card-title">
+                    <i data-lucide="pie-chart"></i> Score Breakdown
+                    <span class="db-card-sub">Updates on save</span>
+                </div>
+                <div class="sub-grid">
+                    <div id="sub-overall" class="sub-card"
+                        style="background:linear-gradient(135deg,#f0fdfa,#ccfbf1);border:1px solid #99f6e4;">
+                        <div class="sub-card-head">
+                            <span class="sub-card-label" style="color:#0f766e;">🎯 Overall</span>
+                            <span class="ss-num sub-card-num" style="color:#0d9488;">--</span>
+                        </div>
+                        <div class="sub-bar" style="background:#d1fae5;">
+                            <div class="ss-bar-fill sub-bar-fill"></div>
+                        </div>
+                    </div>
+                    <div id="sub-health" class="sub-card" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+                        <div class="sub-card-head">
+                            <span class="sub-card-label" style="color:#166534;">❤️ Health</span>
+                            <span class="ss-num sub-card-num" style="color:#16a34a;">--</span>
+                        </div>
+                        <div class="sub-bar" style="background:#dcfce7;">
+                            <div class="ss-bar-fill sub-bar-fill"></div>
+                        </div>
+
+                    </div>
+                    <div id="sub-emotional" class="sub-card" style="background:#faf5ff;border:1px solid #e9d5ff;">
+                        <div class="sub-card-head">
+                            <span class="sub-card-label" style="color:#6b21a8;">💡 Emotional</span>
+                            <span class="ss-num sub-card-num" style="color:#7c3aed;">--</span>
+                        </div>
+                        <div class="sub-bar" style="background:#f3e8ff;">
+                            <div class="ss-bar-fill sub-bar-fill"></div>
+                        </div>
+
+                    </div>
+                    <div id="sub-lifestyle" class="sub-card" style="background:#fffbeb;border:1px solid #fde68a;">
+                        <div class="sub-card-head">
+                            <span class="sub-card-label" style="color:#92400e;">🏋️ Lifestyle</span>
+                            <span class="ss-num sub-card-num" style="color:#d97706;">--</span>
+                        </div>
+                        <div class="sub-bar" style="background:#fef3c7;">
+                            <div class="ss-bar-fill sub-bar-fill"></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mood tracker -->
+            <div class="db-card">
+                <div class="db-card-title">
+                    <i data-lucide="smile"></i> How are you feeling today?
+                </div>
+                <div class="mood-row" id="moodTracker">
+                    {% set moods = [
+                    {'emoji': '😊', 'value': 'happy', 'label': 'Happy', 'color': 'green'},
+                    {'emoji': '😐', 'value': 'neutral', 'label': 'Neutral', 'color': 'blue'},
+                    {'emoji': '😔', 'value': 'sad', 'label': 'Sad', 'color': 'indigo'},
+                    {'emoji': '😰', 'value': 'anxious', 'label': 'Anxious', 'color': 'yellow'},
+                    {'emoji': '😡', 'value': 'angry', 'label': 'Angry', 'color': 'red'}
+                    ] %}
+                    {% for mood in moods %}
+                    <button type="button" data-mood="{{ mood.value }}" class="mood-btn"
+                        onclick="selectMood(this, '{{ mood.value }}', '{{ mood.color }}')">
+                        <span class="mood-emoji">{{ mood.emoji }}</span>
+                        <span class="mood-label">{{ mood.label }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="db-card">
+                <div class="db-card-title">
+                    <i data-lucide="zap"></i> Quick Actions
+                </div>
+                <div class="qa-grid">
+                    <a href="/app/vitals" class="qa-btn" style="background:#f0fdfa;border-color:#99f6e4;">
+                        <div class="qa-icon" style="background:#0d9488;"><i data-lucide="activity"></i></div>
+                        <div>
+                            <div class="qa-text-title">Scan Vitals</div>
+                            <div class="qa-text-sub">Check your health</div>
+                        </div>
+                    </a>
+                    <a href="/app/journal" class="qa-btn" style="background:#fdf4ff;border-color:#e9d5ff;">
+                        <div class="qa-icon" style="background:#7c3aed;"><i data-lucide="book-open"></i></div>
+                        <div>
+                            <div class="qa-text-title">Write Journal</div>
+                            <div class="qa-text-sub">Express yourself</div>
+                        </div>
+                    </a>
+                    <a href="/app/ai-chat" class="qa-btn" style="background:#eff6ff;border-color:#bfdbfe;">
+                        <div class="qa-icon" style="background:#2563eb;"><i data-lucide="message-square"></i></div>
+                        <div>
+                            <div class="qa-text-title">Emora - Your buddy</div>
+                            <div class="qa-text-sub">Get support</div>
+                        </div>
+                    </a>
+                    <a href="/app/consultants" class="qa-btn" style="background:#f0fdf4;border-color:#bbf7d0;">
+                        <div class="qa-icon" style="background:#16a34a;"><i data-lucide="calendar"></i></div>
+                        <div>
+                            <div class="qa-text-title">Book Session</div>
+                            <div class="qa-text-sub">Talk to an expert</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Disclaimer -->
+            <div class="db-disclaimer">
+                <i data-lucide="alert-triangle"></i>
+                <span><strong>Note:</strong> Camera-based vital readings are estimates. Lighting conditions, face
+                    positioning,
+                    and stillness affect accuracy. For medical-grade measurements, consult a healthcare
+                    professional.</span>
+            </div>
+        </div>
+
+        <!-- RIGHT column -->
+        <div style="display:flex;flex-direction:column;gap:1.1rem;">
+
+            <!-- Upcoming Sessions -->
+            <div class="db-card">
+                <div class="db-card-title">
+                    <i data-lucide="clock"></i> Upcoming Sessions
+                </div>
+                <div class="appt-list" id="upcomingAppointments">
+                    <div style="text-align:center;padding:1rem;color:#9ca3af;font-size:.85rem;">Loading appointments…
+                    </div>
+                </div>
+                <a href="/app/consultants" class="btn-book">
+                    <i data-lucide="plus" style="width:14px;height:14px;"></i> Book New Session
+                </a>
+            </div>
+
+            <!-- My Plan mini-card -->
+            <div class="db-card" id="dashPlanCard">
+                <div class="db-card-title">
+                    <i data-lucide="credit-card"></i> My Plan
+                    <a href="/app/billing" style="margin-left:auto;font-size:.72rem;font-weight:700;color:#0d9488;text-decoration:none;">View Billing →</a>
+                </div>
+                <div id="dashPlanBody" style="display:flex;flex-direction:column;gap:.65rem;">
+                    <div style="text-align:center;padding:.5rem;color:#9ca3af;font-size:.8rem;">Loading…</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
 </div>
 
-<!-- First Row: Journal, Sessions, Wellbeing -->
-<div class="grid md:grid-cols-3 gap-6 mb-6">
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-secondary-100 p-3 rounded-xl">
-                <i data-lucide="book-open" class="w-6 h-6 text-secondary-700"></i>
-            </div>
-            <span class="text-xs text-green-600 font-medium">7 day streak</span>
-        </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1">{{ user.stats.journal_entries }}</div>
-        <div class="text-sm text-gray-600">Journal Entries</div>
-    </div>
+<!-- ════════════ All JavaScript (unchanged logic) ════════════════════════════ -->
 
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-accent-100 p-3 rounded-xl">
-                <i data-lucide="heart" class="w-6 h-6 text-accent-700"></i>
-            </div>
-            <span class="text-xs text-gray-600">This month</span>
-        </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1">{{ user.stats.sessions }}</div>
-        <div class="text-sm text-gray-600">Sessions Completed</div>
-    </div>
+<script>
+    // ── FCM Push Notification Registration ─────────────────────────────
+    window.onFcmTokenReceived = function(token) {
+        if (token && token.trim() !== "") {
+            fetch('/api/devices/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fcm_token: token, device_type: 'android' })
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) console.log("FCM Device registered successfully");
+            })
+            .catch(e => console.error("FCM Registration failed", e));
+        }
+    };
 
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-green-100 p-3 rounded-xl">
-                <i data-lucide="trending-up" class="w-6 h-6 text-green-700"></i>
-            </div>
-            <span class="text-xs text-green-600 font-medium">Improving</span>
-        </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1">{{ user.stats.wellbeing }}</div>
-        <div class="text-sm text-gray-600">Overall Wellbeing</div>
-    </div>
-</div>
+    // ── Init ─────────────────────────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', function () {
+        loadWellnessSummary();
+        loadLatestScan();
+        loadQuickVitals();
+        loadLatestMood();
+        loadUpcomingAppointments();
+        loadDashPlan();
 
-<!-- Second Row: All Vitals -->
-<div class="grid md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-    <!-- 1. Heart Rate -->
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-red-100 p-3 rounded-xl">
-                <i data-lucide="heart" class="w-6 h-6 text-red-700"></i>
-            </div>
-        </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1" id="vital-heart-rate">
-            <span class="text-gray-400">--</span>
-        </div>
-        <div class="text-sm text-gray-600">Heart Rate</div>
-    </div>
+        // Check if FCM token is already available on startup via bridge
+        if (window.AndroidBridge && typeof window.AndroidBridge.getFcmToken === 'function') {
+            const token = window.AndroidBridge.getFcmToken();
+            if (token) {
+                window.onFcmTokenReceived(token);
+            }
+        }
 
-    <!-- 2. Temperature -->
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-orange-100 p-3 rounded-xl">
-                <i data-lucide="thermometer" class="w-6 h-6 text-orange-700"></i>
-            </div>
-        </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1" id="vital-temperature">
-            <span class="text-gray-400">--</span>
-        </div>
-        <div class="text-sm text-gray-600">Temperature</div>
-    </div>
+        // Show mood popup once per day (not once per browser session)
+        var todayKey = 'moodCheckedIn_' + new Date().toISOString().slice(0, 10);
+        if (!localStorage.getItem(todayKey)) {
+            setTimeout(showMoodPopup, 800);
+        }
+    });
 
-    <!-- 3. Blood Pressure -->
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-purple-100 p-3 rounded-xl">
-                <i data-lucide="gauge" class="w-6 h-6 text-purple-700"></i>
-            </div>
-        </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1" id="vital-blood-pressure">
-            <span class="text-gray-400">--</span>
-        </div>
-        <div class="text-sm text-gray-600">Blood Pressure</div>
-    </div>
+    // Re-load data if browser restores the page from the back-forward cache
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted) {
+            loadWellnessSummary();
+            loadLatestScan();
+            loadQuickVitals();
+        }
+    });
 
-    <!-- 4. SpO2 -->
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-blue-100 p-3 rounded-xl">
-                <i data-lucide="droplet" class="w-6 h-6 text-blue-700"></i>
-            </div>
-        </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1" id="vital-spo2">
-            <span class="text-gray-400">--</span>
-        </div>
-        <div class="text-sm text-gray-600">Blood Oxygen</div>
-    </div>
+    // ── My Plan (dashboard mini-card) ─────────────────────────────────────────
+    function loadDashPlan() {
+        fetch('/api/plans/my-usage')
+            .then(r => r.json())
+            .then(d => {
+                if (!d.success) return;
+                const isFree = (d.plan_name || 'Free').toLowerCase() === 'free';
+                const planIcon = {Free:'🌿',Basic:'⚡',Pro:'🚀',Premium:'👑',Enterprise:'🏢'}[d.plan_name] || '⭐';
+                const caps  = d.caps  || {};
+                const usage = d.usage || {};
 
-    <!-- 5. Breath Count -->
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-teal-100 p-3 rounded-xl">
-                <i data-lucide="wind" class="w-6 h-6 text-teal-700"></i>
-            </div>
+                // Build two key usage bars: AI chats + consultations
+                const features = [
+                    { key:'ai_chat',             label:'Emora Chat Buddy', icon:'💬' },
+                    { key:'free_consultation',   label:'Consultations',  icon:'🩺' },
+                ];
+
+                const barsHtml = features.map(f => {
+                    const cap    = caps[f.key];
+                    const used   = cap && cap.used !== undefined ? cap.used : (usage[f.key] || 0);
+                    const limit  = cap ? cap.limit : null;
+                    const unlim  = !limit || limit < 0;
+                    const pct    = unlim ? 100 : Math.min(100, Math.round(used / limit * 100));
+                    const isLimitReached = pct >= 100 && !(cap && cap.pack_balance > 0);
+                    const color  = unlim ? '#7c3aed' : isLimitReached ? '#dc2626' : (pct >= 100 ? '#7c3aed' : (pct >= 80 ? '#d97706' : '#0d9488'));
+                    
+                    const packNote = (f.key === 'ai_chat' && cap && cap.pack_balance > 0)
+                        ? ` <span style="font-size:.65rem;color:#7c3aed;font-weight:700;">(+${cap.pack_balance} pack)</span>`
+                        : '';
+                        
+                    const limitLabel = cap && cap.in_first_week ? 'welcome' : 'today';
+                    const quotaText = unlim ? '∞ unlimited' : `${used} / ${limit} ${f.key === 'ai_chat' ? limitLabel : ''}`;
+
+                    return `
+                        <div>
+                          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem;">
+                            <span style="font-size:.75rem;font-weight:600;color:#374151;">${f.icon} ${f.label}${packNote}</span>
+                            <span style="font-size:.7rem;color:#6b7280;">${quotaText}</span>
+                          </div>
+                          <div style="height:5px;background:#f3f4f6;border-radius:999px;overflow:hidden;">
+                            <div style="height:100%;width:${pct}%;background:${color};border-radius:999px;transition:width .5s ease;"></div>
+                          </div>
+                        </div>`;
+                }).join('');
+
+                document.getElementById('dashPlanBody').innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                        <div style="display:flex;align-items:center;gap:.5rem;">
+                            <span style="font-size:1.4rem;">${planIcon}</span>
+                            <div>
+                                <div style="font-size:.85rem;font-weight:800;color:#111827;">${d.plan_name} Plan</div>
+                                <div style="font-size:.7rem;color:#6b7280;">${isFree ? 'Free tier' : 'Active subscription'}</div>
+                            </div>
+                        </div>
+                        ${isFree ? '<a href="/app/plans" style="font-size:.72rem;font-weight:700;color:#fff;background:#0d9488;padding:.25rem .7rem;border-radius:.4rem;text-decoration:none;">Upgrade</a>' : ''}
+                    </div>
+                    ${barsHtml}
+                    <a href="/app/billing" style="display:block;text-align:center;font-size:.75rem;color:#0d9488;font-weight:700;text-decoration:none;padding:.35rem;background:#f0fdfa;border-radius:.5rem;">View full usage & invoices →</a>
+                `;
+            })
+            .catch(() => {
+                const el = document.getElementById('dashPlanBody');
+                if (el) el.innerHTML = '<div style="font-size:.78rem;color:#9ca3af;">Could not load plan.</div>';
+            });
+    }
+
+    // ── Wellness Summary ──────────────────────────────────────────────────────────
+    function loadWellnessSummary() {
+        fetch('/api/wellness/summary', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                const map = {
+                    latest:     { score: 'ws-latest', trend: 'wt-latest', compare: 'wc-latest' },
+                    this_week:  { score: 'ws-week',   trend: 'wt-week',   compare: 'wc-week' },
+                    this_month: { score: 'ws-month',  trend: 'wt-month',  compare: 'wc-month' },
+                    this_year:  { score: 'ws-year',   trend: 'wt-year',   compare: 'wc-year' },
+                };
+                Object.entries(data.periods).forEach(([key, p]) => {
+                    const ids = map[key]; if (!ids) return;
+                    const scoreEl = document.getElementById(ids.score);
+                    const lockEl  = document.getElementById('lock-' + key);
+
+                    if (p.locked) {
+                        // Grey out tile and show lock overlay
+                        const tile = document.getElementById('tile-' + key);
+                        if (tile) tile.style.opacity = '0.55';
+                        scoreEl.textContent = '🔒'; scoreEl.classList.add('na');
+                        document.getElementById(ids.trend).textContent = '';
+                        document.getElementById(ids.trend).className = 'ws-badge trend-NA';
+                        document.getElementById(ids.compare).textContent = p.lock_message || '';
+                        if (lockEl) {
+                            lockEl.style.display = 'flex';
+                            lockEl.querySelector('.ws-lock-msg').innerHTML =
+                                `<a href="/app/plans" style="color:#0d9488;font-weight:700;text-decoration:underline;">Upgrade Plan</a>`;
+                        }
+                    } else {
+                        if (p.score !== null && p.score !== undefined) {
+                            scoreEl.textContent = Math.round(p.score);
+                            scoreEl.classList.remove('na');
+                        } else { scoreEl.textContent = '--'; scoreEl.classList.add('na'); }
+                        const trendEl = document.getElementById(ids.trend);
+                        const trendKey = (p.trend || 'NA').replace(/[^a-zA-Z]/g, '');
+                        trendEl.textContent = p.trend || '--';
+                        trendEl.className = 'ws-badge trend-' + trendKey;
+                        document.getElementById(ids.compare).textContent = p.compare || '';
+                        if (lockEl) lockEl.style.display = 'none';
+                    }
+                });
+            })
+            .catch(e => console.error('Wellness summary error:', e));
+        loadWellnessDetail();
+    }
+
+    function loadWellnessDetail() {
+        fetch('/api/wellness/detail', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.success) return;
+                setSubScore('sub-health', d.health_score, '#10b981');
+                setSubScore('sub-emotional', d.emotional_wellness_score, '#8b5cf6');
+                setSubScore('sub-lifestyle', d.lifestyle_score, '#f59e0b');
+                setSubScore('sub-overall', d.overall_wellness_score, '#0d9488');
+            })
+            .catch(e => console.error('Wellness detail error:', e));
+    }
+
+    function setSubScore(id, value, color) {
+        const wrap = document.getElementById(id); if (!wrap) return;
+        const num = wrap.querySelector('.ss-num');
+        const bar = wrap.querySelector('.ss-bar-fill');
+        const n = (value !== null && value !== undefined) ? Math.round(value) : null;
+        num.textContent = (n !== null) ? n : '--';
+        if (bar) { bar.style.width = (n !== null ? n : 0) + '%'; bar.style.background = color; }
+    }
+
+    window.refreshWellness = function () {
+        setTimeout(loadWellnessSummary, 600);
+    };
+
+    // ── Latest Scan Note ──────────────────────────────────────────────────────────
+    async function loadLatestScan() {
+        try {
+            const r = await fetch('/app/vitals/history', { cache: 'no-store' });
+            const d = await r.json();
+            if (!d.success || !d.history || !d.history.length) return;
+            const v = d.history[0];
+            // Ensure UTC parsing — DB returns timestamps without 'Z'
+            const tsStr = v.timestamp && !v.timestamp.endsWith('Z') && !v.timestamp.includes('+') ? v.timestamp + 'Z' : v.timestamp;
+            const ts = new Date(tsStr);
+            const diffMs = Date.now() - ts;
+            const diffH = Math.floor(diffMs / 3600000);
+            const diffD = Math.floor(diffMs / 86400000);
+            let when;
+            if (diffH < 1) when = 'just now';
+            else if (diffH < 24) when = diffH + (diffH === 1 ? ' hour ago' : ' hours ago');
+            else if (diffD === 1) when = 'yesterday';
+            else if (diffD < 30) when = diffD + ' days ago';
+            else when = ts.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+            const parts = [];
+            if (v.health_score) parts.push('Health Score ' + Math.round(v.health_score) + '/100');
+
+            document.getElementById('latest-scan-text').innerHTML =
+                '<strong>Last scan:</strong> ' + when +
+                (parts.length ? ' &thinsp;&middot;&thinsp; ' + parts.join(' &thinsp;&middot;&thinsp; ') : '');
+            const note = document.getElementById('latest-scan-note');
+            note.style.display = 'flex';
+            if (window.lucide) lucide.createIcons({ nodes: [note] });
+        } catch (e) { /* silent */ }
+    }
+
+    // ── Quick Vitals ──────────────────────────────────────────────────────────────────────────────
+    function loadQuickVitals() {
+        fetch('/app/vitals/history', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success || !data.history || !data.history.length) return;
+                const latest = data.history[0];
+                const hrEl = document.getElementById('vital-heart-rate');
+                hrEl.innerHTML = latest.heart_rate
+                    ? `${latest.heart_rate} <span>BPM</span>`
+                    : '<span style="color:#d1d5db">N/A</span>';
+
+                const tempEl = document.getElementById('vital-temperature');
+                if (latest.temperature) {
+                    const tempF = (latest.temperature * 9 / 5) + 32;
+                    tempEl.innerHTML = `${tempF.toFixed(1)} <span>°F</span>`;
+                } else { tempEl.innerHTML = '<span style="color:#d1d5db">N/A</span>'; }
+
+                const bpEl = document.getElementById('vital-blood-pressure');
+                bpEl.innerHTML = (latest.blood_pressure_systolic && latest.blood_pressure_diastolic)
+                    ? `<span style="font-size:.95rem">${latest.blood_pressure_systolic}/${latest.blood_pressure_diastolic}</span>`
+                    : '<span style="color:#d1d5db">N/A</span>';
+
+                const spo2El = document.getElementById('vital-spo2');
+                spo2El.innerHTML = latest.spo2
+                    ? `${latest.spo2} <span>%</span>`
+                    : '<span style="color:#d1d5db">N/A</span>';
+
+                const brEl = document.getElementById('vital-breathing');
+                brEl.innerHTML = latest.respiratory_rate
+                    ? `${latest.respiratory_rate} <span>/min</span>`
+                    : '<span style="color:#d1d5db">N/A</span>';
+            })
+            .catch(e => console.error('Vitals error:', e));
+    }
+
+    // ── Mood ──────────────────────────────────────────────────────────────────────
+    let selectedMood = null;
+    var moodMeta = {
+        happy: { emoji: '😊', label: 'Happy', border: '#22c55e' },
+        neutral: { emoji: '😐', label: 'Neutral', border: '#3b82f6' },
+        sad: { emoji: '😔', label: 'Sad', border: '#6366f1' },
+        anxious: { emoji: '😰', label: 'Anxious', border: '#eab308' },
+        angry: { emoji: '😡', label: 'Angry', border: '#ef4444' },
+    };
+
+    function loadLatestMood() {
+        fetch('/app/mood/latest')
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.mood) {
+                    const v = data.mood.mood_rating;
+                    const btn = document.querySelector(`[data-mood="${v}"]`);
+                    const colorMap = { happy: 'green', neutral: 'blue', sad: 'indigo', anxious: 'yellow', angry: 'red' };
+                    if (btn) selectMood(btn, v, colorMap[v] || 'gray', false);
+                    updateMoodBadge(v);
+                }
+            })
+            .catch(e => console.error('Mood error:', e));
+    }
+
+    function updateMoodBadge(moodValue) {
+        const badge = document.getElementById('todayMoodBadge');
+        const emojiEl = document.getElementById('todayMoodEmoji');
+        const labelEl = document.getElementById('todayMoodLabel');
+        if (!badge || !moodValue) return;
+        const meta = moodMeta[moodValue]; if (!meta) return;
+        emojiEl.textContent = meta.emoji;
+        labelEl.textContent = meta.label;
+        badge.style.borderColor = meta.border;
+        badge.style.display = 'flex';
+    }
+
+    function selectMood(button, moodValue, color, shouldSave = true) {
+        document.querySelectorAll('.mood-btn').forEach(btn => {
+            btn.style.background = '';
+            btn.style.borderColor = '#e5e7eb';
+            btn.style.transform = '';
+        });
+        const bgMap = { green: '#f0fdf4', blue: '#eff6ff', indigo: '#eef2ff', yellow: '#fefce8', red: '#fef2f2' };
+        const bdMap = { green: '#22c55e', blue: '#3b82f6', indigo: '#6366f1', yellow: '#eab308', red: '#ef4444' };
+        button.style.background = bgMap[color] || '#f9fafb';
+        button.style.borderColor = bdMap[color] || '#9ca3af';
+        button.style.transform = 'translateY(-2px)';
+        selectedMood = moodValue;
+        updateMoodBadge(moodValue);
+        if (shouldSave && (moodValue === 'anxious' || moodValue === 'angry')) {
+            showDistressPopup(moodValue);
+        }
+        if (shouldSave) { saveMoodToBackend(moodValue); }
+    }
+
+    function saveMoodToBackend(mood) {
+        fetch('/app/mood/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mood })
+        }).then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showMoodSavedNotification();
+                    if (typeof window.refreshWellness === 'function') window.refreshWellness();
+                }
+            }).catch(e => console.error('Mood save error:', e));
+    }
+
+    function showMoodSavedNotification() {
+        const n = document.createElement('div');
+        n.style.cssText = 'position:fixed;bottom:1.25rem;right:1.25rem;background:#10b981;color:#fff;padding:.5rem 1rem;border-radius:.65rem;font-size:.82rem;font-weight:700;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2);';
+        n.textContent = 'Mood saved ✓';
+        document.body.appendChild(n);
+        setTimeout(() => { n.style.opacity = '0'; n.style.transition = 'opacity .3s'; setTimeout(() => n.remove(), 300); }, 2000);
+    }
+
+    // ── Upcoming Appointments ──────────────────────────────────────────────────────
+    function loadUpcomingAppointments() {
+        fetch('/api/appointments/user')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('upcomingAppointments');
+                if (data.success && data.appointments.length > 0) {
+                    const now = new Date();
+                    const upcoming = data.appointments.filter(appt => {
+                        const d = new Date(appt.appointment_date);
+                        const end = new Date(d.getTime() + appt.duration_minutes * 60000);
+                        const limit15 = new Date(d.getTime() + 15 * 60000);
+                        
+                        if (appt.status === 'reschedule_pending') {
+                            return true;
+                        }
+                        if (appt.status === 'in_progress') {
+                            return end > now;
+                        }
+                        if (appt.status === 'scheduled') {
+                            return limit15 > now;
+                        }
+                        return false;
+                    }).sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
+
+                    if (upcoming.length > 0) {
+                        container.innerHTML = upcoming.map(appt => {
+                            const date = new Date(appt.appointment_date);
+                            const initials = getInitials(appt.consultant_name);
+                            const dateStr = formatAppointmentDate(date);
+                            
+                            if (appt.status === 'reschedule_pending') {
+                                return `
+                            <div class="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-3" id="dash-appt-${appt.id}">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <div class="w-10 h-10 bg-amber-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">${initials}</div>
+                                    <div class="flex-1">
+                                        <div class="font-semibold text-gray-900">${appt.consultant_name}</div>
+                                        <div class="text-xs text-gray-600">${appt.consultant_specialization || 'Wellbeing Consultant'}</div>
+                                    </div>
+                                </div>
+                                <div style="font-size: 0.8rem; color: #b45309; background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 0.75rem; line-height: 1.4;">
+                                    ⚠️ Consultant didn't join. You can reschedule this appointment with them for free.
+                                </div>
+                                <a href="/consultants?reschedule=true&appointment_id=${appt.id}&consultant_id=${appt.consultant_id}" class="btn text-sm w-full flex items-center justify-center gap-2 mb-2" style="background:#d97706;border:1px solid #d97706;color:white;padding:.5rem;border-radius:.5rem;font-weight:600;">
+                                    <i data-lucide="calendar" class="w-4 h-4"></i><span>Reschedule Session</span>
+                                </a>
+                            </div>`;
+                            }
+                            
+                            return `
+                        <div class="p-4 bg-primary-50 border border-primary-200 rounded-xl mb-3" id="dash-appt-${appt.id}">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">${initials}</div>
+                                <div class="flex-1">
+                                    <div class="font-semibold text-gray-900">${appt.consultant_name}</div>
+                                    <div class="text-xs text-gray-600">${appt.consultant_specialization || 'Wellbeing Consultant'}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-gray-700 mb-3">
+                                <i data-lucide="calendar" class="w-4 h-4"></i>
+                                <span>${dateStr}</span>
+                            </div>
+                            <a href="/app/call/${appt.id}" class="btn btn-primary text-sm w-full flex items-center justify-center gap-2 mb-2">
+                                <i data-lucide="phone" class="w-4 h-4"></i><span>Join Call</span>
+                            </a>
+                            <button onclick="cancelDashboardAppt(${appt.id})"
+                                style="width:100%;padding:.4rem .75rem;font-size:.8rem;color:#dc2626;background:transparent;border:1px solid #fca5a5;border-radius:.5rem;cursor:pointer;transition:all .15s;"
+                                onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
+                                ✕ Cancel Session
+                            </button>
+                        </div>`;
+                        }).join('');
+                        if (typeof lucide !== 'undefined') lucide.createIcons();
+                    } else {
+                        container.innerHTML = `<div style="text-align:center;padding:1.5rem;color:#9ca3af;">
+                        <div style="font-size:2rem;margin-bottom:.5rem;">📅</div>
+                        <div style="font-size:.85rem;font-weight:600;">No upcoming appointments</div>
+                        <div style="font-size:.78rem;">Book a session with a consultant</div>
+                    </div>`;
+                    }
+                } else {
+                    container.innerHTML = `<div style="text-align:center;padding:1.5rem;color:#9ca3af;">
+                    <div style="font-size:2rem;margin-bottom:.5rem;">📅</div>
+                    <div style="font-size:.85rem;font-weight:600;">No appointments yet</div>
+                    <div style="font-size:.78rem;">Book your first session below</div>
+                </div>`;
+                }
+            })
+            .catch(() => {
+                document.getElementById('upcomingAppointments').innerHTML =
+                    '<div style="text-align:center;padding:1rem;color:#ef4444;font-size:.85rem;">Error loading appointments</div>';
+            });
+    }
+
+    function getInitials(name) {
+        const parts = name.split(' ');
+        return parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : name.substring(0, 2);
+    }
+
+    function formatAppointmentDate(date) {
+        const now = new Date();
+        const tom = new Date(now); tom.setDate(tom.getDate() + 1);
+        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        if (date.toDateString() === now.toDateString()) return `Today, ${timeStr}`;
+        if (date.toDateString() === tom.toDateString()) return `Tomorrow, ${timeStr}`;
+        return `${dateStr}, ${timeStr}`;
+    }
+
+    window.cancelDashboardAppt = async function (id) {
+        if (!confirm('Cancel this session?\nBoth you and the consultant will be notified by email.')) return;
+        try {
+            const r = await fetch('/api/appointments/' + id + '/cancel', { method: 'POST' });
+            const d = await r.json();
+            if (d.success) {
+                const card = document.getElementById('dash-appt-' + id);
+                if (card) { card.style.transition = 'opacity .3s'; card.style.opacity = '0'; setTimeout(() => card.remove(), 320); }
+                const banner = document.createElement('div');
+                banner.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#10b981;color:#fff;padding:.65rem 1.25rem;border-radius:.65rem;font-size:.85rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);';
+                banner.textContent = 'Session cancelled. Email confirmation sent.';
+                document.body.appendChild(banner);
+                setTimeout(() => banner.remove(), 4000);
+            } else { alert('Could not cancel: ' + (d.error || 'Unknown error')); }
+        } catch (e) { alert('Network error. Please try again.'); }
+    };
+</script>
+
+<!-- ══ Distress Mood Popup ════════════════════════════════════════════════════ -->
+<div id="distressMoodPopup" style="display:none;position:fixed;inset:0;z-index:9998;
+     background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#fff;border-radius:1.5rem;box-shadow:0 25px 60px rgba(0,0,0,0.25);
+         width:100%;max-width:400px;overflow:hidden;animation:moodCardIn 0.35s cubic-bezier(.34,1.56,.64,1) both;">
+        <div id="distressPopupHeader"
+            style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:1.75rem;text-align:center;color:#fff;">
+            <div id="distressPopupEmoji" style="font-size:2.75rem;margin-bottom:.4rem;">😰</div>
+            <h2 style="font-size:1.2rem;font-weight:700;margin:0 0 .2rem;">We hear you 💛</h2>
+            <p id="distressPopupText" style="font-size:.82rem;color:rgba(255,255,255,.9);margin:0;">
+                Feeling anxious is tough — you're not alone.
+            </p>
         </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1" id="vital-breathing">
-            <span class="text-gray-400">--</span>
+        <div style="padding:1.5rem;text-align:center;">
+            <p style="color:#374151;font-size:.9rem;margin-bottom:1.25rem;line-height:1.6;">
+                Let's get you some support. Talk it through with <strong>Emora - Your buddy</strong>,
+                or connect with a real consultant right away.
+            </p>
+            <a id="distressPopupChatBtn" href="/app/ai-chat?mood=anxious" style="display:block;width:100%;background:linear-gradient(to right,#7c3aed,#9333ea);
+                      color:#fff;font-weight:600;padding:.8rem;border-radius:.875rem;
+                      text-decoration:none;font-size:.95rem;margin-bottom:.65rem;">
+                💬 Chat with Emora - Your buddy
+            </a>
+            <a href="/app/consultants" style="display:block;width:100%;background:linear-gradient(to right,#10b981,#059669);
+                      color:#fff;font-weight:600;padding:.8rem;border-radius:.875rem;
+                      text-decoration:none;font-size:.95rem;margin-bottom:.65rem;">
+                📅 Schedule with a Consultant
+            </a>
+            <button onclick="closeDistressPopup()"
+                style="width:100%;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:.85rem;padding:.35rem;">
+                Skip for now
+            </button>
         </div>
-        <div class="text-sm text-gray-600">Breathing Rate</div>
     </div>
 </div>
 
 <script>
-    // Load latest vitals for quick stats
-    window.addEventListener('DOMContentLoaded', function () {
-        loadQuickVitals();
-    });
-
-    function loadQuickVitals() {
-        fetch('/app/vitals/history')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.history && data.history.length > 0) {
-                    const latest = data.history[0];
-
-                    // Update Physical Health Score
-                    if (latest.health_score) {
-                        const scoreElement = document.getElementById('physical-health-score');
-                        if (scoreElement) {
-                            scoreElement.textContent = Math.round(latest.health_score) + '%';
-                        }
-                    }
-
-                    // Heart Rate
-                    const hrElement = document.getElementById('vital-heart-rate');
-                    if (latest.heart_rate) {
-                        hrElement.innerHTML = `${latest.heart_rate} <span class="text-sm font-normal text-gray-600">BPM</span>`;
-                    } else {
-                        hrElement.innerHTML = '<span class="text-gray-400">N/A</span>';
-                    }
-
-                    // Temperature (convert to Fahrenheit)
-                    const tempElement = document.getElementById('vital-temperature');
-                    if (latest.temperature) {
-                        const tempF = (latest.temperature * 9 / 5) + 32;
-                        tempElement.innerHTML = `${tempF.toFixed(1)} <span class="text-sm font-normal text-gray-600">°F</span>`;
-                    } else {
-                        tempElement.innerHTML = '<span class="text-gray-400">N/A</span>';
-                    }
-
-                    // Blood Pressure
-                    const bpElement = document.getElementById('vital-blood-pressure');
-                    if (latest.blood_pressure_systolic && latest.blood_pressure_diastolic) {
-                        bpElement.innerHTML = `<span class="text-lg">${latest.blood_pressure_systolic}/${latest.blood_pressure_diastolic}</span>`;
-                    } else {
-                        bpElement.innerHTML = '<span class="text-gray-400">N/A</span>';
-                    }
-
-                    // SpO2
-                    const spo2Element = document.getElementById('vital-spo2');
-                    if (latest.spo2) {
-                        spo2Element.innerHTML = `${latest.spo2} <span class="text-sm font-normal text-gray-600">%</span>`;
-                    } else {
-                        spo2Element.innerHTML = '<span class="text-gray-400">N/A</span>';
-                    }
-
-                    // Breathing Rate
-                    const breathElement = document.getElementById('vital-breathing');
-                    if (latest.respiratory_rate) {
-                        breathElement.innerHTML = `${latest.respiratory_rate} <span class="text-sm font-normal text-gray-600">/min</span>`;
-                    } else {
-                        breathElement.innerHTML = '<span class="text-gray-400">N/A</span>';
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error loading quick vitals:', error);
-            });
+    function showDistressPopup(mood) {
+        var popup = document.getElementById('distressMoodPopup');
+        var header = document.getElementById('distressPopupHeader');
+        var emoji = document.getElementById('distressPopupEmoji');
+        var text = document.getElementById('distressPopupText');
+        var chat = document.getElementById('distressPopupChatBtn');
+        var info = {
+            anxious: { emoji: '😰', text: "Feeling anxious is tough — you're not alone.", color: 'linear-gradient(135deg,#f59e0b,#d97706)' },
+            angry: { emoji: '😡', text: "We understand — it's okay to feel this way.", color: 'linear-gradient(135deg,#ef4444,#dc2626)' }
+        };
+        var m = info[mood] || info.anxious;
+        emoji.textContent = m.emoji; text.textContent = m.text; header.style.background = m.color;
+        chat.href = '/app/ai-chat?mood=' + mood;
+        popup.style.display = 'flex';
+    }
+    function closeDistressPopup() {
+        document.getElementById('distressMoodPopup').style.display = 'none';
     }
 </script>
 
-<!-- Vitals Accuracy Disclaimer -->
-<div class="mb-8">
-    <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <div class="flex gap-3">
-            <i data-lucide="alert-triangle" class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"></i>
-            <div class="text-sm text-yellow-800">
-                <strong>Important:</strong> Camera-based vital readings are estimates. Accuracy depends on lighting
-                conditions, face positioning, and stillness during scan. For medical-grade measurements, consult a
-                healthcare professional.
+<!-- ══ Login Mood Check-In Popup ═════════════════════════════════════════════ -->
+<div id="moodCheckInOverlay" style="display:none;position:fixed;inset:0;z-index:9999;
+     background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:1rem;">
+    <div id="moodCheckInCard" style="background:#fff;border-radius:1.5rem;box-shadow:0 25px 60px rgba(0,0,0,0.25);
+         width:100%;max-width:440px;overflow:hidden;animation:moodCardIn 0.35s cubic-bezier(.34,1.56,.64,1) both;">
+        <div
+            style="background:linear-gradient(135deg,#7c3aed,#9333ea,#ec4899);padding:2rem;text-align:center;color:#fff;">
+            <div style="font-size:3rem;margin-bottom:.5rem;">🌟</div>
+            <h2 style="font-size:1.4rem;font-weight:700;margin-bottom:.25rem;">Welcome, {{ user.name.split()[0] }}!</h2>
+            <p style="font-size:.875rem;color:rgba(255,255,255,.8);">How are you feeling right now?</p>
+        </div>
+        <div style="padding:1.5rem;">
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:1.25rem;"
+                id="moodCheckInOptions">
+                <button onclick="selectCheckInMood(this,'happy')" data-mood="happy" class="checkin-mood-btn"
+                    style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:.6rem .25rem;border-radius:1rem;border:2px solid #e5e7eb;background:#fff;cursor:pointer;transition:all .2s;"><span
+                        style="font-size:1.75rem;">😊</span><span
+                        style="font-size:.7rem;font-weight:600;color:#6b7280;">Happy</span></button>
+                <button onclick="selectCheckInMood(this,'neutral')" data-mood="neutral" class="checkin-mood-btn"
+                    style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:.6rem .25rem;border-radius:1rem;border:2px solid #e5e7eb;background:#fff;cursor:pointer;transition:all .2s;"><span
+                        style="font-size:1.75rem;">😐</span><span
+                        style="font-size:.7rem;font-weight:600;color:#6b7280;">Neutral</span></button>
+                <button onclick="selectCheckInMood(this,'sad')" data-mood="sad" class="checkin-mood-btn"
+                    style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:.6rem .25rem;border-radius:1rem;border:2px solid #e5e7eb;background:#fff;cursor:pointer;transition:all .2s;"><span
+                        style="font-size:1.75rem;">😔</span><span
+                        style="font-size:.7rem;font-weight:600;color:#6b7280;">Sad</span></button>
+                <button onclick="selectCheckInMood(this,'anxious')" data-mood="anxious" class="checkin-mood-btn"
+                    style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:.6rem .25rem;border-radius:1rem;border:2px solid #e5e7eb;background:#fff;cursor:pointer;transition:all .2s;"><span
+                        style="font-size:1.75rem;">😰</span><span
+                        style="font-size:.7rem;font-weight:600;color:#6b7280;">Anxious</span></button>
+                <button onclick="selectCheckInMood(this,'angry')" data-mood="angry" class="checkin-mood-btn"
+                    style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:.6rem .25rem;border-radius:1rem;border:2px solid #e5e7eb;background:#fff;cursor:pointer;transition:all .2s;"><span
+                        style="font-size:1.75rem;">😡</span><span
+                        style="font-size:.7rem;font-weight:600;color:#6b7280;">Angry</span></button>
             </div>
+            <div id="moodCheckInAction" style="display:none;">
+                <div id="distressedAction"
+                    style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:1rem;padding:1rem;text-align:center;margin-bottom:.75rem;">
+                    <p style="font-weight:700;color:#92400e;margin-bottom:.25rem;">I hear you 💛</p>
+                    <p style="font-size:.85rem;color:#b45309;margin-bottom:1rem;">Let's talk it through. Our SolaceSquad
+                        Buddy is here to help.</p>
+                    <button onclick="goToAIChat()"
+                        style="width:100%;background:linear-gradient(to right,#7c3aed,#9333ea);color:#fff;font-weight:600;padding:.75rem;border-radius:.75rem;border:none;cursor:pointer;margin-bottom:.5rem;font-size:.95rem;">💬
+                        Chat with Emora - Your buddy</button>
+                    <a href="/app/consultants" onclick="closeMoodPopup()"
+                        style="display:block;width:100%;background:linear-gradient(to right,#10b981,#059669);color:#fff;font-weight:600;padding:.75rem;border-radius:.75rem;text-decoration:none;font-size:.95rem;margin-bottom:.5rem;">📅
+                        Schedule with a Consultant</a>
+                    <button onclick="closeMoodPopup()"
+                        style="width:100%;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:.85rem;padding:.25rem;">Skip
+                        for now</button>
+                </div>
+                <div id="calmAction" style="display:none;text-align:center;">
+                    <button onclick="closeMoodPopup()"
+                        style="width:100%;background:linear-gradient(to right,#7c3aed,#9333ea);color:#fff;font-weight:600;padding:.75rem;border-radius:.75rem;border:none;cursor:pointer;font-size:.95rem;">✨
+                        Go to Dashboard</button>
+                </div>
+            </div>
+            <button onclick="closeMoodPopup()" id="skipBtn"
+                style="width:100%;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:.8rem;margin-top:.75rem;padding:.25rem;">Skip</button>
         </div>
     </div>
 </div>
 
-<!-- Main Content Grid -->
-<div class="grid lg:grid-cols-3 gap-6">
-    <!-- Left Column -->
-    <div class="lg:col-span-2 space-y-6">
-        <!-- Mood Tracker -->
-        <div class="card">
-            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4">
-                How are you feeling today?
-            </h2>
-            <div class="flex gap-3" id="moodTracker">
-                {% set moods = [
-                {'emoji': '😊', 'value': 'happy', 'label': 'Happy', 'color': 'green'},
-                {'emoji': '😐', 'value': 'neutral', 'label': 'Neutral', 'color': 'blue'},
-                {'emoji': '😔', 'value': 'sad', 'label': 'Sad', 'color': 'indigo'},
-                {'emoji': '😰', 'value': 'anxious', 'label': 'Anxious', 'color': 'yellow'},
-                {'emoji': '😡', 'value': 'angry', 'label': 'Angry', 'color': 'red'}
-                ] %}
-                {% for mood in moods %}
-                <button type="button" data-mood="{{ mood.value }}"
-                    class="mood-btn flex-1 p-3 bg-white hover:bg-gray-50 rounded-xl border-2 border-gray-200 hover:border-{{ mood.color }}-400 transition-all flex flex-col items-center gap-1"
-                    onclick="selectMood(this, '{{ mood.value }}', '{{ mood.color }}')">
-                    <span class="text-4xl">{{ mood.emoji }}</span>
-                    <span class="text-xs font-medium text-gray-600">{{ mood.label }}</span>
-                </button>
-                {% endfor %}
-            </div>
+<script>
+    var checkInMood = null;
+    function showMoodPopup() { document.getElementById('moodCheckInOverlay').style.display = 'flex'; }
+    function closeMoodPopup() {
+        document.getElementById('moodCheckInOverlay').style.display = 'none';
+        var todayKey = 'moodCheckedIn_' + new Date().toISOString().slice(0, 10);
+        localStorage.setItem(todayKey, '1');
+        sessionStorage.setItem('moodCheckedIn', '1'); // keep for backward compat
+        if (typeof loadLatestMood === 'function') loadLatestMood();
+    }
+    function selectCheckInMood(btn, mood) {
+        checkInMood = mood;
+        document.querySelectorAll('.checkin-mood-btn').forEach(b => {
+            b.classList.remove('selected'); b.style.borderColor = '#e5e7eb'; b.style.background = '#fff';
+        });
+        var cMap = { happy: '#22c55e', neutral: '#3b82f6', sad: '#6366f1', anxious: '#eab308', angry: '#ef4444' };
+        var bMap = { happy: '#f0fdf4', neutral: '#eff6ff', sad: '#eef2ff', anxious: '#fefce8', angry: '#fef2f2' };
+        btn.classList.add('selected'); btn.style.borderColor = cMap[mood]; btn.style.background = bMap[mood];
+        fetch('/app/mood/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mood }) }).catch(() => { });
+        document.getElementById('moodCheckInAction').style.display = 'block';
+        document.getElementById('skipBtn').style.display = 'none';
+        if (mood === 'anxious' || mood === 'angry') {
+            document.getElementById('distressedAction').style.display = 'block';
+            document.getElementById('calmAction').style.display = 'none';
+        } else {
+            document.getElementById('calmAction').style.display = 'block';
+            document.getElementById('distressedAction').style.display = 'none';
+        }
+    }
+    function goToAIChat() {
+        sessionStorage.setItem('moodCheckedIn', '1');
+        if (typeof updateMoodBadge === 'function') updateMoodBadge(checkInMood);
+        window.location.href = '/app/ai-chat?mood=' + checkInMood;
+    }
+</script>
 
-            <script>
-                let selectedMood = null;
+{% if demo_video %}
+<!-- Demo Video Floating Button -->
+<button id="userDemoVideoBtn" onclick="openUserDemoModal()"
+  style="position:fixed;bottom:5rem;right:1.25rem;z-index:800;display:flex;align-items:center;gap:.5rem;
+         background:linear-gradient(135deg,#14b8a6,#0891b2);color:#fff;border:none;border-radius:999px;
+         padding:.6rem 1.2rem;font-size:.82rem;font-weight:700;cursor:pointer;
+         box-shadow:0 4px 16px rgba(20,184,166,.35);transition:transform .2s,box-shadow .2s;"
+  onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 22px rgba(20,184,166,.45)'"
+  onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(20,184,166,.35)'">
+  <i data-lucide="play-circle" style="width:16px;height:16px;"></i>
+  Watch Demo
+</button>
 
-                // Load latest mood on page load
-                window.addEventListener('DOMContentLoaded', function () {
-                    loadLatestMood();
-                });
-
-                function loadLatestMood() {
-                    fetch('/app/mood/latest')
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success && data.mood) {
-                                const moodValue = data.mood.mood_rating;
-                                const button = document.querySelector(`[data-mood="${moodValue}"]`);
-                                if (button) {
-                                    // Get color from button's hover class
-                                    const colorMap = {
-                                        'happy': 'green',
-                                        'neutral': 'blue',
-                                        'sad': 'indigo',
-                                        'anxious': 'yellow',
-                                        'angry': 'red'
-                                    };
-                                    const color = colorMap[moodValue] || 'gray';
-                                    selectMood(button, moodValue, color, false); // Don't save again
-                                }
-                            }
-                        })
-                        .catch(error => console.error('Error loading latest mood:', error));
-                }
-
-                function selectMood(button, moodValue, color, shouldSave = true) {
-                    // Remove selection from all buttons
-                    document.querySelectorAll('.mood-btn').forEach(btn => {
-                        btn.classList.remove('bg-green-100', 'bg-blue-100', 'bg-indigo-100', 'bg-yellow-100', 'bg-red-100');
-                        btn.classList.remove('border-green-500', 'border-blue-500', 'border-indigo-500', 'border-yellow-500', 'border-red-500');
-                        btn.classList.remove('ring-4', 'ring-green-200', 'ring-blue-200', 'ring-indigo-200', 'ring-yellow-200', 'ring-red-200');
-                        btn.classList.add('border-gray-200');
-                    });
-
-                    // Add selection to clicked button
-                    button.classList.remove('border-gray-200');
-                    button.classList.add(`bg-${color}-100`, `border-${color}-500`, 'ring-4', `ring-${color}-200`);
-
-                    selectedMood = moodValue;
-
-                    // Save to backend
-                    if (shouldSave) {
-                        saveMoodToBackend(moodValue);
-                    }
-                }
-
-                function saveMoodToBackend(mood) {
-                    fetch('/app/mood/save', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ mood: mood })
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                console.log('Mood saved successfully');
-                                // Optional: Show a brief success message
-                                showMoodSavedNotification();
-                            } else {
-                                console.error('Error saving mood:', data.error);
-                            }
-                        })
-                        .catch(error => console.error('Error saving mood:', error));
-                }
-
-                function showMoodSavedNotification() {
-                    // Create a brief notification
-                    const notification = document.createElement('div');
-                    notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg transition-opacity duration-300';
-                    notification.textContent = 'Mood saved ✓';
-                    document.body.appendChild(notification);
-
-                    // Fade out and remove after 2 seconds
-                    setTimeout(() => {
-                        notification.style.opacity = '0';
-                        setTimeout(() => notification.remove(), 300);
-                    }, 2000);
-                }
-            </script>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="card">
-            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4">
-                Quick Actions
-            </h2>
-            <div class="grid sm:grid-cols-2 gap-4">
-                {% set actions = [
-                {'icon': 'activity', 'title': 'Scan Vitals', 'subtitle': 'Check your health', 'color': 'primary',
-                'href': '/app/vitals'},
-                {'icon': 'book-open', 'title': 'Write Journal', 'subtitle': 'Express yourself', 'color': 'secondary',
-                'href': '/app/journal'},
-                {'icon': 'sparkles', 'title': 'AI Assistant', 'subtitle': 'Get support', 'color': 'accent', 'href':
-                '/app/ai-chat'},
-                {'icon': 'calendar', 'title': 'Book Session', 'subtitle': 'Talk to expert', 'color': 'green', 'href':
-                '/app/consultants'}
-                ] %}
-
-                {% for action in actions %}
-                <a href="{{ action.href }}"
-                    class="flex items-center gap-3 p-4 bg-gradient-to-br from-{{ action.color }}-50 to-{{ action.color }}-100 rounded-xl hover:shadow-md transition-all group">
-                    <div class="bg-{{ action.color }}-600 p-2 rounded-lg">
-                        <i data-lucide="{{ action.icon }}" class="w-5 h-5 text-white"></i>
-                    </div>
-                    <div class="text-left flex-1">
-                        <div class="font-semibold text-gray-900">{{ action.title }}</div>
-                        <div class="text-sm text-gray-600">{{ action.subtitle }}</div>
-                    </div>
-                    <i data-lucide="arrow-right"
-                        class="w-5 h-5 text-{{ action.color }}-600 group-hover:translate-x-1 transition-transform"></i>
-                </a>
-                {% endfor %}
-            </div>
-        </div>
+<!-- Demo Video Modal -->
+<div id="userDemoVideoModal" class="hidden" style="position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:1rem;" onclick="if(event.target===this)closeUserDemoModal()">
+  <div style="background:#fff;border-radius:1.25rem;max-width:700px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid #f3f4f6;background:#f9fafb;">
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <i data-lucide="play-circle" style="width:18px;height:18px;color:#0d9488;"></i>
+        <span id="userDemoVideoTitle" style="font-size:.95rem;font-weight:700;color:#111827;">{{ demo_video.title | e }}</span>
+      </div>
+      <button onclick="closeUserDemoModal()" style="background:none;border:none;cursor:pointer;color:#6b7280;padding:.25rem;">
+        <i data-lucide="x" style="width:18px;height:18px;"></i>
+      </button>
     </div>
-
-    <!-- Right Column -->
-    <div class="space-y-6">
-        <!-- Upcoming Sessions -->
-        <div class="card">
-            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4">
-                Upcoming Sessions
-            </h2>
-            <div id="upcomingAppointments">
-                <div class="text-center py-4 text-gray-500">
-                    Loading appointments...
-                </div>
-            </div>
-            <a href="/app/consultants" class="btn btn-secondary text-sm w-full mt-3">
-                Book New Session
-            </a>
-        </div>
-
-        <script>
-            // Load upcoming appointments
-            window.addEventListener('DOMContentLoaded', function () {
-                loadUpcomingAppointments();
-            });
-
-            function loadUpcomingAppointments() {
-                fetch('/api/appointments/user')
-                    .then(response => response.json())
-                    .then(data => {
-                        const container = document.getElementById('upcomingAppointments');
-
-                        if (data.success && data.appointments.length > 0) {
-                            // Filter for upcoming and in-progress scheduled appointments
-                            const now = new Date();
-                            const upcoming = data.appointments.filter(appt => {
-                                const appointmentDate = new Date(appt.appointment_date);
-                                const appointmentEnd = new Date(appointmentDate.getTime() + appt.duration_minutes * 60000);
-                                // Show if appointment hasn't ended yet (upcoming or in progress)
-                                return appt.status === 'scheduled' && appointmentEnd > now;
-                            }).sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
-
-                            if (upcoming.length > 0) {
-                                container.innerHTML = upcoming.slice(0, 3).map(appt => {
-                                    const date = new Date(appt.appointment_date);
-                                    const initials = getInitials(appt.consultant_name);
-                                    const dateStr = formatAppointmentDate(date);
-
-                                    return `
-                                        <div class="p-4 bg-primary-50 border border-primary-200 rounded-xl mb-3">
-                                            <div class="flex items-center gap-3 mb-2">
-                                                <div class="w-10 h-10 bg-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                                    ${initials}
-                                                </div>
-                                                <div class="flex-1">
-                                                    <div class="font-semibold text-gray-900">${appt.consultant_name}</div>
-                                                    <div class="text-xs text-gray-600">${appt.consultant_specialization || 'Wellbeing Consultant'}</div>
-                                                </div>
-                                            </div>
-                                            <div class="flex items-center gap-2 text-sm text-gray-700 mb-3">
-                                                <i data-lucide="calendar" class="w-4 h-4"></i>
-                                                <span>${dateStr}</span>
-                                            </div>
-                                            <a href="/app/call/${appt.id}" class="btn btn-primary text-sm w-full flex items-center justify-center gap-2">
-                                                <i data-lucide="phone" class="w-4 h-4"></i>
-                                                <span>Join Call</span>
-                                            </a>
-                                        </div>
-                                    `;
-                                }).join('');
-
-                                // Re-initialize lucide icons
-                                if (typeof lucide !== 'undefined') {
-                                    lucide.createIcons();
-                                }
-                            } else {
-                                container.innerHTML = `
-                                    <div class="text-center py-4 text-gray-500">
-                                        <p class="mb-2">No upcoming appointments</p>
-                                        <p class="text-sm">Book a session with a consultant</p>
-                                    </div>
-                                `;
-                            }
-                        } else {
-                            container.innerHTML = `
-                                <div class="text-center py-4 text-gray-500">
-                                    <p class="mb-2">No appointments yet</p>
-                                    <p class="text-sm">Book your first session</p>
-                                </div>
-                            `;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading appointments:', error);
-                        document.getElementById('upcomingAppointments').innerHTML = `
-                            <div class="text-center py-4 text-red-500">
-                                Error loading appointments
-                            </div>
-                        `;
-                    });
-            }
-
-            function getInitials(name) {
-                const parts = name.split(' ');
-                if (parts.length >= 2) {
-                    return parts[0][0] + parts[parts.length - 1][0];
-                }
-                return name.substring(0, 2);
-            }
-
-            function formatAppointmentDate(date) {
-                const now = new Date();
-                const tomorrow = new Date(now);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-
-                const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-                if (date.toDateString() === now.toDateString()) {
-                    return `Today, ${timeStr}`;
-                } else if (date.toDateString() === tomorrow.toDateString()) {
-                    return `Tomorrow, ${timeStr}`;
-                } else {
-                    return `${dateStr}, ${timeStr}`;
-                }
-            }
-        </script>
-
-
-        <!-- Wellness Score -->
-        <div class="card bg-gradient-to-br from-primary-600 to-secondary-600 text-white">
-            <h2 class="text-xl font-display font-semibold mb-4">
-                Your Wellness Score
-            </h2>
-            <div class="text-center py-6">
-                <div class="text-5xl font-bold mb-2">78</div>
-                <div class="text-primary-100 text-sm">Out of 100</div>
-            </div>
-            <div class="space-y-2 text-sm">
-                <div class="flex justify-between">
-                    <span class="text-primary-100">Physical Health</span>
-                    <span class="font-semibold" id="physical-health-score">{{ user.stats.health_score }}%</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-primary-100">Emotional Wellbeing</span>
-                    <span class="font-semibold">75%</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-primary-100">Lifestyle</span>
-                    <span class="font-semibold">77%</span>
-                </div>
-            </div>
-        </div>
+    <div id="userDemoVideoContainer" style="background:#000;min-height:280px;display:flex;align-items:center;justify-content:center;"></div>
+    <div style="padding:.75rem 1.25rem;border-top:1px solid #f3f4f6;background:#f9fafb;display:flex;justify-content:flex-end;">
+      <button onclick="closeUserDemoModal()" style="padding:.4rem 1.1rem;border-radius:999px;border:1px solid #e5e7eb;background:#fff;font-size:.85rem;font-weight:600;color:#374151;cursor:pointer;">Close</button>
     </div>
+  </div>
 </div>
-{% endblock %}
+
+<script>
+  const _udemoIsYouTube = {{ 'true' if demo_video.is_youtube else 'false' }};
+  const _udemoUrl = {% if demo_video.is_youtube %}"{{ demo_video.video_url }}"{% else %}"/api/demo-videos/{{ demo_video.id }}/stream"{% endif %};
+
+  function openUserDemoModal() {
+    const modal = document.getElementById('userDemoVideoModal');
+    const container = document.getElementById('userDemoVideoContainer');
+    modal.style.display = 'flex'; modal.classList.remove('hidden');
+    if (_udemoIsYouTube) {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+      const match = _udemoUrl.match(regExp);
+      const yt = (match && match[2].length === 11) ? match[2] : null;
+      if (yt) {
+        container.innerHTML = `<iframe style="width:100%;aspect-ratio:16/9;" src="https://www.youtube.com/embed/${yt}?autoplay=1" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>`;
+      }
+    } else {
+      container.innerHTML = `<video style="width:100%;max-height:70vh;" controls autoplay><source src="${_udemoUrl}" type="video/mp4">Your browser does not support video.</video>`;
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  function closeUserDemoModal() {
+    const modal = document.getElementById('userDemoVideoModal');
+    modal.style.display = 'none'; modal.classList.add('hidden');
+    document.getElementById('userDemoVideoContainer').innerHTML = '';
+  }
+</script>
+{% endif %}
+
+{% if show_consent_prompt %}
+<!-- Consent Onboarding Prompt Modal -->
+<div id="consentOnboardingModal" style="display: flex; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 1rem;">
+  <div style="background: #fff; border-radius: 1.25rem; max-width: 500px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; display: flex; flex-direction: column;">
+    <!-- Header -->
+    <div style="padding: 1.5rem 1.5rem 1.25rem; border-bottom: 1px solid #f3f4f6;">
+      <h3 style="font-size: 1.25rem; font-weight: 800; color: #111827; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+        🛡️ Privacy Consent Onboarding
+      </h3>
+      <p style="font-size: 0.8rem; color: #6b7280; margin: 0.5rem 0 0; line-height: 1.5;">
+        Welcome to SolaceSquad! Under India's **DPDP Act, 2023**, please select the optional data processing activities you consent to enable. You can modify these preferences at any time in your Profile Settings.
+      </p>
+    </div>
+
+    <!-- Body -->
+    <div style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; max-height: 60vh; overflow-y: auto;">
+      
+      <!-- Core processing (Mandatory) -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #f3f4f6;">
+        <div>
+          <h4 style="font-size: 0.875rem; font-weight: 700; color: #1f2937; margin: 0 0 0.25rem;">
+            Account Operations & Authentication
+            <span style="font-size: 10px; background: #e5e7eb; color: #4b5563; font-weight: 700; padding: 0.15rem 0.4rem; border-radius: 9999px; margin-left: 0.4rem; text-transform: uppercase;">Mandatory</span>
+          </h4>
+          <p style="font-size: 0.75rem; color: #6b7280; margin: 0; line-height: 1.4;">
+            Required to create your profile, manage credentials, and facilitate basic service access. Withdrawal requires account closure.
+          </p>
+        </div>
+        <input type="checkbox" checked disabled style="width: 1.1rem; height: 1.1rem; border-radius: 4px; color: #9ca3af; cursor: not-allowed; margin-top: 4px;">
+      </div>
+
+      <!-- Health Sync (Optional) -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #f3f4f6;">
+        <div>
+          <h4 style="font-size: 0.875rem; font-weight: 700; color: #1f2937; margin: 0 0 0.25rem;">Health & Wellness Vitals Sync</h4>
+          <p style="font-size: 0.75rem; color: #6b7280; margin: 0; line-height: 1.4;">
+            Allows syncing your steps, heart rate, and sleep data from external integrations (Google Fit, Fitbit, Strava) to track wellness trends.
+          </p>
+        </div>
+        <label style="position: relative; display: inline-flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="ob-consent-health" style="width: 1.15rem; height: 1.15rem; border-radius: 4px; color: #6d28d9; cursor: pointer; margin-top: 4px;">
+        </label>
+      </div>
+
+      <!-- Recording (Optional) -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #f3f4f6;">
+        <div>
+          <h4 style="font-size: 0.875rem; font-weight: 700; color: #1f2937; margin: 0 0 0.25rem;">Consultation Session Recording</h4>
+          <p style="font-size: 0.75rem; color: #6b7280; margin: 0; line-height: 1.4;">
+            Allows recording video/audio streams during live consultation sessions for your personal review and history.
+          </p>
+        </div>
+        <label style="position: relative; display: inline-flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="ob-consent-recording" style="width: 1.15rem; height: 1.15rem; border-radius: 4px; color: #6d28d9; cursor: pointer; margin-top: 4px;">
+        </label>
+      </div>
+
+      <!-- Sharing (Optional) -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+        <div>
+          <h4 style="font-size: 0.875rem; font-weight: 700; color: #1f2937; margin: 0 0 0.25rem;">Consultant Note Sharing</h4>
+          <p style="font-size: 0.75rem; color: #6b7280; margin: 0; line-height: 1.4;">
+            Allows wellbeing consultants to share clinical and progress notes internally to coordinate care if you are referred.
+          </p>
+        </div>
+        <label style="position: relative; display: inline-flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="ob-consent-note-sharing" style="width: 1.15rem; height: 1.15rem; border-radius: 4px; color: #6d28d9; cursor: pointer; margin-top: 4px;">
+        </label>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div style="padding: 1.25rem 1.5rem; border-top: 1px solid #f3f4f6; display: flex; justify-content: flex-end; background: #f9fafb;">
+      <button onclick="saveInitialConsents()" id="ob-consent-btn" style="padding: 0.6rem 1.5rem; border-radius: 9999px; border: none; background: #6d28d9; color: #fff; font-size: 0.85rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: opacity 0.15s;">
+        Save & Continue 🚀
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  async function saveInitialConsents() {
+    const btn = document.getElementById('ob-consent-btn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+    try {
+      const payload = {
+        consent_health: document.getElementById('ob-consent-health').checked,
+        consent_recording: document.getElementById('ob-consent-recording').checked,
+        consent_note_sharing: document.getElementById('ob-consent-note-sharing').checked
+      };
+      const res = await fetch('/api/settings/save-initial-consents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        document.getElementById('consentOnboardingModal').style.display = 'none';
+      } else {
+        alert('Failed to save preferences. Please try again.');
+        btn.disabled = false; btn.textContent = 'Save & Continue 🚀';
+      }
+    } catch (e) {
+      alert('Network error. Please try again.');
+      btn.disabled = false; btn.textContent = 'Save & Continue 🚀';
+    }
+  }
+</script>
+{% endif %}
+
+{% endblock %}

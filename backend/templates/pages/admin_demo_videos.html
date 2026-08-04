@@ -1,0 +1,403 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<style>
+  /* ── Card & layout ─────────────────────────────────────── */
+  .dv-header        { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:2rem; }
+  .dv-title         { font-size:1.75rem; font-weight:800; color:#111827; line-height:1.2; }
+  .dv-subtitle      { font-size:.875rem; color:#6b7280; margin-top:.25rem; }
+
+  /* ── Upload tabs ────────────────────────────────────────── */
+  .tab-row          { display:flex; gap:.5rem; margin-bottom:1.25rem; }
+  .tab-btn          { flex:1; padding:.6rem 1rem; border-radius:.75rem; border:2px solid #e5e7eb; font-size:.85rem; font-weight:700; cursor:pointer; background:#f9fafb; color:#374151; transition:all .18s ease; }
+  .tab-btn.active   { border-color:#14b8a6; background:#f0fdfa; color:#0f766e; }
+  .tab-btn:hover:not(.active) { border-color:#a7f3d0; }
+
+  .tab-panel        { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* ── Form elements ──────────────────────────────────────── */
+  .field-label      { font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.3rem; display:block; }
+  .field-input      { width:100%; padding:.6rem .9rem; border:1.5px solid #e5e7eb; border-radius:.65rem; font-size:.875rem; color:#111827; transition:border-color .15s; box-sizing:border-box; }
+  .field-input:focus { outline:none; border-color:#14b8a6; box-shadow:0 0 0 3px rgba(20,184,166,.15); }
+  .form-row         { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  @media(max-width:600px) { .form-row { grid-template-columns:1fr; } }
+
+  /* ── Share target pills ─────────────────────────────────── */
+  .share-pills      { display:flex; gap:.5rem; flex-wrap:wrap; }
+  .share-pill       { padding:.45rem 1.1rem; border-radius:999px; border:2px solid #e5e7eb; font-size:.8rem; font-weight:700; cursor:pointer; background:#f9fafb; color:#374151; transition:all .15s; }
+  .share-pill.sel[data-val="users"]        { border-color:#6366f1; background:#eef2ff; color:#4338ca; }
+  .share-pill.sel[data-val="consultants"] { border-color:#f59e0b; background:#fef3c7; color:#92400e; }
+  .share-pill.sel[data-val="both"]        { border-color:#14b8a6; background:#f0fdfa; color:#0f766e; }
+
+  /* ── Upload progress bar ────────────────────────────────── */
+  #upload-progress-wrap { display:none; margin-top:.75rem; }
+  #upload-progress-bar  { height:8px; border-radius:999px; background:#14b8a6; width:0%; transition:width .3s; }
+  #upload-progress-track { height:8px; border-radius:999px; background:#e5e7eb; overflow:hidden; }
+  #upload-size-label    { font-size:.75rem; color:#6b7280; margin-top:.3rem; }
+
+  /* ── Submit button ──────────────────────────────────────── */
+  .save-btn         { width:100%; padding:.7rem 1rem; border-radius:.75rem; border:none; background:linear-gradient(135deg,#14b8a6,#0891b2); color:#fff; font-size:.9rem; font-weight:700; cursor:pointer; margin-top:1rem; transition:opacity .2s; }
+  .save-btn:disabled { opacity:.55; cursor:not-allowed; }
+
+  /* ── Videos table ───────────────────────────────────────── */
+  .vid-table        { width:100%; border-collapse:collapse; margin-top:1.5rem; font-size:.85rem; }
+  .vid-table th     { text-align:left; padding:.6rem .75rem; font-weight:700; font-size:.75rem; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid #f3f4f6; }
+  .vid-table td     { padding:.75rem; border-bottom:1px solid #f3f4f6; color:#374151; vertical-align:middle; }
+  .vid-table tr:hover td { background:#f9fafb; }
+
+  .pill-type        { font-size:.7rem; font-weight:700; padding:.2rem .6rem; border-radius:999px; }
+  .pill-yt          { background:#fee2e2; color:#991b1b; }
+  .pill-gcs         { background:#dbeafe; color:#1e40af; }
+
+  .pill-share        { font-size:.7rem; font-weight:700; padding:.2rem .6rem; border-radius:999px; }
+  .share-users       { background:#eef2ff; color:#4338ca; }
+  .share-consultants { background:#fef3c7; color:#92400e; }
+  .share-both        { background:#f0fdfa; color:#0f766e; }
+
+  .del-btn          { padding:.3rem .75rem; border-radius:.5rem; border:1.5px solid #fca5a5; background:#fef2f2; color:#991b1b; font-size:.78rem; font-weight:700; cursor:pointer; transition:all .15s; }
+  .del-btn:hover    { background:#fee2e2; }
+
+  .toast            { position:fixed; bottom:1.5rem; right:1.5rem; padding:.75rem 1.25rem; border-radius:.75rem; font-size:.875rem; font-weight:600; z-index:9999; box-shadow:0 4px 16px rgba(0,0,0,.15); opacity:0; transform:translateY(1rem); transition:all .3s; pointer-events:none; }
+  .toast.show       { opacity:1; transform:translateY(0); }
+  .toast-success    { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+  .toast-error      { background:#fef2f2; color:#991b1b; border:1px solid #fca5a5; }
+
+  .empty-state      { text-align:center; padding:3rem 1rem; color:#9ca3af; }
+  .empty-state i    { display:block; margin:0 auto 1rem; }
+</style>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Header -->
+  <div class="dv-header">
+    <div>
+      <h1 class="dv-title">Demo Video Settings</h1>
+      <p class="dv-subtitle">Manage onboarding and explainer videos shown to users and consultants.</p>
+    </div>
+  </div>
+
+  <!-- Upload / Add Video Card -->
+  <div class="card px-6 py-6 border-l-4 border-teal-500 mb-8">
+    <h2 class="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      <i data-lucide="video" class="w-4 h-4 text-teal-600"></i>
+      Add a New Demo Video
+    </h2>
+
+    <!-- Tabs -->
+    <div class="tab-row">
+      <button class="tab-btn active" id="tab-yt" onclick="switchTab('youtube')">
+        <i data-lucide="youtube" class="w-3.5 h-3.5 inline mr-1"></i> YouTube Link
+      </button>
+      <button class="tab-btn" id="tab-upload" onclick="switchTab('upload')">
+        <i data-lucide="upload-cloud" class="w-3.5 h-3.5 inline mr-1"></i> Upload File
+      </button>
+    </div>
+
+    <!-- YouTube Panel -->
+    <div id="panel-youtube" class="tab-panel active">
+      <div class="form-row mb-4">
+        <div>
+          <label class="field-label" for="yt-title">Video Title</label>
+          <input id="yt-title" type="text" class="field-input" placeholder="e.g. Welcome to SolaceSquad">
+        </div>
+        <div>
+          <label class="field-label" for="yt-url">YouTube Unlisted URL</label>
+          <input id="yt-url" type="url" class="field-input" placeholder="https://www.youtube.com/watch?v=...">
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="field-label" for="yt-desc">Description (optional)</label>
+        <textarea id="yt-desc" rows="2" class="field-input" placeholder="Brief description shown alongside the video…"></textarea>
+      </div>
+      <div class="mb-4">
+        <span class="field-label">Share With</span>
+        <div class="share-pills" id="yt-share-pills">
+          <button type="button" class="share-pill" data-val="users"        onclick="selectShare(this,'yt')">Users</button>
+          <button type="button" class="share-pill" data-val="consultants"  onclick="selectShare(this,'yt')">Consultants</button>
+          <button type="button" class="share-pill sel" data-val="both"     onclick="selectShare(this,'yt')">Both</button>
+        </div>
+        <input type="hidden" id="yt-share" value="both">
+      </div>
+      <button class="save-btn" id="yt-save-btn" onclick="saveYouTube()">
+        <i data-lucide="save" class="w-4 h-4 inline mr-1"></i> Save YouTube Video
+      </button>
+    </div>
+
+    <!-- Upload Panel -->
+    <div id="panel-upload" class="tab-panel">
+      <div class="form-row mb-4">
+        <div>
+          <label class="field-label" for="up-title">Video Title</label>
+          <input id="up-title" type="text" class="field-input" placeholder="e.g. Platform Tour">
+        </div>
+        <div>
+          <label class="field-label" for="up-file">Video File (MP4 / WebM / MOV)</label>
+          <input id="up-file" type="file" accept="video/*" class="field-input" style="padding:.45rem .75rem;" onchange="onFileChange()">
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="field-label" for="up-desc">Description (optional)</label>
+        <textarea id="up-desc" rows="2" class="field-input" placeholder="Brief description shown alongside the video…"></textarea>
+      </div>
+
+      <!-- Upload progress -->
+      <div id="upload-progress-wrap">
+        <div id="upload-progress-track"><div id="upload-progress-bar"></div></div>
+        <div id="upload-size-label">Uploading…</div>
+      </div>
+
+      <div class="mb-4 mt-3">
+        <span class="field-label">Share With</span>
+        <div class="share-pills" id="up-share-pills">
+          <button type="button" class="share-pill" data-val="users"        onclick="selectShare(this,'up')">Users</button>
+          <button type="button" class="share-pill" data-val="consultants"  onclick="selectShare(this,'up')">Consultants</button>
+          <button type="button" class="share-pill sel" data-val="both"     onclick="selectShare(this,'up')">Both</button>
+        </div>
+        <input type="hidden" id="up-share" value="both">
+      </div>
+      <button class="save-btn" id="up-save-btn" onclick="uploadFile()">
+        <i data-lucide="upload-cloud" class="w-4 h-4 inline mr-1"></i> Upload to Cloud Storage
+      </button>
+    </div>
+  </div>
+
+  <!-- Existing Videos -->
+  <div class="card px-6 py-5">
+    <h2 class="text-sm font-semibold text-gray-800 mb-1 flex items-center gap-2">
+      <i data-lucide="list-video" class="w-4 h-4 text-teal-600"></i>
+      Existing Videos
+    </h2>
+    <p class="text-xs text-gray-500 mb-4">The most recent active video for each audience group is shown to that audience.</p>
+
+    {% if videos %}
+    <div style="overflow-x:auto;">
+      <table class="vid-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Audience</th>
+            <th>Added</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="videos-tbody">
+          {% for v in videos %}
+          <tr id="vid-row-{{ v.id }}">
+            <td class="text-gray-400 font-mono text-xs">{{ loop.index }}</td>
+            <td>
+              <div class="font-semibold text-gray-800">{{ v.title }}</div>
+              {% if v.description %}
+              <div class="text-xs text-gray-400 mt-0.5">{{ v.description[:80] }}{% if v.description|length > 80 %}…{% endif %}</div>
+              {% endif %}
+            </td>
+            <td>
+              {% if v.is_youtube %}
+              <span class="pill-type pill-yt">YouTube</span>
+              {% else %}
+              <span class="pill-type pill-gcs">GCS Upload</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if v.share_with == 'users' %}
+              <span class="pill-share share-users">Users</span>
+              {% elif v.share_with == 'consultants' %}
+              <span class="pill-share share-consultants">Consultants</span>
+              {% else %}
+              <span class="pill-share share-both">Both</span>
+              {% endif %}
+            </td>
+            <td class="text-xs text-gray-500">{{ v.created_at.strftime('%d %b %Y') if v.created_at else '—' }}</td>
+            <td>
+              {% if v.is_youtube %}
+              <a href="{{ v.video_url }}" target="_blank" rel="noopener"
+                 class="text-xs text-teal-600 hover:underline font-semibold mr-2">Preview</a>
+              {% else %}
+              <a href="/api/demo-videos/{{ v.id }}/stream" target="_blank" rel="noopener"
+                 class="text-xs text-teal-600 hover:underline font-semibold mr-2">Preview</a>
+              {% endif %}
+              <button class="del-btn" onclick="deleteVideo({{ v.id }})">Delete</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state" id="empty-state">
+      <i data-lucide="video-off" class="w-12 h-12 text-gray-300"></i>
+      <p class="font-semibold text-gray-500">No demo videos yet.</p>
+      <p class="text-sm mt-1">Add your first video above to get started.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Tab switching ─────────────────────────────────────────── */
+function switchTab(tab) {
+  document.getElementById('panel-youtube').classList.toggle('active', tab === 'youtube');
+  document.getElementById('panel-upload').classList.toggle('active',  tab === 'upload');
+  document.getElementById('tab-yt').classList.toggle('active', tab === 'youtube');
+  document.getElementById('tab-upload').classList.toggle('active', tab === 'upload');
+}
+
+/* ── Share-with pills ──────────────────────────────────────── */
+function selectShare(btn, prefix) {
+  document.querySelectorAll(`#${prefix}-share-pills .share-pill`).forEach(p => p.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById(`${prefix}-share`).value = btn.dataset.val;
+}
+
+/* ── Toast ─────────────────────────────────────────────────── */
+function toast(msg, ok=true) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (ok ? 'toast-success' : 'toast-error');
+  setTimeout(() => { el.classList.remove('show'); }, 3500);
+}
+
+/* ── File size label ───────────────────────────────────────── */
+function onFileChange() {
+  const file = document.getElementById('up-file').files[0];
+  if (!file) return;
+  const mb = (file.size / 1048576).toFixed(1);
+  document.getElementById('upload-size-label').textContent = `Selected: ${file.name} (${mb} MB)`;
+  document.getElementById('upload-progress-wrap').style.display = 'block';
+  document.getElementById('upload-progress-bar').style.width = '0%';
+}
+
+/* ── Save YouTube video ────────────────────────────────────── */
+async function saveYouTube() {
+  const title   = document.getElementById('yt-title').value.trim();
+  const url     = document.getElementById('yt-url').value.trim();
+  const desc    = document.getElementById('yt-desc').value.trim();
+  const share   = document.getElementById('yt-share').value;
+  if (!title || !url) { toast('Please fill in Title and YouTube URL.', false); return; }
+
+  const btn = document.getElementById('yt-save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const fd = new FormData();
+  fd.append('title',      title);
+  fd.append('video_url',  url);
+  fd.append('description', desc);
+  fd.append('share_with', share);
+  fd.append('is_youtube', 'true');
+
+  try {
+    const r = await fetch('/api/admin/demo-videos', { method:'POST', body:fd });
+    const d = await r.json();
+    if (d.success) {
+      toast('Video saved!');
+      setTimeout(() => location.reload(), 900);
+    } else {
+      toast(d.error || 'Failed to save.', false);
+    }
+  } catch(e) {
+    toast('Network error.', false);
+  } finally {
+    btn.disabled = false; btn.innerHTML = '<i data-lucide="save" class="w-4 h-4 inline mr-1"></i> Save YouTube Video';
+    lucide.createIcons();
+  }
+}
+
+/* ── Upload file ───────────────────────────────────────────── */
+async function uploadFile() {
+  const title   = document.getElementById('up-title').value.trim();
+  const fileEl  = document.getElementById('up-file');
+  const desc    = document.getElementById('up-desc').value.trim();
+  const share   = document.getElementById('up-share').value;
+  if (!title)          { toast('Please enter a title.', false); return; }
+  if (!fileEl.files.length) { toast('Please select a video file.', false); return; }
+
+  const file = fileEl.files[0];
+  const MAX_MB = 500;
+  if (file.size > MAX_MB * 1048576) { toast(`File must be under ${MAX_MB} MB.`, false); return; }
+
+  const btn = document.getElementById('up-save-btn');
+  btn.disabled = true; btn.textContent = 'Uploading…';
+
+  const wrap = document.getElementById('upload-progress-wrap');
+  const bar  = document.getElementById('upload-progress-bar');
+  const lbl  = document.getElementById('upload-size-label');
+  wrap.style.display = 'block';
+
+  const fd = new FormData();
+  fd.append('title',      title);
+  fd.append('description', desc);
+  fd.append('share_with', share);
+  fd.append('is_youtube', 'false');
+  fd.append('video_file', file);
+
+  /* XHR for progress tracking */
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/admin/demo-videos');
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 100);
+        bar.style.width = pct + '%';
+        lbl.textContent = `Uploading… ${pct}% of ${(file.size/1048576).toFixed(1)} MB`;
+      }
+    });
+
+    xhr.onload = () => {
+      const d = JSON.parse(xhr.responseText);
+      if (xhr.status === 200 && d.success) {
+        bar.style.width = '100%';
+        lbl.textContent = 'Upload complete!';
+        toast('Video uploaded successfully!');
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        toast(d.error || 'Upload failed.', false);
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="upload-cloud" class="w-4 h-4 inline mr-1"></i> Upload to Cloud Storage';
+        lucide.createIcons();
+      }
+      resolve();
+    };
+
+    xhr.onerror = () => {
+      toast('Network error during upload.', false);
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="upload-cloud" class="w-4 h-4 inline mr-1"></i> Upload to Cloud Storage';
+      lucide.createIcons();
+      resolve();
+    };
+
+    xhr.send(fd);
+  });
+}
+
+/* ── Delete video ──────────────────────────────────────────── */
+async function deleteVideo(id) {
+  if (!confirm('Delete this video? This action cannot be undone.')) return;
+  try {
+    const r = await fetch(`/api/admin/demo-videos/${id}`, { method:'DELETE' });
+    const d = await r.json();
+    if (d.success) {
+      const row = document.getElementById(`vid-row-${id}`);
+      if (row) row.remove();
+      // Show empty state if no rows left
+      const tbody = document.getElementById('videos-tbody');
+      if (tbody && tbody.children.length === 0) {
+        const es = document.getElementById('empty-state');
+        if (es) es.style.display = 'block';
+      }
+      toast('Video deleted.');
+    } else {
+      toast(d.error || 'Delete failed.', false);
+    }
+  } catch(e) {
+    toast('Network error.', false);
+  }
+}
+</script>
+{% endblock %}

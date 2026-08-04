@@ -1,0 +1,83 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">Video Library</h1>
+        <p class="text-gray-600">Explore our collection of wellness exercises and guided sessions.</p>
+    </div>
+
+    <!-- Active Timer Banner (Hidden by default) -->
+    <div id="activeSessionBanner"
+        class="hidden mb-6 bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl p-4 text-white shadow-lg flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="p-2 bg-white/20 rounded-lg animate-pulse">
+                <i data-lucide="play-circle" class="w-6 h-6 text-white"></i>
+            </div>
+            <div>
+                <p class="font-medium">Session in progress</p>
+                <p class="text-sm text-primary-100" id="sessionTimer">00:00</p>
+            </div>
+        </div>
+        <button onclick="stopSession()"
+            class="btn bg-white text-primary-700 hover:bg-gray-100 text-sm py-2 px-4 shadow-sm border-0">
+            End Session
+        </button>
+    </div>
+
+    <!-- Folders Grid -->
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for folder in folders %}
+        <a href="/exercises/folder/{{ folder.id }}"
+            class="group relative bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 h-64 flex flex-col">
+            <!-- Thumbnail Background -->
+            <div class="absolute inset-0 bg-gray-200">
+                {% if folder.thumbnail_url %}
+                <img src="{{ folder.thumbnail_url }}" alt="{{ folder.name }}"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                    <i data-lucide="folder" class="w-16 h-16 text-gray-300"></i>
+                </div>
+                {% endif %}
+                <div
+                    class="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity">
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="relative z-10 mt-auto p-6">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-xl font-bold text-white group-hover:text-primary-200 transition-colors">{{
+                        folder.name }}</h3>
+                    <div class="bg-white/20 backdrop-blur-sm p-2 rounded-full">
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-white"></i>
+                    </div>
+                </div>
+                <p class="text-gray-300 text-sm line-clamp-2">{{ folder.description }}</p>
+                <div class="mt-4 flex items-center gap-4 text-xs text-gray-400 font-medium">
+                    <span class="flex items-center gap-1">
+                        <i data-lucide="film" class="w-3 h-3"></i>
+                        {{ folder.video_count }} Videos
+                    </span>
+                    {% if folder.total_duration %}
+                    <span class="flex items-center gap-1">
+                        <i data-lucide="clock" class="w-3 h-3"></i>
+                        {{ folder.total_duration }} mins
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+        {% else %}
+        <div class="col-span-full text-center py-12">
+            <div class="bg-gray-50 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="folder-open" class="w-10 h-10 text-gray-400"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900">No collections yet</h3>
+            <p class="text-gray-500 mt-1">Check back soon for guided exercises.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

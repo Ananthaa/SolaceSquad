@@ -1,0 +1,562 @@
+{% extends "base.html" %}
+
+{% block title %}Cookie Policy | SolaceSquad{% endblock %}
+{% block meta_desc %}Read SolaceSquad's Cookie Policy. Learn what cookies we use, why we use them, which third parties set cookies, and how you can manage or delete them at any time.{% endblock %}
+{% block og_title %}Cookie Policy | SolaceSquad{% endblock %}
+{% block og_desc %}SolaceSquad Cookie Policy — what cookies we use, why, and how to manage them. Committed to your privacy on our wellness platform.{% endblock %}
+{% block tw_title %}Cookie Policy | SolaceSquad{% endblock %}
+{% block tw_desc %}SolaceSquad Cookie Policy — understand our use of cookies and how to manage them on India's trusted wellness platform.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","name":"Cookie Policy","url":"{{ request.base_url }}cookies","description":"SolaceSquad Cookie Policy — what cookies are placed, why, and how to manage them.","breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"{{ request.base_url }}"},{"@type":"ListItem","position":2,"name":"Cookie Policy","item":"{{ request.base_url }}cookies"}]}}
+</script>
+{% endblock %}
+
+{% block content %}
+{% include "components/header.html" %}
+
+<style>
+    .ss-page-section {
+        padding-top: 9rem;
+        padding-bottom: 4rem;
+        background: #f8faf9;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    .ss-page-inner {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+        box-sizing: border-box;
+    }
+
+    .ss-page-eyebrow {
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #2d6a5a;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+    }
+
+    .ss-page-title {
+        text-align: center;
+        font-size: clamp(1.4rem, 5vw, 1.75rem);
+        font-weight: 800;
+        color: #2d6a5a;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.5rem;
+    }
+
+    .ss-page-subtitle {
+        text-align: center;
+        font-size: 0.82rem;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+    }
+
+    .ss-page-divider {
+        width: 3rem;
+        height: 3px;
+        background: linear-gradient(90deg, #2d6a5a, #1e4d40);
+        border-radius: 2px;
+        margin: 0.75rem auto 1.75rem;
+    }
+
+    .ss-legal-body {
+        font-size: 0.875rem;
+        color: #2d6a5a;
+        line-height: 1.85;
+    }
+
+    .ss-legal-body p {
+        margin-bottom: 1rem;
+    }
+
+    .ss-legal-section {
+        background: #fff;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(45, 106, 90, .08);
+        border-left: 3px solid #2d6a5a;
+        box-sizing: border-box;
+    }
+
+    .ss-legal-section-title {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 0.9rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .ss-legal-sub {
+        padding-left: 1rem;
+        margin-bottom: 0.4rem;
+        font-size: 0.85rem;
+    }
+
+    .cookie-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+        margin-top: 0.75rem;
+        overflow-x: auto;
+        display: block;
+    }
+
+    .cookie-table th {
+        background: #f0f7f4;
+        color: #1e4d40;
+        font-weight: 700;
+        padding: 0.55rem 0.75rem;
+        text-align: left;
+        border-bottom: 2px solid #2d6a5a;
+        white-space: nowrap;
+    }
+
+    .cookie-table td {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #e5ede9;
+        color: #374151;
+        vertical-align: top;
+    }
+
+    .cookie-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .cookie-tag {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+    }
+
+    .tag-essential  { background: #dcfce7; color: #166534; }
+    .tag-functional { background: #dbeafe; color: #1e40af; }
+    .tag-analytics  { background: #fef9c3; color: #854d0e; }
+    .tag-third      { background: #fce7f3; color: #9d174d; }
+
+    .highlight-box {
+        background: #f0f7f4;
+        border: 1px solid #b6d8cc;
+        border-radius: 0.6rem;
+        padding: 1rem 1.25rem;
+        margin-bottom: 0.75rem;
+        font-size: 0.85rem;
+        color: #1e4d40;
+    }
+
+    .highlight-box strong {
+        display: block;
+        font-size: 0.88rem;
+        margin-bottom: 0.3rem;
+        color: #1e293b;
+    }
+</style>
+
+<section class="ss-page-section">
+    <div class="ss-page-inner">
+        <p class="ss-page-eyebrow">Legal</p>
+        <h1 class="ss-page-title">COOKIE POLICY</h1>
+        <div class="ss-page-divider"></div>
+
+        <div class="ss-legal-body">
+
+            <!-- Introduction -->
+            <div class="ss-legal-section">
+                <p>SolaceSquad&reg; Technologies ("Us", "We", or "SolaceSquad&reg;") is the operator of
+                    <a href="https://www.solacesquad.com" style="color:#2d6a5a;">www.solacesquad.com</a>
+                    and the SolaceSquad&reg; Platform, including its mobile and web applications.</p>
+                <p>This Cookie Policy explains in plain language what cookies are, which cookies we place on your
+                    device, why we place them, who else may set cookies through our Platform, and how you can
+                    control or delete cookies at any time.</p>
+                <p>This policy is to be read together with our
+                    <a href="/privacy" style="color:#2d6a5a;">Privacy Policy</a> and our
+                    <a href="/terms" style="color:#2d6a5a;">Terms of Service</a>. By continuing to use the
+                    SolaceSquad&reg; Platform, you agree to this Cookie Policy.</p>
+                <p>This Cookie Policy is published in compliance with applicable Indian law, including the
+                    Information Technology Act, 2000 and the Information Technology (Reasonable Security Practices
+                    and Procedures and Sensitive Personal Data or Information) Rules, 2011 ("SPI Rules").</p>
+            </div>
+
+            <!-- Section 1 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">1. WHAT ARE COOKIES?</p>
+                <p class="ss-legal-sub">Cookies are small text files stored on your device (computer, smartphone,
+                    or tablet) by your web browser when you visit a website. They contain a small amount of data,
+                    which often includes an anonymous unique identifier. They are sent back to the originating
+                    website on each subsequent visit and allow the website to recognise your browser.</p>
+                <p class="ss-legal-sub">Cookies serve many functions — they help websites remember who you are,
+                    keep you logged in, remember your preferences, and understand how you interact with pages.</p>
+
+                <div class="highlight-box">
+                    <strong>Session Cookies</strong>
+                    Temporary cookies that exist only while your browser is open. They are automatically deleted
+                    when you close your browser tab or window.
+                </div>
+                <div class="highlight-box">
+                    <strong>Persistent Cookies</strong>
+                    These remain on your device for a set period defined in the cookie. They activate each time you
+                    visit the website that created them and are used to remember your preferences across sessions.
+                </div>
+                <div class="highlight-box">
+                    <strong>First-Party Cookies</strong>
+                    Set directly by SolaceSquad&reg; when you use our Platform.
+                </div>
+                <div class="highlight-box">
+                    <strong>Third-Party Cookies</strong>
+                    Set by our trusted service partners (e.g., Google Analytics, payment processors) when their
+                    features are active on our Platform.
+                </div>
+            </div>
+
+            <!-- Section 2 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">2. CATEGORIES OF COOKIES WE USE</p>
+
+                <table class="cookie-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Type</th>
+                            <th>Purpose</th>
+                            <th>Duration</th>
+                            <th>Required?</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="cookie-tag tag-essential">Essential</span></td>
+                            <td>First-party</td>
+                            <td>Session management, login state, CSRF protection, OTP verification. Without these
+                                the Platform cannot function.</td>
+                            <td>Session / up to 30 days</td>
+                            <td><strong>Yes — cannot be disabled</strong></td>
+                        </tr>
+                        <tr>
+                            <td><span class="cookie-tag tag-functional">Functional</span></td>
+                            <td>First-party</td>
+                            <td>Remember language preference, timezone, previously viewed pages, and logged-in user
+                                settings to personalise your experience.</td>
+                            <td>Up to 1 year</td>
+                            <td>Optional</td>
+                        </tr>
+                        <tr>
+                            <td><span class="cookie-tag tag-analytics">Analytics</span></td>
+                            <td>First / Third-party</td>
+                            <td>Measure how visitors interact with the Platform — pages viewed, session length,
+                                referral sources, and feature engagement. Helps us improve the Platform.</td>
+                            <td>Up to 2 years</td>
+                            <td>Optional</td>
+                        </tr>
+                        <tr>
+                            <td><span class="cookie-tag tag-third">Third-Party</span></td>
+                            <td>Third-party</td>
+                            <td>Provided by Google (Sign-In, reCAPTCHA, Analytics), payment processors, and
+                                communication platforms. Governed by their respective privacy policies.</td>
+                            <td>Varies by provider</td>
+                            <td>Optional</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Section 3 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">3. SPECIFIC COOKIES PLACED ON YOUR DEVICE</p>
+                <p class="ss-legal-sub">The following is a representative list of cookies set by or through the
+                    SolaceSquad&reg; Platform:</p>
+
+                <table class="cookie-table">
+                    <thead>
+                        <tr>
+                            <th>Cookie Name</th>
+                            <th>Provider</th>
+                            <th>Category</th>
+                            <th>Purpose</th>
+                            <th>Expiry</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>session</code></td>
+                            <td>SolaceSquad&reg;</td>
+                            <td><span class="cookie-tag tag-essential">Essential</span></td>
+                            <td>Maintains your login session across pages. Encrypted server-side.</td>
+                            <td>Session / 30 days</td>
+                        </tr>
+                        <tr>
+                            <td><code>_csrf</code></td>
+                            <td>SolaceSquad&reg;</td>
+                            <td><span class="cookie-tag tag-essential">Essential</span></td>
+                            <td>Cross-Site Request Forgery protection token for form submissions.</td>
+                            <td>Session</td>
+                        </tr>
+                        <tr>
+                            <td><code>email_otp_verified</code></td>
+                            <td>SolaceSquad&reg;</td>
+                            <td><span class="cookie-tag tag-essential">Essential</span></td>
+                            <td>Temporarily records that your email address was verified by OTP during signup.</td>
+                            <td>Session</td>
+                        </tr>
+                        <tr>
+                            <td><code>_ga</code></td>
+                            <td>Google Analytics</td>
+                            <td><span class="cookie-tag tag-analytics">Analytics</span></td>
+                            <td>Distinguishes unique visitors for Google Analytics reporting.</td>
+                            <td>2 years</td>
+                        </tr>
+                        <tr>
+                            <td><code>_gid</code></td>
+                            <td>Google Analytics</td>
+                            <td><span class="cookie-tag tag-analytics">Analytics</span></td>
+                            <td>Distinguishes users for Analytics (shorter window).</td>
+                            <td>24 hours</td>
+                        </tr>
+                        <tr>
+                            <td><code>_gat</code></td>
+                            <td>Google Analytics</td>
+                            <td><span class="cookie-tag tag-analytics">Analytics</span></td>
+                            <td>Used to throttle the request rate to Google Analytics.</td>
+                            <td>1 minute</td>
+                        </tr>
+                        <tr>
+                            <td><code>G_AUTHUSER_H</code></td>
+                            <td>Google</td>
+                            <td><span class="cookie-tag tag-third">Third-Party</span></td>
+                            <td>Used by Google Sign-In to keep the user authenticated with Google.</td>
+                            <td>Session</td>
+                        </tr>
+                        <tr>
+                            <td><code>__Secure-*</code></td>
+                            <td>Google reCAPTCHA</td>
+                            <td><span class="cookie-tag tag-third">Third-Party</span></td>
+                            <td>Distinguishes humans from bots on forms that use Google reCAPTCHA.</td>
+                            <td>6 months</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p class="ss-legal-sub" style="margin-top:0.75rem;">This list may be updated as the Platform
+                    evolves. Additional cookies may be set by third-party services embedded in the Platform.</p>
+            </div>
+
+            <!-- Section 4 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">4. HOW AND WHY WE USE COOKIES</p>
+                <p class="ss-legal-sub">We use cookies for the following legitimate purposes:</p>
+                <p class="ss-legal-sub">
+                    <strong>Authentication & Security:</strong> To keep you securely logged in during your session,
+                    prevent session hijacking, and protect form submissions from cross-site attacks.
+                </p>
+                <p class="ss-legal-sub">
+                    <strong>Booking & Appointments:</strong> To maintain your booking state during the appointment
+                    scheduling flow, ensuring your selected time slot is preserved until the transaction completes.
+                </p>
+                <p class="ss-legal-sub">
+                    <strong>Video Consultations:</strong> To manage real-time call session state and ensure continuity
+                    in video consultation rooms.
+                </p>
+                <p class="ss-legal-sub">
+                    <strong>User Preferences:</strong> To remember your display preferences (e.g., dashboard settings,
+                    notification preferences) so you do not have to re-enter them each visit.
+                </p>
+                <p class="ss-legal-sub">
+                    <strong>Platform Analytics & Improvement:</strong> To understand which features are used most,
+                    identify error-prone areas, and direct our development roadmap to best serve our users.
+                </p>
+                <p class="ss-legal-sub">
+                    <strong>Fraud Prevention:</strong> To detect and prevent fraudulent sign-ups, spam form
+                    submissions, and automated bot activity through reCAPTCHA integration.
+                </p>
+            </div>
+
+            <!-- Section 5 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">5. THIRD-PARTY COOKIES AND SERVICES</p>
+                <p class="ss-legal-sub">Certain features of the SolaceSquad&reg; Platform are powered by trusted
+                    third-party providers who may set their own cookies. We do not control these cookies. Please
+                    refer to each provider's privacy policy for details.</p>
+
+                <p class="ss-legal-sub">
+                    <strong>Google LLC (Analytics, Sign-In, reCAPTCHA)</strong><br>
+                    Google sets cookies to analyse site usage (Google Analytics), allow Sign-In with Google
+                    (OAuth 2.0), and distinguish humans from bots (reCAPTCHA). These cookies are governed by
+                    <a href="https://policies.google.com/privacy" style="color:#2d6a5a;">Google's Privacy Policy</a>.
+                    You can opt out of Google Analytics via the
+                    <a href="https://tools.google.com/dlpage/gaoptout" style="color:#2d6a5a;">Google Analytics Opt-out
+                        Browser Add-on</a>.
+                </p>
+                <p class="ss-legal-sub">
+                    <strong>Payment Processors</strong><br>
+                    When you complete a payment, our payment partner may set cookies to process the transaction
+                    securely and prevent fraud. These are essential for the payment flow and governed by the
+                    payment provider's privacy policy.
+                </p>
+                <p class="ss-legal-sub">
+                    <strong>Communication & Email (SendGrid / Google Workspace)</strong><br>
+                    Transactional emails sent by SolaceSquad&reg; may include tracking pixels (standard for
+                    transactional email providers) that inform us whether an email was opened. You can disable
+                    email tracking by setting your email client to not load remote images.
+                </p>
+                <p class="ss-legal-sub">
+                    <strong>Video Conferencing (WebRTC / Daily.co)</strong><br>
+                    Our video consultation rooms use WebRTC and may store temporary data to maintain call state.
+                    This data is not used beyond the active session.
+                </p>
+            </div>
+
+            <!-- Section 6 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">6. LEGAL BASIS FOR USING COOKIES</p>
+                <p class="ss-legal-sub">In accordance with the Information Technology Act, 2000 and applicable
+                    Indian data protection laws:</p>
+                <p class="ss-legal-sub">
+                    <strong>Strictly Necessary Cookies</strong> are used on the basis of our legitimate interest in
+                    providing a functioning, secure Platform. Your consent is not required for these.
+                </p>
+                <p class="ss-legal-sub">
+                    <strong>Functional, Analytics, and Third-Party Cookies</strong> are used on the basis of your
+                    consent. By accepting this Cookie Policy and continuing to use the Platform, you provide consent
+                    to these cookies. You may withdraw consent at any time by disabling cookies in your browser or
+                    by contacting us.
+                </p>
+            </div>
+
+            <!-- Section 7 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">7. HOW TO MANAGE, OPT OUT, OR DELETE COOKIES</p>
+                <p class="ss-legal-sub">You have the right to accept, decline, or delete cookies at any time.
+                    Please note that disabling essential cookies will prevent large portions of the Platform from
+                    functioning, including login and appointment booking.</p>
+
+                <p class="ss-legal-sub"><strong>Through your browser settings:</strong></p>
+                <p class="ss-legal-sub">• <strong>Google Chrome:</strong> Settings → Privacy and Security →
+                    Cookies and other site data → See all site data and permissions</p>
+                <p class="ss-legal-sub">• <strong>Mozilla Firefox:</strong> Options → Privacy & Security →
+                    Cookies and Site Data → Manage Data</p>
+                <p class="ss-legal-sub">• <strong>Apple Safari:</strong> Preferences → Privacy → Manage Website
+                    Data → Remove All</p>
+                <p class="ss-legal-sub">• <strong>Microsoft Edge:</strong> Settings → Site permissions →
+                    Cookies and site data</p>
+                <p class="ss-legal-sub">• <strong>Opera:</strong> Settings → Advanced → Privacy & security →
+                    Site Settings → Cookies</p>
+
+                <p class="ss-legal-sub"><strong>For mobile devices:</strong></p>
+                <p class="ss-legal-sub">• <strong>iOS (Safari):</strong> Settings → Safari → Block All
+                    Cookies</p>
+                <p class="ss-legal-sub">• <strong>Android (Chrome):</strong> Chrome → Settings → Site
+                    Settings → Cookies</p>
+
+                <p class="ss-legal-sub"><strong>Opt out of specific third-party tracking:</strong></p>
+                <p class="ss-legal-sub">• Google Analytics:
+                    <a href="https://tools.google.com/dlpage/gaoptout" style="color:#2d6a5a;">
+                        tools.google.com/dlpage/gaoptout</a></p>
+                <p class="ss-legal-sub">• Google Ad settings:
+                    <a href="https://adssettings.google.com" style="color:#2d6a5a;">
+                        adssettings.google.com</a></p>
+                <p class="ss-legal-sub">• Network Advertising Initiative:
+                    <a href="https://optout.networkadvertising.org" style="color:#2d6a5a;">
+                        optout.networkadvertising.org</a></p>
+            </div>
+
+            <!-- Section 8 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">8. COOKIES AND SENSITIVE HEALTH DATA</p>
+                <p class="ss-legal-sub">SolaceSquad&reg; is a wellness and mental health platform. We take the
+                    privacy of health-related information with the utmost seriousness. Cookies placed by
+                    SolaceSquad&reg; do not store or transmit sensitive health-related personal data. Your consultation
+                    notes, wellness logs, and health records are stored securely in encrypted databases, not in
+                    cookies or browser storage.</p>
+                <p class="ss-legal-sub">We do not permit third-party advertisers to access data gathered from
+                    cookies on health-related pages of our Platform.</p>
+            </div>
+
+            <!-- Section 9 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">9. DO NOT TRACK (DNT)</p>
+                <p class="ss-legal-sub">Some browsers include a "Do Not Track" (DNT) feature that signals to
+                    websites that you do not want your online activity tracked. There is currently no universally
+                    accepted standard for how websites should respond to DNT signals.</p>
+                <p class="ss-legal-sub">At present, SolaceSquad&reg; does not alter its data collection and use
+                    practices in response to DNT signals. We will revisit this policy as industry standards evolve.
+                    You may also use the opt-out mechanisms described in Section 7 above to limit tracking.</p>
+            </div>
+
+            <!-- Section 10 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">10. CHILDREN AND COOKIES</p>
+                <p class="ss-legal-sub">The SolaceSquad&reg; Platform is not intended for use by individuals under the
+                    age of 18. We do not knowingly place cookies on the devices of minors. If you believe that
+                    a child under 18 has used the Platform in a manner that involved the collection of cookie data,
+                    please contact us immediately at
+                    <a href="mailto:info@solacesquad.com" style="color:#2d6a5a;">info@solacesquad.com</a>
+                    and we will take appropriate remedial action.</p>
+            </div>
+
+            <!-- Section 11 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">11. DATA RETENTION</p>
+                <p class="ss-legal-sub">Cookie data is retained for as long as the cookie is active (see Section 3
+                    for specific durations). When a cookie expires or is deleted, associated data is no longer
+                    accessible to us. Analytics data aggregated from cookies may be retained for up to
+                    26 months in accordance with Google Analytics' data retention settings.</p>
+                <p class="ss-legal-sub">SolaceSquad&reg; does not retain raw cookie values in its own databases. The
+                    session token stored in your browser cookie is a reference to a server-side session, which is
+                    itself deleted upon logout or expiry.</p>
+            </div>
+
+            <!-- Section 12 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">12. INTERNATIONAL DATA TRANSFERS</p>
+                <p class="ss-legal-sub">Some of our third-party partners (e.g., Google LLC) are headquartered
+                    outside India and may process cookie-related data on servers located in other countries. Where
+                    such transfers occur, we ensure they are subject to appropriate safeguards consistent with
+                    applicable Indian data protection law.</p>
+                <p class="ss-legal-sub">By using the SolaceSquad&reg; Platform from India or elsewhere, you acknowledge
+                    that your information may be processed in countries other than your country of residence.</p>
+            </div>
+
+            <!-- Section 13 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">13. UPDATES TO THIS COOKIE POLICY</p>
+                <p class="ss-legal-sub">SolaceSquad&reg; may update this Cookie Policy from time to time to reflect
+                    changes in technology, legal requirements, or our business practices. When we make changes, we
+                    will update the "Last Updated" date at the top of this page.</p>
+                <p class="ss-legal-sub">We encourage you to review this page periodically. Continued use of the
+                    SolaceSquad&reg; Platform after any changes are posted constitutes your acceptance of the revised
+                    Cookie Policy. If we make material changes, we will notify registered users by email or by a
+                    prominent notice on the Platform prior to the changes becoming effective.</p>
+            </div>
+
+            <!-- Section 14 -->
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">14. CONTACT US — GRIEVANCE OFFICER</p>
+                <p class="ss-legal-sub">If you have questions, concerns, or requests regarding this Cookie Policy
+                    or our use of cookies, you may contact our Grievance Officer as required under Rule 5(9) of
+                    the SPI Rules:</p>
+                <p class="ss-legal-sub"><strong>Name:</strong> Saumen Sarkar</p>
+                <p class="ss-legal-sub"><strong>Designation:</strong> Grievance Officer, SolaceSquad&reg; Technologies
+                </p>
+                <p class="ss-legal-sub"><strong>Address:</strong> D-302, Bren Paddington, Bellandur,
+                    Kaikondrahalli, Bangalore – 560103, Karnataka, INDIA</p>
+                <p class="ss-legal-sub"><strong>Email:</strong>
+                    <a href="mailto:info@solacesquad.com" style="color:#2d6a5a;">info@solacesquad.com</a>
+                </p>
+                <p class="ss-legal-sub">We will endeavour to respond to your query within 30 days of receipt.</p>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+{% include "components/cta_section.html" %}
+{% include "components/footer.html" %}
+{% endblock %}

@@ -1,0 +1,163 @@
+{% extends "layouts/protected.html" %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/admin', 'key': 'dashboard'},
+{'icon': 'users', 'label': 'Users', 'href': '/admin/users', 'key': 'users'},
+{'icon': 'video', 'label': 'Video Library', 'href': '/admin/videos', 'key': 'videos'}
+] %}
+
+{% block dashboard_content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">Video Library Manager</h1>
+            <p class="text-gray-600">Organize exercise content for your users.</p>
+        </div>
+        <button onclick="document.getElementById('createFolderModal').showModal()"
+            class="btn btn-primary flex items-center gap-2">
+            <i data-lucide="plus" class="w-5 h-5"></i>
+            New Folder
+        </button>
+    </div>
+
+    <!-- Folders Grid -->
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for folder in folders %}
+        <div
+            class="group relative bg-white rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col">
+            <!-- Thumbnail -->
+            <div class="h-48 bg-gray-200 relative">
+                {% if folder.thumbnail_url %}
+                <img src="{{ folder.thumbnail_url }}" alt="{{ folder.name }}" class="w-full h-full object-cover">
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center bg-gray-100">
+                    <i data-lucide="folder" class="w-12 h-12 text-gray-300"></i>
+                </div>
+                {% endif %}
+                <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+
+                <!-- Actions -->
+                <div class="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="deleteFolder({{ folder.id }})"
+                        class="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow-sm" title="Delete Folder">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="p-5 flex flex-col flex-grow">
+                <h3 class="text-lg font-bold text-gray-900 mb-1">{{ folder.name }}</h3>
+                <p class="text-gray-500 text-sm line-clamp-2 mb-4 flex-grow">{{ folder.description }}</p>
+
+                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <span class="text-xs text-gray-500 font-medium">
+                        {{ folder.video_count }} Videos
+                    </span>
+                    <a href="/admin/videos/folder/{{ folder.id }}"
+                        class="text-primary-600 text-sm font-semibold hover:text-primary-700 flex items-center gap-1">
+                        Manage Videos <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-span-full text-center py-16 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+            <div class="bg-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-sm">
+                <i data-lucide="folder-plus" class="w-8 h-8 text-primary-500"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900">No folders yet</h3>
+            <p class="text-gray-500 mt-1 mb-4">Create a folder to start organizing videos.</p>
+            <button onclick="document.getElementById('createFolderModal').showModal()" class="btn btn-outline text-sm">
+                Create First Folder
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Create Folder Modal -->
+<dialog id="createFolderModal" class="modal rounded-2xl shadow-2xl p-0 backdrop:bg-black/50 w-full max-w-md">
+    <div class="bg-white p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-bold text-gray-900">Create New Folder</h3>
+            <button onclick="document.getElementById('createFolderModal').close()"
+                class="text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form id="createFolderForm" onsubmit="createFolder(event)">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Folder Name</label>
+                    <input type="text" name="name" required
+                        class="w-full rounded-lg border-gray-300 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <textarea name="description" rows="3"
+                        class="w-full rounded-lg border-gray-300 focus:ring-primary-500 focus:border-primary-500"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Thumbnail URL</label>
+                    <input type="url" name="thumbnail_url" placeholder="https://..."
+                        class="w-full rounded-lg border-gray-300 focus:ring-primary-500 focus:border-primary-500">
+                    <p class="text-xs text-gray-500 mt-1">Direct link to an image (optional)</p>
+                </div>
+            </div>
+
+            <div class="mt-8 flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('createFolderModal').close()"
+                    class="btn btn-ghost text-gray-600">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Folder</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+<script>
+    async function createFolder(e) {
+        e.preventDefault();
+        const form = e.target;
+        const data = {
+            name: form.name.value,
+            description: form.description.value,
+            thumbnail_url: form.thumbnail_url.value
+        };
+
+        try {
+            const res = await fetch('/api/admin/folders/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await res.json();
+
+            if (result.success) {
+                location.reload();
+            } else {
+                alert('Error creating folder');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Error creating folder');
+        }
+    }
+
+    async function deleteFolder(id) {
+        if (!confirm('Are you sure? This will delete all videos inside this folder.')) return;
+
+        try {
+            const res = await fetch(`/api/admin/folders/${id}`, { method: 'DELETE' });
+            if (res.ok) location.reload();
+            else alert('Failed to delete folder');
+        } catch (err) {
+            console.error(err);
+            alert('Error deleting folder');
+        }
+    }
+</script>
+{% endblock %}

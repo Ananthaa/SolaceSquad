@@ -1,0 +1,1388 @@
+{% extends "layouts/protected.html" %}
+
+
+{% block dashboard_content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between mb-8">
+        <div class="flex-1 min-w-0">
+            <h1 class="text-3xl font-display font-bold text-gray-900 leading-tight">
+                User Management
+            </h1>
+            <p class="mt-1 text-sm text-gray-600">
+                Manage users and consultants on the platform.
+            </p>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="mb-6">
+        <div class="border-b border-gray-200">
+            <nav class="-mb-px flex space-x-8">
+                <button onclick="switchTab('users')" id="users-tab"
+                    class="tab-button border-b-2 border-primary-500 py-4 px-1 text-sm font-medium text-primary-600">
+                    <i data-lucide="users" class="w-4 h-4 inline mr-2"></i>
+                    Users ({{ users|length }})
+                </button>
+                <button onclick="switchTab('consultants')" id="consultants-tab"
+                    class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <i data-lucide="user-check" class="w-4 h-4 inline mr-2"></i>
+                    Consultants ({{ consultants|length }})
+                </button>
+                <button onclick="switchTab('staff')" id="staff-tab"
+                    class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <i data-lucide="shield-check" class="w-4 h-4 inline mr-2"></i>
+                    Staff ({{ staff|length }})
+                </button>
+                <button onclick="switchTab('incomplete')" id="incomplete-tab"
+                    class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <i data-lucide="alert-circle" class="w-4 h-4 inline mr-2"></i>
+                    Pending & Incomplete <span id="incomplete-badge" class="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-orange-100 text-orange-700 font-semibold"></span>
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Users Tab Content -->
+    <div id="users-content" class="tab-content">
+        <div class="card" style="overflow:visible">
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center flex-wrap gap-3">
+                <h3 class="text-lg font-semibold text-gray-900">All Users</h3>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <a href="/api/admin/bulk-users/template" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 transition">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i> Template
+                    </a>
+                    <button onclick="openImportModal('user')" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+                        <i data-lucide="upload" class="w-3.5 h-3.5"></i> Import Users
+                    </button>
+                    <div class="relative">
+                        <input type="text" placeholder="Search users..." class="input py-2 pl-10 pr-4 text-sm w-52"
+                            onkeyup="filterUsersTable(this.value)">
+                        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-3"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full" id="usersTable">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                User</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Role</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Joined</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Usage Stats</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Status</th>
+                            <th
+                                class="sticky right-0 bg-gray-50 px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider z-10">
+                                Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        {% for u in users %}
+                        <tr class="group hover:bg-gray-50 transition-colors user-row{% if not u.is_active %} opacity-60 bg-gray-50{% endif %}">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <div
+                                        class="flex-shrink-0 h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                                        <span class="text-primary-600 font-semibold text-sm">
+                                            {{ u.name[:2].upper() }}
+                                        </span>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900 user-name">{{ u.name }}</div>
+                                        <div class="text-sm text-gray-500 user-email">
+                                            {{ u.email }}
+                                            {% if u.phone_number %}
+                                            <span class="mx-1.5 text-gray-300">|</span>
+                                            <span>📞 {{ u.phone_number }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-medium rounded-md 
+                                    {% if u.user_type == 'admin' %}bg-purple-100 text-purple-700
+                                    {% elif u.user_type == 'consultant' %}bg-blue-100 text-blue-700
+                                    {% elif u.user_type == 'assistant' %}bg-emerald-100 text-emerald-700
+                                    {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                    {{ u.user_type|capitalize }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">
+                                    {{ u.created_at | format_local('%b %d, %Y') }}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-900">
+                                    <div class="flex items-center gap-4">
+                                        <span title="AI Chat Sessions">
+                                            <i data-lucide="message-circle" class="w-4 h-4 inline text-blue-500"></i>
+                                            {{ u.chat_count }}
+                                        </span>
+                                        <span title="Vital Scans">
+                                            <i data-lucide="activity" class="w-4 h-4 inline text-green-500"></i>
+                                            {{ u.vitals_count }}
+                                        </span>
+                                        <span title="Consultations">
+                                            <i data-lucide="calendar" class="w-4 h-4 inline text-purple-500"></i>
+                                            {{ u.appointments_count }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if u.is_active %}
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Active
+                                </span>
+                                {% else %}
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                    Inactive
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="sticky right-0 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-right text-sm font-medium z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.03)]">
+                                <!-- Desktop Actions -->
+                                <div class="hidden sm:flex items-center justify-end gap-1.5">
+                                    <button onclick="startImpersonate({{ u.id }})"
+                                        class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-emerald-600 hover:text-emerald-900 shadow-sm transition" title="Book Consultation on Behalf">
+                                        <i data-lucide="calendar-plus" class="w-4 h-4 inline"></i>
+                                    </button>
+                                    <button onclick="viewUserProfile({{ u.id }})"
+                                        class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-primary-600 hover:text-primary-900 shadow-sm transition" title="View Profile">
+                                        <i data-lucide="eye" class="w-4 h-4 inline"></i>
+                                    </button>
+                                    <button onclick="toggleUserStatus({{ u.id }}, {{ 'true' if u.is_active else 'false' }})"
+                                        class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-yellow-600 hover:text-yellow-900 shadow-sm transition" title="Toggle Status">
+                                        <i data-lucide="power" class="w-4 h-4 inline"></i>
+                                    </button>
+                                    {% if u.user_type != 'admin' %}
+                                    <button onclick="deleteUser({{ u.id }})" class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-red-600 hover:text-red-900 shadow-sm transition"
+                                        title="Delete User">
+                                        <i data-lucide="trash-2" class="w-4 h-4 inline"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Mobile/PWA Actions -->
+                                <div class="sm:hidden flex items-center justify-end">
+                                    <button id="user-opt-{{ u.id }}" class="dropdown-trigger inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 shadow-sm transition" onclick="toggleTableDropdown(this, event)">
+                                        <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                                    </button>
+                                    <div class="hidden">
+                                        <button onclick="startImpersonate({{ u.id }})">
+                                            <i data-lucide="calendar-plus" class="w-4 h-4 inline mr-2"></i> Book Consultation
+                                        </button>
+                                        <button onclick="viewUserProfile({{ u.id }})">
+                                            <i data-lucide="eye" class="w-4 h-4 inline mr-2"></i> View Profile
+                                        </button>
+                                        <button onclick="toggleUserStatus({{ u.id }}, {{ 'true' if u.is_active else 'false' }})">
+                                            <i data-lucide="power" class="w-4 h-4 inline mr-2"></i> Toggle Status
+                                        </button>
+                                        {% if u.user_type != 'admin' %}
+                                        <button onclick="deleteUser({{ u.id }})">
+                                            <i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i> Delete User
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff Tab Content -->
+    <div id="staff-content" class="tab-content hidden">
+        <div class="card">
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-900">Platform Staff (Admins & Assistants)</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">User</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Joined</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        {% for s in staff %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                                        <span class="text-indigo-600 font-semibold text-sm">{{ s.name[:2].upper() }}</span>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">{{ s.name }}</div>
+                                        <div class="text-sm text-gray-500">{{ s.email }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                    {% if s.user_type == 'admin' %}bg-purple-100 text-purple-700
+                                    {% else %}bg-blue-100 text-blue-700{% endif %}">
+                                    {{ s.user_type|title }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500">
+                                {{ s.created_at | format_local('%Y-%m-%d') }}
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="flex items-center gap-1.5 text-xs font-medium {% if s.is_active %}text-emerald-600{% else %}text-gray-400{% endif %}">
+                                    <span class="w-1.5 h-1.5 rounded-full {% if s.is_active %}bg-emerald-500{% else %}bg-gray-300{% endif %}"></span>
+                                    {{ 'Active' if s.is_active else 'Inactive' }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Consultants Tab Content -->
+    <div id="consultants-content" class="tab-content hidden">
+        <div class="card" style="overflow:visible">
+            <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center flex-wrap gap-3">
+                <h3 class="text-lg font-semibold text-gray-900">Approved Consultants</h3>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <a href="/api/admin/bulk-users/template" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 transition">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i> Template
+                    </a>
+                    <button onclick="openImportModal('consultant')" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+                        <i data-lucide="upload" class="w-3.5 h-3.5"></i> Import Consultants
+                    </button>
+                    <div class="relative">
+                        <input type="text" placeholder="Search consultants..." class="input py-2 pl-10 pr-4 text-sm w-52"
+                            onkeyup="filterConsultantsTable(this.value)">
+                        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-3"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full" id="consultantsTable">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th style="min-width: 280px;"
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Consultant</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Specialization</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Fee (₹)
+                                <span class="text-gray-300">|</span>
+                                Payout (₹)
+                            </th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Joined</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Status</th>
+                            <th
+                                class="sticky right-0 bg-gray-50 px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider z-10">
+                                Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        {% for c in consultants %}
+                        <tr class="group hover:bg-gray-50 transition-colors consultant-row{% if not c.user.is_active %} opacity-60 bg-gray-50{% endif %}" data-user-id="{{ c.user_id }}">
+                            <td class="px-6 py-4" style="min-width: 280px;">
+                                <div class="flex items-center">
+                                    <div
+                                        class="flex-shrink-0 h-10 w-10 rounded-full bg-secondary-100 flex items-center justify-center">
+                                        <span class="text-secondary-600 font-semibold text-sm">
+                                            {{ c.user.name[:2].upper() }}
+                                        </span>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900 consultant-name">{{ c.user.name }}
+                                        </div>
+                                        <div class="text-sm text-gray-500 consultant-email">
+                                            {{ c.user.email }}
+                                            {% if c.user.phone_number %}
+                                            <span class="mx-1.5 text-gray-300">|</span>
+                                            <span>📞 {{ c.user.phone_number }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ c.specialization or 'General' }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <!-- Fee display/edit -->
+                                <div class="mb-2">
+                                    <div class="text-xs text-gray-400 mb-0.5">User Pays</div>
+                                    <div class="text-sm text-gray-900 font-semibold" id="fee-display-{{ c.id }}">
+                                        ₹{{ c.consultation_fee or 0 }}
+                                    </div>
+                                    <div class="hidden" id="fee-edit-{{ c.id }}">
+                                        <input type="number" value="{{ c.consultation_fee or 0 }}"
+                                            class="input py-1 px-2 text-sm w-24" id="fee-input-{{ c.id }}">
+                                        <button onclick="saveFee({{ c.id }})"
+                                            class="text-green-600 hover:text-green-900 ml-1">
+                                            <i data-lucide="check" class="w-4 h-4 inline"></i>
+                                        </button>
+                                        <button onclick="cancelEditFee({{ c.id }})"
+                                            class="text-red-600 hover:text-red-900 ml-1">
+                                            <i data-lucide="x" class="w-4 h-4 inline"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <!-- Payout display/edit -->
+                                <div>
+                                    <div class="text-xs text-gray-400 mb-0.5">Consultant Gets</div>
+                                    <div class="text-sm text-emerald-700 font-semibold" id="payout-display-{{ c.id }}">
+                                        ₹{{ c.consultant_payout or 0 }}
+                                    </div>
+                                    <div class="hidden" id="payout-edit-{{ c.id }}">
+                                        <input type="number" value="{{ c.consultant_payout or 0 }}"
+                                            class="input py-1 px-2 text-sm w-24" id="payout-input-{{ c.id }}">
+                                        <button onclick="saveFee({{ c.id }})"
+                                            class="text-green-600 hover:text-green-900 ml-1">
+                                            <i data-lucide="check" class="w-4 h-4 inline"></i>
+                                        </button>
+                                        <button onclick="cancelEditFee({{ c.id }})"
+                                            class="text-red-600 hover:text-red-900 ml-1">
+                                            <i data-lucide="x" class="w-4 h-4 inline"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-500">
+                                    {{ c.user.created_at | format_local('%b %d, %Y') }}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if c.is_approved and c.user.is_active %}
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    Active
+                                </span>
+                                {% else %}
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                    Inactive
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="sticky right-0 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-right text-sm font-medium z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.03)]">
+                                <!-- Desktop Actions -->
+                                <div class="hidden sm:flex items-center justify-end gap-1.5">
+                                    <button onclick="editFee({{ c.id }})" class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-blue-600 hover:text-blue-900 shadow-sm transition"
+                                        title="Edit Fee">
+                                        <i data-lucide="edit" class="w-4 h-4 inline"></i>
+                                    </button>
+                                    <button
+                                        onclick="toggleConsultantStatus({{ c.user_id }}, {{ 'true' if c.user.is_active else 'false' }})"
+                                        class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-yellow-600 hover:text-yellow-900 shadow-sm transition" title="Toggle Status">
+                                        <i data-lucide="power" class="w-4 h-4 inline"></i>
+                                    </button>
+                                    <button onclick="deleteConsultant({{ c.user_id }})"
+                                        class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-red-600 hover:text-red-900 shadow-sm transition" title="Delete Consultant">
+                                        <i data-lucide="trash-2" class="w-4 h-4 inline"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Mobile/PWA Actions -->
+                                <div class="sm:hidden flex items-center justify-end">
+                                    <button id="cons-opt-{{ c.id }}" class="dropdown-trigger inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 shadow-sm transition" onclick="toggleTableDropdown(this, event)">
+                                        <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                                    </button>
+                                    <div class="hidden">
+                                        <button onclick="editFee({{ c.id }})">
+                                            <i data-lucide="edit" class="w-4 h-4 inline mr-2"></i> Edit Fee
+                                        </button>
+                                        <button onclick="toggleConsultantStatus({{ c.user_id }}, {{ 'true' if c.user.is_active else 'false' }})">
+                                            <i data-lucide="power" class="w-4 h-4 inline mr-2"></i> Toggle Status
+                                        </button>
+                                        <button onclick="deleteConsultant({{ c.user_id }})">
+                                            <i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i> Delete Consultant
+                                        </button>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Incomplete Profiles Tab -->
+<div id="incomplete-content" class="tab-content hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-0" style="margin-top:-1.5rem;">
+    <div class="card" style="overflow:visible">
+        <div class="px-6 py-5 border-b border-gray-100">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Pending & Incomplete Profiles</h3>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <input type="text" id="incomplete-search" placeholder="Search pending..." class="input py-2 pl-10 pr-4 text-sm w-52"
+                            onkeyup="filterIncomplete(this.value)">
+                        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-3"></i>
+                    </div>
+                    <button onclick="loadIncompleteConsultants()" class="text-sm text-primary-600 hover:underline">↻ Refresh</button>
+                </div>
+            </div>
+        </div>
+        <div id="incomplete-list" class="p-8 text-center text-gray-400">Loading...</div>
+    </div>
+</div>
+
+<!-- Bulk Import Modal -->
+<dialog id="importModal" class="rounded-2xl shadow-2xl p-0 backdrop:bg-black/50 w-full max-w-lg">
+    <div class="bg-white rounded-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-gray-100">
+            <h3 class="text-xl font-bold text-gray-900" id="importModalTitle">Import Users</h3>
+            <button onclick="document.getElementById('importModal').close()" class="text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <p class="text-sm text-gray-600">Upload a CSV file to create accounts in bulk. Each user will receive a welcome email with their temporary login credentials.</p>
+            <div id="importDropzone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-primary-400 hover:bg-primary-50 transition" onclick="document.getElementById('importFileInput').click()">
+                <i data-lucide="upload-cloud" class="w-10 h-10 text-gray-400 mx-auto mb-2"></i>
+                <p class="text-sm font-medium text-gray-700">Click to select CSV file</p>
+                <p class="text-xs text-gray-400 mt-1">Required columns: name, email, user_type, phone (optional)</p>
+                <p id="importFileName" class="text-xs text-primary-600 font-semibold mt-2"></p>
+            </div>
+            <input type="file" id="importFileInput" accept=".csv" class="hidden" onchange="onImportFileSelected(this)">
+            <div id="importResults" class="hidden bg-gray-50 rounded-xl p-4 text-sm space-y-2"></div>
+        </div>
+        <div class="flex justify-end gap-3 px-6 pb-6">
+            <button onclick="document.getElementById('importModal').close()" class="btn btn-secondary text-sm">Cancel</button>
+            <button id="importSubmitBtn" onclick="submitImport()" class="btn btn-primary text-sm" disabled>Import</button>
+        </div>
+    </div>
+</dialog>
+
+<!-- Proxy Onboarding Modal -->
+<dialog id="onboardingModal" class="rounded-2xl shadow-2xl p-0 backdrop:bg-black/50 w-full max-w-4xl">
+    <div class="bg-white rounded-2xl max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-5 border-b border-gray-100 flex-shrink-0" style="background:linear-gradient(135deg,#f0fdf4,#fff);">
+            <div>
+                <h3 class="text-xl font-bold text-gray-900">Complete Consultant Profile</h3>
+                <p class="text-sm text-gray-500" id="onboardingSubtitle"></p>
+            </div>
+            <button onclick="document.getElementById('onboardingModal').close()" class="text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <div class="overflow-y-auto flex-1 p-6" style="background:linear-gradient(135deg,#f0fdf4 0%,#fff 50%,#eff6ff 100%);">
+            <input type="hidden" id="obUserId">
+
+            <!-- S1: Personal Details -->
+            <div class="ob-card">
+                <div class="ob-title"><span class="ob-badge">1</span> Personal Details</div>
+                <div class="ob-grid2">
+                    <div><label class="ob-label">Full Name <span style="color:#ef4444">*</span></label><input class="ob-input" id="obFullName" type="text" placeholder="Full legal name"></div>
+                    <div><label class="ob-label">Email Address</label><input class="ob-input" id="obEmail" type="email" readonly style="background:#f9fafb;color:#6b7280;cursor:not-allowed;"><p class="ob-hint">Read-only — used for login.</p></div>
+                    <div><label class="ob-label">City / Location</label><input class="ob-input" id="obCity" type="text" placeholder="e.g. Bengaluru, Mumbai"></div>
+                    <div><label class="ob-label">Gender</label>
+                        <select class="ob-input ob-sel" id="obGender">
+                            <option value="">Prefer not to say</option><option>Female</option><option>Male</option><option>Transgender</option><option>Non-binary</option><option>Other</option>
+                        </select></div>
+                    <div><label class="ob-label">Years of Experience</label><input class="ob-input" id="obExpYears" type="number" min="0" max="60" placeholder="e.g. 5"></div>
+                    <div><label class="ob-label">LinkedIn / Professional URL</label><input class="ob-input" id="obLinkedin" type="url" placeholder="https://linkedin.com/in/..."></div>
+                    <div><label class="ob-label">Specialization</label><input class="ob-input" id="obSpec" type="text" placeholder="e.g. Emotional Wellbeing, Nutrition"></div>
+                    <div><label class="ob-label">Phone Number</label><input class="ob-input" id="obPhone" type="tel" placeholder="e.g. +919999999999"></div>
+                </div>
+            </div>
+
+            <!-- S2: Qualifications -->
+            <div class="ob-card">
+                <div class="ob-title"><span class="ob-badge">2</span> Qualifications &amp; Background</div>
+                <div class="ob-grid2">
+                    <div>
+                        <label class="ob-label">Highest Qualification</label>
+                        <div style="display:flex;flex-direction:column;gap:.3rem;margin-top:.35rem;">
+                            <label class="ob-rbtn"><input type="radio" name="ob_qual" value="Bachelors"><span>Bachelors</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_qual" value="Masters"><span>Masters</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_qual" value="M.Phil"><span>M.Phil</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_qual" value="PhD"><span>PhD</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_qual" value="Certified Coach (ICF)"><span>Certified Coach (ICF)</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_qual" value="Other"><span>Other</span></label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="ob-label">Education Specialization</label>
+                        <input class="ob-input" id="obEduSpec" type="text" placeholder="e.g. Clinical Psychology" style="margin-top:.35rem;">
+                        <div style="margin-top:1.25rem;">
+                            <label class="ob-label">QACP Certified?</label>
+                            <p class="ob-hint">Queer Affirmative Counselling Practice</p>
+                            <div class="ob-rrow" style="margin-top:.35rem;">
+                                <label class="ob-rbtn"><input type="radio" name="ob_qacp" value="yes"><span>Yes</span></label>
+                                <label class="ob-rbtn"><input type="radio" name="ob_qacp" value="no"><span>No</span></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- S3a: Consultant Type -->
+            <div class="ob-card">
+                <div class="ob-title"><span class="ob-badge">3a</span> Wellbeing Consultant Type</div>
+                <p style="font-size:.8rem;color:#6b7280;margin-bottom:.9rem;">Select all that apply:</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem;">
+                    <label class="ob-type"><input type="checkbox" name="ob_con_type" value="Mental" style="display:none"><div style="font-size:1.75rem;margin-bottom:.3rem;">🧠</div><div style="font-size:.8rem;font-weight:700;">Mental Wellbeing</div></label>
+                    <label class="ob-type"><input type="checkbox" name="ob_con_type" value="Physical" style="display:none"><div style="font-size:1.75rem;margin-bottom:.3rem;">💪</div><div style="font-size:.8rem;font-weight:700;">Physical Wellness</div></label>
+                    <label class="ob-type"><input type="checkbox" name="ob_con_type" value="Professional" style="display:none"><div style="font-size:1.75rem;margin-bottom:.3rem;">🎯</div><div style="font-size:.8rem;font-weight:700;">Professional Growth</div></label>
+
+                </div>
+            </div>
+
+            <!-- S3b: Availability -->
+            <div class="ob-card">
+                <div class="ob-title"><span class="ob-badge">3b</span> Availability</div>
+                <div class="ob-grid2">
+                    <div>
+                        <label class="ob-label">Preferred Time of Day</label>
+                        <div style="display:flex;flex-direction:column;gap:.3rem;margin-top:.35rem;">
+                            <label class="ob-rbtn"><input type="radio" name="ob_pref_time" value="Morning (6am–12pm)"><span>Morning (6am–12pm)</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_pref_time" value="Afternoon (12pm–5pm)"><span>Afternoon (12pm–5pm)</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_pref_time" value="Evening (5pm–10pm)"><span>Evening (5pm–10pm)</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_pref_time" value="Any Time"><span>Any Time</span></label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="ob-label">Preferred Days</label>
+                        <div style="display:flex;flex-direction:column;gap:.3rem;margin-top:.35rem;">
+                            <label class="ob-rbtn"><input type="radio" name="ob_pref_days" value="Weekdays"><span>Weekdays</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_pref_days" value="Weekends"><span>Weekends</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_pref_days" value="Any Day"><span>Any Day</span></label>
+                        </div>
+                        <div style="margin-top:1rem;">
+                            <label class="ob-label">Engagement Type</label>
+                            <div class="ob-rrow" style="margin-top:.35rem;flex-direction:column;gap:.3rem;">
+                                <label class="ob-rbtn"><input type="radio" name="ob_engagement" value="Part-time"><span>Part-time</span></label>
+                                <label class="ob-rbtn"><input type="radio" name="ob_engagement" value="Full-time"><span>Full-time</span></label>
+                                <label class="ob-rbtn"><input type="radio" name="ob_engagement" value="Freelance"><span>Freelance</span></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- S4: Counselling Methods -->
+            <div class="ob-card">
+                <div class="ob-title"><span class="ob-badge">4</span> Counselling Approach / Methods</div>
+                <p style="font-size:.8rem;color:#6b7280;margin-bottom:.75rem;">Select all methods practised:</p>
+                <div class="ob-chkgrid">
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Person-Centered Therapy"><span>Person-Centered Therapy</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Cognitive Behavioural Therapy (CBT)"><span>Cognitive Behavioural Therapy (CBT)</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Dialectical Behaviour Therapy (DBT)"><span>Dialectical Behaviour Therapy (DBT)</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Rational Emotive Behaviour Therapy (REBT)"><span>Rational Emotive Behaviour Therapy (REBT)</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Psychodynamic/Psychoanalytic"><span>Psychodynamic/Psychoanalytic</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Trauma-Informed Care"><span>Trauma-Informed Care</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Acceptance &amp; Commitment Therapy (ACT)"><span>Acceptance &amp; Commitment Therapy (ACT)</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Transactional Analysis"><span>Transactional Analysis</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Mindfulness-Based Therapy"><span>Mindfulness-Based Therapy</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Expressive Arts Therapy"><span>Expressive Arts Therapy</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Positive Psychotherapy"><span>Positive Psychotherapy</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Behavioural Therapy"><span>Behavioural Therapy</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Eclectic / Integrative"><span>Eclectic / Integrative</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Professional Growth Coaching"><span>Professional Growth Coaching</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Physical Wellness Coaching"><span>Physical Wellness Coaching</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Yoga"><span>Yoga</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_methods" value="Wushu"><span>Wushu</span></label>
+                </div>
+            </div>
+
+            <!-- S5: Areas of Expertise -->
+            <div class="ob-card">
+                <div class="ob-title"><span class="ob-badge">5</span> Areas of Expertise / Specialisation</div>
+                <p style="font-size:.8rem;color:#6b7280;margin-bottom:.75rem;">Select all areas specialised in:</p>
+                <div class="ob-chkgrid">
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Anxiety &amp; Panic Attacks"><span>Anxiety &amp; Panic Attacks</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Stress Management"><span>Stress Management</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Anger Management"><span>Anger Management</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Work-related Stress"><span>Work-related Stress</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Body Image Issues"><span>Body Image Issues</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Low Self-esteem"><span>Low Self-esteem</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Family Issues / Conflicts"><span>Family Issues / Conflicts</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Crisis Intervention"><span>Crisis Intervention</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Sexual &amp; Intimacy Problems"><span>Sexual &amp; Intimacy Problems</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Motivation &amp; Goal Setting"><span>Motivation &amp; Goal Setting</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Work-life Balance"><span>Work-life Balance</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Parenting Challenges"><span>Parenting Challenges</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Abuse &amp; Trauma (including Childhood)"><span>Abuse &amp; Trauma (incl. Childhood)</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="LGBTQIA+ Affirmative Counselling"><span>LGBTQIA+ Affirmative Counselling</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Neurodiversity (ADHD, Autism, etc.)"><span>Neurodiversity (ADHD, Autism, etc.)</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Grief &amp; Bereavement"><span>Grief &amp; Bereavement</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Personality Disorders"><span>Personality Disorders</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Depression &amp; Mood Disorders"><span>Depression &amp; Mood Disorders</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Relationship Counselling"><span>Relationship Counselling</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Addiction &amp; Substance Use"><span>Addiction &amp; Substance Use</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Career &amp; Life Coaching"><span>Career &amp; Life Coaching</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Nutrition &amp; Wellness"><span>Nutrition &amp; Wellness</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Mindfulness &amp; Meditation"><span>Mindfulness &amp; Meditation</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Physical Fitness &amp; Wellness"><span>Physical Fitness &amp; Wellness</span></label>
+                    <label class="ob-chk"><input type="checkbox" name="ob_areas" value="Other"><span>Other</span></label>
+                </div>
+
+            </div>
+
+            <!-- S6: Practice Details -->
+            <div class="ob-card">
+                <div class="ob-title"><span class="ob-badge">6</span> Practice Details</div>
+                <div class="ob-grid2">
+                    <div>
+                        <label class="ob-label">Clinical Experience Range</label>
+                        <div style="display:flex;flex-direction:column;gap:.35rem;margin-top:.35rem;">
+                            <label class="ob-rbtn"><input type="radio" name="ob_clinical" value="0–2 years"><span>0–2 years</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_clinical" value="2–4 years"><span>2–4 years</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_clinical" value="4–8 years"><span>4–8 years</span></label>
+                            <label class="ob-rbtn"><input type="radio" name="ob_clinical" value="Above 8 years"><span>Above 8 years</span></label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="ob-label">Expected Fee / Session (₹) <span style="color:#ef4444">*</span></label>
+                        <div style="position:relative;">
+                            <span style="position:absolute;top:50%;left:.75rem;transform:translateY(-50%);color:#6b7280;font-size:.875rem;">₹</span>
+                            <input class="ob-input" id="obFee" type="number" min="0" step="50" placeholder="e.g. 1500" style="padding-left:1.75rem;">
+                        </div>
+                        <p class="ob-hint">Admin sets the final approved rate.</p>
+                        <div style="margin-top:1rem;">
+                            <label class="ob-label">Administers psychometric tests?</label>
+                            <div class="ob-rrow" style="margin-top:.35rem;">
+                                <label class="ob-rbtn"><input type="radio" name="ob_psychometric" value="yes"><span>Yes</span></label>
+                                <label class="ob-rbtn"><input type="radio" name="ob_psychometric" value="no"><span>No</span></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:1.25rem;">
+                    <label class="ob-label">Who do they typically work with?</label>
+                    <div class="ob-chkgrid" style="grid-template-columns:repeat(auto-fill,minmax(165px,1fr));margin-top:.5rem;">
+                        <label class="ob-chk"><input type="checkbox" name="ob_audience" value="Individual (Adult)"><span>Individual (Adult)</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_audience" value="Minor / Child / Adolescent"><span>Minor / Child / Adolescent</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_audience" value="Family"><span>Family</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_audience" value="Couple"><span>Couple</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_audience" value="Support Group"><span>Support Group</span></label>
+                    </div>
+                </div>
+                <div style="margin-top:1.25rem;">
+                    <label class="ob-label">Languages consulted in <span style="color:#ef4444">*</span></label>
+                    <div class="ob-chkgrid" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr));margin-top:.5rem;">
+                        <label class="ob-chk"><input type="checkbox" name="ob_langs" value="English"><span>English</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_langs" value="Hindi"><span>Hindi</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_langs" value="Tamil"><span>Tamil</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_langs" value="Telugu"><span>Telugu</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_langs" value="Kannada"><span>Kannada</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_langs" value="Malayalam"><span>Malayalam</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_langs" value="Marathi"><span>Marathi</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_langs" value="Bengali"><span>Bengali</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_langs" value="Punjabi"><span>Punjabi</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_langs" value="Gujarati"><span>Gujarati</span></label>
+                        <label class="ob-chk"><input type="checkbox" name="ob_langs" value="Other"><span>Other</span></label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- S7: Profile & About -->
+            <div class="ob-card">
+                <div class="ob-title"><span class="ob-badge">7</span> Profile &amp; About</div>
+                <div style="display:flex;flex-direction:column;gap:1rem;">
+                    <div><label class="ob-label">Brief Bio / About</label><textarea class="ob-input" id="obBio" rows="4" placeholder="Counselling philosophy, approach, and what makes them a great fit..."></textarea></div>
+                    <div class="ob-grid2">
+                        <div><label class="ob-label">Delivery Methods</label><input class="ob-input" id="obDelivery" type="text" placeholder="Video, Audio, Chat"></div>
+                        <div><label class="ob-label">Intended Hours / Week</label><input class="ob-input" id="obIntendedHours" type="text" placeholder="e.g. 10, 20"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Controls -->
+            <div class="ob-card" style="border-color:#fbbf24;background:#fffbeb;">
+                <div class="ob-title"><span class="ob-badge" style="background:#d97706;">✓</span> Admin Controls</div>
+                <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;">
+                    <input type="checkbox" id="obApprove" checked style="width:1.1rem;height:1.1rem;accent-color:#0f766e;">
+                    <span style="font-size:.875rem;font-weight:600;color:#374151;">Mark consultant as Approved after saving</span>
+                </label>
+            </div>
+
+            <p id="onboardingError" class="text-red-600 text-sm mt-2 hidden"></p>
+        </div>
+        <div class="flex justify-end gap-3 p-5 border-t border-gray-100 flex-shrink-0">
+            <button onclick="document.getElementById('onboardingModal').close()" class="btn btn-secondary text-sm">Cancel</button>
+            <button onclick="saveOnboarding()" class="btn btn-primary text-sm">💾 Save &amp; Complete Profile</button>
+        </div>
+    </div>
+</dialog>
+
+<!-- User Profile Modal -->
+<dialog id="userProfileModal" class="rounded-2xl shadow-2xl p-0 backdrop:bg-black/50 w-full max-w-2xl">
+    <div class="bg-white rounded-2xl">
+        <div class="flex items-center justify-between p-6 border-b border-gray-100">
+            <h3 class="text-xl font-bold text-gray-900">User Profile</h3>
+            <button onclick="document.getElementById('userProfileModal').close()"
+                class="text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <div class="p-6" id="userProfileContent">
+            <div class="text-center py-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+                <p class="mt-4 text-gray-600">Loading...</p>
+            </div>
+        </div>
+    </div>
+</dialog>
+
+<script>
+    // â”€â”€ Tab switching (3 tabs) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    function switchTab(tab) {
+        const tabs = ['users','consultants','incomplete'];
+        tabs.forEach(t => {
+            const btn = document.getElementById(t+'-tab');
+            const content = document.getElementById(t+'-content');
+            if (!btn || !content) return;
+            const active = (t === tab);
+            btn.classList.toggle('border-primary-500', active);
+            btn.classList.toggle('text-primary-600', active);
+            btn.classList.toggle('border-transparent', !active);
+            btn.classList.toggle('text-gray-500', !active);
+            content.classList.toggle('hidden', !active);
+        });
+        if (tab === 'incomplete') loadIncompleteConsultants();
+        safeCreateIcons();
+    }
+
+    // â”€â”€ Bulk Import â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    let _importFile = null;
+    let _importRole = 'user';
+
+    function openImportModal(role) {
+        _importRole = role;
+        _importFile = null;
+        document.getElementById('importModalTitle').textContent = role === 'consultant' ? 'Import Consultants' : 'Import Users';
+        document.getElementById('importFileName').textContent = '';
+        document.getElementById('importResults').classList.add('hidden');
+        document.getElementById('importSubmitBtn').disabled = true;
+        document.getElementById('importModal').showModal();
+        safeCreateIcons();
+    }
+
+    function onImportFileSelected(input) {
+        _importFile = input.files[0];
+        if (_importFile) {
+            document.getElementById('importFileName').textContent = '📎 ' + _importFile.name;
+            document.getElementById('importSubmitBtn').disabled = false;
+        }
+    }
+
+    async function submitImport() {
+        if (!_importFile) return;
+        const btn = document.getElementById('importSubmitBtn');
+        btn.disabled = true;
+        btn.textContent = 'Importing...';
+        const fd = new FormData();
+        fd.append('file', _importFile);
+        try {
+            const resp = await fetch('/api/admin/bulk-users/import', { method: 'POST', body: fd });
+            const data = await resp.json();
+            const box = document.getElementById('importResults');
+            box.classList.remove('hidden');
+            if (data.success) {
+                let html = `<div class="font-semibold text-gray-900 mb-2">Import complete</div>`
+                    + `<div class="flex gap-4 mb-3">`
+                    + `<span class="text-green-700">âœ… Created: <strong>${data.created}</strong></span>`
+                    + `<span class="text-yellow-700">â­ Skipped: <strong>${data.skipped}</strong></span>`
+                    + `<span class="text-red-700">âŒ Failed: <strong>${data.failed}</strong></span>`
+                    + `</div>`;
+                if (data.details.skipped.length)
+                    html += `<div class="text-xs text-yellow-600">${data.details.skipped.map(s=>s.email+': '+s.reason).join('<br>')}</div>`;
+                if (data.details.failed.length)
+                    html += `<div class="text-xs text-red-600 mt-1">${data.details.failed.map(f=>f.email+': '+f.reason).join('<br>')}</div>`;
+                box.innerHTML = html;
+                if (data.created > 0) setTimeout(() => location.reload(), 3000);
+            } else {
+                box.innerHTML = `<span class="text-red-600">âŒ ${data.error || 'Import failed'}</span>`;
+            }
+        } catch (e) {
+            document.getElementById('importResults').innerHTML = `<span class="text-red-600">Network error: ${e.message}</span>`;
+            document.getElementById('importResults').classList.remove('hidden');
+        }
+        btn.textContent = 'Import';
+        btn.disabled = false;
+    }
+
+    // â”€â”€ Incomplete Profiles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    let _incLoaded = false;
+    async function loadIncompleteConsultants() {
+        if (_incLoaded) return;
+        const list = document.getElementById('incomplete-list');
+        list.innerHTML = '<div class="text-gray-400">Loading...</div>';
+        try {
+            const resp = await fetch('/api/admin/users/incomplete-consultants');
+            const data = await resp.json();
+            const badge = document.getElementById('incomplete-badge');
+            if (!data.success) { list.innerHTML = `<div class="text-red-500">${data.error}</div>`; return; }
+            const items = data.consultants;
+            badge.textContent = items.length || '';
+            if (!items.length) {
+                list.innerHTML = '<div class="py-10 text-gray-400 text-center">🎉 All consultant profiles are complete!</div>';
+                return;
+            }
+            list.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50"><tr>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Consultant</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Joined</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Completeness</th>
+                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Action</th>
+            </tr></thead><tbody class="divide-y divide-gray-100">`
+            + items.map(c => {
+                let statusBadge = '';
+                if (c.is_completed && !c.is_approved) {
+                    statusBadge = `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">Pending Approval</span>`;
+                } else if (!c.is_completed) {
+                    statusBadge = `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">Draft</span>`;
+                }
+                
+                return `<tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3">
+                        <div class="flex items-center">
+                            <span class="font-medium text-gray-900">${c.name}</span>
+                            ${statusBadge}
+                        </div>
+                        <div class="text-gray-500 text-xs">
+                            ${c.email}
+                            ${c.phone ? ` <span class="mx-1 text-gray-300">|</span> <span>📞 ${c.phone}</span>` : ''}
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${c.joined}</td>
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div class="h-2 rounded-full ${c.filled_pct > 50 ? 'bg-green-500' : 'bg-orange-400'}" style="width:${c.filled_pct}%"></div>
+                            </div>
+                            <span class="text-xs text-gray-500">${c.filled_pct}%</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                        <button onclick="openOnboarding(${c.user_id}, '${c.name.replace(/'/g,"\\'")}')"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition">
+                            <i data-lucide="edit-3" class="w-3 h-3"></i> ${c.is_completed ? 'Review & Approve' : 'Complete Profile'}
+                        </button>
+                    </td>
+                </tr>`;
+            }).join('')
+            + `</tbody></table></div>`;
+            _incLoaded = true;
+            safeCreateIcons();
+        } catch (e) {
+            list.innerHTML = `<div class="p-8 text-red-500">Error loading list: ${e.message}</div>`;
+        }
+    }
+
+    function filterIncomplete(query) {
+        const rows = document.querySelectorAll('#incomplete-list tr');
+        query = query.toLowerCase();
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+
+    // €€ Proxy Onboarding €€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€
+    function _obCbs(name, vals) {
+        const modal = document.getElementById('onboardingModal');
+        modal.querySelectorAll(`input[name="${name}"]`).forEach(cb => cb.checked = false);
+        if (!vals) return;
+        try {
+            const arr = typeof vals === 'string' ? JSON.parse(vals) : vals;
+            arr.forEach(v => { const cb = modal.querySelector(`input[name="${name}"][value="${CSS.escape(v)}"]`); if (cb) cb.checked = true; });
+        } catch(e) {}
+    }
+    function _obRad(name, val) {
+        if (!val) return;
+        const r = document.getElementById('onboardingModal').querySelector(`input[name="${name}"][value="${CSS.escape(val)}"]`);
+        if (r) r.checked = true;
+    }
+    function _obChked(name) {
+        return JSON.stringify(Array.from(document.getElementById('onboardingModal').querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value));
+    }
+    function _obRadVal(name) {
+        const r = document.getElementById('onboardingModal').querySelector(`input[name="${name}"]:checked`);
+        return r ? r.value : '';
+    }
+
+    async function openOnboarding(userId, name) {
+        document.getElementById('onboardingSubtitle').textContent = name;
+        document.getElementById('obUserId').value = userId;
+        document.getElementById('onboardingError').classList.add('hidden');
+        // Reset text fields
+        ['obFullName','obEmail','obPhone','obCity','obBio','obDelivery','obIntendedHours','obLinkedin','obEduSpec'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+        document.getElementById('obSpec').value = '';
+        document.getElementById('obGender').value = '';
+        document.getElementById('obExpYears').value = '0';
+        document.getElementById('obFee').value = '0';
+        document.getElementById('obApprove').checked = true;
+        // Reset all checkboxes + radios inside modal
+        document.getElementById('onboardingModal').querySelectorAll('input[type=checkbox]:not(#obApprove), input[type=radio]').forEach(i => i.checked = false);
+        document.getElementById('onboardingModal').showModal();
+        safeCreateIcons();
+        try {
+            const resp = await fetch(`/api/admin/consultants/${userId}/onboarding`);
+            const data = await resp.json();
+            if (data.success) {
+                const p = data.profile;
+                const sv = (id, v) => { const el = document.getElementById(id); if(el && v !== null && v !== undefined) el.value = v; };
+                sv('obFullName', p.full_name); sv('obEmail', p.email); sv('obPhone', p.phone); sv('obCity', p.city);
+                sv('obBio', p.bio); sv('obLinkedin', p.linkedin_url); sv('obFee', p.consultation_fee);
+                sv('obDelivery', p.delivery_methods); sv('obIntendedHours', p.intended_hours);
+                sv('obEduSpec', p.education_specialization);
+                sv('obExpYears', p.experience_years);
+                document.getElementById('obSpec').value  = p.specialization || '';
+                document.getElementById('obGender').value = p.gender || '';
+                _obRad('ob_qual', p.highest_qualification);
+                _obRad('ob_pref_time', p.preferred_time);
+                _obRad('ob_pref_days', p.preferred_days);
+                _obRad('ob_engagement', p.engagement_type);
+                _obRad('ob_clinical', p.clinical_experience);
+                _obRad('ob_qacp', p.qacp_certified ? 'yes' : (p.qacp_certified === false ? 'no' : ''));
+                _obRad('ob_psychometric', p.psychometric_tests ? 'yes' : (p.psychometric_tests === false ? 'no' : ''));
+                _obCbs('ob_methods', p.counselling_methods);
+                _obCbs('ob_areas', p.expertise_areas);
+                _obCbs('ob_langs', p.languages);
+                _obCbs('ob_audience', p.target_audience);
+                _obCbs('ob_con_type', p.consultant_type);
+            }
+        } catch(e) { console.warn('Could not load profile:', e); }
+    }
+
+    async function saveOnboarding() {
+        const userId = document.getElementById('obUserId').value;
+        const errEl = document.getElementById('onboardingError');
+        errEl.classList.add('hidden');
+        const fullName = document.getElementById('obFullName').value.trim();
+        if (!fullName) { errEl.textContent = 'Full name is required.'; errEl.classList.remove('hidden'); return; }
+        const payload = {
+            full_name:              fullName,
+            specialization:         document.getElementById('obSpec').value,
+            phone:                  document.getElementById('obPhone').value.trim(),
+            city:                   document.getElementById('obCity').value.trim(),
+            gender:                 document.getElementById('obGender').value,
+            experience_years:       parseInt(document.getElementById('obExpYears').value) || 0,
+            consultation_fee:       parseFloat(document.getElementById('obFee').value) || 0,
+            bio:                    document.getElementById('obBio').value.trim(),
+            linkedin_url:           document.getElementById('obLinkedin').value.trim(),
+            delivery_methods:       document.getElementById('obDelivery').value.trim(),
+            intended_hours:         document.getElementById('obIntendedHours').value.trim(),
+            education_specialization: document.getElementById('obEduSpec').value.trim(),
+            highest_qualification:  _obRadVal('ob_qual'),
+            engagement_type:        _obRadVal('ob_engagement'),
+            clinical_experience:    _obRadVal('ob_clinical'),
+            preferred_time:         _obRadVal('ob_pref_time'),
+            preferred_days:         _obRadVal('ob_pref_days'),
+            qacp_certified:         _obRadVal('ob_qacp') === 'yes',
+            psychometric_tests:     _obRadVal('ob_psychometric') === 'yes',
+            counselling_methods:    _obChked('ob_methods'),
+            expertise_areas:        _obChked('ob_areas'),
+            languages:              _obChked('ob_langs'),
+            target_audience:        _obChked('ob_audience'),
+            consultant_type:        _obChked('ob_con_type'),
+            approve:                document.getElementById('obApprove').checked,
+        };
+        try {
+            const resp = await fetch(`/api/admin/consultants/${userId}/onboarding`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (data.success) {
+                document.getElementById('onboardingModal').close();
+                _incLoaded = false;
+                loadIncompleteConsultants();
+            } else {
+                errEl.textContent = data.error || 'Save failed';
+                errEl.classList.remove('hidden');
+            }
+        } catch(e) {
+            errEl.textContent = 'Network error: ' + e.message;
+            errEl.classList.remove('hidden');
+        }
+    }
+
+    // Filter tables
+    function filterUsersTable(query) {
+        const rows = document.querySelectorAll('.user-row');
+        const searchTerm = query.toLowerCase();
+
+        rows.forEach(row => {
+            const name = row.querySelector('.user-name').textContent.toLowerCase();
+            const email = row.querySelector('.user-email').textContent.toLowerCase();
+
+            if (name.includes(searchTerm) || email.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function filterConsultantsTable(query) {
+        const rows = document.querySelectorAll('.consultant-row');
+        const searchTerm = query.toLowerCase();
+
+        rows.forEach(row => {
+            const name = row.querySelector('.consultant-name').textContent.toLowerCase();
+            const email = row.querySelector('.consultant-email').textContent.toLowerCase();
+
+            if (name.includes(searchTerm) || email.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // View user profile
+    async function viewUserProfile(userId) {
+        const modal = document.getElementById('userProfileModal');
+        const content = document.getElementById('userProfileContent');
+
+        modal.showModal();
+
+        try {
+            const response = await fetch(`/api/admin/users/${userId}/profile`);
+            const data = await response.json();
+
+            if (data.success) {
+                const user = data.user;
+                content.innerHTML = `
+                    <div class="space-y-6">
+                        <div class="flex items-center space-x-4">
+                            <div class="h-20 w-20 rounded-full bg-primary-100 flex items-center justify-center">
+                                <span class="text-primary-600 font-bold text-2xl">${user.name.substring(0, 2).toUpperCase()}</span>
+                            </div>
+                            <div>
+                                <h4 class="text-xl font-bold text-gray-900">${user.name}</h4>
+                                <p class="text-gray-600">${user.email}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <div class="text-sm text-blue-600 font-medium">AI Chat Sessions</div>
+                                <div class="text-2xl font-bold text-blue-900">${user.chat_count || 0}</div>
+                                <div class="text-xs text-blue-600 mt-1">Total conversations</div>
+                            </div>
+                            
+                            <div class="bg-green-50 p-4 rounded-lg">
+                                <div class="text-sm text-green-600 font-medium">Vital Scans</div>
+                                <div class="text-2xl font-bold text-green-900">${user.vitals_count || 0}</div>
+                                <div class="text-xs text-green-600 mt-1">Health measurements</div>
+                            </div>
+                            
+                            <div class="bg-purple-50 p-4 rounded-lg">
+                                <div class="text-sm text-purple-600 font-medium">Consultations</div>
+                                <div class="text-2xl font-bold text-purple-900">${user.appointments_count || 0}</div>
+                                <div class="text-xs text-purple-600 mt-1">${user.completed_appointments || 0} completed</div>
+                            </div>
+                            
+                            <div class="bg-orange-50 p-4 rounded-lg">
+                                <div class="text-sm text-orange-600 font-medium">Time with Buddy</div>
+                                <div class="text-2xl font-bold text-orange-900">${user.chat_time_minutes || 0}</div>
+                                <div class="text-xs text-orange-600 mt-1">minutes spent</div>
+                            </div>
+                        </div>
+                        
+                        <div class="border-t pt-4">
+                            <h5 class="font-semibold text-gray-900 mb-2">Account Details</h5>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Joined:</span>
+                                    <span class="font-medium">${new Date(user.created_at).toLocaleDateString()}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Last Login:</span>
+                                    <span class="font-medium">${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Status:</span>
+                                    <span class="font-medium ${user.is_active ? 'text-green-600' : 'text-red-600'}">
+                                        ${user.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `<div class="text-center py-8 text-red-600">Failed to load user profile</div>`;
+            }
+        } catch (error) {
+            content.innerHTML = `<div class="text-center py-8 text-red-600">Error loading profile</div>`;
+        }
+    }
+
+    // Toggle user status
+    async function toggleUserStatus(userId, currentStatus) {
+        if (!confirm(`Are you sure you want to ${currentStatus === 'true' ? 'deactivate' : 'activate'} this user?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/users/${userId}/toggle`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to toggle user status');
+            }
+        } catch (error) {
+            alert('Error toggling user status');
+        }
+    }
+
+    // Delete user
+    async function deleteUser(userId) {
+        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/users/${userId}`, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.error || 'Failed to delete user');
+            }
+        } catch (error) {
+            alert('Error deleting user');
+        }
+    }
+
+    // Impersonation for scheduling consultations on behalf of users
+    function startImpersonate(userId) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/impersonate';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'user_id';
+        input.value = userId;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    // Edit consultant fee
+    function editFee(consultantId) {
+        document.getElementById(`fee-display-${consultantId}`).classList.add('hidden');
+        document.getElementById(`fee-edit-${consultantId}`).classList.remove('hidden');
+        document.getElementById(`payout-display-${consultantId}`).classList.add('hidden');
+        document.getElementById(`payout-edit-${consultantId}`).classList.remove('hidden');
+        safeCreateIcons();
+    }
+
+    function cancelEditFee(consultantId) {
+        document.getElementById(`fee-display-${consultantId}`).classList.remove('hidden');
+        document.getElementById(`fee-edit-${consultantId}`).classList.add('hidden');
+        document.getElementById(`payout-display-${consultantId}`).classList.remove('hidden');
+        document.getElementById(`payout-edit-${consultantId}`).classList.add('hidden');
+    }
+
+    async function saveFee(consultantId) {
+        const feeInput = document.getElementById(`fee-input-${consultantId}`);
+        const payoutInput = document.getElementById(`payout-input-${consultantId}`);
+        const fee = parseFloat(feeInput.value);
+        const payout = parseFloat(payoutInput.value);
+
+        if (isNaN(fee) || fee < 0) {
+            alert('Please enter a valid fee amount (0 or more)');
+            return;
+        }
+        if (isNaN(payout) || payout < 0) {
+            alert('Please enter a valid payout amount (0 or more)');
+            return;
+        }
+        if (payout > fee) {
+            if (!confirm(`Payout (₹${payout}) is greater than the user fee (₹${fee}). Continue?`)) return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/consultants/${consultantId}/fee`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fee: fee, payout: payout })
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                // Update fee display
+                const feeDisplay = document.getElementById(`fee-display-${consultantId}`);
+                feeDisplay.textContent = `₹${fee % 1 === 0 ? fee.toFixed(0) : fee.toFixed(2)}`;
+                feeDisplay.classList.remove('hidden');
+                document.getElementById(`fee-edit-${consultantId}`).classList.add('hidden');
+
+                // Update payout display
+                const payoutDisplay = document.getElementById(`payout-display-${consultantId}`);
+                payoutDisplay.textContent = `₹${payout % 1 === 0 ? payout.toFixed(0) : payout.toFixed(2)}`;
+                payoutDisplay.classList.remove('hidden');
+                document.getElementById(`payout-edit-${consultantId}`).classList.add('hidden');
+
+                // Flash green to confirm
+                feeDisplay.style.color = '#16a34a';
+                payoutDisplay.style.color = '#16a34a';
+                setTimeout(() => { feeDisplay.style.color = ''; payoutDisplay.style.color = ''; }, 1500);
+            } else {
+                alert('Failed to update: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            alert('Error saving. Please try again.');
+        }
+    }
+
+    // Toggle consultant status
+    async function toggleConsultantStatus(userId, currentStatus) {
+        if (!confirm(`Are you sure you want to ${currentStatus === 'true' ? 'deactivate' : 'activate'} this consultant?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/users/${userId}/toggle`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to toggle consultant status');
+            }
+        } catch (error) {
+            alert('Error toggling consultant status');
+        }
+    }
+
+    // Remove consultant profile (keeps user account, resets to regular user)
+    async function deleteConsultant(userId) {
+        if (!confirm(
+            'Remove this consultant profile?\n\n' +
+            'â€¢ Their consultant profile and schedule will be removed\n' +
+            'â€¢ Their user account will be KEPT (they become a regular user)\n' +
+            'â€¢ To fully delete their account, use the Users tab\n\n' +
+            'Continue?'
+        )) return;
+
+        try {
+            const response = await fetch(`/api/admin/consultants/${userId}/profile`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                console.error('Remove consultant failed:', response.status, text);
+                alert(`Error ${response.status}: ${text.substring(0, 200)}`);
+                return;
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Remove the row from the table without reloading
+                const row = document.querySelector(`#consultantsTable tr[data-user-id="${userId}"]`);
+                if (row) {
+                    row.style.transition = 'opacity 0.3s';
+                    row.style.opacity = '0';
+                    setTimeout(() => row.remove(), 300);
+                } else {
+                    location.reload();
+                }
+                // Update consultant count
+                const countEl = document.getElementById('consultants-tab');
+                if (countEl) {
+                    const match = countEl.textContent.match(/\((\d+)\)/);
+                    if (match) {
+                        const newCount = parseInt(match[1]) - 1;
+                        countEl.textContent = countEl.textContent.replace(/\(\d+\)/, `(${newCount})`);
+                    }
+                }
+            } else {
+                alert(data.error || 'Failed to remove consultant profile');
+            }
+        } catch (error) {
+            console.error('Remove consultant error:', error);
+            alert('Error removing consultant: ' + error.message);
+        }
+    }
+
+    // Safe lucide helper — library is deferred so may not be ready yet
+    function safeCreateIcons() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        } else {
+            window.addEventListener('load', () => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, { once: true });
+        }
+    }
+
+    // Initialize icons
+    document.addEventListener('DOMContentLoaded', safeCreateIcons);
+</script>
+
+<style>
+    .tab-button { transition: all 0.2s; }
+    /* Onboarding form in proxy modal */
+    .ob-card { background:#fff; border-radius:1rem; border:1px solid #e5e7eb; padding:1.5rem; margin-bottom:1.1rem; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+    .ob-title { font-size:1rem; font-weight:700; color:#1f2937; display:flex; align-items:center; gap:.5rem; margin-bottom:1.1rem; }
+    .ob-badge { display:inline-flex; align-items:center; justify-content:center; min-width:1.6rem; height:1.6rem; border-radius:9999px; background:#0f766e; color:#fff; font-size:.7rem; font-weight:800; flex-shrink:0; padding:0 .3rem; }
+    .ob-label { display:block; font-size:.8125rem; font-weight:600; color:#374151; margin-bottom:.35rem; }
+    .ob-hint { font-size:.7rem; color:#9ca3af; margin-top:.2rem; }
+    .ob-input { width:100%; padding:.6rem .75rem; border:1px solid #d1d5db; border-radius:.5rem; font-size:.875rem; background:#fff; transition:border-color .15s; outline:none; box-sizing:border-box; }
+    .ob-input:focus { border-color:#0d9488; box-shadow:0 0 0 3px rgba(13,148,136,.12); }
+    .ob-sel { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right .75rem center; padding-right:2rem; }
+    .ob-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .ob-chkgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(185px,1fr)); gap:.5rem .75rem; }
+    .ob-chk { display:flex; align-items:flex-start; gap:.45rem; padding:.3rem; border-radius:.375rem; cursor:pointer; }
+    .ob-chk:hover { background:#f0fdf4; }
+    .ob-chk input[type=checkbox] { margin-top:.15rem; accent-color:#0f766e; flex-shrink:0; }
+    .ob-chk span { font-size:.8125rem; color:#374151; line-height:1.4; }
+    .ob-rrow { display:flex; flex-wrap:wrap; gap:.5rem; }
+    .ob-rbtn { display:flex; align-items:center; gap:.4rem; padding:.45rem .9rem; border:1px solid #d1d5db; border-radius:9999px; cursor:pointer; font-size:.8125rem; transition:all .15s; }
+    .ob-rbtn:has(input:checked) { background:#f0fdf4; border-color:#0d9488; color:#0f766e; font-weight:600; }
+    .ob-rbtn input { accent-color:#0f766e; }
+    .ob-type { border:2px solid #e5e7eb; border-radius:.75rem; padding:.9rem .75rem; cursor:pointer; text-align:center; transition:all .15s; }
+    .ob-type:hover { border-color:#0d9488; background:#f0fdf4; }
+    .ob-type:has(input:checked) { border-color:#0f766e; background:#ecfdf5; box-shadow:0 0 0 3px rgba(15,118,110,.12); }
+    @media(max-width:640px) { .ob-grid2 { grid-template-columns:1fr; } .ob-chkgrid { grid-template-columns:repeat(2,1fr); } }
+</style>
+{% endblock %}

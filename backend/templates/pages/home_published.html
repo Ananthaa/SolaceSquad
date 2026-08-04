@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% include "components/header.html" %}
+
+{# ── Published homepage sections from the builder ─────────────────────────── #}
+{# CSS for all sections is injected once in a single <style>
+    block #
+    }
+
+        {
+        % if sections_css %
+    }
+
+    <style> {
+            {
+            sections_css
+        }
+    }
+</style>
+{% endif %}
+
+{# Each section's HTML is rendered in order, exactly as saved in the builder #}
+{{ sections_html | safe }}
+
+{% include "components/footer.html" %}
+{% endblock %}

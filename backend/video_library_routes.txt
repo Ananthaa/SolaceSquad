@@ -1,0 +1,150 @@
+
+# ============================================================================
+# ADMIN VIDEO LIBRARY ROUTES
+# ============================================================================
+
+@app.get("/admin/videos", response_class=HTMLResponse)
+async def admin_videos_page(request: Request, db: Session = Depends(get_db)):
+    """Admin video library management page"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+    
+    # Get all folders with video count
+    folders = db.query(VideoFolder).all()
+    for folder in folders:
+        folder.video_count = len(folder.videos)
+    
+    return templates.TemplateResponse(
+        "pages/admin_videos_list.html",
+        {
+            "request": request,
+            "page_title": "Video Library - Admin",
+            "user": user,
+            "folders": folders
+        }
+    )
+
+
+@app.get("/admin/videos/folder/{folder_id}", response_class=HTMLResponse)
+async def admin_folder_page(request: Request, folder_id: int, db: Session = Depends(get_db)):
+    """Admin folder detail page with videos"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+    
+    folder = db.query(VideoFolder).filter(VideoFolder.id == folder_id).first()
+    if not folder:
+        return RedirectResponse(url="/admin/videos", status_code=303)
+    
+    return templates.TemplateResponse(
+        "pages/admin_folder_detail.html",
+        {
+            "request": request,
+            "page_title": f"{folder.name} - Admin",
+            "user": user,
+            "folder": folder
+        }
+    )
+
+
+@app.post("/api/admin/folders/create")
+async def create_folder_api(
+    request: Request,
+    name: str = Form(...),
+    description: str = Form(""),
+    thumbnail_url: str = Form(""),
+    db: Session = Depends(get_db)
+):
+    """Create a new video folder"""
+    user_id = request.session.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    folder = VideoFolder(
+        name=name,
+        description=description,
+        thumbnail_url=thumbnail_url if thumbnail_url else None
+    )
+    db.add(folder)
+    db.commit()
+    db.refresh(folder)
+    
+    return JSONResponse({"success": True, "folder_id": folder.id})
+
+
+@app.delete("/api/admin/folders/{folder_id}")
+async def delete_folder_api(request: Request, folder_id: int, db: Session = Depends(get_db)):
+    """Delete a video folder"""
+    user_id = request.session.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    folder = db.query(VideoFolder).filter(VideoFolder.id == folder_id).first()
+    if folder:
+        db.delete(folder)
+        db.commit()
+        return JSONResponse({"success": True})
+    
+    return JSONResponse({"success": False, "error": "Folder not found"}, status_code=404)
+
+
+@app.post("/api/admin/videos/create")
+async def create_video_api(
+    request: Request,
+    folder_id: int = Form(...),
+    title: str = Form(...),
+    description: str = Form(""),
+    video_url: str = Form(...),
+    thumbnail_url: str = Form(""),
+    duration_seconds: int = Form(0),
+    is_youtube: bool = Form(False),
+    db: Session = Depends(get_db)
+):
+    """Create a new video in a folder"""
+    user_id = request.session.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    video = Video(
+        folder_id=folder_id,
+        title=title,
+        description=description,
+        video_url=video_url,
+        thumbnail_url=thumbnail_url if thumbnail_url else None,
+        duration_seconds=duration_seconds,
+        is_youtube=is_youtube
+    )
+    db.add(video)
+    db.commit()
+    db.refresh(video)
+    
+    return JSONResponse({"success": True, "video_id": video.id})
+
+
+@app.delete("/api/admin/videos/{video_id}")
+async def delete_video_api(request: Request, video_id: int, db: Session = Depends(get_db)):
+    """Delete a video"""
+    user_id = request.session.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if video:
+        db.delete(video)
+        db.commit()
+        return JSONResponse({"success": True})
+    
+    return JSONResponse({"success": False, "error": "Video not found"}, status_code=404)

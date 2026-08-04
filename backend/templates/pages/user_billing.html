@@ -1,0 +1,378 @@
+{% extends "layouts/protected.html" %}
+
+
+{% block dashboard_content %}
+<style>
+  :root { --teal:#0d9488; --teal-light:#f0fdfa; --teal-mid:#ccfbf1; }
+  .billing-wrap { max-width:960px; margin:0 auto; padding:1.5rem 1rem 3rem; }
+  h1.page-heading { font-size:1.4rem; font-weight:900; color:#111827; margin:0 0 1.4rem; }
+
+  /* ── Plan card ───────────────────────────────────────────────────────── */
+  .plan-card {
+    background: linear-gradient(135deg,#0d9488 0%,#0f766e 60%,#134e4a 100%);
+    border-radius:1.2rem; padding:1.4rem 1.6rem; color:#fff;
+    display:flex; align-items:center; justify-content:space-between;
+    flex-wrap:wrap; gap:1rem; margin-bottom:1.5rem;
+    box-shadow: 0 4px 20px rgba(13,148,136,.25);
+  }
+  .plan-card-left { display:flex; align-items:center; gap:1rem; }
+  .plan-icon { width:48px; height:48px; background:rgba(255,255,255,.15); border-radius:.75rem;
+    display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0; }
+  .plan-name { font-size:1.1rem; font-weight:900; letter-spacing:-.01em; }
+  .plan-sub  { font-size:.78rem; opacity:.8; margin-top:.1rem; }
+  .plan-badge { background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.3);
+    padding:.2rem .7rem; border-radius:999px; font-size:.7rem; font-weight:700; letter-spacing:.04em;
+    margin-top:.3rem; display:inline-block; }
+  .plan-actions { display:flex; gap:.6rem; flex-wrap:wrap; }
+  .btn-manage { background:#fff; color:var(--teal); padding:.45rem 1.1rem;
+    border-radius:.6rem; font-weight:700; font-size:.82rem; text-decoration:none;
+    transition:box-shadow .15s; }
+  .btn-manage:hover { box-shadow:0 2px 12px rgba(0,0,0,.15); }
+  .btn-upgrade { background:rgba(255,255,255,.15); color:#fff; border:1.5px solid rgba(255,255,255,.4);
+    padding:.45rem 1.1rem; border-radius:.6rem; font-weight:700; font-size:.82rem;
+    text-decoration:none; transition:background .15s; }
+  .btn-upgrade:hover { background:rgba(255,255,255,.25); }
+
+  /* ── Usage section ───────────────────────────────────────────────────── */
+  .section-label { font-size:.68rem; font-weight:800; text-transform:uppercase;
+    letter-spacing:.07em; color:#9ca3af; margin:0 0 .7rem; }
+
+  .usage-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+    gap:.85rem; margin-bottom:1.5rem; }
+
+  .usage-card { background:#fff; border:1px solid #e5e7eb; border-radius:1rem;
+    padding:1rem 1.1rem; transition:box-shadow .15s; }
+  .usage-card:hover { box-shadow:0 2px 12px rgba(0,0,0,.06); }
+  .usage-card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:.65rem; }
+  .usage-label { font-size:.78rem; font-weight:700; color:#374151; display:flex; align-items:center; gap:.4rem; }
+  .usage-label .icon { font-size:1rem; }
+  .usage-count { font-size:.72rem; color:#6b7280; }
+  .usage-bar-bg { height:7px; background:#f3f4f6; border-radius:999px; overflow:hidden; }
+  .usage-bar-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,#0d9488,#14b8a6);
+    transition:width .6s cubic-bezier(.4,0,.2,1); }
+  .usage-bar-fill.warn  { background:linear-gradient(90deg,#d97706,#f59e0b); }
+  .usage-bar-fill.full  { background:linear-gradient(90deg,#dc2626,#ef4444); }
+  .usage-bar-fill.unlimited { background:linear-gradient(90deg,#7c3aed,#8b5cf6); width:100%; }
+  .usage-footer { display:flex; align-items:center; justify-content:space-between; margin-top:.45rem; }
+  .usage-pct { font-size:.68rem; color:#9ca3af; }
+  .usage-unlimited-badge { font-size:.65rem; color:#7c3aed; font-weight:700; letter-spacing:.03em; }
+
+  /* ── Transaction table ───────────────────────────────────────────────── */
+  .txn-table-wrap { background:#fff; border-radius:1rem; border:1px solid #e5e7eb;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:1.5rem; }
+  .txn-table { width:100%; border-collapse:collapse; font-size:.83rem; min-width:600px; }
+  .txn-table th { background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:.6rem .9rem;
+    text-align:left; font-size:.68rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.05em; color:#6b7280; }
+  .txn-table td { padding:.7rem .9rem; border-bottom:1px solid #f3f4f6; color:#374151; vertical-align:middle; }
+  .txn-table tr:last-child td { border-bottom:none; }
+  .txn-table tr:hover td { background:#fafafa; }
+ 
+  .badge { display:inline-block; padding:.18rem .6rem; border-radius:999px; font-size:.68rem; font-weight:700; }
+  .badge-completed { background:#d1fae5; color:#065f46; }
+  .badge-pending   { background:#fef3c7; color:#92400e; }
+  .badge-failed    { background:#fee2e2; color:#991b1b; }
+  .badge-refunded  { background:#e0e7ff; color:#3730a3; }
+ 
+  .type-pill { display:inline-block; padding:.15rem .55rem; border-radius:.35rem; font-size:.68rem; font-weight:700; }
+  .type-subscription { background:#ccfbf1; color:#0f766e; }
+  .type-top_up       { background:#ede9fe; color:#6d28d9; }
+  .type-emora_pack   { background:#ede9fe; color:#6d28d9; }
+  .type-consultation { background:#dbeafe; color:#1e40af; }
+  .type-refund       { background:#fee2e2; color:#991b1b; }
+ 
+  .empty-state { text-align:center; padding:3rem 1rem; color:#9ca3af; font-size:.88rem; }
+  .btn-invoice { background:var(--teal-light); color:var(--teal); border:1.5px solid #99f6e4;
+    border-radius:.4rem; padding:.22rem .65rem; font-size:.7rem; font-weight:700;
+    text-decoration:none; white-space:nowrap; }
+  .btn-invoice:hover { background:#ccfbf1; }
+
+  @media(max-width:480px) {
+    .plan-card { flex-direction:column; align-items:flex-start; }
+    .usage-grid { grid-template-columns:1fr 1fr; }
+  }
+</style>
+
+<div class="billing-wrap">
+  <h1 class="page-heading">Billing &amp; Plan</h1>
+
+  <!-- ── My Plan Card ─────────────────────────────────────────────────── -->
+  <div class="plan-card" id="planCard">
+    <div class="plan-card-left">
+      <div class="plan-icon" id="planIcon">⭐</div>
+      <div>
+        <div class="plan-name" id="planName">Loading…</div>
+        <div class="plan-sub"  id="planSub">Fetching your plan details</div>
+        <div class="plan-badge" id="planStatus" style="display:none;"></div>
+      </div>
+    </div>
+    <div class="plan-actions">
+      <a href="/app/plans" class="btn-manage">Switch Plan</a>
+    </div>
+  </div>
+
+  <!-- ── Feature Usage ─────────────────────────────────────────────────── -->
+  <div class="section-label">Feature Usage This Month</div>
+  <div class="usage-grid" id="usageGrid">
+    <!-- populated by JS -->
+    <div class="usage-card"><div class="empty-state" style="padding:.5rem;">Loading usage…</div></div>
+  </div>
+
+  <!-- ── Payment History ───────────────────────────────────────────────── -->
+  <div class="section-label">Payment History</div>
+  <div class="txn-table-wrap">
+    <table class="txn-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Description</th>
+          <th>Type</th>
+          <th style="text-align:right;">Amount</th>
+          <th>Status</th>
+          <th>Invoice</th>
+        </tr>
+      </thead>
+      <tbody id="txnBody">
+        <tr><td colspan="6" class="empty-state">Loading your payment history…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p style="font-size:.76rem;color:#9ca3af;text-align:center;">
+    Questions about a payment? Contact us at
+    <a href="mailto:admin@solacesquad.com" style="color:var(--teal);">admin@solacesquad.com</a>
+  </p>
+</div>
+
+<script>
+// ── Helpers ──────────────────────────────────────────────────────────────
+function fmt(n) {
+  return '₹' + (n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+// ── Icon / label map for known feature keys ───────────────────────────────
+const FEATURE_ICONS = {
+  ai_chat:               { icon:'💬', label:'Emora Chat Buddy'      },
+  free_consultation:     { icon:'🩺', label:'Free Consultation'       },
+  vital_scan:            { icon:'❤️', label:'Vitals Scans'            },
+  journal:               { icon:'📔', label:'Journal Entries'         },
+  workout_log:           { icon:'🏋️', label:'Workout Log'             },
+  google_fit_sync:       { icon:'🏃', label:'Google Fit Sync'         },
+  thryveq_access:        { icon:'📊', label:'THRYVEQ Score Access'     },
+  recording_access:      { icon:'🎙️', label:'Call Recordings'         },
+  live_chat:             { icon:'💬', label:'Live Chat'               },
+  consultation_discount: { icon:'🏷️', label:'Consultation Discount'   },
+  emora_pack_discount:   { icon:'🏷️', label:'Emora Pack Discount'     },
+};
+
+// Feature keys that are non-countable (boolean / discount) — show badge, not bar
+const BADGE_FEATURES   = new Set(['google_fit_sync','live_chat','recording_access','consultation_discount','emora_pack_discount']);
+// Always skip these from the usage grid (gating-only, not something users "consume")
+const SKIP_FROM_GRID   = new Set(['thryveq_access']);
+
+// ── Render usage cards dynamically from plan caps ─────────────────────────
+function renderUsage(caps) {
+  const grid = document.getElementById('usageGrid');
+  const entries = Object.values(caps).filter(c => !SKIP_FROM_GRID.has(c.feature_key));
+  if (!entries.length) {
+    grid.innerHTML = '<p style="color:#9ca3af;font-size:.82rem;padding:.5rem;">No features tracked.</p>';
+    return;
+  }
+
+  grid.innerHTML = entries.map(cap => {
+    const meta   = FEATURE_ICONS[cap.feature_key] || { icon:'⚙️', label: cap.feature_name };
+    const used   = cap.used  || 0;
+    const limit  = cap.limit;  // -1 = unlimited
+
+    // ── Badge-style features (boolean / discount) ──────────────────────
+    if (BADGE_FEATURES.has(cap.feature_key)) {
+      const allowed  = limit !== 0;
+      const badgeTxt = cap.feature_key.endsWith('_discount')
+        ? `${limit}% OFF`
+        : (allowed ? 'Included' : 'Locked 🔒');
+      const bCol = cap.feature_key.endsWith('_discount') ? '#1d4ed8'
+                 : allowed ? '#065f46' : '#991b1b';
+      const bBg  = cap.feature_key.endsWith('_discount') ? '#dbeafe'
+                 : allowed ? '#d1fae5' : '#fee2e2';
+      return `
+        <div class="usage-card">
+          <div class="usage-card-top">
+            <div class="usage-label"><span class="icon">${meta.icon}</span>${meta.label}</div>
+          </div>
+          <div style="margin-top:.4rem;">
+            <span style="background:${bBg};color:${bCol};font-size:.72rem;font-weight:700;padding:.2rem .65rem;border-radius:999px;">${badgeTxt}</span>
+          </div>
+        </div>`;
+    }
+
+    // ── free_consultation special: lifetime counter (not monthly) ──────
+    if (cap.feature_key === 'free_consultation') {
+      const used1   = used;
+      const total   = limit < 0 ? '∞' : limit;
+      const left    = limit < 0 ? '∞' : Math.max(0, limit - used1);
+      const isUsed  = limit > 0 && used1 >= limit;
+      return `
+        <div class="usage-card">
+          <div class="usage-card-top">
+            <div class="usage-label"><span class="icon">${meta.icon}</span>${meta.label}</div>
+            <div class="usage-count">${used1} / ${total}</div>
+          </div>
+          <div class="usage-bar-bg">
+            <div class="usage-bar-fill${isUsed ? ' full' : ''}" style="width:${limit<0?100:Math.min(100,Math.round(used1/limit*100))}%"></div>
+          </div>
+          <div class="usage-footer">
+            ${isUsed
+              ? '<span style="font-size:.65rem;color:#dc2626;font-weight:700;">Used — book at standard rates</span>'
+              : `<span class="usage-pct">${left} consultation${left===1?'':'s'} remaining (lifetime)</span>`}
+          </div>
+        </div>`;
+    }
+
+    // ── Emora Chat Buddy: special rendering ──────────────────────────────
+    if (cap.feature_key === 'ai_chat') {
+      const isUnlim = !cap.limit || cap.limit < 0;
+      const pct     = isUnlim ? 100 : Math.min(100, Math.round((cap.used / cap.limit) * 100));
+      const hasPack = cap.pack_balance > 0;
+      const fillCls = isUnlim ? 'unlimited' : (pct >= 100 && hasPack ? 'unlimited' : (pct >= 100 ? 'full' : (pct >= 80 ? 'warn' : '')));
+      const periodLabel = cap.in_first_week
+        ? `${cap.used} / ${cap.limit} welcome msgs`
+        : `${cap.used} / ${cap.limit} today`;
+      const packNote = hasPack
+        ? `<span style="font-size:.65rem;color:#7c3aed;font-weight:700;">+${cap.pack_balance} pack msgs</span>`
+        : '';
+      const footerLeft = isUnlim
+        ? '<span class="usage-unlimited-badge">✦ UNLIMITED</span>'
+        : `<span class="usage-pct">${pct}% used</span>`;
+      return `
+        <div class="usage-card">
+          <div class="usage-card-top">
+            <div class="usage-label"><span class="icon">${meta.icon}</span>${meta.label}</div>
+            <div class="usage-count">${isUnlim ? '∞' : periodLabel}</div>
+          </div>
+          <div class="usage-bar-bg">
+            <div class="usage-bar-fill ${fillCls}" style="width:${isUnlim ? 100 : pct}%"></div>
+          </div>
+          <div class="usage-footer">
+            ${footerLeft}
+            ${packNote}
+            ${!isUnlim && pct >= 80 && pct < 100 ? '<span style="font-size:.65rem;color:#d97706;font-weight:700;">Almost full</span>' : ''}
+            ${!isUnlim && pct >= 100 && !hasPack ? '<span style="font-size:.65rem;color:#dc2626;font-weight:700;">Limit reached</span>' : ''}
+            ${!isUnlim && pct >= 100 && hasPack ? '<span style="font-size:.65rem;color:#7c3aed;font-weight:700;">Using pack</span>' : ''}
+          </div>
+        </div>`;
+    }
+
+    // ── Standard countable feature ─────────────────────────────────────
+    const isUnlim  = !limit || limit < 0;
+    const pct      = isUnlim ? 100 : Math.min(100, Math.round((used / limit) * 100));
+    const fillCls  = isUnlim ? 'unlimited' : pct >= 100 ? 'full' : pct >= 80 ? 'warn' : '';
+
+    return `
+      <div class="usage-card">
+        <div class="usage-card-top">
+          <div class="usage-label"><span class="icon">${meta.icon}</span>${meta.label}</div>
+          <div class="usage-count">${isUnlim ? '∞' : `${used} / ${limit}`}</div>
+        </div>
+        <div class="usage-bar-bg">
+          <div class="usage-bar-fill ${fillCls}" style="width:${isUnlim ? 100 : pct}%"></div>
+        </div>
+        <div class="usage-footer">
+          ${isUnlim
+            ? '<span class="usage-unlimited-badge">✦ UNLIMITED</span>'
+            : `<span class="usage-pct">${pct}% used</span>`}
+          ${!isUnlim && pct >= 80 && pct < 100
+            ? `<span style="font-size:.65rem;color:#d97706;font-weight:700;">Almost full</span>` : ''}
+          ${!isUnlim && pct >= 100
+            ? `<span style="font-size:.65rem;color:#dc2626;font-weight:700;">Limit reached</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Render plan card ──────────────────────────────────────────────────────
+const PLAN_ICONS = { Free:'🌿', White:'⭐', Green:'🌱', Blue:'💎' };
+function renderPlan(d) {
+  const { plan_name, plan_colour, plan_price, original_price, billing_cycle } = d;
+  const icon   = PLAN_ICONS[plan_name] || '⭐';
+  const isFree = (plan_name || 'Free').toLowerCase() === 'free';
+
+  // Colour the plan card
+  const pc = plan_colour || '#0d9488';
+  document.getElementById('planCard').style.background =
+    `linear-gradient(135deg, ${pc}ee 0%, ${pc}bb 60%, ${pc}99 100%)`;
+
+  document.getElementById('planIcon').textContent = icon;
+  document.getElementById('planName').textContent = plan_name + ' Plan';
+
+  // Price line
+  let priceHtml = isFree ? 'You are on the free tier. Switch plans to unlock more features.' : 'Your active subscription';
+  if (!isFree && plan_price > 0) {
+    const cyc = billing_cycle === 'monthly' ? '/mo' : (billing_cycle === 'yearly' || billing_cycle === 'annual') ? '/Year' : billing_cycle === 'weekly' ? '/wk' : '';
+    priceHtml = original_price && original_price > plan_price
+      ? `<span style="text-decoration:line-through;opacity:.6;font-size:.75rem;">₹${original_price.toLocaleString('en-IN')}</span>
+         <strong style="font-size:.95rem;margin-left:.4rem;">₹${plan_price.toLocaleString('en-IN')} + GST${cyc}</strong>`
+      : `₹${plan_price.toLocaleString('en-IN')} + GST${cyc}`;
+  }
+  document.getElementById('planSub').innerHTML = priceHtml;
+
+  const badge = document.getElementById('planStatus');
+  badge.textContent   = isFree ? 'FREE' : 'ACTIVE';
+  badge.style.display = 'inline-block';
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+
+  // 1. Plan + usage (single call)
+  fetch('/api/plans/my-usage')
+    .then(r => r.json())
+    .then(d => {
+      if (!d.success) return;
+      renderPlan(d);
+      renderUsage(d.caps || {});
+    })
+    .catch(() => {
+      document.getElementById('planName').textContent = 'Could not load plan';
+      document.getElementById('planSub').textContent  = '';
+      document.getElementById('usageGrid').innerHTML  = '<p style="color:#9ca3af;padding:.5rem;font-size:.82rem;">Could not load usage data.</p>';
+    });
+
+  // 2. Payment history
+  fetch('/api/user/billing/history')
+    .then(r => r.json())
+    .then(d => {
+      const txns = d.transactions || [];
+      if (!txns.length) {
+        document.getElementById('txnBody').innerHTML = `
+          <tr><td colspan="6" class="empty-state">
+            <div style="font-size:2rem;margin-bottom:.5rem;">🧾</div>
+            No payments yet. Your payment history will appear here.
+          </td></tr>`;
+        return;
+      }
+      document.getElementById('txnBody').innerHTML = txns.map(t => `
+        <tr>
+          <td style="white-space:nowrap;">${fmtDate(t.created_at)}</td>
+          <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${t.description||''}">${t.description || '—'}</td>
+          <td><span class="type-pill type-${t.transaction_type}">${(t.transaction_type || '').replace('_',' ')}</span></td>
+          <td style="text-align:right;font-weight:700;color:${t.status==='refunded'?'#6b7280':'#111827'};">
+            ${fmt(t.amount)}${t.status==='refunded'?' <span style="font-size:.68rem;color:#6b7280;">(refunded)</span>':''}
+          </td>
+          <td><span class="badge badge-${t.status}">${t.status}</span></td>
+          <td>${t.invoice_number
+            ? `<a href="/app/billing/invoice/${t.id}" class="btn-invoice" target="_blank">${t.invoice_number}</a>
+               <a href="/app/billing/invoice/${t.id}/pdf" style="margin-left:.35rem;font-size:.7rem;color:#6b7280;text-decoration:none;" target="_blank" title="PDF">⬇</a>`
+            : '—'}</td>
+        </tr>`).join('');
+    })
+    .catch(() => {
+      document.getElementById('txnBody').innerHTML = `<tr><td colspan="6" class="empty-state">Could not load payment history.</td></tr>`;
+    });
+});
+</script>
+{% endblock %}
+

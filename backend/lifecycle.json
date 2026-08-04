@@ -1,0 +1,25 @@
+{
+  "rule": [
+    {
+      "action": { "storageClass": "NEARLINE", "type": "SetStorageClass" },
+      "condition": {
+        "age": 31,
+        "matchesPrefix": ["consultant-uploads/recordings/"]
+      }
+    },
+    {
+      "action": { "storageClass": "COLDLINE", "type": "SetStorageClass" },
+      "condition": {
+        "age": 91,
+        "matchesPrefix": ["consultant-uploads/recordings/"]
+      }
+    },
+    {
+      "action": { "type": "Delete" },
+      "condition": {
+        "age": 366,
+        "matchesPrefix": ["consultant-uploads/recordings/"]
+      }
+    }
+  ]
+}

@@ -73,3 +73,13 @@ backend/rebrand_*.py
 *.md
 !README.md
 !backend/README.md
+
+backend/service-account.json
+Info.txt
+*password.txt
+*pwd.txt
+*.webm
+*.docx
+*.pdf
+*.zip
+*.exe

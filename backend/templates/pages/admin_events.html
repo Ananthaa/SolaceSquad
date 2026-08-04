@@ -1,0 +1,838 @@
+{% extends "layouts/protected.html" %}
+
+{% block title %}Events & Workshops Studio — Admin{% endblock %}
+
+{% block dashboard_content %}
+<div class="max-w-6xl mx-auto py-6 px-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8 border-b border-gray-100 pb-5">
+        <div>
+            <h1 class="text-3xl font-display font-bold text-gray-900">Events & Workshops Studio</h1>
+            <p class="text-sm text-gray-500 mt-1">Create, organize, publish, and reorder public events and workshops.</p>
+        </div>
+        <button onclick="createNewEvent()" class="px-5 py-2.5 bg-primary-700 hover:bg-primary-800 text-white rounded-xl font-semibold shadow-sm transition text-sm flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i> Create New
+        </button>
+    </div>
+
+    <!-- Layout: List on Left (when editing), Form on Right/Full Screen -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Events List (lg:col-span-5) -->
+        <div class="lg:col-span-5 bg-white border border-gray-200 shadow-sm rounded-2xl p-5 flex flex-col h-[75vh]">
+            <h2 class="font-bold text-gray-900 text-lg mb-4 flex items-center justify-between">
+                <span>All Listings</span>
+                <span class="text-xs font-normal text-gray-400">Drag/reorder listings</span>
+            </h2>
+            
+            <!-- List Scroll Container -->
+            <div id="events-list" class="flex-grow overflow-y-auto space-y-3 pr-2" ondragover="allowDrop(event)">
+                <!-- Dynamic Content Loaded via JS -->
+            </div>
+            
+            <!-- Reorder Button -->
+            <div class="mt-4 pt-4 border-t border-gray-100">
+                <button onclick="saveOrder()" class="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-xs rounded-lg transition uppercase tracking-wider">
+                    Save Display Order
+                </button>
+            </div>
+        </div>
+
+        <!-- Editor Panel (lg:col-span-7) -->
+        <div class="lg:col-span-7 bg-white border border-gray-200 shadow-sm rounded-2xl p-6 flex flex-col min-h-[75vh]">
+            <!-- Empty state when no event selected -->
+            <div id="editor-empty" class="flex-grow flex flex-col items-center justify-center text-center py-20">
+                <div class="w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mb-4">
+                    <i data-lucide="edit-3" class="w-8 h-8"></i>
+                </div>
+                <h3 class="font-bold text-gray-900">No Event Selected</h3>
+                <p class="text-sm text-gray-500 mt-1 max-w-xs">Select an event from the left list to edit, or create a new one to begin editing.</p>
+            </div>
+
+            <!-- Form Panel (Hidden by default) -->
+            <form id="editor-form" onsubmit="saveEventForm(event)" class="space-y-6 hidden">
+                <input type="hidden" id="event-id">
+                
+                <!-- Title Row -->
+                <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+                    <h3 id="form-heading" class="font-bold text-lg text-gray-900">Edit Event</h3>
+                    <div class="flex items-center gap-3">
+                        <button type="button" id="header-delete-btn" onclick="deleteCurrentEvent()" class="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 text-xs font-bold rounded-lg transition hidden flex items-center gap-1">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Delete
+                        </button>
+                        <button type="button" onclick="closeEditor()" class="p-2 text-gray-400 hover:text-gray-600">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Basic Fields -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Listing Type</label>
+                        <select id="event-type" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600">
+                            <option value="event">Webinar</option>
+                            <option value="workshop">Workshop</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Publish Status</label>
+                        <select id="event-status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600">
+                            <option value="draft">Draft</option>
+                            <option value="published">Published</option>
+                            <option value="archived">Archived</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Title</label>
+                    <input type="text" id="event-title" required oninput="generateSlugAuto()" class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="e.g. Mindfulness & Stress Relief Retreat">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Slug</label>
+                        <input type="text" id="event-slug" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="mindfulness-stress-relief-retreat">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Host/Author Name</label>
+                        <input type="text" id="event-author-name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="SolaceSquad Team">
+                    </div>
+                </div>
+
+                <!-- Host Bio -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Host Bio (Optional)</label>
+                    <textarea id="event-author-bio" rows="2" class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="Brief host description..."></textarea>
+                </div>
+
+                <!-- Host Profile Image -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Host Profile Image (Optional)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="event-author-image" class="flex-grow px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="https://images.unsplash.com/...">
+                        <label class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-xs rounded-lg cursor-pointer flex items-center justify-center border border-gray-300">
+                            Upload File
+                            <input type="file" accept="image/*" class="hidden" onchange="uploadImageField(this, 'event-author-image')">
+                        </label>
+                    </div>
+                    <p class="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                        💡 <strong>Ideal resolution: 400 x 400 px</strong> (Aspect ratio <strong>1:1</strong>). Ensure the face is centered.
+                    </p>
+                </div>
+
+                <div class="border-t border-gray-100 my-1 pt-3"></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-[#2d6a5a] uppercase tracking-wider mb-1">Wellness Expert Name</label>
+                        <input type="text" id="event-expert-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2d6a5a]" placeholder="e.g. Dr. Subha Shri R">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-[#2d6a5a] uppercase tracking-wider mb-1">Expert Bio (Optional)</label>
+                        <input type="text" id="event-expert-bio" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2d6a5a]" placeholder="Brief professional bio...">
+                    </div>
+                </div>
+
+                <!-- Cover Image Section -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Featured Cover Image</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="event-featured-image" class="flex-grow px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="https://images.unsplash.com/...">
+                        <label class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-xs rounded-lg cursor-pointer flex items-center justify-center border border-gray-300">
+                            Upload File
+                            <input type="file" accept="image/*" class="hidden" onchange="uploadImageField(this, 'event-featured-image')">
+                        </label>
+                    </div>
+                    <p class="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                        💡 <strong>Ideal resolution: 1200 x 675 px</strong> (Aspect ratio <strong>16:9</strong>). For optimal display on mobile and desktop, keep all critical text, speaker faces, and QR codes centered in the middle 60% of the graphic to prevent cropping.
+                    </p>
+                </div>
+
+                <!-- Date & Details Section -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Date</label>
+                        <input type="date" id="event-date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Event Mode</label>
+                        <select id="event-mode" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600">
+                            <option value="online">Online</option>
+                            <option value="offline">Offline</option>
+                            <option value="hybrid">Hybrid</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Start Time</label>
+                        <input type="text" id="event-start-time" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="e.g. 18:00">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">End Time</label>
+                        <input type="text" id="event-end-time" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="e.g. 19:30">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Venue / Room Info</label>
+                        <input type="text" id="event-venue" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="e.g. Zoom Call / Goa Studio">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Registration/CTA Link (Optional)</label>
+                    <input type="text" id="event-reg-link" class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="e.g. https://forms.gle/xyz">
+                </div>
+
+                <!-- Visibility / Options toggles -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 border border-gray-100 p-4 rounded-xl">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="event-show-registration" class="rounded border-gray-300 text-[#2d6a5a] focus:ring-[#2d6a5a]">
+                        <label for="event-show-registration" class="text-xs text-gray-700 font-semibold cursor-pointer">Show Registration CTA</label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="event-show-date-time" class="rounded border-gray-300 text-[#2d6a5a] focus:ring-[#2d6a5a]">
+                        <label for="event-show-date-time" class="text-xs text-gray-700 font-semibold cursor-pointer">Show Date & Time</label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="event-show-location" class="rounded border-gray-300 text-[#2d6a5a] focus:ring-[#2d6a5a]">
+                        <label for="event-show-location" class="text-xs text-gray-700 font-semibold cursor-pointer">Show Location</label>
+                    </div>
+                </div>
+
+                <!-- AI Helper Tools section -->
+                <div class="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-xs text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-indigo-600"></i> AI Content Assistant
+                        </h4>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="runAiAssist('generate_draft')" class="px-3 py-1 bg-indigo-650 hover:bg-indigo-700 text-white font-bold text-[10px] rounded-lg shadow-sm transition uppercase">
+                                Generate Draft
+                            </button>
+                            <button type="button" onclick="runAiAssist('improve')" class="px-3 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold text-[10px] rounded-lg transition uppercase">
+                                Improve Text
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="event-ai-assisted" class="rounded border-indigo-300 text-indigo-650 focus:ring-indigo-500">
+                        <label for="event-ai-assisted" class="text-xs text-indigo-900 font-semibold cursor-pointer">Tag page with "AI-Refined Content" notice</label>
+                    </div>
+                </div>
+
+                <!-- Short Summary -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Short Summary (shown on cards)</label>
+                    <textarea id="event-short-summary" rows="2" class="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="Short description of the event..."></textarea>
+                </div>
+
+                <!-- Rich Text Description -->
+                <div>
+                    <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Full Description (Rich HTML)</label>
+                    
+                    <!-- Format Toolbar -->
+                    <div class="flex items-center gap-1 bg-gray-50 border border-b-0 border-gray-300 p-2 rounded-t-lg">
+                        <button type="button" onclick="formatDoc('bold')" class="p-1 text-gray-600 hover:bg-gray-200 rounded" title="Bold"><b>B</b></button>
+                        <button type="button" onclick="formatDoc('italic')" class="p-1 text-gray-600 hover:bg-gray-200 rounded" title="Italic"><i>I</i></button>
+                        <button type="button" onclick="formatDoc('insertUnorderedList')" class="p-1 text-gray-600 hover:bg-gray-200 rounded" title="Bullet list">• List</button>
+                        <button type="button" onclick="formatDoc('insertHorizontalRule')" class="p-1 text-gray-600 hover:bg-gray-200 rounded" title="Horizontal divider">― Line</button>
+                        <button type="button" onclick="createLinkPrompt()" class="p-1 text-gray-600 hover:bg-gray-200 rounded" title="Add Link">Link</button>
+                        <button type="button" onclick="formatHeading('h2')" class="p-1 text-gray-600 hover:bg-gray-200 rounded font-semibold text-xs" title="Heading 2">H2</button>
+                        <button type="button" onclick="formatHeading('h3')" class="p-1 text-gray-600 hover:bg-gray-200 rounded font-semibold text-xs" title="Heading 3">H3</button>
+                    </div>
+                    
+                    <div id="event-full-content" contenteditable="true" class="w-full min-h-[220px] p-4 border border-gray-300 rounded-b-lg text-sm focus:outline-none bg-white overflow-y-auto prose max-w-none">
+                        <!-- Content -->
+                    </div>
+                </div>
+
+                <!-- Gallery Manager Section -->
+                <div class="border-t border-gray-100 pt-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-gray-700">Media Gallery Items</h4>
+                        <label class="px-3.5 py-1.5 bg-gray-900 hover:bg-gray-800 text-white font-bold text-xs rounded-lg cursor-pointer flex items-center justify-center transition">
+                            <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i> Add Gallery Item
+                            <input type="file" accept="image/*,video/*" class="hidden" onchange="uploadGalleryItem(this)">
+                        </label>
+                    </div>
+
+                    <!-- Gallery Grid container -->
+                    <div id="gallery-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Dynamic items loaded via JS -->
+                    </div>
+                </div>
+
+                <!-- Save / Cancel buttons -->
+                <div class="border-t border-gray-100 pt-6 flex items-center justify-between">
+                    <button type="button" id="delete-btn" onclick="deleteCurrentEvent()" class="px-5 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-xl font-semibold transition text-sm hidden">
+                        Delete Event
+                    </button>
+                    <div class="flex items-center gap-2 ml-auto">
+                        <button type="button" onclick="closeEditor()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-semibold transition text-sm">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-6 py-2.5 bg-[#2d6a5a] text-white hover:bg-[#1e4d40] rounded-xl font-bold transition text-sm shadow-sm">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    /* Styling definitions */
+    .drag-item {
+        cursor: grab;
+    }
+    .drag-item:active {
+        cursor: grabbing;
+    }
+    .drag-over {
+        border: 2px dashed #2d6a5a;
+        background-color: #f0fdf4;
+    }
+    :root {
+        --primary-50: #f0fdf4;
+        --primary-700: #15803d;
+        --primary-800: #166534;
+        --indigo-650: #4f46e5;
+    }
+</style>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let eventsList = [];
+    let currentEvent = null;
+    let dragSrcElement = null;
+
+    // Load Listings on page load
+    async function loadEvents() {
+        try {
+            const r = await fetch('/api/admin/events');
+            const data = await r.json();
+            if (data.success) {
+                eventsList = data.events;
+                renderEventsList();
+            }
+        } catch (e) {
+            console.error("Error loading events: ", e);
+        }
+    }
+
+    function renderEventsList() {
+        const container = document.getElementById('events-list');
+        container.innerHTML = '';
+        
+        if (eventsList.length === 0) {
+            container.innerHTML = `<div class="text-center py-10 text-gray-400 text-sm">No events created yet.</div>`;
+            return;
+        }
+
+        eventsList.forEach((e) => {
+            const item = document.createElement('div');
+            item.className = 'drag-item bg-white border border-gray-100 rounded-xl p-3 flex items-center justify-between shadow-sm hover:shadow transition';
+            item.draggable = true;
+            item.dataset.id = e.id;
+            
+            // Drag and drop event listeners
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragenter', handleDragEnter);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('dragleave', handleDragLeave);
+            item.addEventListener('drop', handleDrop);
+            item.addEventListener('dragend', handleDragEnd);
+
+            const statusColor = e.status === 'published' ? 'bg-green-500' : e.status === 'archived' ? 'bg-red-500' : 'bg-gray-400';
+            
+            item.innerHTML = `
+                <div class="flex items-center gap-3 overflow-hidden cursor-pointer" onclick="selectEvent(${e.id})">
+                    <div class="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
+                        <i data-lucide="grip-vertical" class="w-4 h-4"></i>
+                    </div>
+                    <div class="truncate">
+                        <div class="font-bold text-sm text-gray-800 truncate">${escapeHtml(e.title)}</div>
+                        <div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                            <span class="px-1.5 py-0.5 bg-gray-100 rounded uppercase font-semibold text-[10px]">${e.type === 'event' ? 'webinar' : e.type}</span>
+                            <span>•</span>
+                            <span>${e.event_date}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full ${statusColor}" title="${e.status}"></span>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+        
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Drag & Drop handlers for Events Ordering
+    function handleDragStart(e) {
+        dragSrcElement = this;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', this.innerHTML);
+        this.classList.add('opacity-50');
+    }
+
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+
+    function handleDragEnter(e) {
+        this.classList.add('drag-over');
+    }
+
+    function handleDragLeave(e) {
+        this.classList.remove('drag-over');
+    }
+
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+
+        if (dragSrcElement !== this) {
+            // Reorder the backing eventsList array
+            const srcId = parseInt(dragSrcElement.dataset.id);
+            const targetId = parseInt(this.dataset.id);
+            
+            const srcIdx = eventsList.findIndex(x => x.id === srcId);
+            const targetIdx = eventsList.findIndex(x => x.id === targetId);
+
+            if (srcIdx > -1 && targetIdx > -1) {
+                const [removed] = eventsList.splice(srcIdx, 1);
+                eventsList.splice(targetIdx, 0, removed);
+                renderEventsList();
+            }
+        }
+        return false;
+    }
+
+    function handleDragEnd(e) {
+        this.classList.remove('opacity-50');
+        const items = document.querySelectorAll('#events-list .drag-item');
+        items.forEach(item => item.classList.remove('drag-over'));
+    }
+
+    function allowDrop(e) {
+        e.preventDefault();
+    }
+
+    async function saveOrder() {
+        const ids = eventsList.map(e => e.id);
+        try {
+            const r = await fetch('/api/admin/events/reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids })
+            });
+            const data = await r.json();
+            if (data.success) {
+                alert("Order saved successfully!");
+                loadEvents();
+            }
+        } catch (e) {
+            alert("Error saving display order.");
+        }
+    }
+
+    // Form logic
+    function selectEvent(id) {
+        const ev = eventsList.find(x => x.id === id);
+        if (!ev) return;
+
+        currentEvent = JSON.parse(JSON.stringify(ev)); // Deep copy
+        
+        document.getElementById('editor-empty').classList.add('hidden');
+        const form = document.getElementById('editor-form');
+        form.classList.remove('hidden');
+
+        document.getElementById('form-heading').innerText = "Edit Event / Workshop";
+        document.getElementById('event-id').value = currentEvent.id;
+        document.getElementById('event-type').value = currentEvent.type;
+        document.getElementById('event-status').value = currentEvent.status;
+        document.getElementById('event-title').value = currentEvent.title;
+        document.getElementById('event-slug').value = currentEvent.slug;
+        document.getElementById('event-author-name').value = currentEvent.author_name;
+        document.getElementById('event-author-bio').value = currentEvent.author_bio || '';
+        document.getElementById('event-author-image').value = currentEvent.author_image || '';
+        document.getElementById('event-expert-name').value = currentEvent.expert_name || '';
+        document.getElementById('event-expert-bio').value = currentEvent.expert_bio || '';
+        document.getElementById('event-featured-image').value = currentEvent.featured_image || '';
+        document.getElementById('event-date').value = currentEvent.event_date;
+        document.getElementById('event-mode').value = currentEvent.event_mode;
+        document.getElementById('event-start-time').value = currentEvent.start_time || '';
+        document.getElementById('event-end-time').value = currentEvent.end_time || '';
+        document.getElementById('event-venue').value = currentEvent.venue || '';
+        document.getElementById('event-reg-link').value = currentEvent.registration_link || '';
+        document.getElementById('event-show-registration').checked = currentEvent.show_registration !== false;
+        document.getElementById('event-show-date-time').checked = currentEvent.show_date_time !== false;
+        document.getElementById('event-show-location').checked = currentEvent.show_location !== false;
+        document.getElementById('event-short-summary').value = currentEvent.short_summary || '';
+        document.getElementById('event-full-content').innerHTML = currentEvent.full_content || '';
+        document.getElementById('event-ai-assisted').checked = currentEvent.ai_assisted_content;
+
+        document.getElementById('delete-btn').classList.remove('hidden');
+        document.getElementById('header-delete-btn').classList.remove('hidden');
+        renderGalleryItems();
+    }
+
+    function createNewEvent() {
+        currentEvent = {
+            id: null,
+            type: 'event',
+            status: 'draft',
+            title: '',
+            slug: '',
+            author_name: 'SolaceSquad Team',
+            author_bio: '',
+            author_image: '',
+            expert_name: '',
+            expert_bio: '',
+            featured_image: '',
+            event_date: new Date().toISOString().split('T')[0],
+            event_mode: 'online',
+            start_time: '',
+            end_time: '',
+            venue: '',
+            registration_link: '',
+            short_summary: '',
+            full_content: '',
+            ai_assisted_content: false,
+            gallery_items: []
+        };
+
+        document.getElementById('editor-empty').classList.add('hidden');
+        const form = document.getElementById('editor-form');
+        form.classList.remove('hidden');
+
+        document.getElementById('form-heading').innerText = "Create Event / Workshop";
+        document.getElementById('event-id').value = '';
+        document.getElementById('event-type').value = currentEvent.type;
+        document.getElementById('event-status').value = currentEvent.status;
+        document.getElementById('event-title').value = '';
+        document.getElementById('event-slug').value = '';
+        document.getElementById('event-author-name').value = currentEvent.author_name;
+        document.getElementById('event-author-bio').value = '';
+        document.getElementById('event-author-image').value = '';
+        document.getElementById('event-expert-name').value = '';
+        document.getElementById('event-expert-bio').value = '';
+        document.getElementById('event-featured-image').value = '';
+        document.getElementById('event-date').value = currentEvent.event_date;
+        document.getElementById('event-mode').value = currentEvent.event_mode;
+        document.getElementById('event-start-time').value = '';
+        document.getElementById('event-end-time').value = '';
+        document.getElementById('event-venue').value = '';
+        document.getElementById('event-reg-link').value = '';
+        document.getElementById('event-show-registration').checked = true;
+        document.getElementById('event-show-date-time').checked = true;
+        document.getElementById('event-show-location').checked = true;
+        document.getElementById('event-short-summary').value = '';
+        document.getElementById('event-full-content').innerHTML = '';
+        document.getElementById('event-ai-assisted').checked = false;
+
+        document.getElementById('delete-btn').classList.add('hidden');
+        document.getElementById('header-delete-btn').classList.add('hidden');
+        renderGalleryItems();
+    }
+
+    function closeEditor() {
+        document.getElementById('editor-form').classList.add('hidden');
+        document.getElementById('editor-empty').classList.remove('hidden');
+        currentEvent = null;
+    }
+
+    function generateSlugAuto() {
+        const idField = document.getElementById('event-id');
+        if (idField.value !== '') return; // Don't auto-update slug on edit
+
+        const title = document.getElementById('event-title').value;
+        const slug = title.trim().toLowerCase()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[-\s]+/g, '-');
+        document.getElementById('event-slug').value = slug;
+    }
+
+    // Document styling formatting shortcuts
+    function formatDoc(cmd, val = null) {
+        document.execCommand(cmd, false, val);
+    }
+    function formatHeading(tag) {
+        document.execCommand('formatBlock', false, `<${tag}>`);
+    }
+    function createLinkPrompt() {
+        const url = prompt("Enter registration / web link URL:");
+        if (url) {
+            formatDoc('createLink', url);
+        }
+    }
+
+    // Media file upload handler
+    async function uploadImageField(input, targetId) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const r = await fetch('/api/admin/events/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await r.json();
+            if (data.success) {
+                document.getElementById(targetId).value = data.url;
+            } else {
+                alert("Upload failed: " + data.error);
+            }
+        } catch (e) {
+            alert("Network error uploading file.");
+        }
+    }
+
+    // Gallery Manager Render
+    function renderGalleryItems() {
+        const container = document.getElementById('gallery-container');
+        container.innerHTML = '';
+
+        if (!currentEvent.gallery_items || currentEvent.gallery_items.length === 0) {
+            container.innerHTML = `<div class="col-span-full text-center py-6 text-gray-400 text-xs border border-dashed border-gray-200 rounded-xl">No media items in gallery.</div>`;
+            return;
+        }
+
+        currentEvent.gallery_items.forEach((item, idx) => {
+            const tile = document.createElement('div');
+            tile.className = 'bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-3';
+            
+            tile.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="w-16 h-12 rounded bg-gray-200 overflow-hidden flex-shrink-0 relative">
+                        ${item.media_type === 'image' 
+                            ? `<img src="/api/events/media?url=${encodeURIComponent(item.source)}" class="w-full h-full object-cover">` 
+                            : `<div class="w-full h-full bg-gray-900 flex items-center justify-center text-white"><i data-lucide="play-circle" class="w-6 h-6"></i></div>`
+                        }
+                    </div>
+                    <div class="flex-grow text-xs truncate">
+                        <div class="font-bold text-gray-800 truncate">${escapeHtml(item.source.split('/').pop())}</div>
+                        <div class="text-gray-500 uppercase font-semibold text-[10px] mt-0.5">${item.media_type}</div>
+                    </div>
+                </div>
+                <div>
+                    <input type="text" value="${escapeHtml(item.caption || '')}" oninput="updateGalleryCaption(${idx}, this.value)" placeholder="Media Caption" class="w-full px-2.5 py-1 border border-gray-300 rounded text-xs focus:outline-none">
+                </div>
+                <div class="flex items-center justify-between pt-1">
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="moveGalleryItem(${idx}, -1)" class="p-1 bg-white hover:bg-gray-100 rounded border border-gray-200 text-gray-500" title="Move Up"><i data-lucide="arrow-up" class="w-3.5 h-3.5"></i></button>
+                        <button type="button" onclick="moveGalleryItem(${idx}, 1)" class="p-1 bg-white hover:bg-gray-100 rounded border border-gray-200 text-gray-500" title="Move Down"><i data-lucide="arrow-down" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                    <button type="button" onclick="removeGalleryItem(${idx})" class="text-xs font-bold text-red-600 hover:text-red-700 uppercase">Remove</button>
+                </div>
+            `;
+            container.appendChild(tile);
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    async function uploadGalleryItem(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const r = await fetch('/api/admin/events/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await r.json();
+            if (data.success) {
+                const type = file.type.startsWith('video') ? 'video' : 'image';
+                currentEvent.gallery_items.push({
+                    id: null,
+                    media_type: type,
+                    source: data.url,
+                    thumbnail: '',
+                    caption: '',
+                    alt_text: '',
+                    sort_order: currentEvent.gallery_items.length
+                });
+                renderGalleryItems();
+            } else {
+                alert("Upload failed: " + data.error);
+            }
+        } catch (e) {
+            alert("Network error uploading file.");
+        }
+    }
+
+    function updateGalleryCaption(idx, val) {
+        currentEvent.gallery_items[idx].caption = val;
+    }
+
+    function removeGalleryItem(idx) {
+        currentEvent.gallery_items.splice(idx, 1);
+        renderGalleryItems();
+    }
+
+    function moveGalleryItem(idx, direction) {
+        const target = idx + direction;
+        if (target < 0 || target >= currentEvent.gallery_items.length) return;
+
+        const temp = currentEvent.gallery_items[idx];
+        currentEvent.gallery_items[idx] = currentEvent.gallery_items[target];
+        currentEvent.gallery_items[target] = temp;
+        
+        // Reset sort order integers
+        currentEvent.gallery_items.forEach((item, i) => item.sort_order = i);
+        renderGalleryItems();
+    }
+
+    // AI content refinement & drafting via Gemini
+    async function runAiAssist(action) {
+        const topic = document.getElementById('event-title').value.trim();
+        const type = document.getElementById('event-type').value;
+        const currentHTML = document.getElementById('event-full-content').innerHTML;
+
+        if (action === 'generate_draft' && !topic) {
+            alert("Please input a title as the topic first.");
+            return;
+        }
+
+        try {
+            const r = await fetch('/api/admin/events/ai-assist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action,
+                    topic,
+                    type,
+                    existing_content: currentHTML
+                })
+            });
+            const data = await r.json();
+            if (data.success) {
+                const res = data.result;
+                if (action === 'generate_draft') {
+                    if (res.title) document.getElementById('event-title').value = res.title;
+                    if (res.slug) document.getElementById('event-slug').value = res.slug;
+                    if (res.short_summary) document.getElementById('event-short-summary').value = res.short_summary;
+                    if (res.full_content) document.getElementById('event-full-content').innerHTML = res.full_content;
+                    if (res.venue) document.getElementById('event-venue').value = res.venue;
+                    if (res.event_mode) document.getElementById('event-mode').value = res.event_mode;
+                    document.getElementById('event-ai-assisted').checked = true;
+                } else if (action === 'improve') {
+                    if (res.short_summary) document.getElementById('event-short-summary').value = res.short_summary;
+                    if (res.full_content) document.getElementById('event-full-content').innerHTML = res.full_content;
+                }
+            } else {
+                alert("AI assistant failed: " + data.error);
+            }
+        } catch (e) {
+            alert("Network error calling AI assistant.");
+        }
+    }
+
+    // Form Submit
+    async function saveEventForm(event) {
+        event.preventDefault();
+        
+        const id = document.getElementById('event-id').value;
+        const bodyData = {
+            type: document.getElementById('event-type').value,
+            status: document.getElementById('event-status').value,
+            title: document.getElementById('event-title').value.trim(),
+            slug: document.getElementById('event-slug').value.trim(),
+            author_name: document.getElementById('event-author-name').value.trim(),
+            author_bio: document.getElementById('event-author-bio').value.trim(),
+            author_image: document.getElementById('event-author-image').value.trim(),
+            expert_name: document.getElementById('event-expert-name').value.trim(),
+            expert_bio: document.getElementById('event-expert-bio').value.trim(),
+            featured_image: document.getElementById('event-featured-image').value.trim(),
+            event_date: document.getElementById('event-date').value,
+            event_mode: document.getElementById('event-mode').value,
+            start_time: document.getElementById('event-start-time').value.trim(),
+            end_time: document.getElementById('event-end-time').value.trim(),
+            venue: document.getElementById('event-venue').value.trim(),
+            registration_link: document.getElementById('event-reg-link').value.trim(),
+            show_registration: document.getElementById('event-show-registration').checked,
+            show_date_time: document.getElementById('event-show-date-time').checked,
+            show_location: document.getElementById('event-show-location').checked,
+            short_summary: document.getElementById('event-short-summary').value.trim(),
+            full_content: document.getElementById('event-full-content').innerHTML,
+            ai_assisted_content: document.getElementById('event-ai-assisted').checked,
+            gallery_items: currentEvent.gallery_items
+        };
+
+        const url = id ? `/api/admin/events/${id}` : '/api/admin/events';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+            const r = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bodyData)
+            });
+            const data = await r.json();
+            if (data.success) {
+                alert("Saved successfully!");
+                closeEditor();
+                loadEvents();
+            } else {
+                alert("Save failed: " + data.error);
+            }
+        } catch (e) {
+            alert("Error sending request.");
+        }
+    }
+
+    async function deleteCurrentEvent() {
+        if (!confirm("Are you sure you want to delete this event/workshop listing?")) return;
+        const id = document.getElementById('event-id').value;
+        if (!id) return;
+
+        try {
+            const r = await fetch(`/api/admin/events/${id}`, { method: 'DELETE' });
+            const data = await r.json();
+            if (data.success) {
+                alert("Deleted successfully.");
+                closeEditor();
+                loadEvents();
+            }
+        } catch (e) {
+            alert("Error deleting event.");
+        }
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadEvents);
+</script>
+{% endblock %}

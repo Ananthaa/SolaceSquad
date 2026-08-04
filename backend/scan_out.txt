@@ -1,0 +1,180 @@
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/admin/homepage_builder.html
+  LINE 997: document.getElementById('sb-count').textContent = sections.length + ' section' + (sections.length !== 1 ? 's' : '');
+  LINE 1005: html += '<div class="si ' + (s.id === currentId ? 'active' : '') + '" id="si-' + s.id + '" onclick="openSection(' + s.id
+  LINE 1006: html += '<div class="si-dot ' + (s.is_published ? 'pub' : 'dft') + '"></div>';
+  LINE 1007: html += '<div class="si-info"><div class="si-name">' + esc(s.title) + '</div><div class="si-sub">' + (s.is_published ? '
+  LINE 1019: html += '<option value="' + s.id + '"' + (s.id === currentId ? ' selected' : '') + '>' + esc(s.title) + '</option>';
+  LINE 1076: var url = currentId ? '/api/homepage/sections/' + currentId : '/api/homepage/sections';
+  LINE 1077: var method = currentId ? 'PUT' : 'POST';
+  LINE 1086: toast(currentId ? 'Saved!' : 'Section created!', 'success');
+  LINE 1123: if (!confirm('Publish all sections to the live homepage?')) return;
+  LINE 1141: var ni = dir === 'up' ? idx - 1 : idx + 1;
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/admin_bulk_fees.html
+  LINE 99: if (!confirm(`Are you sure you want to set ₹${fee} as the default fee for all consultants with ₹0 fee?`)) {
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/admin_consultant_fix.html
+  LINE 57: const statusColor = c.has_profile && c.profile_approved && c.is_active ? 'green' : 'red';
+  LINE 62: <div>User Type: <span class="font-semibold ${c.user_type === 'consultant' ? 'text-green-600' : 'text-red-600'}">${c.user
+  LINE 63: <div>User Active: <span class="font-semibold ${c.is_active ? 'text-green-600' : 'text-red-600'}">${c.is_active ? 'Yes' :
+  LINE 64: <div>Has Profile: <span class="font-semibold ${c.has_profile ? 'text-green-600' : 'text-red-600'}">${c.has_profile ? 'Ye
+  LINE 65: <div>Profile Approved: <span class="font-semibold ${c.profile_approved ? 'text-green-600' : 'text-red-600'}">${c.profile
+  LINE 88: if (!confirm('This will create missing consultant profiles and approve all consultants. Continue?')) {
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/admin_dashboard.html
+  LINE 146: onsubmit="return confirm('Reject this request?');">
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/admin_folder_detail.html
+  LINE 196: if (!confirm('Are you sure you want to delete this video?')) return;
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/admin_users.html
+  LINE 432: <span class="font-medium ${user.is_active ? 'text-green-600' : 'text-red-600'}">
+  LINE 433: ${user.is_active ? 'Active' : 'Inactive'}
+  LINE 450: if (!confirm(`Are you sure you want to ${currentStatus === 'true' ? 'deactivate' : 'activate'} this user?`)) {
+  LINE 523: if (!confirm(`Payout (₹${payout}) is greater than the user fee (₹${fee}). Continue?`)) return;
+  LINE 561: if (!confirm(`Are you sure you want to ${currentStatus === 'true' ? 'deactivate' : 'activate'} this consultant?`)) {
+  LINE 584: 'Remove this consultant profile?\n\n' +
+  LINE 588: 'Continue?'
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/ai_chat.html
+  LINE 175: <p class="text-sm text-gray-500">How can I support you today?</p>
+  LINE 227: if (qEl) qEl.textContent = 'What is ' + mathA + ' + ' + mathB + ' ?';
+  LINE 246: if (errEl) errEl.style.display = (input.value.length > 0) ? 'block' : 'none';
+  LINE 437: messageDiv.className = 'flex gap-3' + (isUser ? ' justify-end' : '') + (animate ? ' message-fade-in' : '');
+  LINE 478: document.getElementById('chatMessages').innerHTML = '<div class="text-center py-8"><div class="w-16 h-16 bg-gradient-to-
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/auth/forgot_password.html
+  LINE 12: <h2 class="text-3xl font-display font-bold text-gray-900 mt-4">Forgot Password?</h2>
+  LINE 55: Remember your password?
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/auth/login.html
+  LINE 63: Forgot password?
+  LINE 75: Don't have an account?
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/auth/reset_password.html
+  LINE 77: Remember your password?
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/auth/signup.html
+  LINE 123: Already have an account?
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/auth/signup_simple.html
+  LINE 18: Already have an account?
+  LINE 142: <p>Need help? <a href="/contact" class="text-primary-600 hover:text-primary-500 font-medium">Contact
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/call_room.html
+  LINE 475: <h2 class="text-2xl font-bold text-gray-900 mb-2">Ready to join?</h2>
+  LINE 741: if (bpVal) bpVal.textContent = (latest.blood_pressure_systolic && latest.blood_pressure_diastolic) ?
+  LINE 791: label: function (c) { return c.parsed.y + (id === 'chart-temp' ? ' F' : ''); }
+  LINE 848: 'happy': '??', 'excited': '??', 'calm': '??', 'content': '??', 'good': '??',
+  LINE 849: 'neutral': '??', 'okay': '??', 'tired': '??', 'sad': '??', 'anxious': '??',
+  LINE 850: 'stressed': '??', 'angry': '??', 'joy': '??', 'grateful': '??'
+  LINE 864: const emoji = moodEmojis[moodKey] || '??';
+  LINE 1115: if (confirm('Are you sure you want to end the call?')) {
+  LINE 1450: <h2 class="text-xl font-bold">How was your session?</h2>
+  LINE 1509: btn.style.color = s <= star ? '#f59e0b' : '#d1d5db';
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/consultant_clients.html
+  LINE 153: document.getElementById('searchInput')?.addEventListener('input', function (e) {
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/consultant_dashboard.html
+  LINE 226: const statusText = isInProgress ? 'In Progress' : 'Confirmed';
+  LINE 227: const statusColor = isInProgress ? 'text-orange-600' : 'text-green-600';
+  LINE 250: ${appt.notes ? `<div class="text-sm text-gray-600 mt-2 pl-13">Note: ${appt.notes}</div>` : ''}
+  LINE 282: const statusText = appt.status === 'completed' ? 'Completed' : 'Expired';
+  LINE 283: const statusColor = appt.status === 'completed' ? 'text-green-600' : 'text-gray-500';
+  LINE 284: const statusIcon = appt.status === 'completed' ? 'check-circle' : 'clock';
+  LINE 310: ${appt.notes ? `<div class="text-sm text-gray-600 mt-2 pl-13">Note: ${appt.notes}</div>` : ''}
+  LINE 311: ${appt.status === 'completed' ? `
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/consultant_messages.html
+  LINE 135: const unreadClass = conv.unread_count > 0 ? 'bg-primary-50 border-l-4 border-primary-600' : 'bg-white';
+  LINE 151: ${conv.unread_count > 0 ? `<span class="bg-primary-600 text-white text-xs font-bold px-2 py-1 rounded-full">${conv.unrea
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/consultant_patient_detail.html
+  LINE 258: const icon = isAppt ? 'video' : 'sticky-note';
+  LINE 259: const bgColor = isAppt ? 'bg-blue-50 border-blue-200' : 'bg-white border-gray-200';
+  LINE 266: <span class="font-medium">${isAppt ? 'Consultation Note' : 'General Note'}</span>
+  LINE 276: ${!isAppt ? `
+  LINE 335: if (!confirm('Are you sure you want to delete this note?')) {
+  LINE 456: ${latest.heart_rate ? `<div><span class="text-gray-600">Heart Rate:</span> <span class="font-medium">${latest.heart_rate
+  LINE 457: ${latest.blood_pressure_systolic ? `<div><span class="text-gray-600">Blood Pressure:</span> <span class="font-medium">${
+  LINE 458: ${latest.temperature ? `<div><span class="text-gray-600">Temperature:</span> <span class="font-medium">${latest.temperat
+  LINE 459: ${latest.oxygen_saturation ? `<div><span class="text-gray-600">SpO2:</span> <span class="font-medium">${latest.oxygen_sa
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/consultant_profile.html
+  LINE 378: if (confirm('Are you sure you want to discard your changes?')) {
+  LINE 393: <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i>
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/consultants.html
+  LINE 2044: ? a.duration_minutes + ' min'
+  LINE 2048: + (a.duration_minutes % 60 ? ' ' + (a.duration_minutes % 60) + 'min' : '');
+  LINE 2052: ? '<button class="btn-cancel-appt" onclick="cancelAppointment(' + a.id + ')">&times; Cancel</button>'
+  LINE 2056: var notes = a.notes ? '<div class="appt-meta">&#128221; ' + a.notes + '</div>' : '';
+  LINE 2176: document.getElementById('panelUpcoming').style.display = isUp ? '' : 'none';
+  LINE 2178: document.getElementById('panelHistory').style.display = isUp ? 'none' : '';
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/daily_journal.html
+  LINE 341: const preview = entry.content.substring(0, 100) + (entry.content.length > 100 ? '...' : '');
+  LINE 367: ? 'bg-green-500 text-white'
+  LINE 372: <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="w-5 h-5"></i>
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/exercises.html
+  LINE 342: const diff = (now.getDay() === 0) ? -6 : 1 - now.getDay();
+  LINE 395: ${totals.length ? `<span class="wh-date-total">${totals.join(' · ')}</span>` : ''}
+  LINE 410: ${l.notes ? `<div style="font-size:.73rem;color:#9ca3af;margin-top:.25rem;">${l.notes}</div>` : ''}
+  LINE 454: if (!confirm('Delete this workout entry?')) return;
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/home.html
+  LINE 92: Why Choose <span class="gradient-text">SolaceSquad</span>?
+  LINE 162: seen a lot of family, friends and love life - but still need someone to open your heart out?
+  LINE 348: Ready to Start Your Wellbeing Journey?
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/prescriptions.html
+  LINE 125: ${rx.diagnosis ? `
+  LINE 134: <span class="text-gray-600">${rx.item_count} medication${rx.item_count !== 1 ? 's' : ''}</span>
+  LINE 211: ${prescription.diagnosis ? `
+  LINE 234: ${item.dosage ? `
+  LINE 240: ${item.frequency ? `
+  LINE 246: ${item.duration ? `
+  LINE 253: ${item.instructions ? `
+  LINE 267: ${prescription.notes ? `
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/recordings.html
+  LINE 201: ${rec.has_transcription ? `
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/user_dashboard.html
+  LINE 716: <i data-lucide="smile"></i> How are you feeling today?
+  LINE 866: const n = (value !== null && value !== undefined) ? Math.round(value) : null;
+  LINE 867: num.textContent = (n !== null) ? n : '--';
+  LINE 888: else if (diffH < 24) when = diffH + (diffH === 1 ? ' hour ago' : ' hours ago');
+  LINE 900: (parts.length ? ' &thinsp;&middot;&thinsp; ' + parts.join(' &thinsp;&middot;&thinsp; ') : '');
+  LINE 916: ? `${latest.heart_rate} <span>BPM</span>`
+  LINE 927: ? `<span style="font-size:.95rem">${latest.blood_pressure_systolic}/${latest.blood_pressure_diastolic}</span>`
+  LINE 932: ? `${latest.spo2} <span>%</span>`
+  LINE 937: ? `${latest.respiratory_rate} <span>/min</span>`
+  LINE 1101: if (!confirm('Cancel this session?\nBoth you and the consultant will be notified by email.')) return;
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/user_profile.html
+  LINE 184: <span class="field-hint">How many days per week do you do wellness activities?</span>
+  LINE 670: if (confirm('Are you sure you want to discard your changes?')) {
+  LINE 685: <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i>
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/vitals.html
+  LINE 656: pf.textContent = category === 'dark' ? '💡 Needs more light!' : '🔆 Too much glare!';
+  LINE 879: feedback = offsetX > 0 ? '⬅️ Shift your face slightly left' : '➡️ Shift your face slightly right';
+  LINE 884: feedback = offsetY > 0 ? '⬆️ Shift your face slightly up' : '⬇️ Shift your face slightly down';
+  LINE 901: this.ctx.strokeStyle = isDetected ? '#10b981' : '#ef4444';
+  LINE 975: const force = confirm("Face detection is struggling (likely lighting). Force scan anyway?");
+  LINE 1141: ? ` (${this.lightCategory === 'dark' ? 'Low-light' : this.lightCategory === 'overexposed' ? 'Over-bright' : 'Sub-optimal
+  LINE 1186: return (bpm >= 50 && bpm <= 130) ? bpm : null;
+  LINE 1222: return (spo2 >= 85 && spo2 <= 100) ? spo2 : 97; // Default to normal if out of range
+  LINE 1359: const normalizedAmplitude = maxAmplitude > minAmplitude ?
+  LINE 2319: <textarea id="wl-notes" class="wlog-input" rows="2" placeholder="How did it feel? Any PRs?"
+
+FILE: C:/Anantha/Projects/Soul Squad/backend/templates/pages/workout_log.html
+  LINE 595: <textarea id="f-notes" class="wl-input" rows="2" placeholder="How did it go? Any PRs?"
+  LINE 698: document.getElementById('steps-badge').style.display = steps > 0 ? 'inline' : 'none';
+  LINE 727: btn.className = 'wl-type-btn' + (t.label === selectedType ? ' active' : '');
+  LINE 753: const diff = (day === 0) ? -6 : 1 - day;
+  LINE 796: ${l.notes ? `<div style="font-size:.75rem;color:#94a3b8;margin-top:.35rem;">${l.notes}</div>` : ''}
+  LINE 858: if (!confirm('Delete this workout?')) return;

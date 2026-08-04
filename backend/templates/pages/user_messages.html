@@ -1,53 +1,405 @@
 {% extends "layouts/protected.html" %}
 
-{% set nav_items = [
-{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
-{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
-{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
-{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
-{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
-{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
-{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
-{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
-{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
-{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'},
-{'icon': 'user', 'label': 'Profile', 'href': '/app/profile', 'key': 'profile'}
-] %}
 
 {% block dashboard_content %}
-<div class="mb-8">
-    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
-        Messages 💬
-    </h1>
-    <p class="text-gray-600">
-        Communicate with your consultants (Coming Soon)
-    </p>
+
+<style>
+  /* ── Reset & page ── */
+  .msg-root { height: calc(100vh - 180px); min-height: 520px; border-radius: 20px; overflow: hidden; display: flex; box-shadow: 0 8px 40px rgba(0,0,0,0.10); border: 1px solid #e8f5e9; background: #fff; }
+
+  /* ── Disclaimer banner ── */
+  .disclaimer {
+    background: linear-gradient(135deg,#fffbeb,#fef3c7);
+    border: 1px solid #fcd34d;
+    border-radius: 14px;
+    padding: 0.7rem 1rem;
+    display: flex; align-items: flex-start; gap: 0.6rem;
+    font-size: 0.8rem; color: #78350f; line-height: 1.45; margin-bottom: 1rem;
+  }
+  .disclaimer svg { flex-shrink: 0; margin-top:2px; }
+
+  /* ── Left sidebar ── */
+  .sidebar {
+    width: 300px; flex-shrink: 0;
+    background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+    border-right: 1px solid #dcfce7;
+    display: flex; flex-direction: column;
+  }
+  .sidebar-header {
+    padding: 1.2rem 1.1rem 0.8rem;
+    border-bottom: 1px solid #e7f7ee;
+    background: linear-gradient(135deg, #2d6a5a 0%, #1a4a3d 100%);
+  }
+  .sidebar-header h2 { color: #fff; font-size: 1rem; font-weight: 700; margin: 0 0 2px; }
+  .sidebar-header p  { color: #a7f3d0; font-size: 0.72rem; margin:0; }
+  .sidebar-list { flex: 1; overflow-y: auto; padding: 0.5rem; }
+
+  /* ── Conv item ── */
+  .conv-item {
+    padding: 0.7rem 0.8rem; border-radius: 12px;
+    cursor: pointer; display: flex; align-items: center; gap: 0.7rem;
+    transition: background 0.15s, transform 0.1s; margin-bottom: 2px;
+    border: 1.5px solid transparent;
+  }
+  .conv-item:hover  { background: #f0fdf4; border-color: #bbf7d0; transform: translateX(2px); }
+  .conv-item.active { background: #dcfce7; border-color: #4ade80; }
+
+  /* ── Avatar ── */
+  .av {
+    width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, #2d6a5a, #059669);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(45,106,90,0.3);
+    position: relative;
+  }
+  .av.lg { width: 40px; height: 40px; font-size: 0.9rem; }
+  .online-dot { position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: #22c55e; border-radius: 50%; border: 2px solid #fff; }
+
+  .unread-badge { background: #ef4444; color:#fff; font-size:0.65rem; font-weight:700; min-width:17px; height:17px; border-radius:9px; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+
+  /* ── Main chat area ── */
+  .chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  /* Chat header */
+  .chat-header {
+    padding: 0.9rem 1.2rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fff;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+  }
+
+  /* Empty state */
+  .empty-state { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:2rem; text-align:center; }
+  .empty-icon { width:72px; height:72px; background:linear-gradient(135deg,#f0fdf4,#dcfce7); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem; }
+
+  /* Messages */
+  .messages-container { flex:1; overflow-y:auto; padding:1rem 1.2rem; display:flex; flex-direction:column; gap:0.6rem; background: linear-gradient(180deg, #f9fafb 0%, #ffffff 100%); }
+  .msg-row { display:flex; gap:0.5rem; animation: fadeUp 0.2s ease; align-items: flex-end; }
+  .msg-row.mine { flex-direction:row-reverse; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+  /* The wrapper div inside msg-row gets the max-width so % is relative to the row */
+  .msg-row > .bubble-wrap { max-width: 68%; }
+
+  .bubble {
+    padding: 0.65rem 1rem; font-size: 0.875rem; line-height: 1.55;
+    border-radius: 18px; overflow-wrap: break-word; word-break: break-word;
+    display: inline-block; width: 100%;
+  }
+  .bubble.mine {
+    background: linear-gradient(135deg, #2d6a5a 0%, #1a4a3d 100%);
+    color: #fff; border-radius: 18px 18px 4px 18px;
+    box-shadow: 0 2px 12px rgba(45,106,90,0.25);
+  }
+  .bubble.theirs {
+    background: #fff; color: #1e293b;
+    border-radius: 18px 18px 18px 4px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  .bubble-meta { font-size:0.65rem; color:#94a3b8; margin-top:3px; text-align:right; }
+  .bubble-meta.theirs { text-align:left; }
+
+  /* Date separator */
+  .date-sep { text-align:center; margin:0.5rem 0; }
+  .date-sep span { background:#f1f5f9; color:#94a3b8; font-size:0.68rem; padding:2px 10px; border-radius:20px; }
+
+  /* Input area */
+  .input-area {
+    padding: 0.85rem 1.1rem;
+    border-top: 1px solid #f1f5f9;
+    background: #fff;
+    display: flex; align-items: flex-end; gap: 0.6rem;
+  }
+  #msgInput {
+    flex:1; border:1.5px solid #e2e8f0; border-radius:22px;
+    padding:0.6rem 1rem; font-size:0.875rem; outline:none; resize:none;
+    min-height:42px; max-height:110px; overflow-y:auto; line-height:1.45;
+    transition:border-color 0.2s, box-shadow 0.2s;
+    font-family:inherit; color:#1e293b;
+  }
+  #msgInput:focus { border-color:#2d6a5a; box-shadow:0 0 0 3px rgba(45,106,90,0.1); }
+  #msgInput::placeholder { color:#cbd5e1; }
+
+  #sendBtn {
+    width:42px; height:42px; border-radius:50%; border:none; flex-shrink:0;
+    background:linear-gradient(135deg,#2d6a5a,#1a4a3d);
+    color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 4px 14px rgba(45,106,90,0.35);
+    transition:transform 0.15s, opacity 0.15s, box-shadow 0.15s;
+  }
+  #sendBtn:hover  { transform:scale(1.08); box-shadow:0 6px 18px rgba(45,106,90,0.45); }
+  #sendBtn:active { transform:scale(0.96); }
+  #sendBtn:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+
+  /* Error toast */
+  #errorToast {
+    position:fixed; bottom:1.5rem; left:50%; transform:translateX(-50%);
+    background:#fef2f2; border:1px solid #fca5a5; color:#991b1b;
+    padding:0.65rem 1.3rem; border-radius:12px; font-size:0.83rem;
+    z-index:9999; display:none; box-shadow:0 4px 20px rgba(0,0,0,0.1);
+    max-width:calc(100vw - 2rem); text-align:center; animation:fadeUp 0.2s ease;
+  }
+
+  /* Scrollbar */
+  .messages-container::-webkit-scrollbar, .sidebar-list::-webkit-scrollbar { width:4px; }
+  .messages-container::-webkit-scrollbar-track, .sidebar-list::-webkit-scrollbar-track { background:transparent; }
+  .messages-container::-webkit-scrollbar-thumb, .sidebar-list::-webkit-scrollbar-thumb { background:#d1d5db; border-radius:4px; }
+
+  @media (max-width:768px) {
+    .msg-root { flex-direction:column; height:auto; min-height:auto; border-radius:14px; }
+    .sidebar { width:100%; height:220px; border-right:none; border-bottom:1px solid #dcfce7; }
+    .chat-area { height:calc(100vh - 450px); min-height:350px; }
+  }
+</style>
+
+<!-- Disclaimer -->
+<div class="disclaimer">
+  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span><strong>Heads up!</strong> Consultants may take some time to reply — but they <em>will</em> get back to you. For instant support try <a href="/app/ai-chat" class="underline font-semibold">Emora</a>. &nbsp;🔒 No phone numbers or emails allowed in chat.</span>
 </div>
 
-<div class="card p-12 text-center">
-    <div class="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <i data-lucide="message-circle" class="w-8 h-8 text-primary-600"></i>
+<!-- Chat layout -->
+<div class="msg-root">
+
+  <!-- ── Sidebar ── -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>💬 Messages</h2>
+      <p>Your wellness consultants</p>
     </div>
-    <h2 class="text-xl font-bold text-gray-900 mb-2">Direct Messaging Coming Soon</h2>
-    <p class="text-gray-600 mb-6 max-w-md mx-auto">
-        We're building a secure way for you to chat directly with your wellbeing consultants.
-        For now, please use the AI Assistant for immediate support or book a session to talk via video.
-    </p>
-    <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <a href="/app/ai-chat" class="btn btn-secondary">
-            <i data-lucide="bot" class="w-4 h-4 mr-2"></i>
-            Use AI Assistant
-        </a>
-        <a href="/app/consultants" class="btn btn-primary">
-            <i data-lucide="calendar" class="w-4 h-4 mr-2"></i>
-            Book Session
-        </a>
+    <div id="convList" class="sidebar-list">
+      <div style="text-align:center;padding:2rem 1rem;color:#94a3b8">
+        <div style="width:40px;height:40px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 0.7rem">
+          <i data-lucide="loader" style="width:18px;height:18px;" class="animate-spin"></i>
+        </div>
+        <p style="font-size:0.8rem">Loading…</p>
+      </div>
     </div>
+  </div>
+
+  <!-- ── Chat area ── -->
+  <div class="chat-area">
+
+    <!-- Empty state -->
+    <div id="emptyState" class="empty-state">
+      <div class="empty-icon">
+        <i data-lucide="message-circle" style="width:34px;height:34px;color:#2d6a5a"></i>
+      </div>
+      <h3 style="font-weight:600;color:#1e293b;margin-bottom:0.35rem;font-size:1rem">Select a conversation</h3>
+      <p style="color:#94a3b8;font-size:0.83rem;max-width:220px">Choose a consultant from the left to open your conversation</p>
+    </div>
+
+    <!-- Thread (hidden until conversation selected) -->
+    <div id="threadHeader" class="chat-header" style="display:none">
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <div id="hdrAvatar" class="av lg"></div>
+        <div>
+          <div id="hdrName" style="font-weight:600;color:#1e293b;font-size:0.92rem;line-height:1.2"></div>
+          <div style="font-size:0.72rem;color:#2d6a5a;display:flex;align-items:center;gap:4px">
+            <span style="width:7px;height:7px;background:#22c55e;border-radius:50%;display:inline-block"></span>
+            Wellness Consultant
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="msgThread" class="messages-container" style="display:none"></div>
+
+    <div id="inputArea" class="input-area" style="display:none">
+      <textarea id="msgInput" placeholder="Type a message…" rows="1" onkeydown="handleKey(event)"></textarea>
+      <button id="sendBtn" onclick="sendMessage()" aria-label="Send message">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+
+  </div>
 </div>
+
+<div id="errorToast"></div>
 
 <script>
-    window.addEventListener('DOMContentLoaded', function () {
-        lucide.createIcons();
-    });
+  let currentPartnerId = null;
+  let currentPartnerName = '';
+  let conversations = [];
+  let pollTimer = null;
+
+  window.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+    loadConversations();
+  });
+
+  document.getElementById('msgInput')?.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 110) + 'px';
+  });
+
+  // ── Conversations ─────────────────────────────────────────────────────────
+  function loadConversations() {
+    fetch('/api/messages/conversations?t=' + Date.now(), { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => {
+        conversations = data.success ? (data.conversations || []) : [];
+        renderSidebar(conversations);
+      })
+      .catch(() => renderSidebar([]));
+  }
+
+  function renderSidebar(convs) {
+    const el = document.getElementById('convList');
+    if (!convs.length) {
+      el.innerHTML = `
+        <div style="text-align:center;padding:2rem 1rem;color:#94a3b8">
+          <div style="width:46px;height:46px;background:#f0fdf4;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 0.85rem">
+            <i data-lucide="users" style="width:20px;height:20px;color:#86efac"></i>
+          </div>
+          <p style="font-weight:500;color:#64748b;font-size:0.82rem;margin-bottom:0.4rem">No consultants yet</p>
+          <p style="font-size:0.73rem;margin-bottom:0.85rem">Book a session to start messaging</p>
+          <a href="/app/consultants" style="display:inline-block;background:linear-gradient(135deg,#2d6a5a,#1a4a3d);color:#fff;padding:0.4rem 0.9rem;border-radius:999px;font-size:0.75rem;font-weight:600;text-decoration:none">Find a Consultant</a>
+        </div>`;
+      lucide.createIcons();
+      return;
+    }
+    el.innerHTML = convs.map(c => {
+      const ini  = initials(c.partner_name);
+      const time = c.latest_timestamp ? relTime(c.latest_timestamp) : '';
+      const act  = c.partner_id === currentPartnerId ? 'active' : '';
+      const preview = esc(c.latest_message || '');
+      const badge = c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : '';
+      return `<div class="conv-item ${act}" onclick="selectConv(${c.partner_id},'${escAttr(c.partner_name)}',this)">
+        <div class="av" style="width:40px;height:40px;font-size:0.75rem">${ini}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+            <span style="font-weight:600;color:#1e293b;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${esc(c.partner_name)}</span>
+            <span style="font-size:0.65rem;color:#94a3b8;flex-shrink:0;margin-left:4px">${time}</span>
+          </div>
+          <p style="font-size:0.73rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0">${preview}</p>
+        </div>
+        ${badge}
+      </div>`;
+    }).join('');
+    lucide.createIcons();
+  }
+
+  // ── Select conversation ───────────────────────────────────────────────────
+  function selectConv(partnerId, partnerName, el) {
+    currentPartnerId = partnerId;
+    currentPartnerName = partnerName;
+
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('threadHeader').style.display = 'flex';
+    document.getElementById('msgThread').style.display = 'flex';
+    document.getElementById('inputArea').style.display = 'flex';
+
+    document.getElementById('hdrName').textContent = partnerName;
+    document.getElementById('hdrAvatar').textContent = initials(partnerName);
+
+    document.querySelectorAll('.conv-item').forEach(e => e.classList.remove('active'));
+    el?.classList.add('active');
+
+    loadThread(partnerId);
+    fetch(`/api/messages/mark-read/${partnerId}`, { method: 'POST' }).then(() => loadConversations());
+
+    clearInterval(pollTimer);
+    pollTimer = setInterval(() => { if (currentPartnerId) loadThread(currentPartnerId, true); }, 12000);
+  }
+
+  // ── Thread ─────────────────────────────────────────────────────────────────
+  function loadThread(partnerId, silent = false) {
+    fetch(`/api/messages/thread/${partnerId}?t=` + Date.now(), { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => { if (data.success) renderThread(data.messages, silent); });
+  }
+
+  function renderThread(msgs, silent = false) {
+    const el = document.getElementById('msgThread');
+    const atBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 80;
+
+    if (!msgs?.length) {
+      el.innerHTML = `<div style="text-align:center;margin:auto;color:#94a3b8;padding:2rem">
+        <p style="font-size:0.85rem">No messages yet — send the first one! 👋</p></div>`;
+      return;
+    }
+
+    let lastDate = null;
+    el.innerHTML = msgs.map(m => {
+      const d = new Date(m.timestamp);
+      const dateKey = d.toDateString();
+      let dateSep = '';
+      if (dateKey !== lastDate) {
+        lastDate = dateKey;
+        dateSep = `<div class="date-sep"><span>${dateKey === new Date().toDateString() ? 'Today' : d.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}</span></div>`;
+      }
+      const tStr = d.toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit',hour12:true});
+      if (m.is_mine) {
+        return `${dateSep}<div class="msg-row mine">
+          <div class="bubble-wrap"><div class="bubble mine">${esc(m.content)}</div>
+          <div class="bubble-meta">${tStr}</div></div>
+        </div>`;
+      }
+      const av = `<div class="av" style="width:28px;height:28px;font-size:0.62rem;flex-shrink:0">${initials(currentPartnerName)}</div>`;
+      return `${dateSep}<div class="msg-row">
+        ${av}
+        <div class="bubble-wrap"><div class="bubble theirs">${esc(m.content)}</div>
+        <div class="bubble-meta theirs">${tStr}</div></div>
+      </div>`;
+    }).join('');
+
+    if (!silent || atBottom) el.scrollTop = el.scrollHeight;
+  }
+
+  // ── Send ───────────────────────────────────────────────────────────────────
+  function sendMessage() {
+    const input = document.getElementById('msgInput');
+    const btn   = document.getElementById('sendBtn');
+    const text  = input.value.trim();
+    if (!text || !currentPartnerId) return;
+    btn.disabled = true;
+    fetch('/api/messages/send', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({receiver_id: currentPartnerId, content: text})
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) {
+          input.value = ''; input.style.height = 'auto';
+          loadThread(currentPartnerId);
+          loadConversations();
+        } else showError(d.error || 'Could not send message.');
+      })
+      .catch(() => showError('Network error. Please try again.'))
+      .finally(() => { btn.disabled = false; input.focus(); });
+  }
+
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function initials(name) {
+    const p = (name||'').trim().split(/\s+/).filter(Boolean);
+    if (p.length >= 2) return (p[0][0]+p[p.length-1][0]).toUpperCase();
+    return (p[0]||'?').substring(0,2).toUpperCase();
+  }
+  function relTime(iso) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff/60000), h = Math.floor(diff/3600000), dd = Math.floor(diff/86400000);
+    if (m < 1) return 'now'; if (m < 60) return m+'m'; if (h < 24) return h+'h';
+    if (dd === 1) return 'Yesterday';
+    if (dd < 7) return dd+'d';
+    return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+  }
+  function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  function escAttr(s) { return (s||'').replace(/'/g,"\\'"); }
+  function showError(msg) {
+    const t=document.getElementById('errorToast');
+    t.textContent=msg; t.style.display='block';
+    setTimeout(()=>{ t.style.display='none'; }, 5000);
+  }
 </script>
+
 {% endblock %}

@@ -1,0 +1,188 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="card shadow-lg border border-gray-100 rounded-2xl overflow-hidden bg-white">
+        <!-- Card Header -->
+        <div class="bg-gradient-to-r from-emerald-500 to-teal-600 px-8 py-8 text-white">
+            <div class="flex items-center gap-3">
+                <div class="p-3 bg-white/10 rounded-xl">
+                    <i data-lucide="calendar-plus" class="w-8 h-8 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold font-display">Book Consultation on Behalf</h1>
+                    <p class="text-emerald-50 text-sm mt-1">Search and select a user to begin scheduling a consultation on their behalf.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Body -->
+        <div class="p-8">
+            <form action="/admin/impersonate" method="POST" class="space-y-6" id="impersonateForm">
+                <!-- User Select Container -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                        <i data-lucide="search" class="w-4 h-4 text-emerald-600"></i> Search Patient / User (Name, Email, or Phone)
+                    </label>
+                    <div class="relative">
+                        <input type="text" id="user_search_input" placeholder="Type name, email, or phone number to search..." autocomplete="off"
+                            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition text-gray-900 pr-10">
+                        <div class="absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                            <i data-lucide="users" class="w-5 h-5"></i>
+                        </div>
+                        
+                        <!-- Autocomplete Suggestions List -->
+                        <div id="suggestions_container" class="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto hidden">
+                            <div class="p-3 text-xs text-gray-500 border-b border-gray-100 font-medium">Matching users:</div>
+                            <div id="suggestions_list" class="divide-y divide-gray-50">
+                                <!-- Dynamic entries inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Hidden input to hold user ID -->
+                    <input type="hidden" name="user_id" id="selected_user_id" required>
+                </div>
+
+                <!-- Selected User Preview (Sticky Banner) -->
+                <div id="user_preview_card" class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between hidden">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold text-sm" id="preview_initials">
+                            US
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-900" id="preview_name">Selected User Name</div>
+                            <div class="text-xs text-gray-500" id="preview_email">user@email.com</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="clearSelectedUser()" class="text-xs text-red-600 hover:text-red-800 font-semibold uppercase tracking-wider font-bold">
+                        Clear Choice
+                    </button>
+                </div>
+
+                <!-- Instructions Info Box -->
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-amber-800 text-sm leading-relaxed">
+                    <i data-lucide="info" class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5"></i>
+                    <div>
+                        <strong>How this works:</strong>
+                        <ul class="list-disc list-inside mt-1.5 space-y-1 text-amber-900">
+                            <li>You will be redirected to the consultants booking page acting as the selected patient.</li>
+                            <li>The booking checkout step will bypass the payment gate automatically.</li>
+                            <li>A confirmation email with an administrator booking notice will be sent to both parties.</li>
+                            <li>Once booking is completed, you will be redirected back to the Admin Dashboard automatically.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <a href="/admin/users" class="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold transition text-sm">
+                        Cancel
+                    </a>
+                    <button type="submit" id="submitBtn" disabled
+                        class="inline-flex items-center gap-2 px-6 py-2.5 bg-gray-300 text-gray-500 cursor-not-allowed rounded-xl font-bold shadow-md transition text-sm">
+                        <i data-lucide="play" class="w-4 h-4"></i> Start Booking flow
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Injected users JSON list
+    const allUsers = [
+        {% for u in users %}
+        {
+            id: {{ u.id }},
+            name: {{ u.name|tojson }},
+            email: {{ u.email|tojson }},
+            phone: {{ (u.phone_number or '')|tojson }}
+        },
+        {% endfor %}
+    ];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('user_search_input');
+        const container = document.getElementById('suggestions_container');
+        const list = document.getElementById('suggestions_list');
+        const selectedIdInput = document.getElementById('selected_user_id');
+        const previewCard = document.getElementById('user_preview_card');
+        const previewName = document.getElementById('preview_name');
+        const previewEmail = document.getElementById('preview_email');
+        const previewInitials = document.getElementById('preview_initials');
+        const submitBtn = document.getElementById('submitBtn');
+
+        searchInput.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase().trim();
+            if (!val) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            // Filter users - safe from null values
+            const matches = allUsers.filter(u => 
+                (u.name && u.name.toLowerCase().includes(val)) || 
+                (u.email && u.email.toLowerCase().includes(val)) || 
+                (u.phone && u.phone.toLowerCase().includes(val))
+            ).slice(0, 8); // show max 8 matches
+
+            if (matches.length === 0) {
+                list.innerHTML = '<div class="p-4 text-sm text-gray-500 text-center">No users match search query</div>';
+            } else {
+                list.innerHTML = matches.map(u => `
+                    <div class="px-4 py-3 hover:bg-emerald-50 cursor-pointer transition-colors" onclick="selectUser(${u.id})">
+                        <div class="text-sm font-semibold text-gray-900">${u.name}</div>
+                        <div class="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
+                            <span>📧 ${u.email || 'N/A'}</span>
+                            ${u.phone ? `<span>| 📞 ${u.phone}</span>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            container.classList.remove('hidden');
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#user_search_input') && !e.target.closest('#suggestions_container')) {
+                container.classList.add('hidden');
+            }
+        });
+
+        window.selectUser = (userId) => {
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) return;
+
+            // Set hidden field value
+            selectedIdInput.value = user.id;
+
+            // Show preview
+            previewName.textContent = user.name;
+            previewEmail.textContent = (user.email || 'No Email') + (user.phone ? ` • 📞 ${user.phone}` : '');
+            previewInitials.textContent = user.name ? user.name.slice(0, 2).toUpperCase() : 'US';
+            previewCard.classList.remove('hidden');
+
+            // Reset input and close suggestion
+            searchInput.value = '';
+            container.classList.add('hidden');
+
+            // Enable submit button
+            submitBtn.disabled = false;
+            submitBtn.className = "inline-flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md shadow-emerald-600/10 transition text-sm cursor-pointer";
+        };
+
+        window.clearSelectedUser = () => {
+            selectedIdInput.value = '';
+            previewCard.classList.add('hidden');
+            
+            // Disable submit button
+            submitBtn.disabled = true;
+            submitBtn.className = "inline-flex items-center gap-2 px-6 py-2.5 bg-gray-300 text-gray-500 cursor-not-allowed rounded-xl font-bold shadow-md transition text-sm";
+        };
+
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    });
+</script>
+{% endblock %}

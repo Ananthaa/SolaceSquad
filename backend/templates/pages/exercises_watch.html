@@ -1,0 +1,183 @@
+{% extends "layouts/protected.html" %}
+
+{% block title %}{{ video.title }} - Exercise Library{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Breadcrumb -->
+    <nav class="mb-6">
+        <ol class="flex items-center space-x-2 text-sm text-gray-600">
+            <li><a href="/exercises" class="hover:text-primary-600">Exercise Library</a></li>
+            <li><i data-lucide="chevron-right" class="w-4 h-4"></i></li>
+            <li><a href="/exercises/folder/{{ video.folder_id }}" class="hover:text-primary-600">{{ folder_name }}</a>
+            </li>
+            <li><i data-lucide="chevron-right" class="w-4 h-4"></i></li>
+            <li class="text-gray-900 font-medium truncate">{{ video.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main Video Player -->
+        <div class="lg:col-span-2">
+            <!-- Video Player Card -->
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200 mb-6">
+                <!-- HIPAA-Compliant YouTube Player (Privacy-Enhanced Mode) -->
+                <div class="aspect-video bg-black relative">
+                    {% if youtube_video_id %}
+
+                    <iframe id="video-player" class="w-full h-full"
+                        src="https://www.youtube-nocookie.com/embed/{{ youtube_video_id }}?rel=0&modestbranding=1&enablejsapi=1"
+                        title="{{ video.title }}" frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin" allowfullscreen>
+                    </iframe>
+                    {% else %}
+                    <div class="absolute inset-0 flex items-center justify-center text-white">
+                        <div class="text-center">
+                            <i data-lucide="video-off" class="w-16 h-16 mx-auto mb-4 opacity-50"></i>
+                            <p>Video not available</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Video Info -->
+                <div class="p-6">
+                    <h1 class="text-2xl font-bold text-gray-900 mb-3">{{ video.title }}</h1>
+
+                    {% if video.description %}
+                    <div class="prose prose-sm max-w-none text-gray-600 mb-4">
+                        {{ video.description }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Video Meta -->
+                    <div class="flex items-center gap-4 text-sm text-gray-500 pt-4 border-t">
+                        {% if video.duration %}
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="clock" class="w-4 h-4"></i>
+                            <span>{{ video.duration }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="flex items-center gap-1">
+                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                            <span>Added {{ video.created_at | format_local('%b %d, %Y') }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Tracking -->
+            <div class="bg-gradient-to-br from-primary-50 to-secondary-50 rounded-xl p-6 border border-primary-100">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+                            <i data-lucide="target" class="w-6 h-6 text-primary-600"></i>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-gray-900 mb-1">Track Your Progress</h3>
+                        <p class="text-sm text-gray-600 mb-3">Your viewing progress is automatically saved</p>
+                        <button id="mark-complete-btn"
+                            class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium">
+                            Mark as Complete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1">
+            <!-- More Videos from Folder -->
+            {% if related_videos %}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <h3 class="font-semibold text-gray-900 mb-4">More from {{ folder_name }}</h3>
+                <div class="space-y-3">
+                    {% for related in related_videos %}
+                    <a href="/exercises/watch/{{ related.id }}"
+                        class="group flex gap-3 hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors">
+                        <!-- Thumbnail -->
+                        <div class="flex-shrink-0 w-24 h-16 bg-gray-100 rounded overflow-hidden">
+                            {% if related.thumbnail_url %}
+                            <img src="{{ related.thumbnail_url }}" alt="{{ related.title }}"
+                                class="w-full h-full object-cover">
+                            {% else %}
+                            <div class="w-full h-full flex items-center justify-center">
+                                <i data-lucide="play-circle" class="w-6 h-6 text-gray-400"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <!-- Info -->
+                        <div class="flex-1 min-w-0">
+                            <h4
+                                class="text-sm font-medium text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-2 mb-1">
+                                {{ related.title }}
+                            </h4>
+                            {% if related.duration %}
+                            <p class="text-xs text-gray-500">{{ related.duration }}</p>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Track Watch Progress -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const videoId = {{ video.id }
+    };
+    let watchStartTime = Date.now();
+
+    // Track watch time periodically
+    setInterval(async () => {
+        const watchDuration = Math.floor((Date.now() - watchStartTime) / 1000);
+
+        try {
+            await fetch('/api/exercises/track-progress', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: videoId,
+                    watch_duration: watchDuration
+                })
+            });
+        } catch (error) {
+            console.error('Failed to track progress:', error);
+        }
+    }, 30000); // Track every 30 seconds
+
+    // Mark as complete
+    document.getElementById('mark-complete-btn').addEventListener('click', async function () {
+        try {
+            const response = await fetch('/api/exercises/mark-complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    video_id: videoId
+                })
+            });
+
+            if (response.ok) {
+                this.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i> Completed!';
+                this.classList.remove('bg-primary-600', 'hover:bg-primary-700');
+                this.classList.add('bg-green-600');
+                this.disabled = true;
+                lucide.createIcons();
+            }
+        } catch (error) {
+            console.error('Failed to mark complete:', error);
+        }
+    });
+    });
+</script>
+{% endblock %}

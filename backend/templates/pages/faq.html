@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}FAQ – Common Questions About Online Wellness Sessions | SolaceSquad{% endblock %}
+
+{% block meta_desc %}Find answers about booking, pricing, privacy and what to expect from your SolaceSquad wellness consultation sessions. Confidential online therapy in India.{% endblock %}
+{% block og_title %}FAQ – SolaceSquad Wellness Help Center{% endblock %}
+{% block og_desc %}Common questions about mental, physical and professional wellness consultations on SolaceSquad. Book, pricing, privacy and more.{% endblock %}
+
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"What is mental wellbeing?","acceptedAnswer":{"@type":"Answer","text":"Mental wellbeing refers to a person's emotional, psychological, and social state of being. It encompasses feelings of contentment, resilience, and the ability to manage stress and cope with life's challenges effectively."}},
+    {"@type":"Question","name":"Why is mental wellbeing important?","acceptedAnswer":{"@type":"Answer","text":"Mental wellbeing is essential because it directly impacts our overall quality of life. It influences our relationships, work performance, physical health, and happiness."}},
+    {"@type":"Question","name":"How can I improve my mental wellbeing?","acceptedAnswer":{"@type":"Answer","text":"There are various ways to enhance mental wellbeing, including regular exercise, mindfulness and meditation, seeking support from a therapist or counselor, maintaining a healthy diet, and fostering strong social connections."}},
+    {"@type":"Question","name":"What is professional wellbeing?","acceptedAnswer":{"@type":"Answer","text":"Professional wellbeing refers to an individual's state of health, satisfaction, and fulfillment in their work or career. It encompasses mental and emotional well-being, work-life balance, job satisfaction, and overall career-related contentment."}},
+    {"@type":"Question","name":"Does anyone monitor my conversation with my counsellor?","acceptedAnswer":{"@type":"Answer","text":"All conversations are recorded and monitored to ensure safe and quality discussions. They are kept strictly private and never shared externally unless legally required."}},
+    {"@type":"Question","name":"Do you offer a money-back policy?","acceptedAnswer":{"@type":"Answer","text":"We provide initial free counselling. Post that, services must be paid in advance. Due to the nature of wellness consultations, we do not offer refunds on paid sessions."}}
+  ]
+}
+</script>
+{% endblock %}
+
+
+{% block content %}
+{% include "components/header.html" %}
+
+<style>
+    .ss-page-section {
+        padding-top: 9rem;
+        padding-bottom: 4rem;
+        background: #f8faf9;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    .ss-page-inner {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+        box-sizing: border-box;
+    }
+
+    .ss-page-eyebrow {
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #2d6a5a;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+    }
+
+    .ss-page-title {
+        text-align: center;
+        font-size: clamp(1.5rem, 5vw, 2.25rem);
+        font-weight: 800;
+        color: #1e293b;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.3rem;
+    }
+
+    .ss-page-subtitle {
+        text-align: center;
+        color: #2d6a5a;
+        font-size: 0.95rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .ss-page-divider {
+        width: 3rem;
+        height: 3px;
+        background: linear-gradient(90deg, #2d6a5a, #1e4d40);
+        border-radius: 2px;
+        margin: 0 auto 2rem;
+    }
+
+    .ss-faq-item {
+        background: #fff;
+        border-radius: 0.75rem;
+        padding: 1.1rem 1.25rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(45, 106, 90, .08);
+        border-left: 3px solid #2d6a5a;
+    }
+
+    .ss-faq-q {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
+
+    .ss-faq-a {
+        color: #475569;
+        font-size: 0.85rem;
+        line-height: 1.75;
+    }
+</style>
+
+<section class="ss-page-section">
+    <div class="ss-page-inner">
+        <p class="ss-page-eyebrow">Support</p>
+        <h1 class="ss-page-title">HELP CENTER</h1>
+        <p class="ss-page-subtitle">Find Answers Here</p>
+        <div class="ss-page-divider"></div>
+
+        <div class="ss-faq-item">
+            <p class="ss-faq-q">What is mental wellbeing?</p>
+            <p class="ss-faq-a">Mental wellbeing refers to a person's emotional, psychological, and social state of
+                being. It encompasses feelings of contentment, resilience, and the ability to manage stress and cope
+                with life's challenges effectively.</p>
+        </div>
+
+        <div class="ss-faq-item">
+            <p class="ss-faq-q">Why is mental wellbeing important?</p>
+            <p class="ss-faq-a">Mental wellbeing is essential because it directly impacts our overall quality of life.
+                It influences our relationships, work performance, physical health, and happiness. Prioritizing mental
+                wellbeing can lead to a more fulfilling and productive life.</p>
+        </div>
+
+        <div class="ss-faq-item">
+            <p class="ss-faq-q">How can I improve my mental wellbeing?</p>
+            <p class="ss-faq-a">There are various ways to enhance mental wellbeing, including regular exercise,
+                mindfulness and meditation, seeking support from a therapist or counselor, maintaining a healthy diet,
+                and fostering strong social connections.</p>
+        </div>
+
+        <div class="ss-faq-item">
+            <p class="ss-faq-q">What are the signs of poor mental wellbeing?</p>
+            <p class="ss-faq-a">Signs of poor mental well-being can include persistent feelings of sadness or anxiety,
+                loss of interest in activities, changes in sleep and appetite, difficulty concentrating, and withdrawal
+                from social interactions. It's essential to seek help when experiencing these symptoms.</p>
+        </div>
+
+        <div class="ss-faq-item">
+            <p class="ss-faq-q">What is personal wellbeing?</p>
+            <p class="ss-faq-a">Personal wellbeing encompasses an individual's overall state of health, happiness, and
+                satisfaction with life. It includes physical, mental, emotional, and social aspects of well-being,
+                reflecting a person's sense of balance and fulfillment.</p>
+        </div>
+
+        <div class="ss-faq-item">
+            <p class="ss-faq-q">How can I improve my personal wellbeing?</p>
+            <p class="ss-faq-a">Improving personal wellbeing involves adopting a holistic approach. Focus on regular
+                exercise, a balanced diet, stress management, positive relationships, self-care practices, and pursuing
+                activities that bring joy and purpose to your life.</p>
+        </div>
+
+        <div class="ss-faq-item">
+            <p class="ss-faq-q">What is professional wellbeing?</p>
+            <p class="ss-faq-a">Professional wellbeing refers to an individual's state of health, satisfaction, and
+                fulfillment in their work or career. It encompasses mental and emotional well-being, work-life balance,
+                job satisfaction, and overall career-related contentment.</p>
+        </div>
+
+        <div class="ss-faq-item">
+            <p class="ss-faq-q">How can I maintain or improve my professional wellbeing?</p>
+            <p class="ss-faq-a">You can enhance professional wellbeing by setting boundaries to maintain work-life
+                balance, seeking opportunities for skill development and career growth, practicing stress management
+                techniques, and nurturing positive workplace relationships.</p>
+        </div>
+
+        <div class="ss-faq-item">
+            <p class="ss-faq-q">What are common signs of poor professional wellbeing?</p>
+            <p class="ss-faq-a">Signs of poor professional wellbeing may include chronic stress, burnout, decreased job
+                satisfaction, physical and mental health issues related to work stress, strained relationships with
+                colleagues, and a sense of feeling stuck or unfulfilled in your career.</p>
+        </div>
+
+        <div class="ss-faq-item">
+            <p class="ss-faq-q">Does anyone monitor my conversation with my counsellor through this platform?</p>
+            <p class="ss-faq-a">YES, all your conversations are recorded and monitored to ensure you have safe and
+                quality discussions. These are also recorded so that we can sometimes extend more support from multiple
+                experts to you. DON'T WORRY — all these are kept PRIVATE and never shared externally, unless legally
+                required.</p>
+        </div>
+
+        <div class="ss-faq-item">
+            <p class="ss-faq-q">Do you offer a Money-back policy for the service offered?</p>
+            <p class="ss-faq-a">We provide initial free counselling to make you comfortable and understand your key
+                challenges. Post that, it is completely up to you whether you'd like to take our service. You need to
+                pay in advance to avail the service. Unfortunately, we cannot guarantee a return or solution to your
+                issues — it's always a mutual and joint engagement. Hence, there will <strong>NOT</strong> be any Refund
+                of the money paid to avail our services.</p>
+        </div>
+    </div>
+</section>
+
+{% include "components/cta_section.html" %}
+{% include "components/footer.html" %}
+{% endblock %}

@@ -1,0 +1,31 @@
+
+# Diagnostic endpoint to check consultant status
+@app.get("/api/admin/consultants/debug")
+async def debug_consultants(request: Request, db: Session = Depends(get_db)):
+    """Debug consultant approval status"""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    # Get all users with consultant type
+    consultant_users = db.query(User).filter(User.user_type == "consultant").all()
+    
+    debug_info = []
+    for user in consultant_users:
+        # Check if they have a consultant profile
+        profile = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user.id).first()
+        
+        debug_info.append({
+            "user_id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "user_type": user.user_type,
+            "is_active": user.is_active,
+            "has_profile": profile is not None,
+            "profile_approved": profile.is_approved if profile else None,
+            "profile_id": profile.id if profile else None,
+            "specialization": profile.specialization if profile else None
+        })
+    
+    return JSONResponse({"success": True, "consultants": debug_info})

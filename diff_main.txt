@@ -1,0 +1,828 @@
+diff --git a/backend/main.py b/backend/main.py
+index 53e3a7f..cb812ef 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -54,6 +54,8 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+ app.add_middleware(
+     CORSMiddleware,
+     allow_origins=[
++        "https://www.solacesquad.com",
++        "https://solacesquad.com",
+         "https://www.solacesquad.in",
+         "https://solacesquad.in",
+         "http://localhost:8000",
+@@ -87,8 +89,9 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
+                 "https://cdn.jsdelivr.net https://cdn.socket.io; "
+                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                 "font-src https://fonts.gstatic.com; "
+-                "connect-src 'self' wss://www.solacesquad.in "
+-                "https://www.solacesquad.in https://solacesquad.in; "
++                "connect-src 'self' wss://www.solacesquad.com "
++                "https://www.solacesquad.com https://solacesquad.com "
++                "wss://www.solacesquad.in https://www.solacesquad.in https://solacesquad.in; "
+                 "img-src 'self' data: blob: https://storage.googleapis.com "
+                 "https://cdn.jsdelivr.net; "
+                 "media-src 'self' blob:; "
+@@ -119,7 +122,7 @@ async def sitemap():
+         ("/refund", "0.5", "yearly"),
+     ]
+     today = _dt.date.today().isoformat()
+-    base = "https://www.solacesquad.in"
++    base = "https://www.solacesquad.com"
+     xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+     for path, priority, freq in public_paths:
+@@ -146,7 +149,7 @@ async def robots():
+         "Disallow: /consultant/\n"
+         "Disallow: /call/\n"
+         "\n"
+-        "Sitemap: https://www.solacesquad.in/sitemap.xml\n"
++        "Sitemap: https://www.solacesquad.com/sitemap.xml\n"
+     )
+     return _Response(content=content, media_type="text/plain",
+                      headers={"Cache-Control": "public, max-age=86400"})
+@@ -400,6 +403,12 @@ async def startup_event():
+                  "ALTER TABLE usage_plans ADD COLUMN IF NOT EXISTS original_price FLOAT"),
+                 ("is_first_week_bonus_eligible on user_subscriptions",
+                  "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS is_first_week_bonus_eligible BOOLEAN NOT NULL DEFAULT TRUE"),
++                ("razorpay_order_id on user_subscriptions",
++                 "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(100)"),
++                ("razorpay_payment_id on user_subscriptions",
++                 "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(100)"),
++                ("payment_status on user_subscriptions",
++                 "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30)"),
+                 ("widen month_key on feature_usage_logs",
+                  "ALTER TABLE feature_usage_logs ALTER COLUMN month_key TYPE VARCHAR(25)"),
+                 ("widen month_key on feature_usage_top_ups",
+@@ -408,20 +417,72 @@ async def startup_event():
+                  "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS wellness_category VARCHAR(20) DEFAULT NULL"),
+             ]
+ 
++            # Migrations that require superuser (postgres) - run separately
++            _pg_migrations = [
++                ("grant Admin on consultant_profiles",
++                 'GRANT ALL PRIVILEGES ON TABLE consultant_profiles TO "Admin"'),
++                ("wellness_category on consultant_profiles (pg)",
++                 "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS wellness_category VARCHAR(20) DEFAULT NULL"),
++                ("bank_account_name on consultant_profiles (pg)",
++                 "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS bank_account_name VARCHAR(255)"),
++                ("bank_account_number on consultant_profiles (pg)",
++                 "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(50)"),
++                ("bank_ifsc on consultant_profiles (pg)",
++                 "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS bank_ifsc VARCHAR(20)"),
++                ("bank_name on consultant_profiles (pg)",
++                 "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS bank_name VARCHAR(100)"),
++                ("upi_id on consultant_profiles (pg)",
++                 "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS upi_id VARCHAR(100)"),
++            ]
++
+             # Open a direct psycopg2 connection - NOT from SQLAlchemy pool
+             _direct = _pg2.connect(
+                 user=_db_user, password=_db_pass, dbname=_db_name, host=_host
+             )
+             _direct.autocommit = True  # Each statement is fully independent
+             _dcur = _direct.cursor()
++
++            # Also open a postgres superuser connection for tables not owned by Admin
++            try:
++                _direct_pg = _pg2.connect(
++                    user="postgres", password=_db_pass, dbname=_db_name, host=_host
++                )
++                _direct_pg.autocommit = True
++                _dcur_pg = _direct_pg.cursor()
++            except Exception as _pge:
++                _direct_pg = None
++                _dcur_pg = None
++                print(f"[DDL-WARN] postgres fallback connection failed: {_pge}")
++
+             for _label, _sql in _migrations:
+                 try:
+                     _dcur.execute(_sql)
+                     print(f"[DDL-OK] {_label}")
+                 except Exception as _e:
+-                    print(f"[DDL-SKIP] {_label}: {_e}")
++                    if "must be owner" in str(_e) and _dcur_pg:
++                        try:
++                            _dcur_pg.execute(_sql)
++                            print(f"[DDL-OK-PG] {_label}")
++                        except Exception as _e2:
++                            print(f"[DDL-SKIP] {_label}: {_e2}")
++                    else:
++                        print(f"[DDL-SKIP] {_label}: {_e}")
++
++            # Run pg-only migrations (require superuser)
++            if _dcur_pg:
++                for _label, _sql in _pg_migrations:
++                    try:
++                        _dcur_pg.execute(_sql)
++                        print(f"[DDL-OK-PG] {_label}")
++                    except Exception as _e:
++                        print(f"[DDL-SKIP-PG] {_label}: {_e}")
++            else:
++                print("[DDL-WARN] postgres connection unavailable - skipping pg_migrations")
+             _dcur.close()
+             _direct.close()  # Truly closed, not returned to pool
++            if _dcur_pg:
++                _dcur_pg.close()
++                _direct_pg.close()
+             print("[OK] Startup DDL migrations complete")
+ 
+             # Auto-classify consultants from onboarding data
+@@ -434,6 +495,15 @@ async def startup_event():
+             except Exception as _ce:
+                 print(f"[WARN] Auto-classify skipped: {_ce}")
+ 
++            # Consolidate week1 usage keys so the Emora message counter never resets
++            # across sessions.  This is idempotent — safe to run on every startup.
++            try:
++                import fix_week1_keys as _fwk
++                _fwk.run()
++                print("[OK] Week1 usage key consolidation complete")
++            except Exception as _we:
++                print(f"[WARN] Week1 key consolidation skipped: {_we}")
++
+     except Exception as e:
+         print(f"[WARN] Startup DDL migration error: {e}")
+ 
+@@ -444,8 +514,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
+ app.add_middleware(
+     SessionMiddleware,
+     secret_key=SECRET_KEY,
+-    https_only=True,       # cookie only sent over HTTPS
+-    same_site="lax",       # lax: allows email link redirects; blocks CSRF
++    https_only=True,       # cookie only sent over HTTPS (required for SameSite=None)
++    same_site="none",      # none: cookie sent for all requests incl. POST from PWA/mobile
+     max_age=86400,         # 24-hour session expiry
+ )
+ 
+@@ -1873,8 +1943,8 @@ def rate_heart_rate(hr: int, gender: str, age: int) -> tuple:
+ 
+     else:
+         # Gender unknown -- use generic adult ranges as fallback
+-        if 50 <= hr <= 90:   return ("Good",    60)
+-        if 60 <= hr <= 80:   return ("Better",  80)
++        if 60 <= hr <= 100:   return ("Good",    80)
++        if (50 <= hr < 60) or (100 < hr <= 110): return ("Fair", 60)
+         return ("Poor", 50)
+ 
+ 
+@@ -1964,7 +2034,7 @@ def rate_respiration(rr: int, age: int = None) -> tuple:
+ 
+ 
+ 
+-def compute_and_save_wellness(user_id: int, db) -> float:
++def compute_and_save_wellness(user_id: int, db, for_date: date = None) -> float:
+     """
+     Calculate and upsert DailyWellnessScore for today.
+ 
+@@ -1975,7 +2045,7 @@ def compute_and_save_wellness(user_id: int, db) -> float:
+       emotional_wellness_score- latest mood_entries.emotional_wellness_score (fallback: 0)
+       lifestyle_score         - today's total workout mins â†’ rate_workout() (0 if no log today)
+     """
+-    today = datetime.utcnow().date()
++    today = for_date or datetime.utcnow().date()
+ 
+     # 1. Latest health score
+     latest_vitals = (
+@@ -3067,6 +3137,7 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+                 "id": u.id,
+                 "profile_id": cp.id,
+                 "name": u.name or cp.full_name or "â€”",
++                "phone": u.phone_number or "",
+                 "specialization": cp.specialization or "",
+                 "completed_appointments": completed,
+                 "total_hours": round(total_secs / 3600, 1),
+@@ -4187,6 +4258,124 @@ async def signup(request: Request):
+ 
+ 
+ # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++
++
++# ─────────────────────────────────────────────────────────────────────────────────────────────
++# Support Contact — signup-page "Contact Support" popup  → emails admin@solacesquad.com
++# ─────────────────────────────────────────────────────────────────────────────────────────────
++@app.post("/api/support/contact")
++async def support_contact(request: Request):
++    """Receive a support request from the sign-up page and forward it to admin@solacesquad.com."""
++    try:
++        data        = await request.json()
++        user_email  = (data.get("email")       or "").strip()
++        phone       = (data.get("phone")       or "").strip()
++        description = (data.get("description") or "").strip()
++        consent     = bool(data.get("consent", False))
++
++        if not user_email or "@" not in user_email:
++            return JSONResponse({"success": False, "error": "Valid email is required."}, status_code=400)
++        if not phone:
++            return JSONResponse({"success": False, "error": "Phone number is required."}, status_code=400)
++        if not description:
++            return JSONResponse({"success": False, "error": "Issue description is required."}, status_code=400)
++        if not consent:
++            return JSONResponse({"success": False, "error": "Consent is required."}, status_code=400)
++
++        import urllib.request as _ur, urllib.error as _ue, json as _json, datetime as _dt
++
++        api_key    = (os.getenv("SENDGRID_API_KEY") or "").strip()
++        from_addr  = os.getenv("FROM_EMAIL", "noreply@solacesquad.com")
++        admin_addr = "admin@solacesquad.com"
++        submitted  = _dt.datetime.utcnow().strftime("%d %b %Y at %H:%M UTC")
++        consent_txt = "YES — user consented to phone contact." if consent else "NO"
++
++        if not api_key:
++            print(f"[SUPPORT] No SendGrid key — support from {user_email} | Phone={phone}")
++            print(f"[SUPPORT] Desc: {description}")
++            return {"success": True}   # Don't block the user
++
++        subject = f"[SolaceSquad Support] New Request from {user_email}"
++
++        text_body = (
++            f"New Support Request — SolaceSquad Sign-up Page\n\n"
++            f"Email     : {user_email}\n"
++            f"Phone     : {phone}\n"
++            f"Consent   : {consent_txt}\n"
++            f"Submitted : {submitted}\n\n"
++            f"Issue Description:\n{description}\n\n"
++            f"— SolaceSquad Automated Support Alert"
++        )
++
++        html_body = (
++            "<!DOCTYPE html><html><head><meta charset='utf-8'></head>"
++            "<body style='font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;"
++            "background:#f3f4f6;margin:0;padding:24px;'>"
++            "<div style='max-width:540px;margin:0 auto;background:#fff;border-radius:16px;"
++            "overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.1);'>"
++            "<div style='background:linear-gradient(135deg,#7c3aed,#5b21b6);padding:28px;"
++            "text-align:center;color:#fff;'>"
++            "<div style='font-size:2.5rem;margin-bottom:8px;'>&#x1F6DF;</div>"
++            "<h1 style='margin:0;font-size:1.3rem;font-weight:700;'>New Support Request</h1>"
++            "<p style='margin:6px 0 0;opacity:.85;font-size:.875rem;'>SolaceSquad Sign-up Support</p>"
++            "</div>"
++            "<div style='padding:28px;'>"
++            f"<p style='color:#374151;margin-top:0;'>A user has submitted a support request from the <strong>sign-up page</strong>.</p>"
++            "<table style='width:100%;border-collapse:collapse;font-size:14px;color:#374151;margin:16px 0;'>"
++            f"<tr><td style='padding:8px 0;color:#6b7280;width:30%;vertical-align:top;'>&#x1F4E7; Email</td>"
++            f"<td><strong><a href='mailto:{user_email}' style='color:#7c3aed;'>{user_email}</a></strong></td></tr>"
++            f"<tr><td style='padding:8px 0;color:#6b7280;vertical-align:top;'>&#x1F4F1; Phone</td>"
++            f"<td><strong>{phone}</strong></td></tr>"
++            f"<tr><td style='padding:8px 0;color:#6b7280;vertical-align:top;'>&#x2705; Consent</td>"
++            f"<td>{consent_txt}</td></tr>"
++            f"<tr><td style='padding:8px 0;color:#6b7280;vertical-align:top;'>&#x1F550; Submitted</td>"
++            f"<td>{submitted}</td></tr>"
++            "</table>"
++            "<div style='background:#f5f3ff;border:1.5px solid #ede9fe;border-radius:10px;padding:16px;margin-top:8px;'>"
++            "<p style='margin:0 0 6px;font-size:.8rem;font-weight:600;color:#5b21b6;"
++            "text-transform:uppercase;letter-spacing:.05em;'>Issue Description</p>"
++            f"<p style='margin:0;color:#1f2937;white-space:pre-wrap;font-size:.9rem;'>{description}</p>"
++            "</div>"
++            "<p style='color:#9ca3af;font-size:.75rem;margin-top:24px;text-align:center;'>"
++            "&#x2014; SolaceSquad Automated Support Alert</p>"
++            "</div>"
++            "<div style='background:#f9fafb;padding:14px;text-align:center;"
++            "font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;'>"
++            "&copy; 2026 SolaceSquad. All rights reserved.</div>"
++            "</div></body></html>"
++        )
++
++        payload = _json.dumps({
++            "personalizations": [{"to": [{"email": admin_addr}]}],
++            "from": {"email": from_addr, "name": "SolaceSquad Support"},
++            "reply_to": {"email": user_email},
++            "subject": subject,
++            "content": [
++                {"type": "text/plain", "value": text_body},
++                {"type": "text/html",  "value": html_body},
++            ],
++        }).encode("utf-8")
++
++        req = _ur.Request(
++            "https://api.sendgrid.com/v3/mail/send",
++            data=payload,
++            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
++            method="POST",
++        )
++        try:
++            with _ur.urlopen(req, timeout=15) as r:
++                print(f"[SUPPORT] Forwarded to {admin_addr} for {user_email} (HTTP {r.status})")
++                return {"success": True}
++        except _ue.HTTPError as he:
++            err = he.read().decode("utf-8", errors="replace")
++            print(f"[SUPPORT] SendGrid HTTP {he.code}: {err}")
++            return JSONResponse({"success": False, "error": "Failed to send. Please try again."}, status_code=500)
++
++    except Exception:
++        import traceback; traceback.print_exc()
++        return JSONResponse({"success": False, "error": "Server error. Please try again."}, status_code=500)
++
++
+ # Email OTP â€” send
+ # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+ @app.post("/api/auth/email-otp/send")
+@@ -4283,7 +4472,6 @@ async def verify_email_otp_route(request: Request, db: Session = Depends(get_db)
+         import traceback; traceback.print_exc()
+         return {"success": False, "error": "Server error. Please try again."}
+ 
+-
+ @app.post("/api/auth/otp/send")
+ @limiter.limit("5/minute")
+ async def send_otp(request: Request, db: Session = Depends(get_db)):
+@@ -4301,6 +4489,7 @@ async def send_otp(request: Request, db: Session = Depends(get_db)):
+         AuditLogger.log_event(
+             db, 
+             event_type="otp_requested", 
++
+             details=f"OTP requested for phone number ending in {phone[-4:]}",
+             request=request
+         )
+@@ -4316,26 +4505,6 @@ async def send_otp(request: Request, db: Session = Depends(get_db)):
+                 status="failure",
+                 request=request
+             )
+-            return {"success": False, "error": "Account with this phone number already exists. Please login.", "code": "ACCOUNT_EXISTS"}
+-            
+-        # Generate cryptographically secure OTP
+-        # Using secrets module for HIPAA-compliant random generation
+-        import secrets as crypto_secrets
+-        otp = ''.join([str(crypto_secrets.randbelow(10)) for _ in range(6)])
+-        
+-        # Store in DB (invalidate old OTP for this phone)
+-        db.query(OTPVerification).filter(OTPVerification.phone_number == phone).delete()
+-        
+-        # Create new OTP entry
+-        new_otp = OTPVerification(
+-            phone_number=phone,
+-            otp_code=otp,
+-            expires_at=datetime.utcnow() + timedelta(minutes=10)  # 10 minute expiry for security
+-        )
+-        db.add(new_otp)
+-        db.commit()
+-        
+-        # HIPAA: Audit log OTP generation (never log actual OTP)
+         AuditLogger.log_event(
+             db, 
+             event_type="otp_generated", 
+@@ -4460,10 +4629,43 @@ async def signup_post(request: Request, db: Session = Depends(get_db)):
+                 db.commit()
+             else:
+                 return _err("Email is already registered. Please log in.")
+-        # Phone uniqueness â€” skip if old inactive user had the same phone
++        # Phone uniqueness: block if phone belongs to a fully-active account.
++        # Exception: recycle consultant accounts that never completed onboarding
++        # (is_active=True but no ConsultantProfile) caused by earlier signup errors.
+         existing_phone = db.query(User).filter(User.phone_number == phone_number).first()
+-        if existing_phone and existing_phone.is_active:
+-            return _err("Phone number is already registered.")
++        if existing_phone:
++            _is_stuck_consultant = (
++                existing_phone.user_type == "consultant"
++                and db.query(ConsultantProfile).filter(
++                    ConsultantProfile.user_id == existing_phone.id
++                ).first() is None
++            )
++            if _is_stuck_consultant:
++                # Consultant who never finished onboarding -- recycle regardless of email
++                print(f"[SIGNUP] Recycling stuck consultant (no profile) id={existing_phone.id}")
++                db.delete(existing_phone)
++                db.commit()
++            elif not existing_phone.is_active:
++                # Inactive/rejected account - silently recycle
++                db.delete(existing_phone)
++                db.commit()
++            else:
++                return _err("Phone number is already registered.")
++
++        # ── Purge orphaned user_profiles left by a previous failed signup ─────────
++        # Rows with user_id=NULL crash with NotNullViolation when SQLAlchemy picks them up.
++        try:
++            from sqlalchemy import text as _text
++            _d = db.execute(
++                _text("DELETE FROM user_profiles WHERE user_id IS NULL AND contact_email = :em"),
++                {"em": user_email}
++            ).rowcount
++            if _d:
++                print(f"[SIGNUP] Cleared {_d} orphaned user_profiles row(s) for {user_email}")
++            db.commit()
++        except Exception as _oe:
++            db.rollback()
++            print(f"[SIGNUP] Orphan cleanup (non-fatal): {_oe}")
+ 
+         # â”€â”€ 4. Create User â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+         new_user = User(
+@@ -4639,7 +4841,9 @@ async def consultant_onboarding_save_draft(request: Request, db: Session = Depen
+         if _str("bio"): profile.bio = _str("bio")
+         # consultant_type
+         ct = form.getlist("consultant_type")
+-        if ct: profile.specialization = ", ".join(ct)
++        if ct:
++            profile.specialization = ", ".join(ct)
++            profile.wellness_category = ct[0]
+ 
+         db.commit()
+         print(f"[ONBOARDING DRAFT] Saved draft for user {user_id}")
+@@ -4702,7 +4906,8 @@ async def consultant_onboarding_post(request: Request, db: Session = Depends(get
+ 
+         # S5: Expertise Areas  (multi-checkbox â†’ JSON)
+         expertise_areas = _list("expertise_areas")
+-        specialization  = _str("specialization")
++        ct_list = form.getlist("consultant_type")
++        specialization = ", ".join(ct_list) if ct_list else (_str("specialization") or "General Wellbeing")
+ 
+         # S6: Practice Details
+         qacp_certified = _bool_radio("qacp_certified")
+@@ -4771,6 +4976,8 @@ async def consultant_onboarding_post(request: Request, db: Session = Depends(get
+         # S5 â€” Expertise
+         profile.expertise_areas = expertise_areas
+         profile.specialization  = specialization
++        if ct_list:
++            profile.wellness_category = ct_list[0]
+ 
+         # S6 â€” Practice
+         profile.qacp_certified  = qacp_certified
+@@ -5548,6 +5755,33 @@ async def list_consultants(request: Request, db: Session = Depends(get_db)):
+         )
+         print(f"[AVAIL] consultant={user.name} slots={[(s.day_of_week,s.start_time,s.end_time) for s in schedules]} available={is_available_now}")
+ 
++        # Determine categories from specialization (Q3a selection) or wellness_category column
++        spec = (profile.specialization or "").lower()
++        cats = []
++        if "mental" in spec:
++            cats.append("Mental")
++        if "physical" in spec:
++            cats.append("Physical")
++        if "professional" in spec:
++            cats.append("Professional")
++        if not cats:
++            db_cat = _safe_wellness(profile)
++            if db_cat in ["Mental", "Physical", "Professional"]:
++                cats.append(db_cat)
++            else:
++                cats.append("Mental")
++
++        # Parse languages
++        import json as _json
++        langs_list = []
++        if profile.languages:
++            try:
++                langs_list = _json.loads(profile.languages)
++            except Exception:
++                pass
++        if not langs_list:
++            langs_list = ["English"]
++
+         consultant_list.append({
+             "id":                profile.id,
+             "user_id":           user.id,
+@@ -5560,7 +5794,9 @@ async def list_consultants(request: Request, db: Session = Depends(get_db)):
+             "is_available_now":  is_available_now,
+             "has_schedule":      len(schedules) > 0,
+             "photo_url":         f"/api/profile-photo/{user.id}" if profile.photo_url else "",
+-            "wellness_category": None,  # Column may not exist in DB yet — template uses 'or Mental' fallback
++            "wellness_category": " ".join(cats),
++            "wellness_categories": cats,
++            "languages":         langs_list,
+         })
+ 
+     return templates.TemplateResponse(
+@@ -6417,6 +6653,125 @@ async def get_unread_count(request: Request, db: Session = Depends(get_db)):
+ # AI CHAT API ENDPOINTS
+ # ============================================================================
+ 
++# ── Voice Chat (Sarvam AI: STT → Gemini → TTS) ───────────────────────────────
++@app.post("/api/ai-chat/voice")
++@limiter.limit("10/minute")
++async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
++    """
++    Voice message endpoint:
++      1. Receive audio blob (webm/ogg) from browser MediaRecorder
++      2. Sarvam STT → transcript text
++      3. Emora/Gemini → AI text response
++      4. Sarvam TTS → MP3 audio
++      5. Return { transcript, reply_text, audio_b64, language }
++    """
++    import base64 as _b64
++    from sarvam_voice import stt, tts
++
++    user_id = request.session.get("user_id")
++    if not user_id:
++        return JSONResponse({"success": False, "error": "Not authenticated"}, status_code=401)
++
++    # ── Plan gate: Voice is available on White, Green and Blue plans only ─────
++    try:
++        from subscription_routes import get_active_subscription
++        active_sub = get_active_subscription(user_id, db)
++        plan_name = ""
++        if active_sub and active_sub.plan:
++            plan_name = (active_sub.plan.name or "").strip().lower()
++        voice_allowed_plans = {"white", "green", "blue"}
++        if plan_name not in voice_allowed_plans:
++            return JSONResponse({
++                "success": False,
++                "voice_not_available": True,
++                "error": "Voice Emora is available on White, Green and Blue plans. Upgrade your plan to unlock this feature!"
++            }, status_code=403)
++    except Exception as _plan_err:
++        print(f"[Voice] Plan gate check error (non-fatal, allowing): {_plan_err}")
++
++
++    try:
++        form       = await request.form()
++        audio_file = form.get("audio")
++        language   = form.get("language", "en-IN")
++
++        if not audio_file:
++            return JSONResponse({"success": False, "error": "No audio provided"}, status_code=400)
++
++        audio_bytes = await audio_file.read()
++
++        # ── 1. Speech → Text ──────────────────────────────────────────────────
++        transcript = stt(audio_bytes, language=language)
++        if not transcript:
++            return JSONResponse({
++                "success": False,
++                "stt_failed": True,
++                "error": "I'm having a little trouble hearing you clearly — could you try speaking again? 😊"
++            })
++
++        # ── 2. Fetch user context (preferred name) ────────────────────────────
++        # preferred_name lives on UserProfile, not User — match the pattern in ai_chat_page
++        user_display_name = request.session.get("user_name", "friend").split()[0]
++        try:
++            profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
++            if profile and profile.preferred_name and profile.preferred_name.strip():
++                user_display_name = profile.preferred_name.strip()
++        except Exception:
++            pass   # keep the session fallback
++
++        # ── 3. Emora text response (reuse existing Gemini pipeline) ───────────
++        from gemini_chat import gemini_chat
++        enriched_msg = f"[CONTEXT: The user's name is {user_display_name}.] {transcript}"
++
++        # Fetch recent history — gemini_chat expects {"content":..., "is_user":bool}
++        history_rows = db.query(AIChatHistory)\
++            .filter(AIChatHistory.user_id == user_id)\
++            .order_by(AIChatHistory.timestamp.desc())\
++            .limit(5).all()
++        conversation_history = []
++        for row in reversed(history_rows):
++            if row.message:
++                conversation_history.append({"content": row.message,  "is_user": True})
++            if row.response:
++                conversation_history.append({"content": row.response, "is_user": False})
++
++        ai_text = gemini_chat.chat(enriched_msg, conversation_history)
++
++        import re as _re
++        ai_text = _re.sub(r"\[user[\u2019']?s?\s*name\]", user_display_name, ai_text, flags=_re.IGNORECASE)
++
++        # Extract language tag from Emora's response
++        detected_lang = "en-IN"
++        lang_match = _re.search(r'\[LANG:\s*([a-z]{2}-IN)\]', ai_text, flags=_re.IGNORECASE)
++        if lang_match:
++            detected_lang = lang_match.group(1)
++            ai_text = ai_text.replace(lang_match.group(0), "").strip()
++
++        # ── 4. Text → Speech (strip URLs/markdown so Emora doesn't read out links) ─
++        from sarvam_voice import to_speech_text
++        speech_text = to_speech_text(ai_text)   # voice-friendly version
++        audio_out   = tts(speech_text, language=detected_lang)
++        audio_b64   = _b64.b64encode(audio_out).decode() if audio_out else ""
++
++        # ── 5. Persist to chat history ────────────────────────────────────────
++        db.add(AIChatHistory(user_id=user_id, message=transcript, response=ai_text))
++        db.commit()
++
++        print(f"[Voice Emora] user={user_id}, lang={language}, transcript={transcript!r}, tts_bytes={len(audio_out)}")
++
++        return JSONResponse({
++            "success":    True,
++            "transcript": transcript,
++            "reply_text": ai_text,
++            "audio_b64":  audio_b64,
++            "language":   language,
++        })
++
++    except Exception as e:
++        print(f"[Voice Emora] ERROR: {e}")
++        return JSONResponse({"success": False, "error": "Voice processing failed. Please try typing instead."})
++
++
+ @app.post("/api/ai-chat/send")
+ @limiter.limit("30/minute")
+ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
+@@ -6467,8 +6822,28 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
+ 
+         # -- Message handling --
+         original_message = message
+-        is_greeting = message.startswith("__GREET__:")
+-        if is_greeting:
++        
++        # Identify system greetings OR simple user greetings
++        user_msg_lower = message.lower().strip()
++        is_user_greeting = user_msg_lower in ["hi", "hello", "hey", "hi emora", "hello emora"]
++        is_system_greeting = message.startswith("__GREET__:")
++        
++        is_greeting = is_system_greeting or is_user_greeting
++
++        # Detect one-shot recommendation preference-gathering (these are free — no quota deduction)
++        _RECO_KEYWORDS = [
++            "recommend", "suggest", "suggestion", "recommendation",
++            "song", "songs", "music", "playlist",
++            "book", "books", "novel", "novels",
++            "movie", "movies", "film", "films", "series", "show", "shows",
++            "गाना", "गाने", "किताब", "फिल्म",
++        ]
++        is_pref_gather = (
++            not is_greeting and
++            any(kw in user_msg_lower for kw in _RECO_KEYWORDS)
++        )
++
++        if is_system_greeting:
+             name = message.split("__GREET__:", 1)[-1].strip() or user_display_name
+             message = (
+                 f"[CONTEXT: {user_context_note}] "
+@@ -6476,12 +6851,18 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
+                 f"Start with 'Hi {name}!' then ask how they're feeling today. "
+                 f"Be casual and friendly."
+             )
++        elif is_user_greeting:
++            message = (
++                f"[CONTEXT: {user_context_note}] "
++                f"The user said '{original_message}'. Greet them warmly and ask how they're feeling. "
++                f"Be casual and friendly."
++            )
+         else:
+             if user_context_note:
+                 message = f"[CONTEXT: {user_context_note}] {message}"
+ 
+         # ── Quota gate (skip for greeting auto-messages) ─────────────────────
+-        if not is_greeting:
++        if not is_greeting and not is_pref_gather:
+             from subscription_routes import check_feature_limit
+             quota = check_feature_limit(user_id, "ai_chat", db)
+             if not quota["allowed"]:
+@@ -6517,6 +6898,22 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
+         from gemini_chat import gemini_chat
+         ai_response = gemini_chat.chat(message, conversation_history)
+ 
++        # ── Replace any [User's Name] placeholder the AI may output ──────────
++        # Gemini often uses Unicode smart-quotes so we match both ' and \u2019
++        import re as _re
++        _chat_name = user_display_name if user_display_name != "there" else "friend"
++        ai_response = _re.sub(
++            r"\[user[\u2019']?s?\s*name\]",
++            _chat_name,
++            ai_response,
++            flags=_re.IGNORECASE
++        )
++        print(f"[Emora] name_in_response: display_name={user_display_name!r}, chat_name={_chat_name!r}")
++
++        # ── Strip [LANG: xx-IN] tag — used internally for language detection but
++        #    must never be shown to the user in the chat UI ───────────────────────
++        ai_response = _re.sub(r'\[LANG:\s*[a-z]{2}-IN\]', '', ai_response, flags=_re.IGNORECASE).strip()
++
+         # Save original message (not the enriched version)
+         saved_message = "" if is_greeting else original_message
+         chat_entry = AIChatHistory(
+@@ -6529,7 +6926,7 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
+         db.refresh(chat_entry)
+ 
+         # ── Deduct from quota (never deduct for greeting) ──────────────────────
+-        if not is_greeting:
++        if not is_greeting and not is_pref_gather:
+             try:
+                 from subscription_routes import increment_feature_usage
+                 increment_feature_usage(user_id, "ai_chat", db)
+@@ -6548,7 +6945,11 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
+         with open("debug_error.log", "w") as f:
+             f.write(error_msg)
+         db.rollback()
+-        return {"success": False, "error": f"Failed to get AI response: {str(e)}"}
++        return {
++            "success": False,
++            "connectivity_error": True,
++            "error": "I'm experiencing a connectivity issue right now — please try sending your message again! 💜"
++        }
+ 
+ @app.get("/api/ai-chat/history")
+ async def get_ai_chat_history(request: Request, db: Session = Depends(get_db)):
+@@ -8931,7 +9332,7 @@ async def api_admin_create(request: Request, db: Session = Depends(get_db)):
+     return JSONResponse({"success": True, "email": email, "id": new_admin.id})
+ 
+ 
+-# â”€â”€ Admin API: Promote existing user to admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++# — Admin API: Promote existing user to admin ———————————————————————————————
+ @app.post("/api/admin/admins/promote")
+ async def api_admin_promote(request: Request, db: Session = Depends(get_db)):
+     """Promote any existing user to admin role."""
+@@ -9162,21 +9563,46 @@ async def get_incomplete_consultants(request: Request, db: Session = Depends(get
+     admin = db.query(User).filter(User.id == admin_id).first()
+     if not admin or admin.user_type != "admin":
+         return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
++    # 1. Consultants with an incomplete profile record
+     profiles = db.query(ConsultantProfile).join(User).filter(
+         ConsultantProfile.is_profile_completed == False
+     ).all()
+     result = []
++    seen_user_ids = set()
+     for p in profiles:
++        seen_user_ids.add(p.user_id)
+         fields = [p.full_name, p.specialization, p.bio, p.experience_years,
+                   p.city, p.counselling_methods, p.expertise_areas]
+         filled = sum(1 for f in fields if f)
+         result.append({
+             "user_id":    p.user_id, "profile_id": p.id,
+             "name":       p.user.name, "email": p.user.email,
+-            "joined":     p.user.created_at.strftime("%b %d, %Y") if p.user.created_at else "â€”",
++            "phone":      p.user.phone_number or "",
++            "joined":     p.user.created_at.strftime("%b %d, %Y") if p.user.created_at else "—",
+             "filled_pct": round(filled / len(fields) * 100),
+             "is_active":  p.user.is_active,
+         })
++
++    # 2. Consultant users with NO profile row at all (stuck after email signup)
++    from sqlalchemy import exists
++    no_profile_users = db.query(User).filter(
++        User.user_type == "consultant",
++        User.is_active == True,
++        ~db.query(ConsultantProfile).filter(
++            ConsultantProfile.user_id == User.id
++        ).exists()
++    ).all()
++    for u in no_profile_users:
++        if u.id not in seen_user_ids:
++            result.append({
++                "user_id":    u.id, "profile_id": None,
++                "name":       u.name, "email": u.email,
++                "phone":      u.phone_number or "",
++                "joined":     u.created_at.strftime("%b %d, %Y") if u.created_at else "—",
++                "filled_pct": 0,
++                "is_active":  u.is_active,
++            })
++
+     return JSONResponse({"success": True, "consultants": result})
+ 
+ 
+@@ -9194,9 +9620,13 @@ async def get_consultant_onboarding_data(request: Request, user_id: int, db: Ses
+         return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+     p = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user_id).first()
+     if not p:
+-        return JSONResponse({"success": False, "error": "No consultant profile"}, status_code=404)
++        p = ConsultantProfile(user_id=user_id, is_profile_completed=False)
++        db.add(p)
++        db.commit()
++        db.refresh(p)
+     return JSONResponse({"success": True, "profile": {
+         "user_id": user_id, "name": user.name, "email": user.email,
++        "phone": user.phone_number or "",
+         "full_name":              p.full_name or user.name,
+         "specialization":         p.specialization or "",
+         "bio":                    p.bio or "",
+@@ -9240,6 +9670,13 @@ async def save_consultant_onboarding_data(request: Request, user_id: int, db: Se
+     data = await request.json()
+     p.full_name              = data.get("full_name") or user.name
+     p.specialization         = data.get("specialization") or ""
++    spec_lower = p.specialization.lower()
++    cats = []
++    if "mental" in spec_lower: cats.append("Mental")
++    if "physical" in spec_lower: cats.append("Physical")
++    if "professional" in spec_lower: cats.append("Professional")
++    if cats:
++        p.wellness_category = cats[0]
+     p.bio                    = data.get("bio") or ""
+     p.experience_years       = int(data.get("experience_years") or 0)
+     p.consultation_fee       = float(data.get("consultation_fee") or 0)
+@@ -9266,6 +9703,8 @@ async def save_consultant_onboarding_data(request: Request, user_id: int, db: Se
+     p.is_approved            = bool(data.get("approve", True))
+     if data.get("full_name") and data["full_name"] != user.name:
+         user.name = data["full_name"]
++    if data.get("phone"):
++        user.phone_number = data.get("phone")
+     db.commit()
+     return JSONResponse({"success": True})
+ 
+@@ -10250,7 +10689,7 @@ async def get_wellness_summary(request: Request, db: Session = Depends(get_db)):
+         #   1 = Latest,  2 = This Week,  4 = This Month,  8 = This Year
+         # Default (no cap configured) = all periods allowed (bitmask 15).
+         thryveq_mask = 15  # all periods open by default (no plan = unlimited)
+-        thryveq_msg  = "Upgrade your plan to unlock this ThryvQ score period."
++        thryveq_msg  = "Upgrade your plan to unlock this THRYVEQ score period."
+         try:
+             from subscription_routes import get_user_plan_caps
+             plan_caps = get_user_plan_caps(user_id, db)
+@@ -10309,7 +10748,7 @@ async def get_wellness_detail(request: Request, db: Session = Depends(get_db)):
+         if not row:
+             # Try to compute on the fly
+             try:
+-                compute_and_save_wellness(user_id, db)
++                compute_and_save_wellness(user_id, db, for_date=today)
+                 row = (
+                     db.query(DailyWellnessScore)
+                     .filter(DailyWellnessScore.user_id == user_id,
+@@ -10407,7 +10846,7 @@ async def create_workout_log(request: Request, db: Session = Depends(get_db)):
+ 
+         # Refresh overall wellness score
+         try:
+-            compute_and_save_wellness(user_id, db)
++            compute_and_save_wellness(user_id, db, for_date=log_date_val)
+         except Exception as _we:
+             print(f"[WARN] wellness compute failed after workout save: {_we}")
+ 

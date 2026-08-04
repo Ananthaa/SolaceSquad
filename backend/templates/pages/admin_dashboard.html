@@ -1,102 +1,399 @@
 {% extends "layouts/protected.html" %}
 
-{% set nav_items = [
-{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/admin', 'key': 'dashboard'},
-] %}
 
 {% block dashboard_content %}
-<!-- Welcome Section -->
-<div class="mb-8">
-    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
-        Admin Dashboard 🛡️
-    </h1>
-    <p class="text-gray-600">
-        Manage users, consultants, and platform settings.
-    </p>
-</div>
-
-<!-- Tabs for Users and Consultants -->
-<div class="mb-6">
-    <div class="border-b border-gray-200">
-        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-            <button onclick="switchTab('consultants')" id="tab-consultants"
-                class="border-primary-500 text-primary-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                Consultants
-            </button>
-            <button onclick="switchTab('users')" id="tab-users"
-                class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
-                Users
-            </button>
-        </nav>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="md:flex md:items-center md:justify-between mb-8">
+        <div class="flex-1 min-w-0">
+            <h1 class="text-3xl font-display font-bold text-gray-900 leading-tight">
+                Admin Dashboard
+            </h1>
+            <p class="mt-1 text-sm text-gray-600">
+                Manage consultants, monitor platform activity, and track earnings.
+            </p>
+        </div>
     </div>
-</div>
 
-<!-- Consultants Section -->
-<div id="content-consultants" class="space-y-6">
-    <div class="card overflow-hidden">
+    <!-- Metric Cards -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-8">
+        <div class="card p-5 border-l-4 border-primary-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-primary-50 rounded-lg p-3">
+                    <i data-lucide="users" class="w-6 h-6 text-primary-600"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Total Users</dt>
+                        <dd class="text-2xl font-bold text-gray-900">{{ user_stats.total_users }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-5 border-l-4 border-secondary-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-secondary-50 rounded-lg p-3">
+                    <i data-lucide="activity" class="w-6 h-6 text-secondary-600"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Total Scans</dt>
+                        <dd class="text-2xl font-bold text-gray-900">{{ user_stats.total_scans }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-5 border-l-4 border-accent-500">
+            <div class="flex items-center">
+                <div class="flex-shrink-0 bg-accent-50 rounded-lg p-3">
+                    <i data-lucide="clock" class="w-6 h-6 text-accent-600"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                    <dl>
+                        <dt class="text-sm font-medium text-gray-500 truncate">Engagement Minutes</dt>
+                        <dd class="text-2xl font-bold text-gray-900">{{ user_stats.total_engagement_minutes }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Approvals Section -->
+    {% if pending_consultants %}
+    <div class="card mb-8 border border-yellow-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-yellow-100 bg-yellow-50 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 text-yellow-600"></i>
+            <h3 class="text-lg font-semibold text-yellow-800">
+                Pending Approvals ({{ pending_consultants|length }})
+            </h3>
+        </div>
+        <ul class="divide-y divide-gray-100">
+            {% for consultant in pending_consultants %}
+            <li class="p-6 hover:bg-gray-50 transition-colors">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <!-- Profile Info -->
+                    <div class="flex-1">
+                        <div class="flex items-center gap-4">
+                            <a href="/admin/consultant/{{ consultant.id }}"
+                                class="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 font-bold text-lg hover:bg-teal-100 hover:text-teal-700 transition-colors"
+                                title="View full application">
+                                {{ consultant.user.name[:2].upper() }}
+                            </a>
+                            <div>
+                                <a href="/admin/consultant/{{ consultant.id }}"
+                                    class="font-bold text-gray-900 text-lg hover:text-teal-700 hover:underline transition-colors"
+                                    title="View full application">
+                                    {{ consultant.user.name }}
+                                    <svg style="display:inline; vertical-align:middle; margin-left:.25rem;" width="14"
+                                        height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                                        <polyline points="15 3 21 3 21 9" />
+                                        <line x1="10" y1="14" x2="21" y2="3" />
+                                    </svg>
+                                </a>
+                                <div class="text-sm text-gray-500">
+                                    {{ consultant.user.email }}
+                                    {% if consultant.user.phone_number %}
+                                    <span class="mx-1.5 text-gray-300">|</span>
+                                    <span>📞 {{ consultant.user.phone_number }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 text-sm text-gray-600 grid grid-cols-2 gap-x-8 gap-y-1 max-w-md">
+                            <div><span class="font-medium">Specialization:</span> {{ consultant.specialization or 'Not
+                                set' }}</div>
+                            <div><span class="font-medium">Experience:</span> {{ consultant.experience_years }} years
+                            </div>
+                        </div>
+                        <div class="mt-2 text-sm text-gray-500 italic bg-gray-50 p-2 rounded border border-gray-100">
+                            "{{ consultant.bio }}"
+                        </div>
+                        <!-- Requested Fee Badge -->
+                        <div class="mt-3 flex items-center gap-2">
+                            {% if consultant.hourly_rate %}
+                            <span
+                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-teal-50 border border-teal-200 text-teal-800">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <line x1="12" y1="1" x2="12" y2="23" />
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                </svg>
+                                Requested: ₹{{ "%.0f"|format(consultant.hourly_rate) }}/hr
+                            </span>
+                            <span class="text-xs text-gray-400">← consultant's requested rate for 1-hr audio/video
+                                call</span>
+                            {% else %}
+                            <span
+                                class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                                No fee requested
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex flex-col gap-2 min-w-[200px]">
+                        <p class="text-xs text-gray-500 font-medium">Set approved rate (₹/hr):</p>
+                        <form action="/api/admin/approve/{{ consultant.id }}" method="POST" class="flex gap-2">
+                            <div class="relative flex-grow">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span class="text-gray-500 sm:text-xs">₹</span>
+                                </div>
+                                <input type="number" name="hourly_rate" class="input pl-6 py-2 text-sm w-full"
+                                    placeholder="Rate" step="0.01" min="0" required
+                                    value="{{ consultant.hourly_rate or '' }}">
+                            </div>
+                            <button type="submit" class="btn btn-primary py-2 px-4 shadow-sm text-sm">
+                                Approve
+                            </button>
+                        </form>
+
+
+                        <form action="/api/admin/reject/{{ consultant.id }}" method="POST"
+                            onsubmit="return confirm('Reject this request?');">
+                            <button type="submit"
+                                class="btn btn-outline text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 w-full text-sm">
+                                Reject
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- ── Feature Control: Booking Access ─────────────────────────────── -->
+    <div class="card px-6 py-4 flex items-center justify-between flex-wrap gap-4 mb-4 border-l-4 border-teal-500">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center flex-shrink-0">
+                <i data-lucide="calendar-check" class="w-5 h-5 text-teal-600"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-semibold text-gray-800">Consultant Booking Access</h3>
+                <p class="text-xs text-gray-500 mt-0.5">When disabled, users see a <em>Coming Soon</em> page instead of the booking flow.</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="bookingStatusLabel" class="text-xs font-bold px-3 py-1 rounded-full {% if booking_enabled %}bg-green-100 text-green-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                {% if booking_enabled %}Enabled{% else %}Disabled{% endif %}
+            </span>
+            <!-- Toggle Switch -->
+            <label class="relative inline-flex items-center cursor-pointer" title="Toggle booking access">
+                <input type="checkbox" id="bookingToggle" class="sr-only peer"
+                    {% if booking_enabled %}checked{% endif %}
+                    onchange="toggleBooking(this.checked)">
+                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:bg-teal-500 transition-colors duration-200"></div>
+                <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 peer-checked:translate-x-5"></div>
+            </label>
+        </div>
+    </div>
+
+    <!-- ── Admin Tool: Batch Generate Gemini Bios ───────────────────────── -->
+    <div class="card px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+        <div>
+            <h3 class="text-sm font-semibold text-gray-800">✨ Batch Generate Consultant Bios</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Uses Gemini to write a professional bio for every consultant who has
+                a CV uploaded.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="bioGenStatus" class="text-xs text-gray-500"></span>
+            <button id="bioGenBtn" onclick="generateAllBios()"
+                class="btn btn-primary text-sm px-4 py-2 flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4"></i> Generate All Bios
+            </button>
+        </div>
+    </div>
+
+
+    <!-- Red Flagged Calls & Escalations -->
+    <div class="card overflow-hidden mb-8 border border-red-200">
+        <div class="px-6 py-5 border-b border-red-100 bg-red-50/50 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-red-600 animate-pulse"></i>
+                <h3 class="text-lg font-semibold text-red-900">
+                    Red Flagged Calls & Escalations
+                </h3>
+            </div>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                Requires Attention
+            </span>
+        </div>
+
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="w-full">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name
-                            / Email</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Specialization</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date & Time</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Consultant</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Patient (User)</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Reason for Red Flag</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Recording Playback</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for appt in flagged_appointments %}
+                    <tr class="hover:bg-red-50/10 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ appt.date }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-950">
+                            {{ appt.consultant_name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span class="font-medium">{{ appt.patient_name }}</span>
+                            <div class="text-xs text-gray-500">ID: {{ appt.patient_id }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-700 max-w-xs break-words font-sans italic">
+                            "{{ appt.reason }}"
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-500">
+                            {% if appt.recording_url %}
+                            <div id="rec-container-{{ appt.id }}">
+                                <button onclick="playRecording('{{ appt.room_id }}', 'rec-container-{{ appt.id }}')"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-50 border border-teal-200 text-teal-800 hover:bg-teal-100 transition-colors">
+                                    <i data-lucide="play" class="w-3.5 h-3.5"></i> Play Recording
+                                </button>
+                            </div>
+                            {% else %}
+                            <span class="text-xs text-gray-400 italic">No recording consent/available</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right whitespace-nowrap text-sm font-medium">
+                            {% if appt.patient_id %}
+                                {% if appt.patient_is_active %}
+                                <button onclick="toggleUserStatus({{ appt.patient_id }}, this)"
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 transition-colors">
+                                    <i data-lucide="user-minus" class="w-3.5 h-3.5"></i> Block User
+                                </button>
+                                {% else %}
+                                <button onclick="toggleUserStatus({{ appt.patient_id }}, this)"
+                                    class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 transition-colors">
+                                    <i data-lucide="user-check" class="w-3.5 h-3.5"></i> Unblock User
+                                </button>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-xs text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-sm text-gray-500 italic">
+                            No red-flagged appointments reported.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Active Consultants Table -->
+
+    <div class="card overflow-hidden">
+        <div class="px-6 py-5 border-b border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-900">
+                Active Consultants & Performance
+            </h3>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            Consultant</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            Performance</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            Total Earnings</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                             Hourly Rate</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                             Actions</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="consultants-table-body">
-                    <!-- Consultants will be populated here -->
-                    {% for consultant in consultants %}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center">
-                                <div
-                                    class="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold">
-                                    {{ consultant.initials }}
-                                </div>
-                                <div class="ml-4">
-                                    <div class="text-sm font-medium text-gray-900">{{ consultant.name }}</div>
-                                    <div class="text-sm text-gray-500">{{ consultant.email }}</div>
-                                </div>
+                <tbody class="divide-y divide-gray-100">
+                    {% for consultant in consultant_stats %}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="font-medium text-gray-900">
+                                <a href="/admin/consultant/{{ consultant.profile_id }}"
+                                    class="hover:text-teal-700 hover:underline" title="View full profile">
+                                    {{ consultant.name }}
+                                </a>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                {{ consultant.specialization }}
+                                {% if consultant.phone %}
+                                <span class="mx-1.5 text-gray-300">•</span>
+                                <span>📞 {{ consultant.phone }}</span>
+                                {% endif %}
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-900">{{ consultant.specialization or 'Not set' }}</div>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900">{{ consultant.completed_appointments }} Sessions</div>
+                            <div class="text-xs text-gray-500">{{ consultant.total_hours }} Hours Logged</div>
+                            <div class="flex items-center gap-1 text-xs text-yellow-600 mt-0.5">
+                                <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                {{ consultant.rating or 'N/A' }}
+                            </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-900" id="rate-display-{{consultant.id}}">₹{{
-                                consultant.hourly_rate or 0 }}</div>
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-green-600">${{ consultant.earnings }}</div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span
-                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ 'bg-green-100 text-green-800' if consultant.is_active else 'bg-red-100 text-red-800' }}">
-                                {{ 'Active' if consultant.is_active else 'Inactive' }}
-                            </span>
+                        <td class="px-6 py-4">
+                            <form action="/api/admin/update-price/{{ consultant.id }}" method="POST"
+                                class="flex items-center gap-2">
+                                <div class="relative rounded-md shadow-sm w-24">
+                                    <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                        <span class="text-gray-500 text-xs">$</span>
+                                    </div>
+                                    <input type="number" name="hourly_rate" value="{{ consultant.hourly_rate or 0 }}"
+                                        class="input py-1 pl-4 text-sm w-full" step="0.01" min="0">
+                                </div>
+                                <button type="submit" class="text-primary-600 hover:text-primary-800 p-1">
+                                    <i data-lucide="save" class="w-4 h-4"></i>
+                                </button>
+                            </form>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button
-                                onclick="openPriceModal({{ consultant.id }}, '{{ consultant.name }}', {{ consultant.hourly_rate or 0 }})"
-                                class="text-primary-600 hover:text-primary-900 mr-3">Set Price</button>
-                            {% if consultant.is_active %}
-                            <button onclick="toggleStatus({{ consultant.id }}, 'consultant', false)"
-                                class="text-red-600 hover:text-red-900 mr-3">Reject/Deactivate</button>
+                        <td class="px-6 py-4 text-right">
+                            {% if enable_consultant_actions %}
+                            <div class="flex items-center justify-end gap-2">
+                                <a href="/admin/consultant/{{ consultant.profile_id }}"
+                                    class="text-teal-600 hover:text-teal-800 p-1" title="View Profile">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </a>
+                                <form action="/api/admin/consultants/{{ consultant.id }}/toggle_status" method="POST">
+                                    <button type="submit" class="text-orange-500 hover:text-orange-700 p-1"
+                                        title="Disable/Enable">
+                                        <i data-lucide="power" class="w-4 h-4"></i>
+                                    </button>
+                                </form>
+                                <button onclick="deleteConsultant({{ consultant.id }})"
+                                    class="text-red-500 hover:text-red-700 p-1" title="Remove">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
                             {% else %}
-                            <button onclick="toggleStatus({{ consultant.id }}, 'consultant', true)"
-                                class="text-green-600 hover:text-green-900 mr-3">Approve/Activate</button>
+                            <button class="text-gray-400 hover:text-gray-600" title="More Options">
+                                <i data-lucide="more-horizontal" class="w-5 h-5"></i>
+                            </button>
                             {% endif %}
-                            <button onclick="deleteUser({{ consultant.id }})"
-                                class="text-gray-600 hover:text-gray-900">Delete</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            No active consultants found.
                         </td>
                     </tr>
                     {% endfor %}
@@ -106,202 +403,116 @@
     </div>
 </div>
 
-<!-- Users Section -->
-<div id="content-users" class="space-y-6 hidden">
-    <div class="card overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name
-                            / Email</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Joined At</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for user in users %}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center">
-                                <div
-                                    class="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold">
-                                    {{ user.initials }}
-                                </div>
-                                <div class="ml-4">
-                                    <div class="text-sm font-medium text-gray-900">{{ user.name }}</div>
-                                    <div class="text-sm text-gray-500">{{ user.email }}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-500">{{ user.created_at.strftime('%Y-%m-%d') }}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span
-                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ 'bg-green-100 text-green-800' if user.is_active else 'bg-red-100 text-red-800' }}">
-                                {{ 'Active' if user.is_active else 'Inactive' }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            {% if user.is_active %}
-                            <button onclick="toggleStatus({{ user.id }}, 'user', false)"
-                                class="text-red-600 hover:text-red-900 mr-3">Block</button>
-                            {% else %}
-                            <button onclick="toggleStatus({{ user.id }}, 'user', true)"
-                                class="text-green-600 hover:text-green-900 mr-3">Unblock</button>
-                            {% endif %}
-                            <button onclick="deleteUser({{ user.id }})"
-                                class="text-gray-600 hover:text-gray-900">Delete</button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Set Price Modal -->
-<div id="priceModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div class="mt-3 text-center">
-            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">Set Hourly Rate</h3>
-            <div class="mt-2 text-sm text-gray-500" id="modal-desc">
-                Setting rate for Consultant Name
-            </div>
-            <div class="mt-4 px-7 py-3">
-                <input type="number" id="priceInput"
-                    class="mb-3 px-3 py-2 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                    placeholder="Hourly Rate (₹)">
-                <input type="hidden" id="modalConsultantId">
-            </div>
-            <div class="items-center px-4 py-3">
-                <button id="savePriceBtn"
-                    class="px-4 py-2 bg-primary-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-300">
-                    Save Rate
-                </button>
-                <button onclick="closePriceModal()"
-                    class="mt-3 px-4 py-2 bg-white text-gray-700 text-base font-medium rounded-md w-full shadow-sm border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                    Cancel
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+{% if enable_consultant_actions %}
+<script>
+    async function deleteConsultant(id) {
+        if (!confirm('Are you sure you want to completely remove this consultant? This will delete their profile and appointments.')) return;
+        try {
+            const res = await fetch(`/api/admin/consultants/${id}/delete`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) location.reload();
+            else alert('Error: ' + data.error);
+        } catch (e) {
+            console.error(e);
+            alert('Failed to delete');
+        }
+    }
+</script>
+{% endif %}
 
 <script>
-    function switchTab(tabName) {
-        // Hide all content
-        document.getElementById('content-consultants').classList.add('hidden');
-        document.getElementById('content-users').classList.add('hidden');
-
-        // Reset tab styles
-        document.getElementById('tab-consultants').classList.remove('border-primary-500', 'text-primary-600');
-        document.getElementById('tab-consultants').classList.add('border-transparent', 'text-gray-500');
-        document.getElementById('tab-users').classList.remove('border-primary-500', 'text-primary-600');
-        document.getElementById('tab-users').classList.add('border-transparent', 'text-gray-500');
-
-        // Show selected content and highlight tab
-        document.getElementById('content-' + tabName).classList.remove('hidden');
-        document.getElementById('tab-' + tabName).classList.add('border-primary-500', 'text-primary-600');
-        document.getElementById('tab-' + tabName).classList.remove('border-transparent', 'text-gray-500');
-    }
-
-    // Modal Logic
-    function openPriceModal(id, name, currentRate) {
-        document.getElementById('modalConsultantId').value = id;
-        document.getElementById('modal-desc').innerText = 'Setting rate for ' + name;
-        document.getElementById('priceInput').value = currentRate;
-        document.getElementById('priceModal').classList.remove('hidden');
-    }
-
-    function closePriceModal() {
-        document.getElementById('priceModal').classList.add('hidden');
-    }
-
-    document.getElementById('savePriceBtn').addEventListener('click', function () {
-        const id = document.getElementById('modalConsultantId').value;
-        const price = document.getElementById('priceInput').value;
-
-        fetch(`/api/admin/consultants/${id}/price`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ hourly_rate: price })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update UI directly
-                    const display = document.getElementById(`rate-display-${id}`);
-                    if (display) display.innerText = '₹' + price;
-                    closePriceModal();
-                    alert('Price updated successfully');
-                } else {
-                    alert('Error updating price: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred');
+    async function toggleBooking(enabled) {
+        const label = document.getElementById('bookingStatusLabel');
+        try {
+            const res = await fetch('/api/admin/toggle-booking', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled })
             });
-    });
-
-    // Status Toggle Logic
-    function toggleStatus(userId, type, isActive) {
-        if (!confirm(`Are you sure you want to ${isActive ? 'activate/unblock' : 'deactivate/block'} this ${type}?`)) return;
-
-        fetch(`/api/admin/users/${userId}/status`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ is_active: isActive })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload(); // Reload to reflect changes
+            const data = await res.json();
+            if (data.success) {
+                if (data.booking_enabled) {
+                    label.textContent = 'Enabled';
+                    label.className = 'text-xs font-bold px-3 py-1 rounded-full bg-green-100 text-green-700';
                 } else {
-                    alert('Error updating status: ' + data.error);
+                    label.textContent = 'Disabled';
+                    label.className = 'text-xs font-bold px-3 py-1 rounded-full bg-gray-100 text-gray-500';
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred');
-            });
+            } else {
+                alert('Error updating booking access: ' + (data.error || 'Unknown error'));
+                // Revert toggle
+                document.getElementById('bookingToggle').checked = !enabled;
+            }
+        } catch (e) {
+            alert('Network error. Please try again.');
+            document.getElementById('bookingToggle').checked = !enabled;
+        }
     }
 
-    // Delete Logic
-    function deleteUser(userId) {
-        if (!confirm('Are you sure you want to DELETE this user? This action cannot be undone.')) return;
-
-        fetch(`/api/admin/users/${userId}`, {
-            method: 'DELETE'
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Error deleting user: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred');
-            });
+    async function generateAllBios() {
+        const btn = document.getElementById('bioGenBtn');
+        const status = document.getElementById('bioGenStatus');
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Generating…';
+        lucide.createIcons();
+        status.textContent = 'Calling Gemini — this may take a minute…';
+        status.style.color = '#6b7280';
+        try {
+            const res = await fetch('/api/admin/generate-all-bios', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                let detail = (data.names || []).map(n => n.name + ': ' + n.status).join(' | ');
+                status.innerHTML = `<span style="color:#059669">✅ ${data.updated} updated</span>, <span style="color:#dc2626">❌ ${data.failed} failed</span> (${data.total} total)<br><small style="color:#6b7280">${detail}</small>`;
+            } else {
+                status.textContent = '❌ ' + (data.error || 'Failed');
+                status.style.color = '#dc2626';
+            }
+        } catch (e) {
+            status.textContent = '❌ Network error: ' + e;
+            status.style.color = '#dc2626';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i> Generate All Bios';
+            lucide.createIcons();
+        }
     }
 
+    async function playRecording(roomId, containerId) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '<span class="text-xs text-gray-500 flex items-center gap-1"><i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Loading recording...</span>';
+        lucide.createIcons();
+        try {
+            const res = await fetch(`/api/recordings/${roomId}/access`);
+            const data = await res.json();
+            if (data.success && data.url) {
+                container.innerHTML = `
+                    <div class="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
+                        <video src="${data.url}" controls class="w-full max-w-md rounded shadow-sm bg-black" style="max-height: 240px;"></video>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `<span class="text-xs text-red-500">Failed: ${data.error || 'No URL'}</span>`;
+            }
+        } catch (e) {
+            console.error(e);
+            container.innerHTML = '<span class="text-xs text-red-500">Error loading recording.</span>';
+        }
+    }
+
+    async function toggleUserStatus(userId, button) {
+        if (!confirm('Are you sure you want to change this user\'s active status? If blocked, they will not be able to log in or book sessions.')) return;
+        try {
+            const res = await fetch(`/api/admin/users/${userId}/toggle`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to toggle user status');
+        }
+    }
 </script>
 {% endblock %}

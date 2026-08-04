@@ -1,0 +1,324 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<style>
+  /* ── Layout & Card ─────────────────────────────────────── */
+  .sched-header      { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:2rem; }
+  .sched-title       { font-size:1.75rem; font-weight:800; color:#111827; line-height:1.2; }
+  .sched-subtitle    { font-size:.875rem; color:#6b7280; margin-top:.25rem; }
+
+  /* ── Split Grid Layout ──────────────────────────────────── */
+  .sched-grid        { display:grid; grid-template-columns:1fr 340px; gap:2rem; }
+  @media(max-width:1100px) { .sched-grid { grid-template-columns:1fr; } }
+
+  .sched-list        { display:flex; flex-direction:column; gap:1.5rem; }
+  
+  /* ── Schedule Card Style ────────────────────────────────── */
+  .sched-card        { background:#fff; border-radius:1rem; border:1px solid #f3f4f6; box-shadow:0 1px 3px rgba(0,0,0,.05); padding:1.5rem; transition:box-shadow .2s; position:relative; }
+  .sched-card:hover  { box-shadow:0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06); }
+  
+  .card-top          { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; border-bottom:1px solid #f3f4f6; padding-bottom:.75rem; }
+  .card-title-wrap   { display:flex; align-items:center; gap:.75rem; }
+  .card-icon         { width:2.25rem; height:2.25rem; border-radius:.65rem; display:flex; align-items:center; justify-content:center; }
+  
+  .icon-mood         { background:#fef3c7; color:#d97706; }
+  .icon-vitals       { background:#e0f2fe; color:#0284c7; }
+  .icon-workout      { background:#dcfce7; color:#16a34a; }
+  .icon-appt         { background:#f3e8ff; color:#7c3aed; }
+  .icon-recharge     { background:#fee2e2; color:#dc2626; }
+  .icon-emora        { background:#f0fdfa; color:#0d9488; }
+
+  .card-typename     { font-size:1.05rem; font-weight:800; color:#111827; }
+  .card-badge        { font-size:.7rem; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.05em; }
+
+  /* ── Toggle Switch ──────────────────────────────────────── */
+  .switch            { position:relative; display:inline-block; width:44px; height:24px; }
+  .switch input      { opacity:0; width:0; height:0; }
+  .slider            { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.3s; border-radius:34px; }
+  .slider:before     { position:absolute; content:""; height:16px; width:16px; left:4px; bottom:4px; background-color:white; transition:.3s; border-radius:50%; }
+  input:checked + .slider { background-color:#14b8a6; }
+  input:checked + .slider:before { transform:translateX(20px); }
+
+  /* ── Form Inputs ────────────────────────────────────────── */
+  .form-grid         { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+  @media(max-width:600px) { .form-grid { grid-template-columns:1fr; } }
+
+  .input-group       { display:flex; flex-direction:column; gap:.3rem; }
+  .field-label       { font-size:.8rem; font-weight:600; color:#374151; }
+  .field-input       { width:100%; padding:.55rem .85rem; border:1.5px solid #e5e7eb; border-radius:.65rem; font-size:.875rem; color:#111827; transition:border-color .15s; box-sizing:border-box; }
+  .field-input:focus  { outline:none; border-color:#14b8a6; box-shadow:0 0 0 3px rgba(20,184,166,.15); }
+  
+  .full-width        { grid-column:span 2; }
+  @media(max-width:600px) { .full-width { grid-column:span 1; } }
+
+  .action-row        { display:flex; justify-content:flex-end; gap:.75rem; margin-top:1rem; border-top:1px solid #f3f4f6; padding-top:1rem; }
+  .save-btn          { padding:.55rem 1.25rem; border-radius:.65rem; border:none; background:#14b8a6; color:#fff; font-size:.85rem; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:.5rem; transition:opacity .15s; }
+  .save-btn:hover    { opacity:.9; }
+  .save-btn:disabled  { opacity:.55; cursor:not-allowed; }
+
+  /* ── Sidebar Mockup Preview ──────────────────────────────── */
+  .preview-panel     { position:sticky; top:2rem; display:flex; flex-direction:column; align-items:center; }
+  .phone-mockup      { background:#1e293b; border:8px solid #0f172a; border-radius:2rem; padding:1rem; box-shadow:0 10px 25px -5px rgba(0,0,0,.15); width:100%; aspect-ratio:9/16; display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden; }
+  .phone-screen      { flex:1; display:flex; flex-direction:column; justify-content:flex-start; position:relative; }
+  .phone-notch       { width:60px; height:18px; background:#0f172a; border-radius:0 0 10px 10px; position:absolute; top:-10px; left:50%; transform:translateX(-50%); z-index:10; }
+  
+  .push-banner       { background:rgba(255,255,255,0.95); backdrop-filter:blur(8px); border-radius:.75rem; padding:.75rem; border:1px solid rgba(255,255,255,.2); box-shadow:0 10px 15px -3px rgba(0,0,0,.2); display:flex; gap:.75rem; margin-top:.5rem; animation:pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .app-icon          { width:2rem; height:2rem; border-radius:.5rem; background:#14b8a6; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:.8rem; }
+  .banner-content    { flex:1; display:flex; flex-direction:column; gap:.15rem; min-width:0; }
+  .banner-hdr        { display:flex; justify-content:space-between; font-size:.7rem; color:#6b7280; font-weight:700; }
+  .banner-title      { font-size:.8rem; font-weight:700; color:#111827; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .banner-body       { font-size:.75rem; color:#4b5563; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+  /* ── Toast ──────────────────────────────────────────────── */
+  .toast             { position:fixed; bottom:1.5rem; right:1.5rem; padding:.75rem 1.25rem; border-radius:.75rem; font-size:.875rem; font-weight:600; z-index:9999; box-shadow:0 4px 16px rgba(0,0,0,.15); opacity:0; transform:translateY(1rem); transition:all .3s; pointer-events:none; }
+  .toast.show        { opacity:1; transform:translateY(0); }
+  .toast-success     { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+  .toast-error       { background:#fef2f2; color:#991b1b; border:1px solid #fca5a5; }
+
+  @keyframes pop-in {
+    0% { transform: scale(0.9) translateY(-1rem); opacity: 0; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+  }
+</style>
+
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Header -->
+  <div class="sched-header">
+    <div>
+      <h1 class="sched-title">Automated Push Schedules</h1>
+      <p class="sched-subtitle">Configure recurring check-ins and system warnings for clients.</p>
+    </div>
+  </div>
+
+  <!-- Split Grid -->
+  <div class="sched-grid">
+    
+    <!-- Left: Schedule List -->
+    <div class="sched-list">
+      {% for s in schedules %}
+      <div class="sched-card" id="card-{{ s.id }}">
+        
+        <!-- Card Top Bar -->
+        <div class="card-top">
+          <div class="card-title-wrap">
+            <div class="card-icon {% if s.notification_type == 'mood_checkin' %}icon-mood
+                                {% elif s.notification_type == 'vital_scan' %}icon-vitals
+                                {% elif s.notification_type == 'workout_log' %}icon-workout
+                                {% elif s.notification_type == 'appointment_reminder' %}icon-appt
+                                {% elif s.notification_type == 'recharge_reminder' %}icon-recharge
+                                {% else %}icon-emora{% endif %}">
+              <i data-lucide="{% if s.notification_type == 'mood_checkin' %}smile
+                             {% elif s.notification_type == 'vital_scan' %}activity
+                             {% elif s.notification_type == 'workout_log' %}dumbbell
+                             {% elif s.notification_type == 'appointment_reminder' %}clock
+                             {% elif s.notification_type == 'recharge_reminder' %}credit-card
+                             {% else %}bot{% endif %}" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="card-typename">
+                {% if s.notification_type == 'mood_checkin' %}Mood Check-in
+                {% elif s.notification_type == 'vital_scan' %}Vital Scan Check-in
+                {% elif s.notification_type == 'workout_log' %}Workout Log Check-in
+                {% elif s.notification_type == 'appointment_reminder' %}Appointment Reminder (30m)
+                {% elif s.notification_type == 'recharge_reminder' %}Recharge Reminder
+                {% elif s.notification_type == 'emora_low_balance' %}Emora Low Balance
+                {% endif %}
+              </div>
+              <span class="card-badge">{{ s.notification_type }}</span>
+            </div>
+          </div>
+          
+          <!-- Switch Toggle -->
+          <label class="switch">
+            <input type="checkbox" id="enabled-{{ s.id }}" {% if s.is_enabled %}checked{% endif %} onchange="onFieldChange({{ s.id }})">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- Card Body Form -->
+        <div class="form-grid">
+          
+          <!-- Title -->
+          <div class="input-group full-width">
+            <label class="field-label" for="title-{{ s.id }}">Notification Title</label>
+            <input type="text" id="title-{{ s.id }}" class="field-input" value="{{ s.title }}" onfocus="focusPreview({{ s.id }})" oninput="updatePreview({{ s.id }})">
+          </div>
+
+          <!-- Body -->
+          <div class="input-group full-width">
+            <label class="field-label" for="body-{{ s.id }}">Notification Body Message</label>
+            <textarea id="body-{{ s.id }}" class="field-input" rows="2" onfocus="focusPreview({{ s.id }})" oninput="updatePreview({{ s.id }})">{{ s.body }}</textarea>
+          </div>
+
+          <!-- Cycle Selection -->
+          <div class="input-group">
+            <label class="field-label" for="cycle-{{ s.id }}">Repeat Cycle</label>
+            <select id="cycle-{{ s.id }}" class="field-input" onchange="onCycleChange({{ s.id }})">
+              <option value="hourly" {% if s.repeat_cycle == 'hourly' %}selected{% endif %}>Hourly</option>
+              <option value="daily" {% if s.repeat_cycle == 'daily' %}selected{% endif %}>Daily</option>
+              <option value="weekly" {% if s.repeat_cycle == 'weekly' %}selected{% endif %}>Weekly</option>
+              <option value="monthly" {% if s.repeat_cycle == 'monthly' %}selected{% endif %}>Monthly</option>
+            </select>
+          </div>
+
+          <!-- Time Input -->
+          <div class="input-group" id="time-group-{{ s.id }}" {% if s.repeat_cycle == 'hourly' %}style="display:none;"{% endif %}>
+            <label class="field-label" for="time-{{ s.id }}">Delivery Time (Local Hour)</label>
+            <input type="time" id="time-{{ s.id }}" class="field-input" value="{{ s.delivery_time or '' }}" onchange="onFieldChange({{ s.id }})">
+          </div>
+
+          <!-- Threshold Input (if applicable) -->
+          {% if s.notification_type in ['recharge_reminder', 'emora_low_balance'] %}
+          <div class="input-group">
+            <label class="field-label" for="thresh-{{ s.id }}">
+              {% if s.notification_type == 'recharge_reminder' %}Alert Threshold (Days before expiry)
+              {% else %}Quota Threshold (Low messages warning)
+              {% endif %}
+            </label>
+            <input type="number" id="thresh-{{ s.id }}" class="field-input" value="{{ s.threshold_value or '' }}" oninput="onFieldChange({{ s.id }})">
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Action Row -->
+        <div class="action-row">
+          <button id="save-btn-{{ s.id }}" class="save-btn" onclick="saveSchedule({{ s.id }})" disabled>
+            <i data-lucide="check" class="w-4 h-4"></i> Save Settings
+          </button>
+        </div>
+
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Right: Mockup Phone Preview -->
+    <div>
+      <div class="preview-panel">
+        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Real-time Layout Preview</span>
+        <div class="phone-mockup">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <div class="push-banner">
+              <div class="app-icon">SS</div>
+              <div class="banner-content">
+                <div class="banner-hdr">
+                  <span>SOLACESQUAD</span>
+                  <span>now</span>
+                </div>
+                <div class="banner-title" id="previewTitle">Push Title</div>
+                <div class="banner-body" id="previewBody">Body Message</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Toast Notifications -->
+<div id="toast" class="toast"></div>
+
+<script>
+  let activePreviewId = null;
+
+  function focusPreview(id) {
+    activePreviewId = id;
+    updatePreview(id);
+  }
+
+  function updatePreview(id) {
+    const title = document.getElementById("title-" + id).value.trim() || "Notification Title";
+    const body = document.getElementById("body-" + id).value.trim() || "Message body content...";
+    
+    document.getElementById("previewTitle").innerText = title;
+    document.getElementById("previewBody").innerText = body;
+    
+    onFieldChange(id);
+  }
+
+  function onFieldChange(id) {
+    document.getElementById("save-btn-" + id).disabled = false;
+  }
+
+  function onCycleChange(id) {
+    const cycle = document.getElementById("cycle-" + id).value;
+    const timeGroup = document.getElementById("time-group-" + id);
+    if (cycle === 'hourly') {
+      timeGroup.style.display = 'none';
+    } else {
+      timeGroup.style.display = 'flex';
+    }
+    onFieldChange(id);
+  }
+
+  function showToast(message, isError = false) {
+    const toast = document.getElementById("toast");
+    toast.innerText = message;
+    toast.className = "toast show " + (isError ? "toast-error" : "toast-success");
+    
+    setTimeout(() => {
+      toast.className = "toast";
+    }, 3000);
+  }
+
+  async function saveSchedule(id) {
+    const saveBtn = document.getElementById("save-btn-" + id);
+    const title = document.getElementById("title-" + id).value.trim();
+    const body = document.getElementById("body-" + id).value.trim();
+    const isEnabled = document.getElementById("enabled-" + id).checked;
+    const repeatCycle = document.getElementById("cycle-" + id).value;
+    const deliveryTime = document.getElementById("time-" + id) ? document.getElementById("time-" + id).value : null;
+    const thresholdInput = document.getElementById("thresh-" + id);
+    const thresholdValue = thresholdInput ? parseInt(thresholdInput.value) : null;
+
+    if (!title || !body) {
+      showToast("Title and message body are required", true);
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Saving...`;
+
+    try {
+      const response = await fetch(`/api/admin/push-schedules/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          body,
+          is_enabled: isEnabled,
+          repeat_cycle: repeatCycle,
+          delivery_time: deliveryTime,
+          threshold_value: thresholdValue
+        })
+      });
+      
+      const res = await response.json();
+      if (res.success) {
+        showToast("Schedule updated successfully!");
+      } else {
+        showToast(res.error || "Failed to save schedule", true);
+        saveBtn.disabled = false;
+      }
+    } catch (e) {
+      showToast("An error occurred. Please try again.", true);
+      saveBtn.disabled = false;
+    } finally {
+      saveBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Save Settings`;
+    }
+  }
+
+  // Initialize preview with first item's content
+  window.addEventListener('DOMContentLoaded', () => {
+    const firstCard = document.querySelector('.sched-card');
+    if (firstCard) {
+      const id = firstCard.id.split('-')[1];
+      focusPreview(id);
+    }
+  });
+</script>
+{% endblock %}

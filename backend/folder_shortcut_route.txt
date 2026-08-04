@@ -1,0 +1,36 @@
+
+# Add route for /admin/videos/{folder_id} (without /folder/)
+@app.get("/admin/videos/{folder_id}", response_class=HTMLResponse)
+async def admin_folder_shortcut(request: Request, folder_id: int, db: Session = Depends(get_db)):
+    """Admin folder detail page with videos - shortcut route"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+    
+    folder = db.query(VideoFolder).filter(VideoFolder.id == folder_id).first()
+    if not folder:
+        return RedirectResponse(url="/admin/videos", status_code=303)
+    
+    # Get videos in this folder
+    videos = db.query(Video).filter(Video.folder_id == folder_id).all()
+    
+    # Format duration for each video
+    for video in videos:
+        minutes = video.duration_seconds // 60
+        seconds = video.duration_seconds % 60
+        video.duration_formatted = f"{minutes}:{seconds:02d}"
+    
+    return templates.TemplateResponse(
+        "pages/admin_folder_detail.html",
+        {
+            "request": request,
+            "page_title": f"{folder.name} - Admin",
+            "user": user,
+            "folder": folder,
+            "videos": videos
+        }
+    )

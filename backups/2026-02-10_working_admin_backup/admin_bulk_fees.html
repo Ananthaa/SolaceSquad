@@ -1,0 +1,139 @@
+{% extends "layouts/protected.html" %}
+
+{% set nav_items = [
+{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/admin', 'key': 'dashboard'},
+{'icon': 'users', 'label': 'Users', 'href': '/admin/users', 'key': 'users'},
+{'icon': 'video', 'label': 'Video Library', 'href': '/admin/videos', 'key': 'videos'}
+] %}
+
+{% block dashboard_content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-display font-bold text-gray-900 leading-tight">
+            Bulk Update Consultant Fees
+        </h1>
+        <p class="mt-1 text-sm text-gray-600">
+            Set a default fee for all consultants who currently have ₹0 fee.
+        </p>
+    </div>
+
+    <div class="card p-6">
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+                Default Consultation Fee (₹)
+            </label>
+            <input type="number" id="defaultFee" value="500" min="0" step="50" class="input w-full max-w-xs">
+            <p class="mt-1 text-sm text-gray-500">
+                This will update all consultants who currently have ₹0 fee
+            </p>
+        </div>
+
+        <button onclick="updateFees()" class="btn btn-primary">
+            <i data-lucide="check-circle" class="w-4 h-4 inline mr-2"></i>
+            Update All Consultant Fees
+        </button>
+
+        <div id="result" class="mt-4 hidden"></div>
+    </div>
+
+    <div class="card p-6 mt-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Current Consultant Fees</h3>
+        <div id="consultantsList">
+            <div class="text-center py-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+                <p class="mt-2 text-gray-600">Loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadConsultants() {
+        try {
+            const response = await fetch('/api/admin/consultants/fees');
+            const data = await response.json();
+
+            if (data.success) {
+                const list = document.getElementById('consultantsList');
+                if (data.consultants.length === 0) {
+                    list.innerHTML = '<p class="text-gray-500 text-center py-4">No consultants found</p>';
+                    return;
+                }
+
+                let html = '<div class="space-y-2">';
+                data.consultants.forEach(c => {
+                    html += `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <div class="font-medium text-gray-900">${c.name}</div>
+                                <div class="text-sm text-gray-500">${c.email}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-semibold text-gray-900">₹${c.consultation_fee || 0}</div>
+                                <div class="text-xs text-gray-500">Consultation Fee</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                list.innerHTML = html;
+            }
+        } catch (error) {
+            document.getElementById('consultantsList').innerHTML =
+                '<p class="text-red-500 text-center py-4">Error loading consultants</p>';
+        }
+    }
+
+    async function updateFees() {
+        const fee = parseFloat(document.getElementById('defaultFee').value);
+        const resultDiv = document.getElementById('result');
+
+        if (fee < 0) {
+            resultDiv.className = 'mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700';
+            resultDiv.textContent = 'Please enter a valid fee amount';
+            resultDiv.classList.remove('hidden');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to set ₹${fee} as the default fee for all consultants with ₹0 fee?`)) {
+            return;
+        }
+
+        resultDiv.className = 'mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-700';
+        resultDiv.textContent = 'Updating fees...';
+        resultDiv.classList.remove('hidden');
+
+        try {
+            const response = await fetch('/api/admin/consultants/bulk-update-fees', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ default_fee: fee })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                resultDiv.className = 'mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700';
+                resultDiv.textContent = data.message;
+
+                // Reload consultants list
+                setTimeout(() => {
+                    loadConsultants();
+                }, 1000);
+            } else {
+                resultDiv.className = 'mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700';
+                resultDiv.textContent = 'Error: ' + (data.error || 'Failed to update fees');
+            }
+        } catch (error) {
+            resultDiv.className = 'mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700';
+            resultDiv.textContent = 'Error updating fees: ' + error.message;
+        }
+    }
+
+    // Load consultants on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        loadConsultants();
+        lucide.createIcons();
+    });
+</script>
+{% endblock %}

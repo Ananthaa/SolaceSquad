@@ -1,163 +1,603 @@
 {% extends "layouts/protected.html" %}
 
-{% set nav_items = [
-{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
-{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
-{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
-{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
-{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
-{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
-{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
-{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
-{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
-{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'},
-{'icon': 'user', 'label': 'Profile', 'href': '/app/profile', 'key': 'profile'}
-] %}
+
+
+
+
 
 {% block dashboard_content %}
+
 <div class="mb-8">
+
     <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+
         Find Consultants
+
     </h1>
+
     <p class="text-gray-600">
+
         Book a session with our expert wellbeing consultants
+
     </p>
+
+</div>
+
+<!-- Wellness Category Filter Tabs -->
+<div id="categoryFilterBar" style="display:flex;flex-wrap:wrap;gap:0.6rem;margin-bottom:1.5rem;">
+    <button onclick="filterCategory('all')" id="filter-all"
+        style="padding:0.4rem 1.1rem;border-radius:2rem;border:1.5px solid #1e40af;background:#1e40af;color:#fff;font-weight:600;font-size:0.85rem;cursor:pointer;transition:all 0.2s;">
+        All Consultants
+    </button>
+    <button onclick="filterCategory('Mental')" id="filter-Mental"
+        style="padding:0.4rem 1.1rem;border-radius:2rem;border:1.5px solid #e2e8f0;background:#fff;color:#374151;font-weight:600;font-size:0.85rem;cursor:pointer;transition:all 0.2s;">
+        &#129504; Mental Wellbeing
+    </button>
+    <button onclick="filterCategory('Physical')" id="filter-Physical"
+        style="padding:0.4rem 1.1rem;border-radius:2rem;border:1.5px solid #e2e8f0;background:#fff;color:#374151;font-weight:600;font-size:0.85rem;cursor:pointer;transition:all 0.2s;">
+        &#128170; Physical Wellbeing
+    </button>
+    <button onclick="filterCategory('Professional')" id="filter-Professional"
+        style="padding:0.4rem 1.1rem;border-radius:2rem;border:1.5px solid #e2e8f0;background:#fff;color:#374151;font-weight:600;font-size:0.85rem;cursor:pointer;transition:all 0.2s;">
+        &#127919; Professional Wellbeing
+    </button>
 </div>
 
 <div class="consultants-grid">
+
     {% if consultants %}
+
     {% for consultant in consultants %}
-    <div class="consultant-card" data-consultant-id="{{ consultant.id }}">
+
+    <div class="consultant-card {% if not consultant.is_available_now %}consultant-unavailable{% endif %}"
+        data-consultant-id="{{ consultant.id }}"
+        data-category="{{ consultant.wellness_category }}">
+
         <div class="consultant-header">
-            <div class="consultant-avatar">
-                {{ consultant.name[0] }}{{ consultant.name.split()[-1][0] if consultant.name.split()|length > 1
-                else consultant.name[1] }}
+
+            <div class="consultant-avatar" style="position:relative;overflow:hidden;">
+                {% if consultant.photo_url %}
+                <img src="{{ consultant.photo_url }}"
+                     alt="{{ consultant.name }}"
+                     style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                <span style="display:none;position:relative;z-index:1;">{{ consultant.name[0] }}{{ consultant.name.split()[-1][0] if consultant.name.split()|length > 1 else consultant.name[1] }}</span>
+                {% else %}
+                <span style="position:relative;z-index:1;">{{ consultant.name[0] }}{{ consultant.name.split()[-1][0] if consultant.name.split()|length > 1 else consultant.name[1] }}</span>
+                {% endif %}
             </div>
+
             <div class="consultant-info">
-                <h3 class="consultant-name">{{ consultant.name }}</h3>
+
+                <h3 class="consultant-name">
+                    {{ consultant.name }}
+                    {% if not consultant.is_active %}
+                    <span style="display:inline-block;background:#ef4444;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:0.5rem;">INACTIVE</span>
+                    {% endif %}
+                    {% if not consultant.is_approved %}
+                    <span style="display:inline-block;background:#3b82f6;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:4px;vertical-align:middle;margin-left:0.5rem;">UNAPPROVED</span>
+                    {% endif %}
+                </h3>
+
                 <p class="consultant-specialization">{{ consultant.specialization }}</p>
+
+                {% if consultant.wellness_categories %}
+                <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.35rem;">
+                    {% for wcat in consultant.wellness_categories %}
+                    <span class="wellness-badge wellness-badge--{{ wcat | lower }}">{{ wcat }} Wellbeing</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
             </div>
-            <div class="consultant-rating">
-                <span class="rating-star">⭐</span>
+
+            {% if consultant.rating and consultant.rating > 0 %}
+            <div class="consultant-rating" data-rating="{{ consultant.rating }}">
+                <div class="star-row" data-rating="{{ consultant.rating }}" data-cid="{{ consultant.id }}"></div>
                 <span class="rating-value">{{ "%.1f"|format(consultant.rating) }}</span>
             </div>
+            {% endif %}
+
         </div>
 
+
+
+        {# Availability badge #}
+
+        <div class="availability-badge-wrap">
+
+            {% if consultant.is_available_now %}
+
+            <span class="avail-badge avail-badge--on">
+
+                <span class="avail-dot"></span> Available Now
+
+            </span>
+
+            {% elif consultant.has_schedule %}
+
+            <span class="avail-badge avail-badge--off">
+
+                <span class="avail-dot"></span> Outside Hours
+
+            </span>
+
+            {% else %}
+
+            <span class="avail-badge avail-badge--none">No Schedule Set</span>
+
+            {% endif %}
+
+        </div>
+
+
+
         <div class="consultant-body">
-            <p class="consultant-bio">{{ consultant.bio }}</p>
+
+            <button class="btn view-profile-btn"
+                data-id="{{ consultant.id }}"
+                data-name="{{ consultant.name }}"
+                data-spec="{{ consultant.specialization }}"
+                data-bio="{{ consultant.bio | replace('"', '&quot;') }}"
+                data-rating="{{ '%.1f'|format(consultant.rating) }}"
+                data-exp="{{ consultant.experience_years }}"
+                data-rate="{{ consultant.hourly_rate }}"
+                data-photo="{{ consultant.photo_url }}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+                View Profile
+            </button>
+
+
 
             <div class="consultant-details">
+
                 <div class="detail-item">
-                    <span class="detail-icon">💼</span>
+                    <span class="detail-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                            <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                        </svg></span>
                     <span class="detail-text">{{ consultant.experience_years }} years experience</span>
                 </div>
                 <div class="detail-item">
-                    <span class="detail-icon">💰</span>
-                    <span class="detail-text">₹{{ consultant.hourly_rate }}/hour</span>
+                    <span class="detail-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="1" x2="12" y2="23" />
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg></span>
+                    <span class="detail-text">&#8377;{{ consultant.hourly_rate }} + GST/hour</span>
                 </div>
+                {% if consultant.languages %}
+                <div class="detail-item">
+                    <span class="detail-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="2" y1="12" x2="22" y2="12" />
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                        </svg></span>
+                    <span class="detail-text">Languages: {{ consultant.languages | join(', ') }}</span>
+                </div>
+                {% endif %}
+
             </div>
+
         </div>
+
+
 
         <div class="consultant-footer">
-            <button class="btn btn-primary book-appointment-btn" data-consultant-id="{{ consultant.id }}"
-                data-consultant-name="{{ consultant.name }}">
+
+            <button class="btn btn-primary book-appointment-btn"
+                data-consultant-id="{{ consultant.id }}"
+                data-consultant-name="{{ consultant.name }}"
+                title="View available slots and book an appointment">
+
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle;flex-shrink:0">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
                 Book Appointment
             </button>
+
+
         </div>
+
     </div>
+
     {% endfor %}
+
     {% else %}
+
     <div class="empty-state">
-        <div class="empty-icon">👥</div>
+
+        <div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg></div>
+
         <h3>No Consultants Available</h3>
+
         <p>There are currently no consultants available. Please check back later.</p>
+
     </div>
+
     {% endif %}
+
+
+
 </div>
 
-<!-- Booking Modal -->
-<div id="bookingModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>📅 Book Appointment</h2>
-            <button class="modal-close">&times;</button>
+<!-- Profile Modal -->
+<div id="profileModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+    <div class="modal-content profile-modal-content">
+
+        <!-- Banner + Photo Bubble -->
+        <div class="pm-banner">
+            <button class="pm-close-btn" id="profileModalClose" aria-label="Close">&times;</button>
+            <div class="pm-photo-bubble" id="pmAvatar"></div>
         </div>
 
-        <div class="modal-body">
-            <div class="booking-info">
-                <div class="consultant-badge">
-                    <span class="badge-icon">👤</span>
-                    <div>
-                        <h3 id="modalConsultantName"></h3>
-                        <p id="modalConsultantSpec"></p>
-                    </div>
+        <!-- Identity row below banner -->
+        <div class="pm-identity">
+            <h2 id="pmName" class="pm-name"></h2>
+            <p id="pmSpec" class="pm-spec"></p>
+            <div class="pm-pills">
+                <span id="pmExp" class="pm-pill pm-pill--blue"></span>
+                <span id="pmRate" class="pm-pill pm-pill--green"></span>
+            </div>
+        </div>
+
+        <div class="pm-body">
+
+            <!-- Professional Summary -->
+            <div class="pm-section">
+                <h4 class="pm-section-title">
+                    <span class="pm-section-icon">ðŸ“‹</span> Professional Summary
+                </h4>
+                <p id="pmBio" class="pm-bio-text"></p>
+            </div>
+
+            <hr class="pm-divider">
+
+            <!-- Overall Rating -->
+            <div class="pm-section">
+                <h4 class="pm-section-title">
+                    <span class="pm-section-icon">â­</span> Overall Rating
+                </h4>
+                <div class="pm-rating-row">
+                    <div id="pmStars" class="pm-stars"></div>
+                    <span id="pmRatingVal" class="pm-rating-num"></span>
+                    <span id="pmTotalReviews" class="pm-review-count"></span>
                 </div>
             </div>
 
-            <form id="bookingForm">
-                <input type="hidden" id="consultantId" name="consultant_id">
+            <hr class="pm-divider">
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="appointmentDate">
-                            <span class="label-icon">📆</span>
-                            Date & Time
-                        </label>
-                        <input type="datetime-local" id="appointmentDate" name="appointment_date" required>
+            <!-- Client Feedback -->
+            <div class="pm-section">
+                <h4 class="pm-section-title">
+                    <span class="pm-section-icon">ðŸ’¬</span> Client Feedback
+                </h4>
+                <div id="pmReviewsList" class="pm-reviews-list">
+                    <div class="pm-loading">Loading reviews...</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+
+<div id="bookingModal" class="modal">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <h2><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                </svg> Book Appointment</h2>
+
+            <button class="modal-close">&times;</button>
+
+        </div>
+
+
+
+        <div class="modal-body">
+
+            <div id="rescheduleBanner" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:.65rem;padding:.75rem 1rem;margin-bottom:1rem;font-size:.85rem;font-weight:600;color:#d97706;">
+                🔄 Free Reschedule: You are rescheduling your session at no extra charge.
+            </div>
+
+            <div class="booking-info">
+
+                <div class="consultant-badge">
+
+                    <span class="badge-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg></span>
+
+                    <div>
+
+                        <h3 id="modalConsultantName"></h3>
+
+                        <p id="modalConsultantSpec"></p>
+
                     </div>
 
+                </div>
+
+            </div>
+
+
+
+            <form id="bookingForm" novalidate>
+
+                <input type="hidden" id="consultantId" name="consultant_id">
+
+
+
+                <div class="form-row">
+
                     <div class="form-group">
-                        <label for="duration">
-                            <span class="label-icon">⏱️</span>
-                            Duration
+
+                        <label for="appointmentDateOnly">
+                            <span class="label-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                    <line x1="16" y1="2" x2="16" y2="6" />
+                                    <line x1="8" y1="2" x2="8" y2="6" />
+                                    <line x1="3" y1="10" x2="21" y2="10" />
+                                </svg></span>
+
+                            Appointment Date
+
                         </label>
-                        <select id="duration" name="duration_minutes">
+
+                        <input type="date" id="appointmentDateOnly" class="form-control" required
+                          onchange="onDateOrDurationChange()">
+
+                    </div>
+
+                    </div>
+
+                <!-- Timeline panel (shown after date selected) -->
+                <div id="timelinePanel" style="display:none; margin-top:1rem;">
+                  <div id="workingHoursLabel" style="font-size:0.82rem; color:#6b7280; margin-bottom:0.5rem; font-weight:600;"></div>
+                  <div style="font-size:0.78rem; color:#9ca3af; margin-bottom:0.75rem;">
+                    <span style="display:inline-block; width:12px; height:12px; background:#10b981; border-radius:3px; margin-right:4px;"></span>Available
+                    <span style="display:inline-block; width:12px; height:12px; background:#ef4444; border-radius:3px; margin:0 4px 0 12px;"></span>Booked
+                    <span style="display:inline-block; width:12px; height:12px; background:#f59e0b; border-radius:3px; margin:0 4px 0 12px;"></span>Buffer
+                    <span style="display:inline-block; width:12px; height:12px; background:#fbbf24; border-radius:3px; margin:0 4px 0 12px;"></span>Break
+                    <span style="display:inline-block; width:12px; height:12px; background:#e5e7eb; border-radius:3px; margin:0 4px 0 12px; border:1px solid #d1d5db;"></span>Past
+                    <span style="display:inline-block; width:12px; height:12px; background:#6b7280; border-radius:3px; margin:0 4px 0 12px;"></span>Overflow
+                  </div>
+                  <div id="timelineGrid" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                  <div id="timelineNotAvail" style="display:none; color:#ef4444; font-size:0.85rem; margin-top:0.5rem;"></div>
+                  <div id="selectedTimeLabel" style="margin-top:0.75rem; font-size:0.85rem; color:#059669; font-weight:600;"></div>
+                </div>
+
+                <!-- Hidden fields for the actual datetime and time -->
+                <input type="hidden" id="appointmentDate">
+                <input type="hidden" id="selectedTime">
+
+
+
+
+                    <div class="form-group">
+
+                        <label for="duration">
+                            <span class="label-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <polyline points="12 6 12 12 16 14" />
+                                </svg></span>
+
+                            Duration
+
+                        </label>
+
+                        <select id="duration" name="duration_minutes" onchange="onDateOrDurationChange()">
+                            <option value="15">15 minutes (Free)</option>
+                            {% if is_first_consultation %}
+                            <option value="30">30 minutes (Free - First Session)</option>
+                            <option value="60" selected>1 hour (30 mins free)</option>
+                            <option value="90">1.5 hours (30 mins free)</option>
+                            {% else %}
                             <option value="30">30 minutes</option>
                             <option value="60" selected>1 hour</option>
                             <option value="90">1.5 hours</option>
+                            {% endif %}
                         </select>
+
+                        <div id="durationNote" style="font-size:.75rem;color:#6b7280;margin-top:.3rem;"></div>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="form-group">
+
+                    <label for="notes">
+
+                        <span class="label-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                            </svg></span>
+
+                        Notes (Optional)
+
+                    </label>
+
+                    <textarea id="notes" name="notes" rows="4"
+                        placeholder="Share any specific concerns or topics you'd like to discuss..."></textarea>
+
+                </div>
+
+                <!-- Consents -->
+                <div style="display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1.5rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem;">
+                    <label style="display:flex; align-items:flex-start; gap:0.75rem; font-weight:500; color:#4a5568; cursor:pointer; font-size:0.875rem; user-select:none; line-height:1.4; margin:0;">
+                        <input type="checkbox" id="consentRecord" name="consent_to_record" style="width:18px !important; height:18px !important; padding:0 !important; border:none !important; margin:3px 0 0 0; cursor:pointer; accent-color:#0d9488; flex-shrink:0;">
+                        <span>I consent to recording this call (audio and video if enabled) for medical review and quality purposes.</span>
+                    </label>
+                    <label style="display:flex; align-items:flex-start; gap:0.75rem; font-weight:500; color:#4a5568; cursor:pointer; font-size:0.875rem; user-select:none; line-height:1.4; margin:0;">
+                        <input type="checkbox" id="consentShare" name="consent_to_share_data" style="width:18px !important; height:18px !important; padding:0 !important; border:none !important; margin:3px 0 0 0; cursor:pointer; accent-color:#0d9488; flex-shrink:0;">
+                        <span>I consent to sharing my <strong>previous consultation notes</strong> and <strong>uploaded health reports</strong> with this consultant for 15 days.</span>
+                    </label>
+                    <!-- Vitals info note — no consent required -->
+                    <div style="display:flex; align-items:flex-start; gap:0.75rem; font-size:0.8rem; color:#0d9488; background:#f0fdfa; border:1px solid #99f6e4; border-radius:8px; padding:0.6rem 0.75rem; margin-top:0.25rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <span><strong>Vital reports</strong> (heart rate, blood pressure, SpO₂, etc.) are always accessible to your consultant by default to help provide better care — no consent needed.</span>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="notes">
-                        <span class="label-icon">📝</span>
-                        Notes (Optional)
-                    </label>
-                    <textarea id="notes" name="notes" rows="4"
-                        placeholder="Share any specific concerns or topics you'd like to discuss..."></textarea>
-                </div>
+
 
                 <div id="availabilityInfo" class="availability-info"></div>
 
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary cancel-btn">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <span class="btn-icon">✓</span>
-                        Confirm Booking
-                    </button>
+
+
+                <div id="bookingError"></div>
+
+                <!-- Next available slot banner -->
+                <div id="nextAvailableBanner" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:.65rem;padding:.75rem 1rem;margin-top:.5rem;">
+                  <div style="font-size:.8rem;font-weight:700;color:#92400e;margin-bottom:.35rem;">ðŸ“… Next Available Slot</div>
+                  <div id="nextAvailableLabel" style="font-size:.85rem;color:#374151;font-weight:600;"></div>
+                  <button type="button" id="bookNextSlotBtn"
+                    style="margin-top:.5rem;padding:.35rem 1rem;background:#0d9488;color:#fff;border:none;border-radius:.5rem;font-size:.8rem;font-weight:700;cursor:pointer;">
+                    Book This Slot
+                  </button>
                 </div>
+
+
+
+                <div class="modal-actions">
+
+                    <button type="button" class="btn btn-secondary cancel-btn">Cancel</button>
+
+                    <button type="button" id="confirmBookingBtn" class="btn btn-primary">
+
+                        <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg></span>
+
+                        Confirm Booking
+
+                    </button>
+
+                </div>
+
             </form>
+
         </div>
+
     </div>
+
 </div>
 
+
+
 <!-- Success Message -->
+
 <div id="successMessage" class="success-overlay">
+
     <div class="success-content">
-        <div class="success-icon">✓</div>
+
+        <div class="success-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
+                fill="none" stroke="#22c55e" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="20 6 9 17 4 12" />
+            </svg></div>
+
         <h3>Appointment Booked!</h3>
-        <p>Your appointment has been confirmed. Redirecting to dashboard...</p>
+
+        <p>Your appointment has been confirmed. A confirmation email with a calendar invite has been sent to you.</p>
+
     </div>
+
 </div>
+
+
+
+<!-- My Appointments Section -->
+
+<div class="appointments-section" id="myAppointmentsSection">
+
+    <div class="appt-tabs-header">
+
+        <h2 class="section-title"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:middle">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+            </svg> My Appointments</h2>
+
+        <div class="appt-tabs">
+
+            <button class="appt-tab active" id="tabUpcoming" onclick="switchApptTab('upcoming')">Upcoming <span
+                    class="appt-tab-count" id="countUpcoming"></span></button>
+
+            <button class="appt-tab" id="tabHistory" onclick="switchApptTab('history')">History <span
+                    class="appt-tab-count" id="countHistory"></span></button>
+
+        </div>
+
+    </div>
+
+    <div id="panelUpcoming" class="appt-panel">
+
+        <div class="appt-loading">LoadingÂ…</div>
+
+    </div>
+
+    <div id="panelHistory" class="appt-panel" style="display:none">
+
+        <div class="appt-loading">LoadingÂ…</div>
+
+    </div>
+
+</div>
+
+
 
 <style>
     .consultants-grid {
+
         display: grid;
+
         grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+
         gap: 2rem;
+
         padding: 1rem 0;
+
     }
+
+
 
     .consultant-card {
         background: white;
@@ -165,548 +605,2519 @@
         padding: 1.5rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
+        display: flex;
+        flex-direction: column;  /* footer pinned to bottom */
     }
+
+
 
     .consultant-card:hover {
+
         transform: translateY(-4px);
+
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+
     }
+
+
 
     .consultant-header {
+
         display: flex;
+
         align-items: flex-start;
+
         gap: 1rem;
+
         margin-bottom: 1rem;
+
     }
 
+
+
     .consultant-avatar {
+
         width: 60px;
+
         height: 60px;
+
         border-radius: 50%;
+
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
         color: white;
+
         display: flex;
+
         align-items: center;
+
         justify-content: center;
+
         font-size: 1.5rem;
+
         font-weight: 600;
+
         flex-shrink: 0;
+
     }
+
+
 
     .consultant-info {
         flex: 1;
+        min-width: 0;
+        /* allow flex child to shrink below its content size */
+        overflow: hidden;
     }
+
+
 
     .consultant-name {
         font-size: 1.25rem;
         font-weight: 600;
         color: #1a202c;
         margin: 0 0 0.25rem 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
+
+
     .consultant-specialization {
+
         color: #667eea;
+
         font-size: 0.875rem;
+
         margin: 0;
+
     }
+
+    /* Wellness category badge */
+    .wellness-badge {
+        display: inline-block;
+        margin-top: 0.35rem;
+        padding: 0.18rem 0.65rem;
+        border-radius: 1rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+    .wellness-badge--mental    { background: #ede9fe; color: #5b21b6; }
+    .wellness-badge--physical  { background: #dcfce7; color: #166534; }
+    .wellness-badge--professional { background: #fef9c3; color: #854d0e; }
+
+
+
 
     .consultant-rating {
         display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        font-weight: 600;
-        color: #f59e0b;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.2rem;
+        flex-shrink: 0;
+        /* never compress — always stays within the card */
+        margin-left: 0.5rem;
     }
+
+    .star-row {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .star-row svg {
+        display: block;
+        filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
+    }
+
+    .rating-value {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #92400e;
+        letter-spacing: 0.02em;
+    }
+
+
 
     .consultant-body {
+
         margin-bottom: 1.5rem;
+
     }
+
+
 
     .consultant-bio {
+
         color: #4a5568;
+
         line-height: 1.6;
+
         margin-bottom: 1rem;
+
     }
+
+
 
     .consultant-details {
+
         display: flex;
+
         flex-direction: column;
+
         gap: 0.5rem;
+
     }
+
+
 
     .detail-item {
+
         display: flex;
+
         align-items: center;
+
         gap: 0.5rem;
+
         color: #4a5568;
+
         font-size: 0.875rem;
+
     }
 
+
+
     .detail-icon {
+
         font-size: 1rem;
+
     }
+
+
 
     .consultant-footer {
         border-top: 1px solid #e2e8f0;
         padding-top: 1rem;
+        margin-top: auto;  /* pushes footer to bottom of card */
     }
+
+
 
     .book-appointment-btn {
         width: 100%;
-        padding: 0.75rem;
+        height: 44px;            /* fixed height = all buttons identical */
+        padding: 0 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
         border-radius: 8px;
         font-weight: 600;
+        font-size: 0.88rem;
         cursor: pointer;
-        transition: transform 0.2s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        white-space: nowrap;
     }
+
+
 
     .book-appointment-btn:hover {
-        transform: scale(1.02);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     }
+
+
 
     .empty-state {
+
         grid-column: 1 / -1;
+
         text-align: center;
+
         padding: 4rem 2rem;
+
     }
+
+
 
     .empty-icon {
+
         font-size: 4rem;
+
         margin-bottom: 1rem;
+
     }
+
+
 
     .empty-state h3 {
+
         color: #1a202c;
+
         margin-bottom: 0.5rem;
+
     }
+
+
 
     .empty-state p {
+
         color: #718096;
+
     }
 
-    /* Modal Styles */
-    .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
+
+
+    /* -- Availability badges ------------------------------- */
+
+    .availability-badge-wrap {
+
+        margin: 0.25rem 0 0.75rem;
+
+    }
+
+
+
+    .avail-badge {
+
+        display: inline-flex;
+
+        align-items: center;
+
+        gap: 0.4rem;
+
+        font-size: 0.78rem;
+
+        font-weight: 600;
+
+        padding: 0.25rem 0.7rem;
+
+        border-radius: 999px;
+
+    }
+
+
+
+    .avail-dot {
+
+        width: 8px;
+
+        height: 8px;
+
+        border-radius: 50%;
+
+        display: inline-block;
+
+    }
+
+
+
+    /* Green Â— available right now */
+
+    .avail-badge--on {
+
+        background: #dcfce7;
+
+        color: #166534;
+
+    }
+
+
+
+    .avail-badge--on .avail-dot {
+
+        background: #22c55e;
+
+        animation: pulse-green 1.5s ease-in-out infinite;
+
+    }
+
+
+
+    @keyframes pulse-green {
+
+
+
+        0%,
+
+        100% {
+
+            opacity: 1;
+
+            transform: scale(1);
+
+        }
+
+
+
+        50% {
+
+            opacity: 0.5;
+
+            transform: scale(1.4);
+
+        }
+
+    }
+
+
+
+    /* Grey Â— has a schedule but outside hours */
+
+    .avail-badge--off {
+
+        background: #f1f5f9;
+
+        color: #64748b;
+
+    }
+
+
+
+    .avail-badge--off .avail-dot {
+
+        background: #94a3b8;
+
+    }
+
+
+
+    /* Muted Â— no schedule set at all */
+
+    .avail-badge--none {
+
+        background: #fef9c3;
+
+        color: #854d0e;
+
+    }
+
+
+
+    /* Dim unavailable cards slightly */
+
+    .consultant-unavailable {
+
+    }
+
+
+
+    .consultant-unavailable:hover {
+
+        transform: scale(1.02);
+
+    }
+
+
+
+    /* â”€â”€ Premium Profile Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    .profile-modal-content {
+        max-width: 560px !important;
+        padding: 0 !important;
+        overflow: hidden;
+        border-radius: 20px !important;
+    }
+    .pm-banner {
+        position: relative;
+        height: 110px;
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #667eea 100%);
+    }
+    .pm-close-btn {
+        position: absolute;
+        top: 0.75rem;
+        right: 1rem;
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: #fff;
+        font-size: 1.4rem;
+        line-height: 1;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
         align-items: center;
         justify-content: center;
+        transition: background 0.15s;
     }
-
-    .modal.active {
+    .pm-close-btn:hover { background: rgba(255,255,255,0.35); }
+    .pm-photo-bubble {
+        position: absolute;
+        bottom: -38px;
+        left: 1.5rem;
+        width: 76px;
+        height: 76px;
+        border-radius: 50%;
+        border: 4px solid #fff;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        overflow: hidden;
         display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: 0.02em;
     }
-
-    .modal-content {
-        background: white;
-        border-radius: 16px;
-        width: 90%;
-        max-width: 500px;
-        max-height: 90vh;
+    .pm-photo-bubble img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .pm-identity {
+        padding: 3rem 1.5rem 1rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .pm-name {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin: 0 0 0.2rem;
+    }
+    .pm-spec {
+        font-size: 0.875rem;
+        color: #6366f1;
+        font-weight: 600;
+        margin: 0 0 0.75rem;
+    }
+    .pm-pills {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .pm-pill {
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 0.25rem 0.7rem;
+        border-radius: 999px;
+        letter-spacing: 0.02em;
+    }
+    .pm-pill--blue { background: #ede9fe; color: #4f46e5; }
+    .pm-pill--green { background: #dcfce7; color: #166534; }
+    .pm-body {
+        padding: 1.25rem 1.5rem 1.5rem;
+        max-height: calc(90vh - 220px);
         overflow-y: auto;
     }
-
-    .modal-header {
+    .pm-section { margin-bottom: 0; }
+    .pm-section-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #64748b;
+        margin: 0 0 0.65rem;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .pm-bio-text {
+        font-size: 0.875rem;
+        color: #374151;
+        line-height: 1.75;
+        margin: 0;
+    }
+    .pm-divider {
+        border: none;
+        border-top: 1px solid #f1f5f9;
+        margin: 1.1rem 0;
+    }
+    .pm-rating-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    .pm-stars { display: flex; gap: 2px; }
+    .pm-rating-num {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #b45309;
+    }
+    .pm-review-count {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        font-weight: 500;
+    }
+    .pm-reviews-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+    .pm-review-card {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 0.9rem 1rem;
+        border-left: 3px solid #6366f1;
+        transition: box-shadow 0.15s;
+    }
+    .pm-review-card:hover { box-shadow: 0 2px 8px rgba(99,102,241,.1); }
+    .pm-review-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 1.5rem;
-        border-bottom: 1px solid #e2e8f0;
+        margin-bottom: 0.35rem;
     }
-
-    .modal-header h2 {
-        margin: 0;
-        color: #1a202c;
-        font-size: 1.25rem;
+    .pm-review-author {
         font-weight: 700;
+        font-size: 0.82rem;
+        color: #1e293b;
     }
-
-    .modal-close {
-        background: none;
-        border: none;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: #718096;
+    .pm-review-date {
+        font-size: 0.73rem;
+        color: #94a3b8;
     }
-
-    .modal-body {
-        padding: 1.5rem;
-    }
-
-    .booking-info {
-        margin-bottom: 1.5rem;
-        padding: 1.25rem;
-        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-    }
-
-    .consultant-badge {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .badge-icon {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        flex-shrink: 0;
-        color: white;
-    }
-
-    .booking-info h3 {
-        margin: 0 0 0.25rem 0;
-        color: #1a202c;
-        font-size: 1.125rem;
-        font-weight: 600;
-    }
-
-    .booking-info p {
+    .pm-review-stars { display: flex; gap: 2px; margin-bottom: 0.35rem; }
+    .pm-review-text {
+        font-size: 0.82rem;
+        color: #475569;
+        line-height: 1.6;
         margin: 0;
-        color: #667eea;
-        font-size: 0.875rem;
-        font-weight: 500;
     }
-
-    .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .form-group {
-        margin-bottom: 1.5rem;
-    }
-
-    .form-group label {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.5rem;
-        color: #4a5568;
-        font-weight: 600;
-        font-size: 0.875rem;
-    }
-
-    .label-icon {
-        font-size: 1rem;
-    }
-
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-        width: 100%;
-        padding: 0.875rem;
-        border: 2px solid #e2e8f0;
-        border-radius: 10px;
-        font-size: 1rem;
-        transition: all 0.2s ease;
-        font-family: inherit;
-    }
-
-    .form-group input:focus,
-    .form-group select:focus,
-    .form-group textarea:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-
-    .form-group textarea {
-        resize: vertical;
-        min-height: 100px;
-    }
-
-    .availability-info {
-        margin-bottom: 1.5rem;
-        padding: 1rem;
-        background: #f0f9ff;
-        border-left: 4px solid #3b82f6;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        color: #1e40af;
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 1rem;
-        justify-content: flex-end;
-        padding-top: 1rem;
-        border-top: 1px solid #e2e8f0;
-    }
-
-    .btn {
-        padding: 0.875rem 1.75rem;
-        border-radius: 10px;
-        font-weight: 600;
-        cursor: pointer;
-        border: none;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.9375rem;
-    }
-
-    .btn-icon {
-        font-size: 1.125rem;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-    }
-
-    .btn-secondary {
-        background: #f7fafc;
-        color: #4a5568;
-        border: 2px solid #e2e8f0;
-    }
-
-    .btn-secondary:hover {
-        background: #edf2f7;
-        border-color: #cbd5e0;
-    }
-
-    /* Success Overlay */
-    .success-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        z-index: 2000;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .success-overlay.active {
-        display: flex;
-        animation: fadeIn 0.3s ease;
-    }
-
-    .success-content {
-        background: white;
-        border-radius: 20px;
-        padding: 3rem 2.5rem;
+    .pm-loading, .pm-no-reviews {
         text-align: center;
-        max-width: 400px;
-        animation: scaleIn 0.4s ease;
+        color: #94a3b8;
+        font-size: 0.85rem;
+        padding: 1.25rem;
+        font-style: italic;
     }
 
-    .success-icon {
-        width: 80px;
-        height: 80px;
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        border-radius: 50%;
-        display: flex;
+    /* Disabled booking button */
+    .consultant-footer .btn:disabled {
+        width: 100%;
+        padding: 0.75rem;
+
+        background: #e2e8f0;
+
+        color: #94a3b8;
+
+        border: none;
+
+        border-radius: 8px;
+
+        font-weight: 600;
+
+        cursor: not-allowed;
+
+    }
+
+
+
+
+
+    .modal {
+
+        display: none;
+
+        position: fixed;
+
+        top: 0;
+
+        left: 0;
+
+        width: 100%;
+
+        height: 100%;
+
+        background: rgba(0, 0, 0, 0.5);
+
+        z-index: 1000;
+
         align-items: center;
+
         justify-content: center;
-        font-size: 3rem;
-        color: white;
-        margin: 0 auto 1.5rem;
-        animation: checkmark 0.6s ease;
+
     }
 
-    .success-content h3 {
-        color: #1a202c;
-        margin: 0 0 0.5rem 0;
-        font-size: 1.5rem;
-        font-weight: 700;
+
+
+    .modal.active {
+
+        display: flex;
+
     }
 
-    .success-content p {
-        color: #718096;
-        margin: 0;
-    }
 
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-        }
 
-        to {
-            opacity: 1;
-        }
-    }
+    .modal-content {
 
-    @keyframes scaleIn {
-        from {
-            transform: scale(0.8);
-            opacity: 0;
-        }
+        background: white;
 
-        to {
-            transform: scale(1);
-            opacity: 1;
-        }
-    }
+        border-radius: 16px;
 
-    @keyframes checkmark {
-        0% {
-            transform: scale(0) rotate(-45deg);
-        }
+        width: 90%;
 
-        50% {
-            transform: scale(1.2) rotate(5deg);
-        }
+        max-width: 500px;
 
-        100% {
-            transform: scale(1) rotate(0deg);
-        }
+        max-height: 90vh;
+
+        overflow-y: auto;
+
     }
 
     @media (max-width: 768px) {
-        .form-row {
-            grid-template-columns: 1fr;
+        .modal {
+            align-items: flex-start;
+            overflow-y: auto;
+            padding: 1.5rem 0.5rem;
         }
+        .modal-content {
+            margin-top: 1rem;
+            margin-bottom: 5rem;
+            max-height: none;
+            width: 95%;
+        }
+        .form-row {
+            grid-template-columns: 1fr !important;
+            gap: 0.75rem !important;
+            margin-bottom: 0.75rem !important;
+        }
+    }
+
+
+
+    .modal-header {
+
+        display: flex;
+
+        justify-content: space-between;
+
+        align-items: center;
+
+        padding: 1.5rem;
+
+        border-bottom: 1px solid #e2e8f0;
+
+    }
+
+
+
+    .modal-header h2 {
+
+        margin: 0;
+
+        color: #1a202c;
+
+        font-size: 1.25rem;
+
+        font-weight: 700;
+
+    }
+
+
+
+    .modal-close {
+
+        background: none;
+
+        border: none;
+
+        font-size: 1.5rem;
+
+        cursor: pointer;
+
+        color: #718096;
+
+    }
+
+
+
+    .modal-body {
+
+        padding: 1.5rem;
+
+    }
+
+
+
+    .booking-info {
+
+        margin-bottom: 1.5rem;
+
+        padding: 1.25rem;
+
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+
+        border-radius: 12px;
+
+        border: 1px solid #e2e8f0;
+
+    }
+
+
+
+    .consultant-badge {
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 1rem;
+
+    }
+
+
+
+    .badge-icon {
+
+        width: 48px;
+
+        height: 48px;
+
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+        border-radius: 50%;
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: center;
+
+        font-size: 1.5rem;
+
+        flex-shrink: 0;
+
+        color: white;
+
+    }
+
+
+
+    .booking-info h3 {
+
+        margin: 0 0 0.25rem 0;
+
+        color: #1a202c;
+
+        font-size: 1.125rem;
+
+        font-weight: 600;
+
+    }
+
+
+
+    .booking-info p {
+
+        margin: 0;
+
+        color: #667eea;
+
+        font-size: 0.875rem;
+
+        font-weight: 500;
+
+    }
+
+
+
+    .form-row {
+
+        display: grid;
+
+        grid-template-columns: 1fr 1fr;
+
+        gap: 1rem;
+
+        margin-bottom: 1.5rem;
+
+    }
+
+
+
+    .form-group {
+
+        margin-bottom: 1.5rem;
+
+    }
+
+
+
+    .form-group label {
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 0.5rem;
+
+        margin-bottom: 0.5rem;
+
+        color: #4a5568;
+
+        font-weight: 600;
+
+        font-size: 0.875rem;
+
+    }
+
+
+
+    .label-icon {
+
+        font-size: 1rem;
+
+    }
+
+
+
+    .form-group input,
+
+    .form-group select,
+
+    .form-group textarea {
+
+        width: 100%;
+
+        padding: 0.875rem;
+
+        border: 2px solid #e2e8f0;
+
+        border-radius: 10px;
+
+        font-size: 1rem;
+
+        transition: all 0.2s ease;
+
+        font-family: inherit;
+
+    }
+
+
+
+    .form-group input:focus,
+
+    .form-group select:focus,
+
+    .form-group textarea:focus {
+
+        outline: none;
+
+        border-color: #667eea;
+
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+
+    }
+
+
+
+    .form-group textarea {
+
+        resize: vertical;
+
+        min-height: 100px;
+
+    }
+
+
+
+    .availability-info {
+
+        margin-bottom: 1.5rem;
+
+        padding: 1rem;
+
+        background: #f0f9ff;
+
+        border-left: 4px solid #3b82f6;
+
+        border-radius: 8px;
+
+        font-size: 0.875rem;
+
+        color: #1e40af;
+
+    }
+
+
+
+    .modal-actions {
+
+        display: flex;
+
+        gap: 1rem;
+
+        justify-content: flex-end;
+
+        padding-top: 1rem;
+
+        border-top: 1px solid #e2e8f0;
+
+    }
+
+
+
+    .btn {
+
+        padding: 0.875rem 1.75rem;
+
+        border-radius: 10px;
+
+        font-weight: 600;
+
+        cursor: pointer;
+
+        border: none;
+
+        transition: all 0.2s ease;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 0.5rem;
+
+        font-size: 0.9375rem;
+
+    }
+
+
+
+    .btn-icon {
+
+        font-size: 1.125rem;
+
+    }
+
+
+
+    .btn-primary {
+
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+        color: white;
+
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+
+    }
+
+
+
+    .btn-primary:hover {
+
+        transform: translateY(-2px);
+
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+
+    }
+
+
+
+    .btn-secondary {
+
+        background: #f7fafc;
+
+        color: #4a5568;
+
+        border: 2px solid #e2e8f0;
+
+    }
+
+
+
+    .btn-secondary:hover {
+
+        background: #edf2f7;
+
+        border-color: #cbd5e0;
+
+    }
+
+
+
+    /* Success Overlay */
+
+    .success-overlay {
+
+        display: none;
+
+        position: fixed;
+
+        top: 0;
+
+        left: 0;
+
+        width: 100%;
+
+        height: 100%;
+
+        background: rgba(0, 0, 0, 0.7);
+
+        z-index: 2000;
+
+        align-items: center;
+
+        justify-content: center;
+
+    }
+
+
+
+    .success-overlay.active {
+
+        display: flex;
+
+        animation: fadeIn 0.3s ease;
+
+    }
+
+
+
+    .success-content {
+
+        background: white;
+
+        border-radius: 20px;
+
+        padding: 3rem 2.5rem;
+
+        text-align: center;
+
+        max-width: 400px;
+
+        animation: scaleIn 0.4s ease;
+
+    }
+
+
+
+    .success-icon {
+
+        width: 80px;
+
+        height: 80px;
+
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+
+        border-radius: 50%;
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: center;
+
+        font-size: 3rem;
+
+        color: white;
+
+        margin: 0 auto 1.5rem;
+
+        animation: checkmark 0.6s ease;
+
+    }
+
+
+
+    .success-content h3 {
+
+        color: #1a202c;
+
+        margin: 0 0 0.5rem 0;
+
+        font-size: 1.5rem;
+
+        font-weight: 700;
+
+    }
+
+
+
+    .success-content p {
+
+        color: #718096;
+
+        margin: 0;
+
+    }
+
+
+
+    @keyframes fadeIn {
+
+        from {
+
+            opacity: 0;
+
+        }
+
+
+
+        to {
+
+            opacity: 1;
+
+        }
+
+    }
+
+
+
+    @keyframes scaleIn {
+
+        from {
+
+            transform: scale(0.8);
+
+            opacity: 0;
+
+        }
+
+
+
+        to {
+
+            transform: scale(1);
+
+            opacity: 1;
+
+        }
+
+    }
+
+
+
+    @keyframes checkmark {
+
+        0% {
+
+            transform: scale(0) rotate(-45deg);
+
+        }
+
+
+
+        50% {
+
+            transform: scale(1.2) rotate(5deg);
+
+        }
+
+
+
+        100% {
+
+            transform: scale(1) rotate(0deg);
+
+        }
+
+    }
+
+
+
+    /* Appointments section */
+
+    .appointments-section {
+
+        margin-top: 3rem;
+
+        background: white;
+
+        border-radius: 16px;
+
+        padding: 1.75rem;
+
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+
+    }
+
+
+
+    .appt-tabs-header {
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+        flex-wrap: wrap;
+
+        gap: .75rem;
+
+        margin-bottom: 1.5rem;
+
+    }
+
+
+
+    .section-title {
+
+        font-size: 1.25rem;
+
+        font-weight: 700;
+
+        color: #1a202c;
+
+        margin: 0;
+
+    }
+
+
+
+    .appt-tabs {
+
+        display: flex;
+
+        gap: .375rem;
+
+        background: #f1f5f9;
+
+        padding: .25rem;
+
+        border-radius: 10px;
+
+    }
+
+
+
+    .appt-tab {
+
+        padding: .4rem 1rem;
+
+        border: none;
+
+        border-radius: 8px;
+
+        background: transparent;
+
+        color: #64748b;
+
+        font-size: .85rem;
+
+        font-weight: 600;
+
+        cursor: pointer;
+
+        transition: all .18s;
+
+        white-space: nowrap;
+
+    }
+
+
+
+    .appt-tab.active {
+
+        background: white;
+
+        color: #1a202c;
+
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+
+    }
+
+
+
+    .appt-tab-count {
+
+        display: inline-block;
+
+        background: #e2e8f0;
+
+        color: #475569;
+
+        border-radius: 999px;
+
+        font-size: .7rem;
+
+        font-weight: 700;
+
+        padding: 0 .45rem;
+
+        margin-left: .25rem;
+
+        min-width: 1.2em;
+
+        text-align: center;
+
+    }
+
+
+
+    .appt-tab.active .appt-tab-count {
+
+        background: #6366f1;
+
+        color: white;
+
+    }
+
+
+
+    .appt-panel {
+
+        min-height: 2rem;
+
+    }
+
+
+
+    .appt-card {
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+        gap: 1rem;
+
+        padding: 1rem 1.25rem;
+
+        border: 1px solid #e2e8f0;
+
+        border-radius: 12px;
+
+        margin-bottom: .75rem;
+
+        transition: box-shadow .2s;
+
+    }
+
+
+
+    .appt-card:hover {
+
+        box-shadow: 0 4px 12px rgba(0, 0, 0, .08);
+
+    }
+
+
+
+    .appt-info {
+
+        flex: 1;
+
+    }
+
+
+
+    .appt-consultant {
+
+        font-weight: 600;
+
+        color: #1a202c;
+
+        font-size: .95rem;
+
+    }
+
+
+
+    .appt-meta {
+
+        color: #718096;
+
+        font-size: .825rem;
+
+        margin-top: .25rem;
+
+    }
+
+
+
+    .appt-status {
+
+        padding: .25rem .75rem;
+
+        border-radius: 999px;
+
+        font-size: .75rem;
+
+        font-weight: 600;
+
+        text-transform: uppercase;
+
+        letter-spacing: .05em;
+
+    }
+
+
+
+    .appt-status.scheduled {
+
+        background: #dcfce7;
+
+        color: #166534;
+
+    }
+
+
+
+    .appt-status.completed {
+
+        background: #dbeafe;
+
+        color: #1e40af;
+
+    }
+
+
+
+    .appt-status.cancelled {
+
+        background: #fee2e2;
+
+        color: #991b1b;
+
+    }
+
+
+
+    .btn-cancel-appt {
+
+        padding: .5rem 1rem;
+
+        border-radius: 8px;
+
+        border: 1.5px solid #ef4444;
+
+        background: transparent;
+
+        color: #ef4444;
+
+        font-weight: 600;
+
+        font-size: .8rem;
+
+        cursor: pointer;
+
+        transition: all .18s;
+
+        white-space: nowrap;
+
+    }
+
+
+
+    .btn-cancel-appt:hover {
+
+        background: #ef4444;
+
+        color: #fff;
+
+    }
+
+
+
+    .appt-loading {
+
+        color: #718096;
+
+        font-size: .9rem;
+
+        padding: .5rem 0;
+
+    }
+
+
+
+    .appt-empty {
+
+        color: #718096;
+
+        font-size: .9rem;
+
+        font-style: italic;
+
+    }
+
+
+
+    /* Inline booking error */
+
+    #bookingError {
+
+        display: none;
+
+        background: #fef2f2;
+
+        border-left: 4px solid #ef4444;
+
+        color: #991b1b;
+
+        padding: .875rem 1rem;
+
+        border-radius: 8px;
+
+        font-size: .875rem;
+
+        margin-bottom: 1rem;
+
+    }
+
+
+
+    #bookingError.visible {
+
+        display: block;
+
     }
 </style>
 
+
+
 <script>
+    const isImpersonating = {{ is_impersonating | tojson if is_impersonating is defined else 'false' }};
+
     document.addEventListener('DOMContentLoaded', function () {
-        const modal = document.getElementById('bookingModal');
-        const bookButtons = document.querySelectorAll('.book-appointment-btn');
-        const closeButton = document.querySelector('.modal-close');
-        const cancelButton = document.querySelector('.cancel-btn');
-        const bookingForm = document.getElementById('bookingForm');
+
+        var modal = document.getElementById('bookingModal');
+
+        var bookButtons = document.querySelectorAll('.book-appointment-btn');
+
+        var closeButton = document.querySelector('.modal-close');
+
+        var cancelButton = document.querySelector('.cancel-btn');
+
+        var bookingForm = document.getElementById('bookingForm');
+
+        var bookingError = document.getElementById('bookingError');
+
+
 
         // Open modal
-        bookButtons.forEach(button => {
-            button.addEventListener('click', function () {
-                const consultantId = this.dataset.consultantId;
-                const consultantName = this.dataset.consultantName;
-                const card = this.closest('.consultant-card');
-                const specialization = card.querySelector('.consultant-specialization').textContent;
 
-                document.getElementById('consultantId').value = consultantId;
-                document.getElementById('modalConsultantName').textContent = consultantName;
-                document.getElementById('modalConsultantSpec').textContent = specialization;
+        bookButtons.forEach(function (btn) {
 
-                // Set minimum date to today
-                const now = new Date();
-                const minDate = now.toISOString().slice(0, 16);
-                document.getElementById('appointmentDate').min = minDate;
+            btn.addEventListener('click', function () {
 
-                // Load consultant schedule
-                loadConsultantSchedule(consultantId);
+                var cid = this.dataset.consultantId;
+
+                var name = this.dataset.consultantName;
+
+                var card = this.closest('.consultant-card');
+
+                var spec = card.querySelector('.consultant-specialization').textContent;
+
+                document.getElementById('consultantId').value = cid;
+
+                document.getElementById('modalConsultantName').textContent = name;
+
+                document.getElementById('modalConsultantSpec').textContent = spec;
+
+                var now = new Date();
+
+                // Use local date string so the picker blocks past dates
+                var pad = function(n) { return n.toString().padStart(2,'0'); };
+                var localToday = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+                var dateOnlyPicker = document.getElementById('appointmentDateOnly');
+                if (dateOnlyPicker) dateOnlyPicker.min = localToday;
+
+                loadConsultantSchedule(cid);
+
+                hideError();
 
                 modal.classList.add('active');
+
             });
+
         });
 
+
+
         // Close modal
+
         function closeModal() {
+
             modal.classList.remove('active');
+
             bookingForm.reset();
+
+            hideError();
+
+            // Reset next-available banner
+            document.getElementById('nextAvailableBanner').style.display = 'none';
+            document.getElementById('rescheduleBanner').style.display = 'none';
+
+            // Reset duration options (unhide all) for next open
+            var durationSel = document.getElementById('duration');
+            Array.from(durationSel.options).forEach(function(o) { o.disabled = false; o.hidden = false; });
+            document.getElementById('durationNote').textContent = '';
+
+            // Reset timeline panel
+            document.getElementById('timelinePanel').style.display = 'none';
+            document.getElementById('timelineGrid').innerHTML = '';
+            document.getElementById('timelineNotAvail').style.display = 'none';
+            document.getElementById('selectedTimeLabel').textContent = '';
+            document.getElementById('workingHoursLabel').textContent = '';
+            if (document.getElementById('appointmentDateOnly')) document.getElementById('appointmentDateOnly').value = '';
+            document.getElementById('selectedTime').value = '';
+            document.getElementById('appointmentDate').value = '';
+
+            _scheduleData = {};
+
         }
 
         closeButton.addEventListener('click', closeModal);
+
         cancelButton.addEventListener('click', closeModal);
 
-        // Close on outside click
-        modal.addEventListener('click', function (e) {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
+        modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
 
-        // Load consultant schedule
-        async function loadConsultantSchedule(consultantId) {
-            try {
-                const response = await fetch(`/api/consultants/${consultantId}/schedule`);
-                const data = await response.json();
 
-                if (data.success) {
-                    displayAvailability(data.schedule, data.booked_slots);
-                }
-            } catch (error) {
-                console.error('Error loading schedule:', error);
-            }
+
+        // Error helpers
+
+        function showError(msg) {
+
+            bookingError.textContent = '\u26a0 ' + msg;
+
+            bookingError.classList.add('visible');
+
         }
 
-        function displayAvailability(schedule, bookedSlots) {
-            const availabilityInfo = document.getElementById('availabilityInfo');
+        function hideError() {
 
-            if (schedule.length === 0) {
-                availabilityInfo.innerHTML = '<p>⚠️ This consultant has not set their availability yet.</p>';
+            bookingError.classList.remove('visible');
+
+            bookingError.textContent = '';
+
+        }
+
+
+
+        // Load schedule & apply booking rules
+        var _scheduleData = {}; // store latest schedule API response
+
+        function loadConsultantSchedule(cid) {
+
+            fetch('/api/consultants/' + cid + '/schedule')
+
+                .then(function (r) { return r.json(); })
+
+                .then(function (d) {
+                    if (!d.success) return;
+                    _scheduleData = d;
+
+                    // Display availability hours
+                    displayAvailability(d.schedule);
+
+                    var durationSel  = document.getElementById('duration');
+                    var durationNote = document.getElementById('durationNote');
+                    var dateInput    = document.getElementById('appointmentDate');
+
+                    var dateOnlyPicker = document.getElementById('appointmentDateOnly');
+                    var pad = function(n) { return n.toString().padStart(2,'0'); };
+
+                    if (!d.is_paid) {
+                        // Free consultant: force 15-min, hide other options
+                        Array.from(durationSel.options).forEach(function(o) {
+                            o.disabled = o.value !== '15';
+                            o.hidden   = o.value !== '15';
+                        });
+                        durationSel.value = '15';
+                        durationNote.textContent = 'Free consultations are 15 minutes only.';
+                        durationNote.style.color = '#059669';
+
+                        // Auto-select today and load timeline
+                        if (dateOnlyPicker && !dateOnlyPicker.value) {
+                            var now = new Date();
+                            var todayStr = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+                            dateOnlyPicker.min   = todayStr;
+                            dateOnlyPicker.value = todayStr;
+                            setTimeout(onDateOrDurationChange, 100);
+                        }
+                    } else {
+                        // Paid consultant: hide 15-min option, enforce 24h advance min
+                        Array.from(durationSel.options).forEach(function(o) {
+                            o.disabled = o.value === '15';
+                            o.hidden   = o.value === '15';
+                        });
+                        if (durationSel.value === '15') durationSel.value = '60';
+
+                        if (isImpersonating) {
+                            durationNote.textContent = 'Admin Mode: Same-day booking allowed.';
+                            durationNote.style.color = '#059669';
+
+                            var now = new Date();
+                            var todayStr = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+                            dateInput.min = todayStr + 'T00:00';
+                            if (dateOnlyPicker) {
+                                dateOnlyPicker.min = todayStr;
+                                if (!dateOnlyPicker.value || dateOnlyPicker.value < todayStr) {
+                                    dateOnlyPicker.value = todayStr;
+                                    setTimeout(onDateOrDurationChange, 100);
+                                }
+                            }
+                        } else {
+                            {% if is_first_consultation %}
+                            durationNote.innerHTML = '<span style="color:#0d9488;font-weight:700;">🎁 Your first 30 minutes are free!</span><br>Sessions must be booked at least 24 hours in advance.';
+                            {% else %}
+                            durationNote.textContent = 'Sessions must be booked at least 24 hours in advance.';
+                            {% endif %}
+                            durationNote.style.color = '#d97706';
+
+                            if (d.min_booking_date) {
+                                // min_booking_date is "YYYY-MM-DDTHH:MM" IST — extract date part only
+                                var minDateStr = d.min_booking_date.split('T')[0];
+                                dateInput.min = d.min_booking_date;
+                                if (dateOnlyPicker) {
+                                    dateOnlyPicker.min = minDateStr;
+                                    // Auto-select the first valid date and load timeline
+                                    if (!dateOnlyPicker.value || dateOnlyPicker.value < minDateStr) {
+                                        dateOnlyPicker.value = minDateStr;
+                                        setTimeout(onDateOrDurationChange, 100);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Wire up "Book This Slot" button
+                    document.getElementById('bookNextSlotBtn').onclick = function() {
+                        if (_scheduleData._nextSlot) {
+                            var slotIso = _scheduleData._nextSlot.date;
+                            // Convert UTC ISO to local datetime-local string
+                            var d2 = new Date(slotIso);
+                            var pad = function(n) { return n.toString().padStart(2,'0'); };
+                            dateInput.value = d2.getFullYear() + '-' + pad(d2.getMonth()+1) + '-' + pad(d2.getDate()) +
+                                'T' + pad(d2.getHours()) + ':' + pad(d2.getMinutes());
+                            document.getElementById('nextAvailableBanner').style.display = 'none';
+                            hideError();
+                        }
+                    };
+                })
+
+                .catch(function () { });
+
+        }
+
+        function displayAvailability(schedule) {
+
+            var el = document.getElementById('availabilityInfo');
+
+            var days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+            if (!schedule.length) { el.innerHTML = '<p>No availability set.</p>'; return; }
+
+            var html = '<strong>Available Hours:</strong><ul style="margin:.5rem 0;padding-left:1.5rem;">';
+
+            schedule.forEach(function (s) {
+
+                html += '<li>' + days[s.day_of_week] + ': ' + s.start_time + ' &ndash; ' + s.end_time + '</li>';
+
+            });
+
+            el.innerHTML = html + '</ul>';
+
+        }
+
+
+        // â”€â”€ Book appointment — direct button click (bypasses all form submit mechanics) â”€â”€
+        document.getElementById('confirmBookingBtn').addEventListener('click', function () {
+            hideError();
+
+            var btn = document.getElementById('confirmBookingBtn');
+
+            // â”€â”€ Pre-flight validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            var appointmentDate = document.getElementById('appointmentDate').value;
+            var selectedTime = document.getElementById('selectedTime').value;
+            if (!appointmentDate || !selectedTime) {
+                showError('Please select a date and a time slot from the availability grid.');
                 return;
             }
 
-            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-            let html = '<strong>Available Hours:</strong><ul style="margin: 0.5rem 0; padding-left: 1.5rem;">';
+            btn.disabled = true;
+            btn.innerHTML = '<span style="margin-right:6px;">&#9719;</span> Processing...';
 
-            schedule.forEach(slot => {
-                html += `<li>${days[slot.day_of_week]}: ${slot.start_time} - ${slot.end_time}</li>`;
-            });
+            var consultantId    = parseInt(document.getElementById('consultantId').value);
+            var durationMinutes = parseInt(document.getElementById('duration').value);
+            var notes           = document.getElementById('notes').value;
+            var consentRecord   = document.getElementById('consentRecord').checked;
+            var consentShare    = document.getElementById('consentShare').checked;
 
-            html += '</ul>';
-            availabilityInfo.innerHTML = html;
+            // Step 1 — create Razorpay order (or book free instantly)
+            var fd = new FormData();
+            fd.append('consultant_id',    consultantId);
+            fd.append('appointment_date', appointmentDate);
+            fd.append('duration_minutes', durationMinutes);
+            fd.append('notes',            notes);
+            fd.append('consent_to_record', consentRecord ? 'true' : 'false');
+            fd.append('consent_to_share_data', consentShare ? 'true' : 'false');
+
+            var urlParams = new URLSearchParams(window.location.search);
+            var isReschedule = urlParams.get('reschedule') === 'true';
+            var rescheduleApptId = urlParams.get('appointment_id');
+
+            if (isReschedule && rescheduleApptId) {
+                fetch('/api/appointments/' + rescheduleApptId + '/reschedule-free', { method: 'POST', body: fd })
+                    .then(function(r) {
+                        if (!r.ok && r.status !== 200) {
+                            return r.text().then(function(t) { throw new Error('Server error ' + r.status + ': ' + t.slice(0,200)); });
+                        }
+                        return r.json();
+                    })
+                    .then(function(d) {
+                        if (!d.success) {
+                            btn.disabled = false;
+                            btn.innerHTML = '<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span> Confirm Booking';
+                            showError(d.error || 'Rescheduling failed. Please try again.');
+                            return;
+                        }
+                        closeModal();
+                        document.getElementById('successMessage').classList.add('active');
+                        setTimeout(function () { window.location.href = isImpersonating ? '/admin/stop-impersonate' : '/app'; }, 3000);
+                    })
+                    .catch(function(err) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span> Confirm Booking';
+                        showError(err.message || 'Rescheduling failed. Please try again.');
+                    });
+                return;
+            }
+
+            fetch('/app/appointments/book-init', { method: 'POST', body: fd })
+                .then(function(r) {
+                    if (!r.ok && r.status !== 200) {
+                        return r.text().then(function(t) { throw new Error('Server error ' + r.status + ': ' + t.slice(0,200)); });
+                    }
+                    return r.json();
+                })
+                .then(function(d) {
+                    if (!d.success) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span> Confirm Booking';
+                        var banner = document.getElementById('nextAvailableBanner');
+                        var label  = document.getElementById('nextAvailableLabel');
+                        // Inline next-slot suggestion via timeline
+                        if (d.conflict && d.next_available) {
+                            var dateVal = document.getElementById('appointmentDateOnly').value;
+                            showError(
+                                (d.error || 'Slot unavailable.') + ' Next available slot: ' + d.next_available +
+                                ' — <a href="#" onclick="selectSlotFromSuggestion(\'' + d.next_available + '\',\'' + dateVal + '\')" style="color:#0d9488;font-weight:700;">Book this slot instead</a>'
+                            );
+                            document.getElementById('bookingError').innerHTML = '&#9888; ' +
+                                (d.error || 'Slot unavailable.') + ' Next available slot: ' + d.next_available +
+                                ' — <a href="#" onclick="selectSlotFromSuggestion(\'' + d.next_available + '\',\'' + dateVal + '\')" style="color:#0d9488;font-weight:700;">Book this slot instead</a>';
+                            document.getElementById('bookingError').classList.add('visible');
+                        } else if (d.conflict_type === 'consultant_busy' && d.next_available) {
+                            _scheduleData._nextSlot = d.next_available;
+                            label.textContent = d.next_available.label || d.next_available;
+                            banner.style.display = 'block';
+                            showError(d.error || 'Booking failed. Please try again.');
+                        } else {
+                            showError(d.error || 'Booking failed. Please try again.');
+                            banner.style.display = 'none';
+                        }
+                        return;
+                    }
+                    document.getElementById('nextAvailableBanner').style.display = 'none';
+
+                    if (d.free) {
+                        // Free consultation — booked instantly, no payment needed
+                        closeModal();
+                        document.getElementById('successMessage').classList.add('active');
+                        loadMyAppointments();
+                        setTimeout(function () { window.location.href = isImpersonating ? '/admin/stop-impersonate' : '/app'; }, 3000);
+                        return;
+                    }
+
+                    // Paid consultation — open Razorpay checkout popup
+                    btn.innerHTML = '<span style="margin-right:6px;">&#128274;</span> Opening payment...';
+                    loadRazorpay(function() {
+                        var totalAmt = d.amount / 100;
+                        var baseAmt = totalAmt / 1.18;
+                        var gstAmt = totalAmt - baseAmt;
+                        var options = {
+                            key:         d.razorpay_key_id,
+                            amount:      d.amount,
+                            currency:    d.currency || 'INR',
+                            name:        'SolaceSquad',
+                            description: 'Consultation with ' + d.consultant_name + ' (Base: ₹' + baseAmt.toFixed(2) + ' + 18% GST: ₹' + gstAmt.toFixed(2) + ')',
+                            order_id:    d.razorpay_order_id,
+                            prefill: {
+                                name:  d.user_name  || '',
+                                email: d.user_email || '',
+                            },
+                            theme: { color: '#0d9488' },
+                            handler: function(resp) {
+                                // Step 2 — verify HMAC signature & confirm booking
+                                var fd2 = new FormData();
+                                fd2.append('razorpay_order_id',   resp.razorpay_order_id);
+                                fd2.append('razorpay_payment_id', resp.razorpay_payment_id);
+                                fd2.append('razorpay_signature',  resp.razorpay_signature);
+                                fd2.append('consultant_id',       consultantId);
+                                fd2.append('appointment_date',    appointmentDate);
+                                fd2.append('duration_minutes',    durationMinutes);
+                                fd2.append('notes',               notes);
+                                fd2.append('consent_to_record',   consentRecord ? 'true' : 'false');
+                                fd2.append('consent_to_share_data', consentShare ? 'true' : 'false');
+
+                                fetch('/app/appointments/book-confirm', { method: 'POST', body: fd2 })
+                                    .then(function(r) { return r.json(); })
+                                    .then(function(vd) {
+                                        if (vd.success) {
+                                            closeModal();
+                                            document.getElementById('successMessage').classList.add('active');
+                                            loadMyAppointments();
+                                             setTimeout(function() { window.location.href = isImpersonating ? '/admin/stop-impersonate' : '/app'; }, 3000);
+                                        } else {
+                                            showError('Payment received but booking failed. Contact support. Ref: ' + resp.razorpay_payment_id);
+                                            btn.disabled = false;
+                                            btn.innerHTML = '<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span> Confirm Booking';
+                                        }
+                                    })
+                                    .catch(function() {
+                                        showError('Network error after payment. Contact support. Ref: ' + resp.razorpay_payment_id);
+                                        btn.disabled = false;
+                                        btn.innerHTML = '<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span> Confirm Booking';
+                                    });
+                            },
+                            modal: {
+                                ondismiss: function() {
+                                    // User closed the payment popup without paying
+                                    btn.disabled = false;
+                                    btn.innerHTML = '<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span> Confirm Booking';
+                                }
+                            }
+                        };
+                        new window.Razorpay(options).open();
+                    });
+                })
+                .catch(function(err) {
+                    showError('Error: ' + (err.message || 'Network error. Please try again.'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span> Confirm Booking';
+                });
+        });
+
+        function loadRazorpay(cb) {
+            if (window.Razorpay) { cb(); return; }
+            var s = document.createElement('script');
+            s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            s.onload = cb;
+            s.onerror = function() { alert('Could not load payment gateway. Check your connection.'); };
+            document.head.appendChild(s);
         }
 
-        // Handle form submission
-        bookingForm.addEventListener('submit', async function (e) {
-            e.preventDefault();
 
-            const formData = {
-                consultant_id: parseInt(document.getElementById('consultantId').value),
-                appointment_date: document.getElementById('appointmentDate').value,
-                duration_minutes: parseInt(document.getElementById('duration').value),
-                notes: document.getElementById('notes').value
-            };
 
-            try {
-                const response = await fetch('/api/appointments/book', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
+
+
+        // -- My Appointments Â— tabbed Upcoming / History -------------------
+
+        function apptCardHtml(a, showCancel) {
+
+            var dt = new Date(a.appointment_date);
+
+            var label = dt.toLocaleString(undefined, {
+
+                weekday: 'short', year: 'numeric', month: 'short',
+
+                day: 'numeric', hour: '2-digit', minute: '2-digit'
+
+            });
+
+            var dur = a.duration_minutes < 60
+
+                ? a.duration_minutes + ' min'
+
+                : Math.floor(a.duration_minutes / 60) + 'h'
+
+                + (a.duration_minutes % 60 ? ' ' + (a.duration_minutes % 60) + 'min' : '');
+
+            var cancelBtn = (showCancel && a.status === 'scheduled')
+
+                ? '<button class="btn-cancel-appt" onclick="cancelAppointment(' + a.id + ')">&times; Cancel</button>'
+
+                : '';
+
+            var notes = a.notes ? '<div class="appt-meta">&#128221; ' + a.notes + '</div>' : '';
+
+            return '<div class="appt-card" id="appt-' + a.id + '">'
+
+                + '<div class="appt-info">'
+
+                + '<div class="appt-consultant">&#129658; ' + a.consultant_name
+
+                + ' <span style="color:#718096;font-weight:400;">(' + (a.consultant_specialization || '') + ')</span></div>'
+
+                + '<div class="appt-meta">&#128197; ' + label + ' &nbsp;&middot;&nbsp; &#9201; ' + dur + '</div>'
+
+                + notes
+
+                + '</div>'
+
+                + '<span class="appt-status ' + a.status + '">' + a.status + '</span>'
+
+                + cancelBtn + '</div>';
+
+        }
+
+
+
+        function loadMyAppointments() {
+
+            var panelUp = document.getElementById('panelUpcoming');
+
+            var panelHist = document.getElementById('panelHistory');
+
+            panelUp.innerHTML = '<div class="appt-loading">Loading\u2026</div>';
+
+            panelHist.innerHTML = '<div class="appt-loading">Loading\u2026</div>';
+
+
+
+            fetch('/api/appointments/user')
+
+                .then(function (r) { return r.json(); })
+
+                .then(function (d) {
+
+                    if (!d.success || !d.appointments || !d.appointments.length) {
+
+                        panelUp.innerHTML = '<p class="appt-empty">No upcoming appointments.</p>';
+
+                        panelHist.innerHTML = '<p class="appt-empty">No past appointments.</p>';
+
+                        return;
+
+                    }
+
+
+
+                    var now = new Date();
+
+                    var upcoming = [], history = [];
+
+
+
+                    d.appointments.forEach(function (a) {
+
+                        var apptEnd = new Date(new Date(a.appointment_date).getTime() + (a.duration_minutes || 60) * 60000);
+
+                        if (a.status === 'scheduled' && apptEnd > now) {
+
+                            upcoming.push(a);
+
+                        } else {
+
+                            history.push(a);
+
+                        }
+
+                    });
+
+
+
+                    // Sort upcoming: soonest first; history: most recent first
+
+                    upcoming.sort(function (a, b) { return new Date(a.appointment_date) - new Date(b.appointment_date); });
+
+                    history.sort(function (a, b) { return new Date(b.appointment_date) - new Date(a.appointment_date); });
+
+
+
+                    // Update tab counts
+
+                    document.getElementById('countUpcoming').textContent = upcoming.length || '';
+
+                    document.getElementById('countHistory').textContent = history.length || '';
+
+
+
+                    panelUp.innerHTML = upcoming.length ? upcoming.map(function (a) { return apptCardHtml(a, true); }).join('') : '<p class="appt-empty">No upcoming appointments.</p>';
+
+                    panelHist.innerHTML = history.length ? history.map(function (a) { return apptCardHtml(a, false); }).join('') : '<p class="appt-empty">No past appointments yet.</p>';
+
+                })
+
+                .catch(function () {
+
+                    panelUp.innerHTML = '<p class="appt-empty">Could not load appointments.</p>';
+
+                    panelHist.innerHTML = '';
+
                 });
 
-                const data = await response.json();
+        }
 
-                if (data.success) {
-                    // Show success overlay
-                    const successOverlay = document.getElementById('successMessage');
-                    successOverlay.classList.add('active');
-                    closeModal();
 
-                    // Redirect after 2 seconds
-                    setTimeout(() => {
-                        window.location.href = '/app';
-                    }, 2000);
-                } else {
-                    alert('Error: ' + data.error);
+
+        window.switchApptTab = function (tab) {
+
+            var isUp = (tab === 'upcoming');
+
+            document.getElementById('tabUpcoming').classList.toggle('active', isUp);
+
+            document.getElementById('tabHistory').classList.toggle('active', !isUp);
+
+            document.getElementById('panelUpcoming').style.display = isUp ? '' : 'none';
+
+            document.getElementById('panelHistory').style.display = isUp ? 'none' : '';
+
+        };
+
+
+
+        // Cancel appointment
+
+        window.cancelAppointment = function (id) {
+
+            if (!confirm('Cancel this appointment? Both you and the consultant will be notified by email.')) return;
+
+            fetch('/api/appointments/' + id + '/cancel', { method: 'POST' })
+
+                .then(function (r) { return r.json(); })
+
+                .then(function (d) {
+
+                    if (d.success) {
+
+                        loadMyAppointments();
+
+                    } else {
+
+                        alert('Error: ' + (d.error || 'Could not cancel.'));
+
+                    }
+
+                })
+
+                .catch(function () { alert('Network error. Please try again.'); });
+
+        };
+
+
+
+        loadMyAppointments();
+
+        // â”€â”€ Render 5-star ratings with partial fill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        (function renderAllStars() {
+            var STAR_PTS = '12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2';
+            var FILL_COLOR = '#f59e0b';
+            var EMPTY_COLOR = '#d1d5db';
+            var STROKE_COLOR = '#b45309';
+            var STROKE_EMPTY = '#9ca3af';
+            var STAR_SIZE = 18;
+
+            document.querySelectorAll('.star-row[data-rating]').forEach(function (row) {
+                var rating = parseFloat(row.dataset.rating) || 0;
+                var cid = row.dataset.cid || Math.random().toString(36).slice(2);
+                var html = '';
+                for (var i = 1; i <= 5; i++) {
+                    var fill = Math.max(0, Math.min(1, rating - (i - 1)));
+                    var pct = Math.round(fill * 100);
+                    var gid = 'sg_' + cid + '_' + i;
+                    html += '<svg width="' + STAR_SIZE + '" height="' + STAR_SIZE + '" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+                        '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="1" y2="0">' +
+                        '<stop offset="' + pct + '%" stop-color="' + FILL_COLOR + '"/>' +
+                        '<stop offset="' + pct + '%" stop-color="' + EMPTY_COLOR + '"/>' +
+                        '</linearGradient></defs>' +
+                        '<polygon points="' + STAR_PTS + '" fill="url(#' + gid + ')"' +
+                        ' stroke="' + (pct > 0 ? STROKE_COLOR : STROKE_EMPTY) + '" stroke-width="1.2" stroke-linejoin="round"/>' +
+                        '</svg>';
                 }
-            } catch (error) {
-                console.error('Error booking appointment:', error);
-                alert('An error occurred while booking the appointment.');
+                row.innerHTML = html;
+            });
+        })();
+
+        // â”€â”€ Profile Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        (function initProfileModal() {
+            var STAR_PTS = '12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2';
+
+            function makeStars(rating, size) {
+                size = size || 14;
+                var html = '';
+                for (var i = 1; i <= 5; i++) {
+                    var fill = Math.max(0, Math.min(1, rating - (i - 1)));
+                    var pct = Math.round(fill * 100);
+                    var gid = 'ps_' + Math.random().toString(36).slice(2) + '_' + i;
+                    html += '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">' +
+                        '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="1" y2="0">' +
+                        '<stop offset="' + pct + '%" stop-color="#f59e0b"/>' +
+                        '<stop offset="' + pct + '%" stop-color="#d1d5db"/>' +
+                        '</linearGradient></defs>' +
+                        '<polygon points="' + STAR_PTS + '" fill="url(#' + gid + ')" stroke="' +
+                        (pct > 0 ? '#b45309' : '#9ca3af') + '" stroke-width="1.2" stroke-linejoin="round"/>' +
+                        '</svg>';
+                }
+                return html;
             }
-        });
+
+            var profileModal = document.getElementById('profileModal');
+            var profileClose = document.getElementById('profileModalClose');
+
+            function openProfileModal(btn) {
+                var id     = btn.dataset.id;
+                var name   = btn.dataset.name;
+                var spec   = btn.dataset.spec;
+                var bio    = btn.dataset.bio;
+                var rating = parseFloat(btn.dataset.rating) || 0;
+                var exp    = btn.dataset.exp;
+                var rate   = btn.dataset.rate;
+                var photo  = btn.dataset.photo || '';
+
+                // Avatar bubble — photo or initials
+                var parts = name.trim().split(' ');
+                var initials = parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : name.slice(0, 2);
+                var avatar = document.getElementById('pmAvatar');
+                if (photo) {
+                    avatar.innerHTML = '<img src="' + photo + '" alt="' + name + '">';
+                } else {
+                    avatar.textContent = initials.toUpperCase();
+                }
+
+                document.getElementById('pmName').textContent  = name;
+                document.getElementById('pmSpec').textContent  = spec;
+                document.getElementById('pmBio').textContent   = bio;
+                document.getElementById('pmExp').textContent   = exp + ' yrs experience';
+                document.getElementById('pmRate').textContent  = '\u20B9' + rate + '/hour';
+
+                // Initial stars from card data
+                document.getElementById('pmStars').innerHTML   = makeStars(rating, 16);
+                document.getElementById('pmRatingVal').textContent = rating.toFixed(1);
+                document.getElementById('pmTotalReviews').textContent = '';
+                document.getElementById('pmReviewsList').innerHTML = '<div class="pm-loading">Loading reviews\u2026</div>';
+
+                profileModal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+
+                // Fetch reviews from API
+                fetch('/api/consultants/' + id + '/reviews?per_page=20')
+                    .then(function(r) { return r.json(); })
+                    .then(function(d) {
+                        if (!d.success) throw new Error(d.error);
+                        var total = d.total_reviews || 0;
+                        document.getElementById('pmTotalReviews').textContent =
+                            '(' + total + ' review' + (total !== 1 ? 's' : '') + ')';
+
+                        if (d.avg_rating !== null && d.avg_rating !== undefined) {
+                            document.getElementById('pmStars').innerHTML = makeStars(d.avg_rating, 16);
+                            document.getElementById('pmRatingVal').textContent = parseFloat(d.avg_rating).toFixed(1);
+                        }
+
+                        var list = document.getElementById('pmReviewsList');
+                        if (!d.reviews || d.reviews.length === 0) {
+                            list.innerHTML = '<div class="pm-no-reviews">No client feedback yet.</div>';
+                            return;
+                        }
+                        list.innerHTML = d.reviews.map(function(r) {
+                            var fb = (r.feedback || '').trim();
+                            return '<div class="pm-review-card">' +
+                                '<div class="pm-review-header">' +
+                                    '<span class="pm-review-author">' + (r.display_name || 'Anonymous') + '</span>' +
+                                    '<span class="pm-review-date">' + (r.created_at || '') + '</span>' +
+                                '</div>' +
+                                '<div class="pm-review-stars">' + makeStars(r.rating, 12) + '</div>' +
+                                (fb ? '<p class="pm-review-text">' + fb + '</p>' : '') +
+                            '</div>';
+                        }).join('');
+                    })
+                    .catch(function() {
+                        document.getElementById('pmReviewsList').innerHTML =
+                            '<div class="pm-no-reviews">Could not load reviews.</div>';
+                    });
+            }
+
+            // Attach click handlers to all View Profile buttons
+            document.querySelectorAll('.view-profile-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    openProfileModal(btn);
+                });
+            });
+
+            function closeProfileModal() {
+                profileModal.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+            profileClose.addEventListener('click', closeProfileModal);
+            profileModal.addEventListener('click', function(e) {
+                if (e.target === profileModal) closeProfileModal();
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && profileModal.classList.contains('active')) closeProfileModal();
+            });
+        })();
+
+        // ── Auto-open booking modal for rescheduling ──
+        (function initRescheduleMode() {
+            var urlParams = new URLSearchParams(window.location.search);
+            var isReschedule = urlParams.get('reschedule') === 'true';
+            var targetCid = urlParams.get('consultant_id');
+            if (isReschedule && targetCid) {
+                var btn = document.querySelector('.book-appointment-btn[data-consultant-id="' + targetCid + '"]');
+                if (btn) {
+                    // Show the reschedule banner
+                    var banner = document.getElementById('rescheduleBanner');
+                    if (banner) banner.style.display = 'block';
+                    // Trigger the modal open
+                    btn.click();
+                }
+            }
+        })();
+
     });
+
 </script>
+
+<script>
+// ── Timeline ─────────────────────────────────────────────────────────────────
+var _tlConsultantId = null;
+var _tlSelectedTime = null;
+
+function onDateOrDurationChange() {
+  var dateVal = document.getElementById('appointmentDateOnly') ? document.getElementById('appointmentDateOnly').value : '';
+  var dur     = parseInt((document.getElementById('duration') ? document.getElementById('duration').value : '') || '30');
+  var cid     = parseInt((document.getElementById('consultantId') ? document.getElementById('consultantId').value : '') || '0');
+  if (!dateVal || !cid) return;
+  _tlConsultantId = cid;
+  _tlSelectedTime = null;
+  document.getElementById('selectedTime').value = '';
+  document.getElementById('appointmentDate').value = '';
+  document.getElementById('selectedTimeLabel').textContent = '';
+  loadTimeline(cid, dateVal, dur);
+}
+
+async function loadTimeline(consultantId, date, duration) {
+  var panel  = document.getElementById('timelinePanel');
+  var grid   = document.getElementById('timelineGrid');
+  var notAvail = document.getElementById('timelineNotAvail');
+  var hoursLabel = document.getElementById('workingHoursLabel');
+
+  panel.style.display = 'block';
+  grid.innerHTML = '<span style="color:#9ca3af;font-size:0.82rem;">Loading availability…</span>';
+  notAvail.style.display = 'none';
+
+  try {
+    var r = await fetch('/api/consultants/' + consultantId + '/day-timeline?date=' + date + '&duration=' + duration);
+    var d = await r.json();
+
+    if (!d.working) {
+      grid.innerHTML = '';
+      notAvail.textContent = d.message || 'Consultant not available on this day.';
+      notAvail.style.display = 'block';
+      hoursLabel.textContent = d.working_days && d.working_days.length
+        ? 'Available on: ' + d.working_days.join(', ')
+        : 'No schedule set.';
+      return;
+    }
+
+    hoursLabel.textContent = 'Working hours: ' + d.working_hours.start + ' – ' + d.working_hours.end + ' IST';
+    notAvail.style.display = 'none';
+
+    if (!d.intervals || d.intervals.length === 0) {
+      grid.innerHTML = '<span style="color:#9ca3af;font-size:0.82rem;">No slots for this duration.</span>';
+      return;
+    }
+
+    var colorMap = {
+      available: { bg:'#10b981', color:'#fff',    cursor:'pointer',      title:'Available' },
+      booked:    { bg:'#ef4444', color:'#fff',    cursor:'not-allowed',  title:'Already booked' },
+      buffer:    { bg:'#f59e0b', color:'#fff',    cursor:'not-allowed',  title:'Buffer time around booking' },
+      break:     { bg:'#fbbf24', color:'#1f2937', cursor:'not-allowed',  title:'Consultant break' },
+      overflow:  { bg:'#6b7280', color:'#fff',    cursor:'not-allowed',  title:'Session runs past end of day' },
+      past:      { bg:'#e5e7eb', color:'#9ca3af', cursor:'not-allowed',  title:'Past time — cannot book' },
+      outside:   { bg:'#e5e7eb', color:'#9ca3af', cursor:'not-allowed',  title:'Outside working hours' },
+    };
+
+    grid.innerHTML = '';
+    d.intervals.forEach(function(iv) {
+      var s = colorMap[iv.status] || colorMap.outside;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = iv.time;
+      btn.title = s.title;
+      btn.dataset.time = iv.time;
+      btn.style.cssText = [
+        'padding:6px 10px',
+        'border-radius:6px',
+        'border:none',
+        'font-size:0.78rem',
+        'font-weight:600',
+        'background:' + s.bg,
+        'color:' + s.color,
+        'cursor:' + s.cursor,
+        'transition:transform 0.1s,opacity 0.1s',
+        'min-width:58px',
+        'text-align:center'
+      ].join(';');
+      if (iv.can_book) {
+        btn.addEventListener('click', (function(time, dateArg, btnRef) {
+          return function() { selectSlot(time, dateArg, btnRef); };
+        })(iv.time, date, btn));
+        btn.addEventListener('mouseenter', (function(b) {
+          return function() { b.style.transform='scale(1.08)'; b.style.opacity='0.9'; };
+        })(btn));
+        btn.addEventListener('mouseleave', (function(b) {
+          return function() { b.style.transform='scale(1)'; b.style.opacity='1'; };
+        })(btn));
+      } else {
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+      }
+      grid.appendChild(btn);
+    });
+  } catch(err) {
+    grid.innerHTML = '<span style="color:#ef4444;font-size:0.82rem;">Could not load availability. Please try again.</span>';
+  }
+}
+
+function selectSlot(time, date, clickedBtn) {
+  // Deselect all
+  document.querySelectorAll('#timelineGrid button').forEach(function(b) {
+    b.style.outline = 'none';
+    b.style.transform = 'scale(1)';
+  });
+  // Highlight selected
+  clickedBtn.style.outline = '3px solid #0d9488';
+  clickedBtn.style.transform = 'scale(1.1)';
+
+  _tlSelectedTime = time;
+  document.getElementById('selectedTime').value = time;
+  document.getElementById('appointmentDate').value = date + 'T' + time;
+  document.getElementById('selectedTimeLabel').textContent = 'Selected: ' + time + ' IST';
+}
+
+function selectSlotFromSuggestion(time, date) {
+  var btn = null;
+  document.querySelectorAll('#timelineGrid button').forEach(function(b) {
+    if (b.dataset.time === time && !b.disabled) btn = b;
+  });
+  if (btn) {
+    btn.click();
+  } else {
+    document.getElementById('appointmentDate').value = date + 'T' + time;
+    document.getElementById('selectedTime').value = time;
+    document.getElementById('selectedTimeLabel').textContent = 'Selected: ' + time + ' IST';
+  }
+  return false;
+}
+</script>
+
+
+<script>
+// ── Wellness Category Filter ─────────────────────────────────────────────────
+function filterCategory(cat) {
+    var cards = document.querySelectorAll('.consultant-card');
+    cards.forEach(function(card) {
+        var cats = card.dataset.category ? card.dataset.category.split(' ') : [];
+        card.style.display = (cat === 'all' || cats.includes(cat)) ? '' : 'none';
+    });
+    ['all','Mental','Physical','Professional'].forEach(function(c) {
+        var btn = document.getElementById('filter-' + c);
+        if (!btn) return;
+        var activeColors = {'all':'#1e40af','Mental':'#5b21b6','Physical':'#166534','Professional':'#854d0e'};
+        if (c === cat) {
+            btn.style.background = activeColors[c] || '#1e40af';
+            btn.style.color = '#fff';
+            btn.style.border = '1.5px solid ' + (activeColors[c] || '#1e40af');
+        } else {
+            btn.style.background = '#fff';
+            btn.style.color = '#374151';
+            btn.style.border = '1.5px solid #e2e8f0';
+        }
+    });
+}
+</script>
+
 {% endblock %}

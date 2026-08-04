@@ -1,0 +1,223 @@
+<!-- Mood Selection Modal -->
+
+<!-- Mood Selection Modal -->
+<div id="mood-selection-modal"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-8">
+        <div class="text-center mb-6">
+            <div
+                class="bg-gradient-to-r from-primary-500 to-secondary-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="heart" class="w-8 h-8 text-white"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">How are you feeling today?</h2>
+            <p class="text-gray-600">Your wellbeing matters to us. Let us know how you're doing.</p>
+        </div>
+
+        <!-- Mood Options -->
+        <div class="space-y-3 mb-6">
+            <button onclick="selectMood(1)"
+                class="mood-option w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-red-500 hover:bg-red-50 transition-all">
+                <span class="text-4xl">😢</span>
+                <div class="text-left flex-1">
+                    <div class="font-semibold text-gray-900">Terrible</div>
+                    <div class="text-sm text-gray-600">I'm really struggling</div>
+                </div>
+            </button>
+
+            <button onclick="selectMood(2)"
+                class="mood-option w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all">
+                <span class="text-4xl">😞</span>
+                <div class="text-left flex-1">
+                    <div class="font-semibold text-gray-900">Very Bad</div>
+                    <div class="text-sm text-gray-600">Having a tough time</div>
+                </div>
+            </button>
+
+            <button onclick="selectMood(3)"
+                class="mood-option w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-yellow-500 hover:bg-yellow-50 transition-all">
+                <span class="text-4xl">😔</span>
+                <div class="text-left flex-1">
+                    <div class="font-semibold text-gray-900">Bad</div>
+                    <div class="text-sm text-gray-600">Not feeling great</div>
+                </div>
+            </button>
+
+            <button onclick="selectMood(4)"
+                class="mood-option w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-gray-500 hover:bg-gray-50 transition-all">
+                <span class="text-4xl">😐</span>
+                <div class="text-left flex-1">
+                    <div class="font-semibold text-gray-900">Okay</div>
+                    <div class="text-sm text-gray-600">Just getting by</div>
+                </div>
+            </button>
+
+            <button onclick="selectMood(5)"
+                class="mood-option w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all">
+                <span class="text-4xl">🙂</span>
+                <div class="text-left flex-1">
+                    <div class="font-semibold text-gray-900">Good</div>
+                    <div class="text-sm text-gray-600">Feeling positive</div>
+                </div>
+            </button>
+
+            <button onclick="selectMood(6)"
+                class="mood-option w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all">
+                <span class="text-4xl">😊</span>
+                <div class="text-left flex-1">
+                    <div class="font-semibold text-gray-900">Great</div>
+                    <div class="text-sm text-gray-600">Having a wonderful day</div>
+                </div>
+            </button>
+
+            <button onclick="selectMood(7)"
+                class="mood-option w-full flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all">
+                <span class="text-4xl">😄</span>
+                <div class="text-left flex-1">
+                    <div class="font-semibold text-gray-900">Excellent</div>
+                    <div class="text-sm text-gray-600">On top of the world!</div>
+                </div>
+            </button>
+        </div>
+
+        <button onclick="skipMoodSelection()" class="text-sm text-gray-500 hover:text-gray-700 w-full text-center">
+            Skip for now
+        </button>
+    </div>
+</div>
+
+<!-- Routing Message Modal -->
+<div id="routing-message-modal"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-8">
+        <div class="text-center mb-6">
+            <div id="routing-icon" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="heart" class="w-8 h-8"></i>
+            </div>
+            <h2 id="routing-title" class="text-2xl font-bold text-gray-900 mb-2"></h2>
+            <p id="routing-message" class="text-gray-600"></p>
+        </div>
+        <button id="routing-action-btn" class="btn btn-primary w-full">Continue</button>
+    </div>
+</div>
+
+<script>
+    // Mood Selection Logic
+    let hasShownMoodModal = sessionStorage.getItem('mood_modal_shown') === 'true';
+
+    window.addEventListener('DOMContentLoaded', function () {
+        // Show mood modal on first load
+        if (!hasShownMoodModal) {
+            setTimeout(() => {
+                showMoodModal();
+            }, 500);
+        }
+
+        // Initialize Lucide icons
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
+
+    function showMoodModal() {
+        document.getElementById('mood-selection-modal').classList.remove('hidden');
+        sessionStorage.setItem('mood_modal_shown', 'true');
+        hasShownMoodModal = true;
+    }
+
+    function hideMoodModal() {
+        document.getElementById('mood-selection-modal').classList.add('hidden');
+    }
+
+    function skipMoodSelection() {
+        hideMoodModal();
+    }
+
+    async function selectMood(rating) {
+        try {
+            // Log the mood
+            const logResponse = await fetch('/api/mood/log', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    mood_rating: rating,
+                    notes: ''
+                })
+            });
+
+            const logData = await logResponse.json();
+
+            if (!logData.success) {
+                console.error('Failed to log mood:', logData.error);
+                hideMoodModal();
+                return;
+            }
+
+            // Check routing
+            const routingResponse = await fetch('/api/mood/check-routing', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    mood_rating: rating
+                })
+            });
+
+            const routingData = await routingResponse.json();
+
+            hideMoodModal();
+
+            if (routingData.success && routingData.requires_routing) {
+                showRoutingMessage(routingData);
+            } else {
+                // Just update the dashboard
+                location.reload();
+            }
+        } catch (error) {
+            console.error('Error selecting mood:', error);
+            hideMoodModal();
+        }
+    }
+
+    function showRoutingMessage(routingData) {
+        const modal = document.getElementById('routing-message-modal');
+        const icon = document.getElementById('routing-icon');
+        const title = document.getElementById('routing-title');
+        const message = document.getElementById('routing-message');
+        const actionBtn = document.getElementById('routing-action-btn');
+
+        if (routingData.route_to === 'free_consultation') {
+            icon.className = 'bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4';
+            icon.innerHTML = '<i data-lucide="user-check" class="w-8 h-8 text-blue-600"></i>';
+            title.textContent = "We're Here for You";
+            message.textContent = routingData.message;
+            actionBtn.textContent = 'Book Free Consultation';
+            actionBtn.onclick = () => {
+                window.location.href = '/app/consultants?free=true';
+            };
+        } else if (routingData.route_to === 'ai_buddy') {
+            icon.className = 'bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4';
+            icon.innerHTML = '<i data-lucide="message-circle" class="w-8 h-8 text-purple-600"></i>';
+            title.textContent = "Let's Talk";
+            message.textContent = routingData.message;
+            actionBtn.textContent = 'Chat with SolaceSquad Buddy';
+            actionBtn.onclick = () => {
+                window.location.href = `/app/ai-chat?mood=${routingData.mood_context}`;
+            };
+        }
+
+        modal.classList.remove('hidden');
+
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    // Allow changing mood from dashboard
+    function changeMood() {
+        sessionStorage.setItem('mood_modal_shown', 'false');
+        showMoodModal();
+    }
+</script>

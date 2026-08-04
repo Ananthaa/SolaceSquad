@@ -1,279 +1,675 @@
 {% extends "layouts/protected.html" %}
 
-{# user_name, user_initials, and user_type are now passed directly from the route #}
-{% set nav_items = [
-{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/consultant', 'key': 'dashboard'},
-{'icon': 'users', 'label': 'My Clients', 'href': '/consultant/clients', 'key': 'clients'},
-{'icon': 'calendar', 'label': 'Schedule', 'href': '/consultant/schedule', 'key': 'schedule'},
-{'icon': 'message-square', 'label': 'Messages', 'href': '/consultant/messages', 'key': 'messages'},
-{'icon': 'file-text', 'label': 'Reports', 'href': '/consultant/reports', 'key': 'reports'},
-{'icon': 'user', 'label': 'Profile', 'href': '/consultant/profile', 'key': 'profile'}
-] %}
-
 {% block dashboard_content %}
-<!-- Welcome Section -->
-<div class="mb-8">
-    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
-        Welcome back, {{ consultant.name }}! 👋
-    </h1>
-    <p class="text-gray-600">
-        You have 3 sessions scheduled today
-    </p>
-</div>
 
-<!-- Quick Stats -->
-<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-primary-100 p-3 rounded-xl">
-                <i data-lucide="users" class="w-6 h-6 text-primary-700"></i>
-            </div>
-            <span class="text-xs text-green-600 font-medium">+3 this week</span>
-        </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1">{{ consultant.stats.active_clients }}</div>
-        <div class="text-sm text-gray-600">Active Clients</div>
-    </div>
+<style>
+    /* ── Color Palette & Variables ──────────────────────── */
+    :root {
+        --color-brand-primary: #2d6a5a;
+        --color-brand-dark: #1e4d40;
+        --color-brand-light: #f0fdf4;
+        --color-brand-accent: #10b981;
+    }
 
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-secondary-100 p-3 rounded-xl">
-                <i data-lucide="calendar" class="w-6 h-6 text-secondary-700"></i>
-            </div>
-            <span class="text-xs text-gray-600">This week</span>
-        </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1">{{ consultant.stats.sessions_scheduled }}</div>
-        <div class="text-sm text-gray-600">Sessions Scheduled</div>
-    </div>
+    /* ── Grid Stat Tiles (Conforming to Redesign) ────────── */
+    .stat-card-custom {
+        background: #ffffff;
+        border-radius: 1.25rem;
+        padding: 1.5rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 8.5rem;
+    }
 
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-accent-100 p-3 rounded-xl">
-                <i data-lucide="dollar-sign" class="w-6 h-6 text-accent-700"></i>
-            </div>
-            <span class="text-xs text-green-600 font-medium">+12% vs last month</span>
-        </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1">{{ consultant.stats.earnings }}</div>
-        <div class="text-sm text-gray-600">This Month</div>
-    </div>
+    .stat-card-custom:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    }
 
-    <div class="card">
-        <div class="flex items-center justify-between mb-4">
-            <div class="bg-green-100 p-3 rounded-xl">
-                <i data-lucide="star" class="w-6 h-6 text-green-700"></i>
-            </div>
-            <span class="text-xs text-gray-600">From 18 reviews</span>
-        </div>
-        <div class="text-2xl font-bold text-gray-900 mb-1">{{ consultant.stats.rating }}</div>
-        <div class="text-sm text-gray-600">Average Rating</div>
-    </div>
-</div>
+    .spiral-tile-custom {
+        background: #ffffff;
+        border-radius: 1.25rem;
+        padding: 1.25rem 1.5rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        min-height: 8.5rem;
+    }
 
-<!-- Main Content Grid -->
-<div class="grid lg:grid-cols-3 gap-6">
-    <!-- Left Column -->
-    <div class="lg:col-span-2 space-y-6">
-        <!-- Today's Schedule -->
-        <div class="card">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-display font-semibold text-gray-900">
-                    Today's Schedule
-                </h2>
-                <a href="/consultant/schedule" class="text-primary-600 text-sm font-medium hover:text-primary-700">
-                    View Calendar
-                </a>
-            </div>
-            <div id="todaySchedule" class="space-y-3">
-                <div class="text-center py-4 text-gray-500">
-                    Loading schedule...
-                </div>
-            </div>
-        </div>
+    .spiral-tile-custom:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    }
 
-        <script>
-            // Load today's appointments
-            window.addEventListener('DOMContentLoaded', function () {
-                loadTodaySchedule();
-            });
+    /* ── Segmented Control ───────────────────────────────── */
+    .tab-btn-pill {
+        padding: 0.5rem 1.25rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+    }
 
-            function loadTodaySchedule() {
-                fetch('/api/appointments/consultant')
-                    .then(response => response.json())
-                    .then(data => {
-                        const container = document.getElementById('todaySchedule');
+    /* ── Sidebar Cards ───────────────────────────────────── */
+    .sidebar-card {
+        background: #ffffff;
+        border-radius: 1.25rem;
+        padding: 1.5rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
 
-                        if (data.success && data.appointments.length > 0) {
-                            // Filter for today's scheduled appointments (including in-progress)
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-                            const tomorrow = new Date(today);
-                            tomorrow.setDate(tomorrow.getDate() + 1);
-                            const now = new Date();
+    /* ── Appointment Row Cards ───────────────────────────── */
+    .appt-row-custom {
+        background: #ffffff;
+        border: 1px solid #f1f5f9;
+        border-radius: 1rem;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
 
-                            const todayAppts = data.appointments.filter(appt => {
-                                const apptDate = new Date(appt.appointment_date);
-                                const apptEnd = new Date(apptDate.getTime() + appt.duration_minutes * 60000);
-                                // Show if appointment is today and hasn't ended yet
-                                return appt.status === 'scheduled' && apptDate >= today && apptDate < tomorrow && apptEnd > now;
-                            }).sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
+    .appt-row-custom:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+        border-color: #e2e8f0;
+    }
 
-                            if (todayAppts.length > 0) {
-                                container.innerHTML = todayAppts.map(appt => {
-                                    const date = new Date(appt.appointment_date);
-                                    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                                    const initials = getInitials(appt.client_name);
+    .avatar-initials {
+        background: linear-gradient(135deg, #2d6a5a 0%, #1e4d40 100%);
+        color: #ffffff;
+    }
 
-                                    // Check if appointment is currently in progress
-                                    const now = new Date();
-                                    const apptEnd = new Date(date.getTime() + appt.duration_minutes * 60000);
-                                    const isInProgress = now >= date && now < apptEnd;
-                                    const statusText = isInProgress ? 'In Progress' : 'Confirmed';
-                                    const statusColor = isInProgress ? 'text-orange-600' : 'text-green-600';
+    .stat-card-earnings {
+        background: linear-gradient(135deg, #2d6a5a 0%, #1e4d40 100%) !important;
+        border: none !important;
+    }
+    
+    .stat-card-earnings h4,
+    .stat-card-earnings span,
+    .stat-card-earnings div {
+        color: #ffffff !important;
+    }
+    
+    .stat-card-earnings .icon-emerald {
+        color: #a7f3d0 !important;
+    }
+</style>
 
-                                    return `
-                                        <div class="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                                            <div class="flex items-center justify-between mb-2">
-                                                <div class="flex items-center gap-3">
-                                                    <div class="w-10 h-10 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                                        ${initials}
-                                                    </div>
-                                                    <div>
-                                                        <div class="font-semibold text-gray-900">${appt.client_name}</div>
-                                                        <div class="text-sm text-gray-600">${appt.duration_minutes} min session</div>
-                                                    </div>
-                                                </div>
-                                                <div class="text-right">
-                                                    <div class="flex items-center gap-2 text-sm font-medium text-gray-900">
-                                                        <i data-lucide="clock" class="w-4 h-4"></i>
-                                                        ${timeStr}
-                                                    </div>
-                                                    <span class="text-xs ${statusColor}">${statusText}</span>
-                                                </div>
-                                            </div>
-                                            ${appt.notes ? `<div class="text-sm text-gray-600 mt-2 pl-13">Note: ${appt.notes}</div>` : ''}
-                                            <a href="/app/call/${appt.id}" class="btn btn-primary text-xs w-full flex items-center justify-center gap-1 mt-3">
-                                                <i data-lucide="phone" class="w-3 h-3"></i>
-                                                <span>Join Call</span>
-                                            </a>
-                                        </div>
-                                    `;
-                                }).join('');
-
-                                // Re-initialize lucide icons
-                                if (typeof lucide !== 'undefined') {
-                                    lucide.createIcons();
-                                }
-                            } else {
-                                container.innerHTML = `
-                                    <div class="text-center py-8 text-gray-500">
-                                        <i data-lucide="calendar-off" class="w-12 h-12 mx-auto mb-2 text-gray-400"></i>
-                                        <p class="font-medium">No sessions scheduled for today</p>
-                                        <p class="text-sm mt-1">Enjoy your day off!</p>
-                                    </div>
-                                `;
-                                if (typeof lucide !== 'undefined') {
-                                    lucide.createIcons();
-                                }
-                            }
-                        } else {
-                            container.innerHTML = `
-                                <div class="text-center py-8 text-gray-500">
-                                    <p>No appointments found</p>
-                                </div>
-                            `;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading schedule:', error);
-                        document.getElementById('todaySchedule').innerHTML = `
-                            <div class="text-center py-4 text-red-500">
-                                Error loading schedule
-                            </div>
-                        `;
-                    });
-            }
-
-            function getInitials(name) {
-                const parts = name.split(' ');
-                if (parts.length >= 2) {
-                    return parts[0][0] + parts[parts.length - 1][0];
-                }
-                return name.substring(0, 2);
-            }
-        </script>
-    </div>
-
-    <!-- Right Column -->
-    <div class="space-y-6">
-        <!-- Messages -->
-        <div class="card">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-display font-semibold text-gray-900">
-                    Messages
-                </h2>
-                <span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    3
+<!-- ── Header Greeting ────────────────────────────────── -->
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+    <div>
+        <div class="flex items-center gap-3 flex-wrap">
+            <h1 class="text-3xl font-display font-extrabold text-gray-900 tracking-tight">
+                {% if now_hour < 12 %}Good morning{% elif now_hour < 17 %}Good afternoon{% else %}Good evening{% endif %},
+                {{ consultant.name }}! 👋
+            </h1>
+            <button onclick="openDemoVideoModal()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-700 hover:bg-teal-100 hover:border-teal-300 text-xs font-bold shadow-sm transition-all duration-200 cursor-pointer">
+                <span class="flex h-2 w-2 relative">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
                 </span>
-            </div>
-            <div class="space-y-3">
-                {% set messages = [
-                {'client': 'Priya S.', 'message': 'Thank you for the session yesterday...', 'time': '10m ago'},
-                {'client': 'Rahul M.', 'message': 'Can we reschedule tomorrow\'s...', 'time': '1h ago'}
-                ] %}
+                <i data-lucide="play-circle" class="w-4 h-4"></i>
+                <span>Watch Demo Video</span>
+            </button>
+        </div>
+        <p class="text-sm text-gray-500 mt-1 font-medium">Welcome back. Here's what's happening with your practice today.</p>
+    </div>
+    <a href="/consultant/schedule"
+        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#2d6a5a] text-white text-sm font-semibold hover:bg-[#1e4d40] shadow-sm transition-all duration-200 hover:shadow-md">
+        <i data-lucide="calendar" class="w-4 h-4"></i>
+        <span>Manage Availability</span>
+    </a>
+</div>
 
-                {% for msg in messages %}
-                <div class="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-                    <div class="flex items-center gap-2 mb-1">
-                        <div class="font-medium text-gray-900 text-sm">{{ msg.client }}</div>
-                        <div class="text-xs text-gray-500">{{ msg.time }}</div>
-                    </div>
-                    <p class="text-sm text-gray-600 line-clamp-1">{{ msg.message }}</p>
-                </div>
-                {% endfor %}
+<!-- ── REDESIGNED Top Metric Tiles ────────────────────── -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+
+    <!-- Tile 1: Number of Clients (More Prominence) -->
+    <div class="stat-card-custom">
+        <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-400">Total Clients</span>
+            <div class="p-2 bg-emerald-50 rounded-lg">
+                <i data-lucide="users" class="w-5 h-5 text-[#2d6a5a]"></i>
             </div>
-            <a href="/consultant/messages" class="btn btn-secondary text-sm mt-3 w-full">
-                <i data-lucide="message-square" class="w-4 h-4"></i>
-                View All Messages
+        </div>
+        <div class="mt-2">
+            <div class="font-black text-gray-900 tracking-tight" style="font-size: 4.5rem; line-height: 1;">{{ consultant.stats.active_clients }}</div>
+            <div class="text-xs text-gray-500 font-medium mt-2">Unique active users booked</div>
+        </div>
+    </div>
+
+    <!-- Tile 2: Sessions Scheduled vs Completed (Spiral Chart - Doubled Size) -->
+    <div class="spiral-tile-custom">
+        <!-- SVG Spiral Chart -->
+        <div class="relative flex items-center justify-center flex-shrink-0">
+            <svg width="168" height="168" viewBox="0 0 72 72" class="transform -rotate-90">
+                <!-- Outer Ring Track -->
+                <circle cx="36" cy="36" r="26" stroke="#f1f5f9" stroke-width="5.5" fill="transparent" />
+                <!-- Outer Ring Progress (Completed Sessions) -->
+                <circle id="spiral-outer" cx="36" cy="36" r="26" stroke="#2d6a5a" stroke-width="5.5" fill="transparent"
+                    stroke-dasharray="163.36" stroke-dashoffset="163.36" stroke-linecap="round"
+                    style="transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);" />
+                
+                <!-- Inner Ring Track -->
+                <circle cx="36" cy="36" r="18" stroke="#f1f5f9" stroke-width="5.5" fill="transparent" />
+                <!-- Inner Ring Progress (Scheduled Sessions) -->
+                <circle id="spiral-inner" cx="36" cy="36" r="18" stroke="#a7f3d0" stroke-width="5.5" fill="transparent"
+                    stroke-dasharray="113.1" stroke-dashoffset="113.1" stroke-linecap="round"
+                    style="transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1);" />
+            </svg>
+            <div class="absolute text-center flex items-center justify-center">
+                <span id="spiral-ratio-val" class="text-lg font-black text-gray-900 leading-none">0%</span>
+            </div>
+        </div>
+        <!-- Legend -->
+        <div class="flex-1 min-w-0">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Sessions Overview</h4>
+            <div class="space-y-1.5">
+                <div class="flex items-center gap-2 text-xs text-gray-700 font-semibold">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#2d6a5a] inline-block"></span>
+                    <span class="truncate">Completed: <b class="text-gray-900">{{ consultant.stats.calls_completed }}</b></span>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-700 font-semibold">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#a7f3d0] inline-block"></span>
+                    <span class="truncate">Scheduled: <b class="text-gray-900">{{ consultant.stats.sessions_scheduled }}</b></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tile 3: Total Earnings (Big Tile - Fixed Colors specificity) -->
+    <div class="stat-card-custom stat-card-earnings">
+        <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-100 opacity-90">Total Earnings</span>
+            <div class="p-2 bg-white/10 rounded-lg">
+                <i data-lucide="indian-rupee" class="w-5 h-5 icon-emerald"></i>
+            </div>
+        </div>
+        <div class="mt-4">
+            <div class="text-5xl font-black text-white tracking-tight">{{ consultant.stats.earnings }}</div>
+            <div class="text-xs text-emerald-200 font-medium mt-1 opacity-90">All-time practice payout</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Main Layout Grid ───────────────────────────────── -->
+<div class="grid lg:grid-cols-3 gap-6">
+
+    <!-- LEFT column: Appointments Section (2/3 width) ────── -->
+    <div class="lg:col-span-2 space-y-6">
+        <div class="sidebar-card">
+            <div class="flex items-center justify-between mb-5 border-b border-gray-100 pb-4">
+                <h2 class="text-lg font-bold text-gray-900 tracking-tight">Appointments Log</h2>
+                
+                <!-- Styled Tabs -->
+                <div class="flex bg-gray-100 p-1 rounded-full gap-1">
+                    <button onclick="switchTab('upcoming')" id="tab-upcoming" class="tab-btn-pill">Upcoming</button>
+                    <button onclick="switchTab('past')" id="tab-past" class="tab-btn-pill">Past</button>
+                </div>
+            </div>
+
+            <!-- Upcoming List -->
+            <div id="upcoming-appointments" class="tab-content space-y-3.5">
+                <div class="text-center py-12 text-gray-400 text-sm">
+                    <i data-lucide="loader-2" class="w-6 h-6 mx-auto mb-2 animate-spin text-[#2d6a5a]"></i>
+                    <p class="font-medium">Loading upcoming sessions...</p>
+                </div>
+            </div>
+
+            <!-- Past List -->
+            <div id="past-appointments" class="tab-content space-y-3.5 hidden">
+                <div class="text-center py-12 text-gray-400 text-sm">
+                    <i data-lucide="loader-2" class="w-6 h-6 mx-auto mb-2 animate-spin text-[#2d6a5a]"></i>
+                    <p class="font-medium">Loading past sessions...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT column: Sidebar Panels (1/3 width) ─────────── -->
+    <div class="space-y-6">
+
+        <!-- Sidebar Panel 1: Unread Messages (New requested item) -->
+        <div class="sidebar-card border-l-4 border-l-[#2d6a5a]" id="unread-messages-card">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="message-square" class="w-5 h-5 text-[#2d6a5a]"></i>
+                    <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wider">Unread Messages</h3>
+                </div>
+                <span id="unread-sidebar-badge" class="bg-red-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full hidden">0</span>
+            </div>
+            
+            <div class="py-2" id="unread-messages-status">
+                <div class="animate-pulse flex space-x-3">
+                    <div class="flex-1 space-y-2 py-1">
+                        <div class="h-4 bg-gray-100 rounded"></div>
+                        <div class="h-3 bg-gray-100 rounded w-5/6"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <a href="/consultant/messages" class="mt-3 w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 border-[#2d6a5a] text-[#2d6a5a] text-xs font-bold hover:bg-[#f0fdf4] transition-colors">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i>Open Messaging Center
             </a>
         </div>
 
-        <!-- Performance -->
-        <div class="card bg-gradient-to-br from-primary-600 to-secondary-600 text-white">
-            <h2 class="text-lg font-display font-semibold mb-4">
-                This Month's Performance
-            </h2>
-            <div class="space-y-4">
-                <div>
-                    <div class="flex justify-between text-sm mb-2">
-                        <span class="text-primary-100">Sessions Completed</span>
-                        <span class="font-semibold">28/30</span>
-                    </div>
-                    <div class="w-full bg-white/20 rounded-full h-2">
-                        <div class="bg-white rounded-full h-2" style="width: 93%"></div>
-                    </div>
+        <!-- Sidebar Panel 2: Average Rating -->
+        <div class="sidebar-card">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Consultant Rating</h3>
+            <div class="flex items-end gap-3.5">
+                <div class="text-5xl font-black text-gray-900 leading-none">
+                    {% if consultant.stats.rating > 0 %}{{ consultant.stats.rating }}{% else %}—{% endif %}
                 </div>
-
-                <div>
-                    <div class="flex justify-between text-sm mb-2">
-                        <span class="text-primary-100">Client Satisfaction</span>
-                        <span class="font-semibold">96%</span>
-                    </div>
-                    <div class="w-full bg-white/20 rounded-full h-2">
-                        <div class="bg-white rounded-full h-2" style="width: 96%"></div>
-                    </div>
-                </div>
-
-                <div>
-                    <div class="flex justify-between text-sm mb-2">
-                        <span class="text-primary-100">Response Time</span>
-                        <span class="font-semibold">
-                            < 2 hours</span>
-                    </div>
-                    <div class="w-full bg-white/20 rounded-full h-2">
-                        <div class="bg-white rounded-full h-2" style="width: 88%"></div>
+                <div class="pb-0.5">
+                    <div class="flex items-center gap-1" id="rating-stars" data-rating="{{ consultant.stats.rating }}"></div>
+                    <div class="text-xs text-gray-500 mt-1 font-medium">
+                        {% if consultant.stats.rating_count > 0 %}
+                        From {{ consultant.stats.rating_count }} patient review{{ 's' if consultant.stats.rating_count != 1 else '' }}
+                        {% else %}No ratings yet{% endif %}
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Sidebar Panel 3: Recent Feedback -->
+        <div class="sidebar-card">
+            <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+                <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wider">Patient Feedback</h3>
+                <span id="feedback-count" class="text-xs font-extrabold px-2.5 py-0.5 bg-[#f0fdf4] text-[#2d6a5a] rounded-full">—</span>
+            </div>
+            <div class="space-y-3.5 max-h-80 overflow-y-auto pr-1" id="feedback-log-container">
+                <div class="text-center py-6 text-gray-400 text-sm">Loading reviews...</div>
+            </div>
+        </div>
+
     </div>
 </div>
+
+<!-- ── JavaScript Controllers ────────────────────────── -->
+<script>
+    // Tab switching styles
+    const TAB_ACTIVE_STYLE = { background: '#2d6a5a', color: '#ffffff', boxShadow: '0 2px 8px rgba(45,106,90,0.2)' };
+    const TAB_INACTIVE_STYLE = { background: 'transparent', color: '#64748b', boxShadow: 'none' };
+
+    function applyTabStyle(el, isActive) {
+        if (!el) return;
+        const style = isActive ? TAB_ACTIVE_STYLE : TAB_INACTIVE_STYLE;
+        el.style.background = style.background;
+        el.style.color = style.color;
+        el.style.boxShadow = style.boxShadow;
+    }
+
+    function switchTab(tabName) {
+        applyTabStyle(document.getElementById('tab-upcoming'), tabName === 'upcoming');
+        applyTabStyle(document.getElementById('tab-past'), tabName === 'past');
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.getElementById(`${tabName}-appointments`).classList.remove('hidden');
+    }
+
+    // Load and render appointments
+    window.addEventListener('DOMContentLoaded', () => {
+        switchTab('upcoming');
+        loadAppointments();
+        loadUnreadCount();
+        animateSpiralChart();
+    });
+
+    function loadAppointments() {
+        fetch('/api/appointments/consultant')
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success || !data.appointments.length) {
+                    const empty = `<div class="text-center py-12 text-gray-400 text-sm"><i data-lucide="calendar-off" class="w-12 h-12 mx-auto mb-3 opacity-30 text-[#2d6a5a]"></i><p class="font-semibold text-gray-500">No scheduled sessions found</p></div>`;
+                    document.getElementById('upcoming-appointments').innerHTML = empty;
+                    document.getElementById('past-appointments').innerHTML = empty;
+                    lucide.createIcons();
+                    return;
+                }
+                
+                const now = new Date();
+                const upcoming = data.appointments.filter(a => {
+                    const end = new Date(new Date(a.appointment_date).getTime() + a.duration_minutes * 60000);
+                    return (a.status === 'scheduled' || a.status === 'in_progress') && end > now;
+                }).sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
+
+                const past = data.appointments.filter(a => {
+                    const end = new Date(new Date(a.appointment_date).getTime() + a.duration_minutes * 60000);
+                    return a.status === 'completed' || a.status === 'expired' || a.status === 'cancelled'
+                        || (a.status === 'scheduled' && end <= now);
+                }).sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date));
+
+                renderUpcoming(upcoming);
+                renderPast(past);
+            })
+            .catch(() => {
+                document.getElementById('upcoming-appointments').innerHTML =
+                    '<div class="text-center py-8 text-red-500 text-sm font-semibold">Failed to fetch scheduled appointments</div>';
+            });
+    }
+
+    function initials(name) {
+        const parts = name.trim().split(' ');
+        return parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : name.substring(0, 2);
+    }
+
+    function renderUpcoming(list) {
+        const container = document.getElementById('upcoming-appointments');
+        if (!list.length) {
+            container.innerHTML = `<div class="text-center py-12 text-gray-400 text-sm"><i data-lucide="calendar-off" class="w-12 h-12 mx-auto mb-3 opacity-30 text-[#2d6a5a]"></i><p class="font-semibold text-gray-500">No upcoming sessions</p></div>`;
+            lucide.createIcons();
+            return;
+        }
+        
+        container.innerHTML = list.map(a => {
+            const date = new Date(a.appointment_date);
+            const now = new Date();
+            const slotStarted = now >= date;
+            const isIP = a.status === 'in_progress';
+            const timeStr = date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+            const dayStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            
+            const [dotCls, labelCls, labelTxt] = isIP
+                ? ['bg-orange-400', 'text-orange-600', 'In Progress']
+                : slotStarted ? ['bg-teal-400', 'text-[#2d6a5a]', 'Ready to Start']
+                    : ['bg-emerald-400', 'text-emerald-600', 'Confirmed'];
+            
+            const btnTxt = isIP ? 'Rejoin' : slotStarted ? 'Start Call' : 'Join Call';
+            const btnIcon = isIP ? 'phone-incoming' : 'phone';
+
+            return `
+            <div class="appt-row-custom flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-gray-100 rounded-2xl">
+                <div class="flex items-start gap-4.5 w-full sm:w-auto">
+                    <div class="w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs avatar-initials shadow-inner">${initials(a.client_name)}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="inline-block w-2 h-2 rounded-full ${dotCls}"></span>
+                            <span class="text-[10px] font-black uppercase tracking-wider ${labelCls}">${labelTxt}</span>
+                        </div>
+                        <div class="font-bold text-gray-900 text-base truncate">${a.client_name}</div>
+                        <div class="text-xs text-gray-500 font-medium mt-0.5">${a.duration_minutes} min · ${dayStr}</div>
+                        ${a.notes ? `
+                        <div class="mt-2.5 flex items-start gap-2 bg-[#f0fdf4] border border-[#d1fae5] rounded-xl px-3 py-2">
+                            <i data-lucide="message-square" class="w-3.5 h-3.5 text-[#2d6a5a] mt-0.5 flex-shrink-0"></i>
+                            <span class="text-xs text-[#1e4d40] italic leading-normal font-medium">${a.notes}</span>
+                        </div>` : ''}
+                    </div>
+                </div>
+                <div class="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                    <span class="text-sm font-bold text-gray-700 tracking-tight">${timeStr}</span>
+                    <div class="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
+                        <button onclick="cancelAppointment(${a.id}, '${(a.client_name || 'Client').replace(/'/g, "\\'")}')" class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border border-red-200 bg-red-50 text-red-700 text-xs font-bold hover:bg-red-100 transition-colors" title="Cancel Session">
+                            <i data-lucide="x-circle" class="w-3.5 h-3.5"></i>Cancel
+                        </button>
+                        <a href="/consultant/patient/${a.client_id}" class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border border-gray-200 bg-white text-gray-700 text-xs font-bold hover:bg-gray-50 transition-colors">
+                            <i data-lucide="info" class="w-3.5 h-3.5"></i>Details
+                        </a>
+                        <a href="/app/call/${a.id}" class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#2d6a5a] text-white text-xs font-bold hover:bg-[#1e4d40] shadow-sm transition-all duration-200">
+                            <i data-lucide="${btnIcon}" class="w-3.5 h-3.5"></i>${btnTxt}
+                        </a>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+        lucide.createIcons();
+    }
+
+    async function cancelAppointment(id, clientName) {
+        if (!confirm(`Are you sure you want to cancel the session with ${clientName}?`)) return;
+        try {
+            const res = await fetch(`/api/appointments/${id}/cancel`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                alert('Session cancelled successfully.');
+                loadAppointments();
+            } else {
+                alert(data.error || 'Failed to cancel session.');
+            }
+        } catch (err) {
+            console.error('Error cancelling appointment:', err);
+            alert('An error occurred while cancelling the session.');
+        }
+    }
+
+    function renderPast(list) {
+        const container = document.getElementById('past-appointments');
+        if (!list.length) {
+            container.innerHTML = `<div class="text-center py-12 text-gray-400 text-sm"><i data-lucide="calendar-x" class="w-12 h-12 mx-auto mb-3 opacity-30 text-[#2d6a5a]"></i><p class="font-semibold text-gray-500">No past sessions</p></div>`;
+            lucide.createIcons();
+            return;
+        }
+
+        container.innerHTML = list.map(a => {
+            const date = new Date(a.appointment_date);
+            const timeStr = date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+            const dayStr = date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            const done = a.status === 'completed';
+            const [lbl, cls, icon] = done ? ['Completed', 'text-emerald-600', 'check-circle-2'] : ['Expired', 'text-gray-400', 'clock'];
+            
+            return `
+            <div class="appt-row-custom cursor-pointer flex items-center justify-between gap-4 p-4 border border-gray-100 rounded-2xl" onclick="window.location='/consultant/appointment/${a.id}'">
+                <div class="flex items-center gap-4 w-full">
+                    <div class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-xs bg-gray-100 text-gray-500 shadow-inner">${initials(a.client_name)}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-gray-900 text-sm truncate">${a.client_name}</div>
+                        <div class="text-xs text-gray-500 font-medium mt-0.5">${a.duration_minutes} min · ${dayStr} · ${timeStr}</div>
+                    </div>
+                    <div class="flex items-center gap-1 text-xs ${cls} font-extrabold flex-shrink-0">
+                        <i data-lucide="${icon}" class="w-4 h-4"></i>
+                        <span>${lbl}</span>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+        lucide.createIcons();
+    }
+
+    // Load Unread Messages Count & Render Card
+    function loadUnreadCount() {
+        fetch('/api/messages/unread-count?t=' + Date.now(), { cache: 'no-store' })
+            .then(r => r.json())
+            .then(data => {
+                const count = data.count || 0;
+                const badge = document.getElementById('unread-sidebar-badge');
+                const statusDiv = document.getElementById('unread-messages-status');
+                
+                if (count > 0) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                    badge.classList.remove('hidden');
+                    
+                    statusDiv.innerHTML = `
+                    <div class="flex items-start gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block mt-1 flex-shrink-0 animate-ping"></span>
+                        <div>
+                            <p class="text-sm font-bold text-gray-900">You have new messages</p>
+                            <p class="text-xs text-gray-500 font-semibold mt-0.5">${count} unread conversation${count > 1 ? 's' : ''} waiting.</p>
+                        </div>
+                    </div>`;
+                } else {
+                    badge.classList.add('hidden');
+                    statusDiv.innerHTML = `
+                    <div class="flex items-start gap-2.5">
+                        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5"></i>
+                        <div>
+                            <p class="text-sm font-bold text-gray-900">All caught up!</p>
+                            <p class="text-xs text-gray-500 font-semibold mt-0.5">No unread messages in inbox.</p>
+                        </div>
+                    </div>`;
+                    lucide.createIcons();
+                }
+            })
+            .catch(() => {
+                document.getElementById('unread-messages-status').innerHTML = `
+                <p class="text-xs text-gray-400 font-semibold">Inbox status currently unavailable.</p>`;
+            });
+    }
+
+    // Render Spiral Activity Chart
+    function animateSpiralChart() {
+        const completed = {{ consultant.stats.calls_completed | default(0) }};
+        const scheduled = {{ consultant.stats.sessions_scheduled | default(0) }};
+
+        const completionRate = scheduled > 0 ? (completed / scheduled) : 0;
+        const scheduledRate = Math.min(1, scheduled / 15); // target of 15 sessions for full ring
+
+        // Set dynamic percentage text in center of spiral
+        const pct = Math.round(completionRate * 100);
+        document.getElementById('spiral-ratio-val').textContent = pct + '%';
+
+        setTimeout(() => {
+            // Outer Ring (Completion Rate)
+            const outerCirc = 2 * Math.PI * 26; // 163.36
+            const outerOffset = outerCirc * (1 - completionRate);
+            document.getElementById('spiral-outer').style.strokeDashoffset = outerOffset;
+
+            // Inner Ring (Scheduled progress)
+            const innerCirc = 2 * Math.PI * 18; // 113.1
+            const innerOffset = innerCirc * (1 - scheduledRate);
+            document.getElementById('spiral-inner').style.strokeDashoffset = innerOffset;
+        }, 150);
+    }
+</script>
+
+<!-- Average Rating & Comments Loader -->
+<script>
+    window.addEventListener('DOMContentLoaded', loadConsultantStats);
+
+    function loadConsultantStats() {
+        fetch('/api/consultant/stats')
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+
+                document.getElementById('feedback-count').textContent = data.total_ratings || 0;
+
+                const fc = document.getElementById('feedback-log-container');
+                if (!data.feedback_log?.length) {
+                    fc.innerHTML = '<div class="text-center py-6 text-gray-400 text-sm">No reviews submitted yet</div>';
+                    return;
+                }
+                
+                fc.innerHTML = data.feedback_log.map(f => {
+                    const stars = renderSvgStars(f.rating, 13, 'fb_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+                    return `
+                    <div class="p-3 bg-gray-50 border border-gray-100 rounded-xl hover:bg-white hover:shadow-sm transition-all duration-150">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-xs font-bold text-gray-800 truncate max-w-[55%]">${f.display_name}</span>
+                            <span style="display:inline-flex;align-items:center;gap:1px;">${stars}</span>
+                        </div>
+                        ${f.feedback ? `<p class="text-xs text-gray-500 italic leading-snug">"${f.feedback}"</p>` : ''}
+                        <div class="text-[10px] text-gray-400 font-semibold mt-1">${f.created_at}</div>
+                    </div>`;
+                }).join('');
+            })
+            .catch(() => {});
+    }
+
+    function renderSvgStars(rating, size, prefix) {
+        const STAR_POINTS = '12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2';
+        const FILL = '#f59e0b';
+        const EMPTY = '#e2e8f0';
+        const STROKE_ON = '#d97706';
+        const STROKE_OFF = '#cbd5e1';
+        let html = '';
+        for (let i = 1; i <= 5; i++) {
+            const pct = Math.round(Math.max(0, Math.min(1, rating - (i - 1))) * 100);
+            const gid = (prefix || 'ds') + '_' + i;
+            html += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 1px 1px rgba(0,0,0,.08))">`
+                + `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="1" y2="0">`
+                + `<stop offset="${pct}%" stop-color="${FILL}"/>`
+                + `<stop offset="${pct}%" stop-color="${EMPTY}"/>`
+                + `</linearGradient></defs>`
+                + `<polygon points="${STAR_POINTS}" fill="url(#${gid})" stroke="${pct > 0 ? STROKE_ON : STROKE_OFF}" stroke-width="1.2" stroke-linejoin="round"/>`
+                + `</svg>`;
+        }
+        return html;
+    }
+
+    // Render main rating stars
+    window.addEventListener('DOMContentLoaded', () => {
+        const container = document.getElementById('rating-stars');
+        if (container) {
+            const val = parseFloat(container.dataset.rating) || 0;
+            container.innerHTML = renderSvgStars(val, 22, 'avg_main');
+            container.style.display = 'flex';
+            container.style.gap = '2.5px';
+        }
+    });
+</script>
+
+<!-- Demo Video Modal -->
+<div id="demoVideoModal" class="fixed inset-0 bg-black bg-opacity-75 hidden z-50 overflow-y-auto flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden border border-gray-100">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <div class="flex items-center gap-2">
+                <i data-lucide="play-circle" class="w-5 h-5 text-[#2d6a5a]"></i>
+                <h3 class="text-base font-bold text-gray-900">Consultant Platform Demo</h3>
+            </div>
+            <button onclick="closeDemoVideoModal()" class="text-gray-400 hover:text-gray-500 cursor-pointer">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        
+        <!-- Video Body -->
+        <div class="p-6 bg-black flex items-center justify-center min-h-[300px]" id="demoVideoContainer">
+            <!-- Video tag or YouTube iframe injected dynamically here -->
+        </div>
+        
+        <!-- Footer -->
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-end bg-gray-50">
+            <button onclick="closeDemoVideoModal()" class="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-gray-200 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 transition shadow-sm cursor-pointer">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Demo Video Modal Helpers – driven by DB-managed video
+    {% if demo_video %}
+    const _demoVideoIsYouTube = {{ 'true' if demo_video.is_youtube else 'false' }};
+    const _demoVideoUrl = {% if demo_video.is_youtube %}"{{ demo_video.video_url }}"{% else %}"/api/demo-videos/{{ demo_video.id }}/stream"{% endif %};
+    const _demoVideoTitle = "{{ demo_video.title | e }}";
+    {% else %}
+    const _demoVideoIsYouTube = false;
+    const _demoVideoUrl = null;
+    const _demoVideoTitle = "";
+    {% endif %}
+
+    function openDemoVideoModal() {
+        if (!_demoVideoUrl) return;
+        const container = document.getElementById('demoVideoContainer');
+
+        // Update modal title
+        const titleEl = document.querySelector('#demoVideoModal h3');
+        if (titleEl && _demoVideoTitle) titleEl.textContent = _demoVideoTitle;
+
+        if (_demoVideoIsYouTube) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+            const match = _demoVideoUrl.match(regExp);
+            const youtubeId = (match && match[2].length === 11) ? match[2] : null;
+            if (youtubeId) {
+                container.innerHTML = `<iframe class="w-full aspect-video rounded-lg shadow-inner" src="https://www.youtube.com/embed/${youtubeId}?autoplay=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="min-height: 300px;"></iframe>`;
+            }
+        } else {
+            container.innerHTML = `<video class="w-full rounded-lg shadow-inner" controls autoplay style="max-height: 70vh;"><source src="${_demoVideoUrl}" type="video/mp4">Your browser does not support the video tag.</video>`;
+        }
+
+        document.getElementById('demoVideoModal').classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function closeDemoVideoModal() {
+        document.getElementById('demoVideoModal').classList.add('hidden');
+        document.getElementById('demoVideoContainer').innerHTML = '';
+    }
+</script>
+
 {% endblock %}

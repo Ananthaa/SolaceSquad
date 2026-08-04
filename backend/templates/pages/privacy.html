@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy | SolaceSquad{% endblock %}
+{% block meta_desc %}Read SolaceSquad's Privacy Policy. We are committed to protecting your personal data and keeping all wellness consultations strictly confidential.{% endblock %}
+{% block og_title %}Privacy Policy | SolaceSquad{% endblock %}
+{% block og_desc %}SolaceSquad's commitment to protecting your personal information and keeping every wellness consultation strictly private.{% endblock %}
+{% block tw_title %}Privacy Policy | SolaceSquad{% endblock %}
+{% block tw_desc %}SolaceSquad's Privacy Policy — how we collect, use and protect your personal data. Your wellness journey stays confidential.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","name":"Privacy Policy","url":"{{ request.base_url }}privacy","description":"SolaceSquad Privacy Policy — how we collect, use and protect personal information.","breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"{{ request.base_url }}"},{"@type":"ListItem","position":2,"name":"Privacy Policy","item":"{{ request.base_url }}privacy"}]}}
+</script>
+{% endblock %}
+
+{% block content %}
+{% include "components/header.html" %}
+
+<style>
+    .ss-page-section {
+        padding-top: 9rem;
+        padding-bottom: 4rem;
+        background: #f8faf9;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    .ss-page-inner {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+        box-sizing: border-box;
+    }
+
+    .ss-page-eyebrow {
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #2d6a5a;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+    }
+
+    .ss-page-title {
+        text-align: center;
+        font-size: clamp(1.4rem, 5vw, 1.75rem);
+        font-weight: 800;
+        color: #2d6a5a;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.5rem;
+    }
+
+    .ss-page-divider {
+        width: 3rem;
+        height: 3px;
+        background: linear-gradient(90deg, #2d6a5a, #1e4d40);
+        border-radius: 2px;
+        margin: 0 auto 1.75rem;
+    }
+
+    .ss-legal-body {
+        font-size: 0.875rem;
+        color: #2d6a5a;
+        line-height: 1.85;
+    }
+
+    .ss-legal-body p {
+        margin-bottom: 1rem;
+    }
+
+    .ss-legal-section {
+        background: #fff;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(45, 106, 90, .08);
+        border-left: 3px solid #2d6a5a;
+        box-sizing: border-box;
+    }
+
+    .ss-legal-section-title {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 0.9rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .ss-legal-sub {
+        padding-left: 1rem;
+        margin-bottom: 0.4rem;
+        font-size: 0.85rem;
+    }
+</style>
+
+<section class="ss-page-section">
+    <div class="ss-page-inner">
+        <p class="ss-page-eyebrow">Legal</p>
+        <h1 class="ss-page-title">PRIVACY POLICY</h1>
+        <div class="ss-page-divider"></div>
+
+        <div class="ss-legal-body">
+            <div class="ss-legal-section">
+                <p>SolaceSquad&reg; Technologies ("Us", "We", or "SolaceSquad&reg;", which also includes its affiliates) is the
+                    author and publisher of the internet resource <a href="https://www.solacesquad.com"
+                        style="color:#2d6a5a;">www.SolaceSquad.com</a> ("Website") on the world wide web as well as the
+                    software and applications provided by SolaceSquad&reg;, including but not limited to the mobile
+                    application(s), Mobile Website, and the associated/ancillary applications, products, websites and
+                    services managed by SolaceSquad&reg; (referred to as the "SolaceSquad&reg; Platform").</p>
+                <p>This privacy policy ("Privacy Policy") explains how we collect, use, share, disclose and protect
+                    Personal Information about the Users of the SolaceSquad&reg; Platform, including the Practitioners, the
+                    End-Users, and the visitors of the Website. We created this Privacy Policy to demonstrate our
+                    commitment to the protection of your privacy and your personal information.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">1. WHY THIS PRIVACY POLICY?</p>
+                <p class="ss-legal-sub">This Privacy Policy is published in compliance with Section 43A of the
+                    Information Technology Act, 2000; Regulation 4 of the SPI Rules; and Regulation 3(1) of the IT
+                    (Intermediaries Guidelines) Rules, 2011.</p>
+                <p class="ss-legal-sub">It states: the type of information collected from Users; the purpose, means and
+                    modes of collection, usage, processing, retention, and destruction of such information; and how and
+                    to whom SolaceSquad&reg; will disclose such information.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">2. COLLECTION OF PERSONAL INFORMATION</p>
+                <p class="ss-legal-sub">Information collected may include: contact data (email, phone), demographic data
+                    (gender, date of birth), platform usage data, insurance data, and other information you voluntarily
+                    provide.</p>
+                <p class="ss-legal-sub">Sensitive Personal Data includes: passwords, financial information,
+                    physical/mental health condition, sexual orientation, medical records, biometric information, and
+                    call data records.</p>
+                <p class="ss-legal-sub">SolaceSquad&reg; will be free to use, collect and disclose information that is
+                    freely available in the public domain without your consent.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">3. USERS NOTE</p>
+                <p class="ss-legal-sub">All information provided to SolaceSquad&reg; by a User is voluntary. SolaceSquad&reg;
+                    may use information for: providing platform access, communication and booking, debugging customer
+                    support issues, and completing transactions you initiate.</p>
+                <p class="ss-legal-sub">SolaceSquad&reg; maintains a strict "No-Spam" policy and does not sell, rent, or
+                    give your email address to a third party without your consent. SolaceSquad&reg; implements reasonable
+                    security practices and will only disclose your Personal Information when required to by law or to
+                    protect its rights.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">4. PRACTITIONERS NOTE</p>
+                <p class="ss-legal-sub">Certain information, including Personal Information, is collected from
+                    Practitioners during registration. SolaceSquad&reg; reserves the right to use Practitioner information
+                    for publishing on the Website, offering new products, taking feedback, and improving product design.
+                    SolaceSquad&reg; automatically enables the listing of Practitioners' information as provided by the
+                    Practitioner.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">5. END-USERS NOTE</p>
+                <p class="ss-legal-sub">Certain information is collected from End-Users during registration and platform
+                    use. SolaceSquad&reg; will communicate with End-Users through email, phone, and notices posted on the
+                    Website. SolaceSquad&reg; may keep records of electronic communications and telephone calls for
+                    administration and customer support. All SolaceSquad&reg; employees with access to sensitive personal
+                    data are obliged to respect confidentiality.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">6. CASUAL VISITORS NOTE</p>
+                <p class="ss-legal-sub">No sensitive personal data is automatically collected from casual visitors
+                    merely perusing the Website. Certain provisions of this Privacy Policy are applicable to casual
+                    visitors. If you do not agree with this Privacy Policy, merely quitting this browser application
+                    should ordinarily clear all temporary cookies installed by SolaceSquad&reg;.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">7. CONFIDENTIALITY AND SECURITY</p>
+                <p class="ss-legal-sub">Your Personal Information is maintained by SolaceSquad&reg; in electronic form.
+                    SolaceSquad&reg; takes all necessary precautions to protect your personal information both online and
+                    off-line. No administrator at SolaceSquad&reg; will have knowledge of your password. SolaceSquad&reg; makes
+                    all User information accessible to its employees, agents, or partners only on a need-to-know basis.
+                    SolaceSquad&reg; shall not be responsible for any breach of security or for any actions of any third
+                    parties or events beyond reasonable control.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">8. CHANGE TO PRIVACY POLICY</p>
+                <p class="ss-legal-sub">SolaceSquad&reg; may update this Privacy Policy at any time, with or without advance
+                    notice. If a User uses the SolaceSquad&reg; Platform after a notice of changes has been sent, such User
+                    provides consent to the changed terms.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">9. CHILDREN'S AND MINOR'S PRIVACY</p>
+                <p class="ss-legal-sub">SolaceSquad&reg; strongly encourages parents and guardians to supervise the online
+                    activities of their minor children. Although the SolaceSquad&reg; Website and Platform are not intended
+                    for use by minors, SolaceSquad&reg; respects the privacy of minors who may inadvertently use the
+                    internet or the mobile application.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">10. CONSENT TO THIS POLICY</p>
+                <p class="ss-legal-sub">You acknowledge that this Privacy Policy is a part of the Terms of Use of the
+                    Website and the SolaceSquad&reg; Platform, and you unconditionally agree that becoming a User signifies
+                    your assent to this Privacy Policy and consent to SolaceSquad&reg; using, collecting, processing and/or
+                    disclosing your Personal Information.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">11. ADDRESS FOR PRIVACY QUESTIONS</p>
+                <p class="ss-legal-sub">Should you have questions about this Privacy Policy or SolaceSquad&reg; information
+                    collection practices, you may contact the Grievance Officer:</p>
+                <p class="ss-legal-sub"><strong>Name:</strong> Saumen Sarkar</p>
+                <p class="ss-legal-sub"><strong>Address:</strong> D-302, Bren Paddington, Bellandur, Kaikondrahalli.
+                    Bangalore – 560103. Karnataka, INDIA</p>
+                <p class="ss-legal-sub"><strong>Email:</strong> <a href="mailto:info@solacesquad.com"
+                        style="color:#2d6a5a;">info@solacesquad.com</a></p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% include "components/cta_section.html" %}
+{% include "components/footer.html" %}
+{% endblock %}

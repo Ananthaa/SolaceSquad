@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+{% block title %}{{ seo_title ~ ' | SolaceSquad Blog' if seo_title else 'Wellness Blog — SolaceSquad' }}{% endblock %}
+{% block meta_desc %}{{ seo_excerpt if seo_excerpt else 'Read expert wellness insights from certified consultants on the SolaceSquad Blog — mental, physical & professional wellbeing.' }}{% endblock %}
+{% block og_title %}{{ seo_title if seo_title else 'Wellness Blog — SolaceSquad' }}{% endblock %}
+{% block og_desc %}{{ seo_excerpt if seo_excerpt else 'Expert wellness insights from certified Indian consultants. Read on the SolaceSquad Blog.' }}{% endblock %}
+{% block tw_title %}{{ seo_title if seo_title else 'Wellness Blog — SolaceSquad' }}{% endblock %}
+{% block tw_desc %}{{ seo_excerpt if seo_excerpt else 'Expert wellness insights from certified Indian consultants. Read on the SolaceSquad Blog.' }}{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "{{ seo_title or 'SolaceSquad Wellness Blog' }}",
+  "description": "{{ seo_excerpt or 'Expert wellness insights from certified Indian consultants.' }}",
+  "author": {"@type": "Person", "name": "{{ seo_author or 'SolaceSquad Team' }}"},
+  "publisher": {"@type": "Organization", "name": "SolaceSquad", "logo": {"@type": "ImageObject", "url": "https://www.solacesquad.com/static/images/logo.png"}},
+  "image": "https://www.solacesquad.com/static/images/og-cover.jpg",
+  "url": "https://www.solacesquad.com/blog/{{ slug }}",
+  {% if seo_published_at %}"datePublished": "{{ seo_published_at }}",{% endif %}
+  {% if seo_updated_at %}"dateModified": "{{ seo_updated_at }}",{% endif %}
+  "mainEntityOfPage": {"@type": "WebPage", "@id": "https://www.solacesquad.com/blog/{{ slug }}"},
+  "breadcrumb": {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.solacesquad.com"}, {"@type": "ListItem", "position": 2, "name": "Blog", "item": "https://www.solacesquad.com/blog"}, {"@type": "ListItem", "position": 3, "name": "{{ seo_title or 'Article' }}", "item": "https://www.solacesquad.com/blog/{{ slug }}"}]}
+}
+</script>
+{% endblock %}
+
+{% block content %}
+{% include "components/header.html" %}
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
+
+  :root { --teal:#0d9488; --teal-dark:#0f766e; --teal-light:#ccfbf1; }
+
+  body { font-family: 'Inter', sans-serif; }
+
+  /* Reading progress bar */
+  #readProgress {
+    position: fixed; top: 0; left: 0; z-index: 9999;
+    height: 4px; width: 0%; background: linear-gradient(90deg, var(--teal), #22d3ee);
+    transition: width 0.1s linear;
+  }
+
+  /* Hero */
+  .post-hero {
+    position: relative; height: 480px; margin-top: 72px;
+  }
+  .post-hero-img { width:100%; height:100%; object-fit:cover; }
+  .post-hero-placeholder {
+    width:100%; height:100%;
+    background: linear-gradient(135deg, #0f766e, #134e4a, #1e293b);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 6rem;
+  }
+  .post-hero-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.35) 55%, transparent 100%);
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 48px;
+  }
+
+  .cat-badge {
+    display: inline-flex; align-items: center;
+    padding: 4px 14px; border-radius: 100px;
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 14px; align-self: flex-start;
+  }
+  .cat-Mental { background:rgba(237,233,254,0.9); color:#6d28d9; }
+  .cat-Physical { background:rgba(220,252,231,0.9); color:#15803d; }
+  .cat-Professional { background:rgba(254,243,199,0.9); color:#92400e; }
+  .cat-General { background:rgba(224,242,254,0.9); color:#0369a1; }
+
+  .post-title {
+    font-family: 'Playfair Display', serif; font-size: 2.8rem; font-weight: 700;
+    color: #fff; margin: 0 0 16px; line-height: 1.2; max-width: 850px;
+  }
+  .post-meta { display:flex; gap:20px; flex-wrap:wrap; align-items:center; }
+  .meta-item { color:rgba(255,255,255,0.75); font-size:0.875rem; display:flex; align-items:center; gap:6px; }
+  .meta-sep { color:rgba(255,255,255,0.3); }
+
+  /* Content layout */
+  .post-layout {
+    max-width: 780px; margin: 0 auto; padding: 48px 24px 80px;
+  }
+
+  /* Tags */
+  .tags-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:32px; }
+  .tag-pill { padding:4px 14px; background:#f1f5f9; border-radius:100px; font-size:0.78rem; font-weight:600; color:#64748b; }
+
+  /* Article body */
+  .post-content { font-size:1.05rem; line-height:1.85; color:#1e293b; }
+  .post-content h2 { font-family:'Playfair Display',serif; font-size:1.65rem; font-weight:700; color:#1e293b; margin:40px 0 16px; padding-bottom:8px; border-bottom:2px solid #f1f5f9; }
+  .post-content h3 { font-size:1.25rem; font-weight:700; color:#1e293b; margin:28px 0 10px; }
+  .post-content p { margin:0 0 20px; }
+  .post-content ul, .post-content ol { padding-left:24px; margin:0 0 20px; }
+  .post-content li { margin-bottom:8px; }
+  .post-content blockquote { border-left:4px solid var(--teal); margin:28px 0; padding:16px 24px; background:#f0fdfa; border-radius:0 12px 12px 0; color:#374151; font-style:italic; font-size:1.05rem; }
+  .post-content strong { font-weight:700; }
+  .post-content a { color:var(--teal); text-decoration:underline; }
+
+  /* Share bar */
+  .share-bar {
+    display: flex; gap:10px; align-items:center;
+    padding: 24px 0; border-top:1px solid #f1f5f9; border-bottom:1px solid #f1f5f9;
+    margin: 40px 0;
+  }
+  .share-label { font-size:0.875rem; font-weight:600; color:#64748b; }
+  .share-btn {
+    display: flex; align-items:center; gap:6px;
+    padding:8px 16px; border-radius:8px; font-size:0.85rem; font-weight:600;
+    cursor:pointer; border:none; transition:all 0.2s; text-decoration:none;
+  }
+  .share-whatsapp { background:#25d366; color:#fff; }
+  .share-whatsapp:hover { background:#1da851; }
+  .share-linkedin { background:#0a66c2; color:#fff; }
+  .share-linkedin:hover { background:#084e95; }
+  .share-copy { background:#f1f5f9; color:#64748b; }
+  .share-copy:hover { background:#e2e8f0; }
+
+  /* Prev/Next */
+  .prevnext {
+    display: grid; grid-template-columns: 1fr 1fr; gap:16px; margin:40px 0;
+  }
+  .prevnext-card {
+    padding: 20px; border:2px solid #e2e8f0; border-radius:16px;
+    cursor:pointer; transition:all 0.2s; text-decoration:none;
+    display:flex; flex-direction:column; color:inherit;
+  }
+  .prevnext-card:hover { border-color:var(--teal); box-shadow:0 4px 20px rgba(13,148,136,0.15); }
+  .prevnext-label { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--teal); margin-bottom:6px; }
+  .prevnext-title { font-size:0.9rem; font-weight:600; color:#1e293b; line-height:1.4; }
+  .prevnext-card.right { text-align:right; }
+  .prevnext-empty { border:none; }
+
+  /* Related */
+  .related-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; margin-top:20px; }
+  .related-card {
+    border-radius:14px; overflow:hidden; background:#fff;
+    box-shadow:0 4px 16px rgba(0,0,0,0.06); cursor:pointer;
+    transition:transform 0.22s,box-shadow 0.22s; text-decoration:none;
+  }
+  .related-card:hover { transform:translateY(-4px); box-shadow:0 12px 32px rgba(0,0,0,0.12); }
+  .related-img { width:100%; height:130px; object-fit:cover; background:linear-gradient(135deg,#ccfbf1,#a7f3d0); }
+  .related-body { padding:14px; }
+  .related-title { font-size:0.875rem; font-weight:700; color:#1e293b; line-height:1.4; margin:0; }
+  .related-meta { font-size:0.75rem; color:#94a3b8; margin-top:4px; }
+
+  /* Sticky back button */
+  .back-link {
+    display:inline-flex; align-items:center; gap:6px;
+    color:rgba(255,255,255,0.85); font-size:0.875rem; font-weight:500;
+    text-decoration:none; padding:8px 14px; background:rgba(255,255,255,0.12);
+    border-radius:8px; transition:background 0.2s;
+    position:absolute; top:88px; left:24px; z-index:10;
+  }
+  .back-link:hover { background:rgba(255,255,255,0.22); color:#fff; }
+
+  /* Loading skeleton */
+  .skel { background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%); background-size:200% 100%; animation:s 1.5s infinite; border-radius:8px; }
+  @keyframes s { 0%{background-position:200% 0}100%{background-position:-200% 0} }
+
+  @media(max-width:640px) {
+    .post-hero{height:320px;}
+    .post-title{font-size:1.75rem;}
+    .post-hero-overlay{padding:24px;}
+    .prevnext{grid-template-columns:1fr;}
+  }
+</style>
+
+<div id="readProgress"></div>
+
+<!-- Hero -->
+<div class="post-hero" id="heroSection">
+  <div style="width:100%;height:100%;background:linear-gradient(135deg,#0f766e,#134e4a);"></div>
+  <div class="post-hero-overlay"></div>
+</div>
+
+<!-- Back button -->
+<a href="/blog" class="back-link" style="position:fixed;top:80px;left:16px;z-index:100;">← All Articles</a>
+
+<!-- Content -->
+<div class="post-layout" id="postLayout">
+  <!-- Skeleton -->
+  <div id="skelContent">
+    <div class="skel" style="height:18px;width:100px;margin-bottom:20px;"></div>
+    <div class="skel" style="height:44px;margin-bottom:12px;"></div>
+    <div class="skel" style="height:24px;width:60%;margin-bottom:32px;"></div>
+    <div class="skel" style="height:16px;margin-bottom:10px;"></div>
+    <div class="skel" style="height:16px;margin-bottom:10px;"></div>
+    <div class="skel" style="height:16px;width:80%;"></div>
+  </div>
+  <div id="postContent" style="display:none;"></div>
+</div>
+
+{% include "components/footer.html" %}
+
+<script>
+  const slug = "{{ slug }}";
+  const EMOJI = { Mental:'🧠', Physical:'💪', Professional:'💼', General:'🌿' };
+
+  document.addEventListener('DOMContentLoaded', loadPost);
+
+  // Reading progress
+  window.addEventListener('scroll', () => {
+    const doc = document.documentElement;
+    const pct = (doc.scrollTop / (doc.scrollHeight - doc.clientHeight)) * 100;
+    document.getElementById('readProgress').style.width = Math.min(pct, 100) + '%';
+  });
+
+  async function loadPost() {
+    try {
+      const r = await fetch(`/api/blogs/${slug}`);
+      if (!r.ok) { showError(r.status === 404 ? 'Article not found.' : 'Failed to load article.'); return; }
+      const d = await r.json();
+      if (!d.success) { showError(d.error || 'Failed to load article.'); return; }
+      renderPost(d.post, d.prev, d.next, d.related);
+    } catch(e) { showError('Connection error. Please try again.'); }
+  }
+
+  function renderPost(p, prev, next, related) {
+    // Update page title
+    document.title = `${p.title} — SolaceSquad`;
+
+    // Hero
+    const hero = document.getElementById('heroSection');
+    const emoji = EMOJI[p.category] || '🌿';
+    const imgHtml = p.cover_image_url
+      ? `<img class="post-hero-img" src="${p.cover_image_url}" alt="${esc(p.title)}" onerror="this.style.display='none'">`
+      : `<div class="post-hero-placeholder">${emoji}</div>`;
+    hero.innerHTML = `
+      ${imgHtml}
+      <div class="post-hero-overlay">
+        <span class="cat-badge cat-${p.category || 'General'}">${emoji} ${p.category}</span>
+        <h1 class="post-title">${esc(p.title)}</h1>
+        <div class="post-meta">
+          <span class="meta-item">✍️ ${esc(p.author_name)}</span>
+          <span class="meta-sep">•</span>
+          <span class="meta-item">⏱ ${p.read_time_minutes} min read</span>
+          <span class="meta-sep">•</span>
+          <span class="meta-item">👁 ${p.view_count} views</span>
+          ${p.published_at ? `<span class="meta-sep">•</span><span class="meta-item">📅 ${new Date(p.published_at).toLocaleDateString('en-IN', {day:'numeric',month:'long',year:'numeric'})}</span>` : ''}
+        </div>
+      </div>`;
+
+    // Tags
+    const tagsHtml = (p.tags && p.tags.length)
+      ? `<div class="tags-row">${p.tags.map(t => `<span class="tag-pill">#${esc(t)}</span>`).join('')}</div>`
+      : '';
+
+    // Share
+    const url = encodeURIComponent(location.href);
+    const title = encodeURIComponent(p.title);
+    const shareHtml = `
+      <div class="share-bar">
+        <span class="share-label">Share:</span>
+        <a class="share-btn share-whatsapp" href="https://wa.me/?text=${title}%20${url}" target="_blank" rel="noopener">💬 WhatsApp</a>
+        <a class="share-btn share-linkedin" href="https://www.linkedin.com/sharing/share-offsite/?url=${url}" target="_blank" rel="noopener">in LinkedIn</a>
+        <button class="share-btn share-copy" onclick="copyLink(this)">🔗 Copy Link</button>
+      </div>`;
+
+    // Prev / Next
+    const prevHtml = prev
+      ? `<a class="prevnext-card" href="/blog/${prev.slug}"><div class="prevnext-label">← Previous</div><div class="prevnext-title">${esc(prev.title)}</div></a>`
+      : `<div></div>`;
+    const nextHtml = next
+      ? `<a class="prevnext-card right" href="/blog/${next.slug}"><div class="prevnext-label">Next →</div><div class="prevnext-title">${esc(next.title)}</div></a>`
+      : `<div></div>`;
+
+    // Related
+    let relHtml = '';
+    if (related && related.length) {
+      relHtml = `
+        <h3 style="font-family:'Playfair Display',serif;font-size:1.4rem;color:#1e293b;margin:40px 0 16px;">Related Articles</h3>
+        <div class="related-grid">
+          ${related.map(r => `
+            <a class="related-card" href="/blog/${r.slug}">
+              ${r.cover_image_url ? `<img class="related-img" src="${r.cover_image_url}" alt="${esc(r.title)}" loading="lazy" onerror="this.style.background='linear-gradient(135deg,#ccfbf1,#a7f3d0)';this.remove()">` : `<div class="related-img" style="display:flex;align-items:center;justify-content:center;font-size:2.5rem;">${EMOJI[r.category]||'🌿'}</div>`}
+              <div class="related-body">
+                <p class="related-title">${esc(r.title)}</p>
+                <div class="related-meta">⏱ ${r.read_time_minutes} min · 👁 ${r.view_count}</div>
+              </div>
+            </a>`).join('')}
+        </div>`;
+    }
+
+    // Render
+    document.getElementById('skelContent').style.display = 'none';
+    const content = document.getElementById('postContent');
+    content.style.display = 'block';
+    content.innerHTML = `
+      ${tagsHtml}
+      <div class="post-content">${p.content || ''}</div>
+      ${shareHtml}
+      <div class="prevnext">${prevHtml}${nextHtml}</div>
+      ${relHtml}`;
+  }
+
+  function showError(msg) {
+    document.getElementById('skelContent').style.display = 'none';
+    document.getElementById('postContent').style.display = 'block';
+    document.getElementById('postContent').innerHTML = `
+      <div style="text-align:center;padding:80px 0;color:#94a3b8;">
+        <div style="font-size:4rem;margin-bottom:16px;">😕</div>
+        <div style="font-size:1.1rem;font-weight:600;color:#475569;margin-bottom:8px;">${msg}</div>
+        <a href="/blog" style="color:var(--teal);font-weight:600;">← Back to Blog</a>
+      </div>`;
+  }
+
+  function copyLink(btn) {
+    navigator.clipboard.writeText(location.href).then(() => {
+      btn.textContent = '✅ Copied!';
+      setTimeout(() => btn.textContent = '🔗 Copy Link', 2000);
+    });
+  }
+
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+
+{% endblock %}

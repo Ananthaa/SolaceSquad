@@ -1,0 +1,1075 @@
+{% extends "base.html" %}
+{% block title %}Consultant Application — SolaceSquad&reg;{% endblock %}
+
+{% block content %}
+<style>
+    .section-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid #e5e7eb;
+        padding: 1.75rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    }
+    .section-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #1f2937;
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        margin-bottom: 1.25rem;
+    }
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.6rem;
+        height: 1.6rem;
+        border-radius: 9999px;
+        background: #0f766e;
+        color: #fff;
+        font-size: .7rem;
+        font-weight: 800;
+        flex-shrink: 0;
+        padding: 0 .3rem;
+    }
+    .field-label {
+        display: block;
+        font-size: .8125rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: .35rem;
+    }
+    .field-hint { font-size: .7rem; color: #9ca3af; margin-top: .2rem; }
+    .form-input {
+        width: 100%;
+        padding: .6rem .75rem;
+        border: 1px solid #d1d5db;
+        border-radius: .5rem;
+        font-size: .875rem;
+        background: #fff;
+        transition: border-color .15s;
+        outline: none;
+        box-sizing: border-box;
+    }
+    .form-input:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,.12); }
+    .form-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right .75rem center;
+        padding-right: 2rem;
+    }
+    .check-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px,1fr));
+        gap: .5rem .75rem;
+    }
+    .check-item {
+        display: flex;
+        align-items: flex-start;
+        gap: .45rem;
+        padding: .3rem;
+        border-radius: .375rem;
+        cursor: pointer;
+    }
+    .check-item:hover { background: #f0fdf4; }
+    .check-item input[type=checkbox], .check-item input[type=radio] {
+        margin-top: .15rem;
+        accent-color: #0f766e;
+        flex-shrink: 0;
+    }
+    .check-item span { font-size: .8125rem; color: #374151; line-height: 1.4; }
+    .radio-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .radio-btn {
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .45rem .9rem;
+        border: 1px solid #d1d5db;
+        border-radius: 9999px;
+        cursor: pointer;
+        font-size: .8125rem;
+        transition: all .15s;
+    }
+    .radio-btn:has(input:checked) {
+        background: #f0fdf4;
+        border-color: #0d9488;
+        color: #0f766e;
+        font-weight: 600;
+    }
+    .consultant-type-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px,1fr));
+        gap: .75rem;
+    }
+    .type-card {
+        border: 2px solid #e5e7eb;
+        border-radius: .75rem;
+        padding: .9rem .75rem;
+        cursor: pointer;
+        text-align: center;
+        transition: all .15s;
+    }
+    .type-card:hover { border-color: #0d9488; background: #f0fdf4; }
+    .type-card:has(input:checked) {
+        border-color: #0f766e;
+        background: #ecfdf5;
+        box-shadow: 0 0 0 3px rgba(15,118,110,.12);
+    }
+    .type-card .t-icon { font-size: 1.75rem; margin-bottom: .3rem; }
+    .type-card .t-label { font-size: .8rem; font-weight: 700; color: #1f2937; }
+    .cert-block {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: .75rem;
+        padding: 1rem;
+        margin-bottom: .75rem;
+    }
+    .submit-btn {
+        width: 100%;
+        padding: 1rem;
+        background: linear-gradient(135deg,#0f766e,#0d9488);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        transition: all .2s;
+    }
+    .submit-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(13,148,136,.35); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .read-only-field { background: #f9fafb; color: #6b7280; cursor: not-allowed; }
+    .add-btn {
+        font-size: .8rem;
+        color: #0d9488;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        padding: .25rem 0;
+        display: inline-flex;
+        align-items: center;
+        gap: .3rem;
+    }
+    .remove-btn {
+        font-size: .75rem;
+        color: #ef4444;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        padding: .2rem .5rem;
+        border-radius: .375rem;
+        transition: background .15s;
+    }
+    .remove-btn:hover { background: #fee2e2; }
+    .upload-zone {
+        border: 2px dashed #d1d5db;
+        border-radius: .75rem;
+        padding: 1.25rem;
+        text-align: center;
+        background: #fafafa;
+        cursor: pointer;
+        transition: border-color .15s;
+    }
+    .upload-zone:hover { border-color: #0d9488; }
+    @media(max-width:640px) {
+        .grid-2 { grid-template-columns: 1fr; }
+        .check-grid { grid-template-columns: repeat(2,1fr); }
+        .consultant-type-grid { grid-template-columns: repeat(2,1fr); }
+    }
+    .save-draft-btn {
+        width: 100%;
+        padding: .8rem 1.5rem;
+        background: #fff;
+        color: #0f766e;
+        border: 2px solid #0d9488;
+        border-radius: .75rem;
+        font-size: .95rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: .5rem;
+        transition: all .2s;
+        margin-bottom: .6rem;
+    }
+    .save-draft-btn:hover { background: #f0fdf4; }
+    .save-draft-btn:disabled { opacity: .6; cursor: not-allowed; }
+</style>
+
+<div style="min-height:100vh; background:linear-gradient(135deg,#f0fdf4 0%,#fff 50%,#eff6ff 100%); padding:2.5rem 1rem 4rem;">
+  <div style="max-width:720px; margin:0 auto;">
+
+    <!-- Header -->
+    <div style="text-align:center; margin-bottom:2rem;">
+      <div style="font-size:2.5rem; margin-bottom:.5rem;">🌿</div>
+      {% if filled_by_assistant %}
+      <h1 style="font-size:1.5rem; font-weight:800; color:#1f2937; margin:0;">Filling form for <span style="color:#0d9488;">{{ consultant_name }}</span></h1>
+      <p style="color:#6b7280; margin:.5rem 0 0; font-size:.875rem;">You are acting as Admin Assistant. <strong>Save</strong> will store data for Admin approval. You cannot submit/approve.</p>
+      <div style="margin-top:1rem; display:inline-flex; align-items:center; gap:6px; background:#fef3c7; border:1px solid #fde68a; border-radius:8px; padding:6px 14px; font-size:.8rem; color:#92400e; font-weight:600;">🔒 Approval by Admin only</div>
+      {% else %}
+      <h1 style="font-size:1.75rem; font-weight:800; color:#1f2937; margin:0;">Join SolaceSquad&reg;</h1>
+      <p style="color:#6b7280; margin:.5rem 0 0; font-size:.9rem;">Complete your wellbeing consultant application. All data is stored securely and used only for review.</p>
+      {% endif %}
+    </div>
+
+    {% if error %}
+    <div style="background:#fef2f2; border-left:4px solid #f87171; padding:.9rem 1rem; border-radius:.5rem; margin-bottom:1.25rem; color:#b91c1c; font-size:.875rem;">{{ error }}</div>
+    {% endif %}
+
+    <form id="onboardingForm" method="POST" action="/consultant/onboarding" enctype="multipart/form-data" onsubmit="return validateForm(event)">
+
+      {% if filled_by_assistant %}
+      <!-- Hidden field so JS can route the save-draft to the assistant endpoint -->
+      <input type="hidden" id="assistantProfileId" value="{{ profile.id }}">
+      {% endif %}
+
+      <!-- Draft restored banner -->
+      <div id="draftBanner" style="display:none; align-items:center; gap:.6rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:.5rem; padding:.75rem 1rem; margin-bottom:1.25rem; font-size:.85rem; color:#166534; font-weight:600;">
+        <span>✅</span>
+        <span>Welcome back! Your previously saved progress has been restored.</span>
+      </div>
+
+      <!-- Save toast -->
+      <div id="saveToast" style="display:none; position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999; background:#059669; color:#fff; padding:.8rem 1.25rem; border-radius:.75rem; font-weight:600; font-size:.875rem; box-shadow:0 4px 16px rgba(0,0,0,.2); transition:all .3s;">✅ Progress saved to cloud!</div>
+
+      <!-- Draft data for JS pre-population (serialised server-side, no Jinja2 filter issues) -->
+      {% if has_draft %}<script id="draftData" type="application/json">{{ draft_json | safe }}</script>{% endif %}
+
+      <!-- ══ S1: PERSONAL DETAILS ══════════════════════════════════════ -->
+      <div class="section-card">
+        <div class="section-title"><span class="badge">1</span> Personal Details</div>
+        <div class="grid-2">
+          <!-- Full Name -->
+          <div>
+            <label class="field-label">Full Name (as per Govt ID) <span style="color:#ef4444">*</span></label>
+            <input class="form-input" type="text" name="full_name" required value="{{ user.name }}" placeholder="Your full legal name">
+          </div>
+          <!-- Email (read-only) -->
+          <div>
+            <label class="field-label">Email Address</label>
+            <input class="form-input read-only-field" type="email" value="{{ user.email }}" readonly tabindex="-1">
+            <p class="field-hint">Used for login — cannot be changed here.</p>
+          </div>
+
+          <!-- Phone -->
+          <div>
+            <label class="field-label">Phone Number <span style="color:#ef4444">*</span></label>
+            <div style="display:flex; gap:.5rem;">
+              <div style="position:relative; flex-grow:1;">
+                <div style="position:absolute;inset-y:0;left:0;padding-left:.75rem;display:flex;align-items:center;pointer-events:none;height:100%;">
+                  <span style="color:#6b7280;font-size:.875rem;">🇮🇳 +91</span>
+                </div>
+                <input class="form-input" type="tel" id="phoneNumber" name="phone" required
+                  value="{{ user.phone_number or '' }}"
+                  style="padding-left:4rem; width:100%;"
+                  placeholder="98765 43210"
+                  oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,10); checkPhoneChanged();">
+              </div>
+              <button type="button" id="sendOtpBtn" onclick="sendProfileOtp()" 
+                  style="display:none; padding:0 1rem; border:1px solid #d1d5db; background:#fff; color:#374151; font-size:.875rem; font-weight:600; border-radius:8px; cursor:pointer; white-space:nowrap;">
+                  Send OTP
+              </button>
+            </div>
+            
+            <!-- Inline Onboarding OTP verification container -->
+            <div id="otpContainer" style="display:none; margin-top:.75rem; padding:1rem; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;">
+              <div style="display:flex; flex-direction:column; gap:.5rem;">
+                <label for="otpCode" style="font-size:.75rem; font-weight:600; color:#4b5563; text-transform:uppercase;">Enter Verification Code</label>
+                <div style="display:flex; gap:.5rem;">
+                  <input type="text" id="otpCode" placeholder="123456" maxlength="6"
+                      style="width:100%; padding:.5rem; border:1px solid #d1d5db; border-radius:8px; font-size:.875rem; text-align:center; font-weight:bold; letter-spacing:.1em;">
+                  <button type="button" onclick="verifyProfileOtp()" 
+                      style="padding:0 1rem; background:#6d28d9; color:#fff; border:none; font-size:.875rem; font-weight:600; border-radius:8px; cursor:pointer; white-space:nowrap;">
+                      Verify Code
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {% if not user.phone_number %}
+            <p class="field-hint" id="phoneHint">Please enter your 10-digit mobile number.</p>
+            {% endif %}
+          </div>
+
+          <!-- City -->
+          <div>
+            <label class="field-label">City / Location <span style="color:#ef4444">*</span></label>
+            <input class="form-input" type="text" name="city" required placeholder="e.g. Bengaluru, Mumbai">
+          </div>
+          <!-- Gender -->
+          <div>
+            <label class="field-label">Gender</label>
+            <select class="form-input form-select" name="gender">
+              <option value="">Prefer not to say</option>
+              <option>Female</option>
+              <option>Male</option>
+              <option>Transgender</option>
+              <option>Non-binary</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <!-- Experience -->
+          <div>
+            <label class="field-label">Years of Experience as Counsellor <span style="color:#ef4444">*</span></label>
+            <input class="form-input" type="number" name="experience_years" min="0" max="60" required placeholder="e.g. 5">
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ S2: QUALIFICATIONS & BACKGROUND ══════════════════════════ -->
+      <div class="section-card">
+        <div class="section-title"><span class="badge">2</span> Qualifications &amp; Background</div>
+
+        <!-- Highest Qualification + Specialization -->
+        <div class="grid-2" style="margin-bottom:1.25rem;">
+          <div>
+            <label class="field-label">Highest Qualification <span style="color:#ef4444">*</span></label>
+            <div class="radio-row" style="flex-direction:column;gap:.35rem;margin-top:.35rem;">
+              {% for q in ["Bachelors","Masters","M.Phil","PhD","Certified Coach (ICF)","Other"] %}
+              <label class="radio-btn" style="border-radius:.5rem;justify-content:flex-start;">
+                <input type="radio" name="highest_qualification" value="{{ q }}" required>
+                <span>{{ q }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <div>
+            <label class="field-label">Specialization / Field of Study</label>
+            <input class="form-input" type="text" name="education_specialization"
+              placeholder="e.g. Clinical Psychology, Cognitive Neuroscience"
+              style="margin-top:.35rem;">
+            <p class="field-hint">Your major subject or field within the qualification.</p>
+          </div>
+        </div>
+
+        <!-- Certifications — repeatable -->
+        <label class="field-label">Certifications</label>
+        <p class="field-hint" style="margin-bottom:.75rem;">Add each certification with its name and optionally upload a certificate file.</p>
+        <div id="certContainer" style="display:flex;flex-direction:column;gap:.75rem;">
+          <div class="cert-block cert-entry">
+            <div class="grid-2" style="margin-bottom:.5rem;">
+              <div>
+                <label class="field-label">Certification / Degree Name</label>
+                <input class="form-input" type="text" name="cert_name[]"
+                  placeholder="e.g. M.Sc Clinical Psychology, NIMHANS 2018">
+              </div>
+              <div>
+                <label class="field-label">Certificate File <span style="color:#9ca3af;font-weight:400;">(optional, PDF/JPG)</span></label>
+                <input type="file" name="cert_file[]" accept=".pdf,.jpg,.jpeg,.png"
+                  style="font-size:.8rem;padding:.4rem;">
+              </div>
+            </div>
+            <button type="button" class="remove-btn" onclick="removeCert(this)" style="display:none;">✕ Remove</button>
+          </div>
+        </div>
+        <button type="button" class="add-btn" onclick="addCert()" style="margin-top:.5rem;">
+          + Add another certification
+        </button>
+
+        <!-- QACP -->
+        <div style="margin-top:1.25rem;">
+          <label class="field-label">Are you QACP Certified?</label>
+          <p style="font-size:.7rem;color:#9ca3af;margin:0 0 .5rem;">Queer Affirmative Counselling Practice</p>
+          <div class="radio-row">
+            <label class="radio-btn"><input type="radio" name="qacp_certified" value="yes"><span>Yes</span></label>
+            <label class="radio-btn"><input type="radio" name="qacp_certified" value="no"><span>No</span></label>
+          </div>
+        </div>
+
+        <!-- How did you hear -->
+        <div style="margin-top:1.25rem;">
+          <label class="field-label">How did you hear about SolaceSquad?</label>
+          <div class="radio-row">
+            {% for s in ["Friends / Family","Social Media","Online Search","Professional Network","Other"] %}
+            <label class="radio-btn">
+              <input type="radio" name="referral_source" value="{{ s }}">
+              <span>{{ s }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ S3a: ENGAGEMENT TYPE ══════════════════════════════════════ -->
+      <div class="section-card">
+        <div class="section-title"><span class="badge">3a</span> Wellbeing Consultant Type</div>
+        <p style="font-size:.8rem;color:#6b7280;margin-bottom:.9rem;">Select all that apply to your practice:</p>
+        <div class="consultant-type-grid">
+          <label class="type-card">
+            <input type="checkbox" name="consultant_type" value="Mental" style="display:none">
+            <div class="t-icon">🧠</div>
+            <div class="t-label">Mental Wellbeing</div>
+          </label>
+          <label class="type-card">
+            <input type="checkbox" name="consultant_type" value="Physical" style="display:none">
+            <div class="t-icon">💪</div>
+            <div class="t-label">Physical Wellness</div>
+          </label>
+          <label class="type-card">
+            <input type="checkbox" name="consultant_type" value="Professional" style="display:none">
+            <div class="t-icon">🎯</div>
+            <div class="t-label">Professional Growth</div>
+          </label>
+
+        </div>
+      </div>
+
+      <!-- ══ S3b: AVAILABILITY ══════════════════════════════════════ -->
+      <div class="section-card">
+        <div class="section-title"><span class="badge">3b</span> Availability</div>
+        <div class="grid-2">
+          <div>
+            <label class="field-label">Preferred Time of Day</label>
+            <div class="radio-row" style="flex-direction:column;gap:.3rem;">
+              {% for t in ["Morning (6am–12pm)","Afternoon (12pm–5pm)","Evening (5pm–10pm)","Any Time"] %}
+              <label class="radio-btn" style="border-radius:.5rem;width:100%;justify-content:flex-start;">
+                <input type="radio" name="preferred_time" value="{{ t }}">
+                <span>{{ t }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <div>
+            <label class="field-label">Preferred Days</label>
+            <div class="radio-row" style="flex-direction:column;gap:.3rem;">
+              {% for d in ["Weekdays","Weekends","Any Day"] %}
+              <label class="radio-btn" style="border-radius:.5rem;width:100%;justify-content:flex-start;">
+                <input type="radio" name="preferred_days" value="{{ d }}">
+                <span>{{ d }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:1rem;">
+          <label class="field-label">Additional Availability Notes</label>
+          <textarea class="form-input" name="availability_notes" rows="2"
+            placeholder="e.g. Unavailable on Tuesdays, prefer 7–9pm IST slots"></textarea>
+        </div>
+      </div>
+
+      <!-- ══ S4: COUNSELLING APPROACH / METHODS ════════════════════ -->
+      <div class="section-card">
+        <div class="section-title"><span class="badge">4</span> Counselling Approach / Methods</div>
+        <p style="font-size:.8rem;color:#6b7280;margin-bottom:.75rem;">Select all methods you practise:</p>
+        <div class="check-grid">
+          {% for m in [
+            "Person-Centered Therapy","Cognitive Behavioural Therapy (CBT)",
+            "Dialectical Behaviour Therapy (DBT)","Rational Emotive Behaviour Therapy (REBT)",
+            "Psychodynamic/Psychoanalytic","Trauma-Informed Care",
+            "Acceptance & Commitment Therapy (ACT)","Transactional Analysis",
+            "Mindfulness-Based Therapy","Expressive Arts Therapy",
+            "Positive Psychotherapy","Behavioural Therapy",
+            "Eclectic / Integrative","Professional Growth Coaching",
+            "Physical Wellness Coaching","Yoga","Wushu"
+          ] %}
+          <label class="check-item">
+            <input type="checkbox" name="counselling_methods" value="{{ m }}">
+            <span>{{ m }}</span>
+          </label>
+          {% endfor %}
+          <!-- Others -->
+          <label class="check-item" id="others-method-check">
+            <input type="checkbox" id="method-others-cb" onchange="toggleOthersBox()"
+              name="counselling_methods" value="__others__">
+            <span>Others (please specify)</span>
+          </label>
+        </div>
+        <div id="method-others-box" style="display:none;margin-top:.75rem;">
+          <input class="form-input" type="text" name="counselling_methods_other"
+            placeholder="Describe your other methods…">
+        </div>
+      </div>
+
+      <!-- ══ S5: AREAS OF EXPERTISE ════════════════════════════════ -->
+      <div class="section-card">
+        <div class="section-title"><span class="badge">5</span> Areas of Expertise / Specialisation</div>
+        <p style="font-size:.8rem;color:#6b7280;margin-bottom:.75rem;">Select all areas you specialise in:</p>
+        <div class="check-grid">
+          {% for area in [
+            "Anxiety & Panic Attacks","Stress Management","Anger Management",
+            "Work-related Stress","Body Image Issues","Low Self-esteem",
+            "Family Issues / Conflicts","Crisis Intervention","Sexual & Intimacy Problems",
+            "Motivation & Goal Setting","Work-life Balance","Parenting Challenges",
+            "Abuse & Trauma (including Childhood)","LGBTQIA+ Affirmative Counselling",
+            "Neurodiversity (ADHD, Autism, etc.)","Grief & Bereavement",
+            "Personality Disorders","Depression & Mood Disorders",
+            "Relationship Counselling","Addiction & Substance Use",
+            "Career & Life Coaching","Nutrition & Wellness","Mindfulness & Meditation",
+            "Physical Fitness & Wellness","Other"
+          ] %}
+          <label class="check-item">
+            <input type="checkbox" name="expertise_areas" value="{{ area }}">
+            <span>{{ area }}</span>
+          </label>
+          {% endfor %}
+        </div>
+
+      </div>
+
+      <!-- ══ S6: PRACTICE DETAILS ══════════════════════════════════ -->
+      <div class="section-card">
+        <div class="section-title"><span class="badge">6</span> Practice Details</div>
+        <div class="grid-2">
+          <!-- Clinical Experience -->
+          <div>
+            <label class="field-label">Clinical Experience Range</label>
+            <div style="display:flex;flex-direction:column;gap:.35rem;">
+              {% for c in ["0–2 years","2–4 years","4–8 years","Above 8 years"] %}
+              <label class="radio-btn" style="border-radius:.5rem;justify-content:flex-start;">
+                <input type="radio" name="clinical_experience" value="{{ c }}">
+                <span>{{ c }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <!-- Fee -->
+          <div>
+            <label class="field-label">Expected Fee / Session (₹) <span style="color:#ef4444">*</span></label>
+            <div style="position:relative;">
+              <span style="position:absolute;top:50%;left:.75rem;transform:translateY(-50%);color:#6b7280;font-size:.875rem;">₹</span>
+              <input class="form-input" type="number" name="expected_hourly_fee" min="0" step="50"
+                required placeholder="e.g. 1500" style="padding-left:1.75rem;">
+            </div>
+            <p class="field-hint">Admin will set the final approved rate.</p>
+          </div>
+        </div>
+
+        <!-- Psychometric tests -->
+        <div style="margin-top:1.25rem;">
+          <label class="field-label">Do you administer psychometric / assessment tests?</label>
+          <div class="radio-row">
+            <label class="radio-btn"><input type="radio" name="psychometric_tests" value="yes"><span>Yes</span></label>
+            <label class="radio-btn"><input type="radio" name="psychometric_tests" value="no"><span>No</span></label>
+          </div>
+        </div>
+
+        <!-- Target Audience -->
+        <div style="margin-top:1.25rem;">
+          <label class="field-label">Who do you typically work with?</label>
+          <div class="check-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));">
+            {% for t in ["Individual (Adult)","Minor / Child / Adolescent","Family","Couple","Support Group"] %}
+            <label class="check-item">
+              <input type="checkbox" name="target_audience" value="{{ t }}">
+              <span>{{ t }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Languages -->
+        <div style="margin-top:1.25rem;">
+          <label class="field-label">Languages you consult in <span style="color:#ef4444">*</span></label>
+          <div class="check-grid" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr));">
+            {% for lang in ["English","Hindi","Tamil","Telugu","Kannada","Malayalam","Marathi","Bengali","Punjabi","Gujarati","Other"] %}
+            <label class="check-item">
+              <input type="checkbox" name="languages" value="{{ lang }}">
+              <span>{{ lang }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ S7: PROFILE & ABOUT YOU ════════════════════════════════ -->
+      <div class="section-card">
+        <div class="section-title"><span class="badge">7</span> Profile &amp; About You</div>
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+          <!-- DOB + LinkedIn -->
+          <div class="grid-2">
+            <div>
+              <label class="field-label">Date of Birth</label>
+              <input class="form-input" type="date" name="date_of_birth">
+            </div>
+            <div>
+              <label class="field-label">LinkedIn / Professional URL</label>
+              <input class="form-input" type="url" name="linkedin_url" placeholder="https://linkedin.com/in/…">
+            </div>
+          </div>
+
+          <!-- Profile Photo -->
+          <div>
+            <label class="field-label">Profile Photo
+              <span style="color:#6b7280;font-weight:400;">(displayed on your public profile)</span>
+            </label>
+            <div class="upload-zone" onclick="document.getElementById('photoInput').click()"
+              ondragover="event.preventDefault();this.style.borderColor='#0d9488'"
+              ondragleave="this.style.borderColor='#d1d5db'"
+              ondrop="event.preventDefault();handleFileDrop(event,'photoInput','photoPreview');this.style.borderColor='#d1d5db'">
+              <div id="photoPreview" style="display:none;margin-bottom:.5rem;">
+                <img id="photoPreviewImg" src=""
+                  style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #0d9488;margin:0 auto;display:block;">
+              </div>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"
+                style="margin:0 auto .5rem;display:block">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              <p id="photoName" style="font-size:.8rem;color:#6b7280;margin:0;">Click or drag to upload your photo</p>
+              <p style="font-size:.7rem;color:#9ca3af;margin:.25rem 0 0;">JPG, PNG or WEBP — max 5 MB</p>
+            </div>
+            <input type="file" id="photoInput" name="photo" accept="image/jpeg,image/png,image/webp"
+              style="display:none" onchange="previewPhoto(this)">
+          </div>
+
+          <!-- CV Upload (optional) -->
+          <div>
+            <label class="field-label">Upload CV / Resume
+              <span style="color:#0d9488;font-weight:600;">(Preferred: PDF)</span>
+              <span style="color:#6b7280;font-weight:400;"> — optional, can be added from profile later</span>
+            </label>
+            <div class="upload-zone" onclick="document.getElementById('cvInput').click()"
+              ondragover="event.preventDefault();this.style.borderColor='#0d9488'"
+              ondragleave="this.style.borderColor='#d1d5db'"
+              ondrop="event.preventDefault();handleCvDrop(event);this.style.borderColor='#d1d5db'">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"
+                style="margin:0 auto .5rem;display:block">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/>
+                <line x1="9" y1="15" x2="15" y2="15"/>
+              </svg>
+              <p id="cvName" style="font-size:.8rem;color:#6b7280;margin:0;">Click or drag to upload your CV</p>
+              <p style="font-size:.7rem;color:#9ca3af;margin:.25rem 0 0;">PDF, DOC, DOCX — max 10 MB</p>
+            </div>
+            <input type="file" id="cvInput" name="cv"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword" style="display:none"
+              onchange="document.getElementById('cvName').textContent = this.files[0]?.name || 'File selected'">
+          </div>
+
+          <!-- Bio (optional) -->
+          <div>
+            <label class="field-label">Brief Bio / About You
+              <span style="color:#6b7280;font-weight:400;"> — optional</span>
+            </label>
+            <textarea class="form-input" name="bio" rows="4"
+              placeholder="Describe your counselling philosophy, approach, and what makes you a great fit for clients…"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ S8: REFERENCES ═════════════════════════════════════════ -->
+      <div class="section-card">
+        <div class="section-title"><span class="badge">8</span> Recommendations / References</div>
+        <p style="font-size:.8rem;color:#6b7280;margin-bottom:1rem;">Please provide at least one professional reference (supervisor, colleague, or mentor).</p>
+        <div id="refContainer" style="display:flex;flex-direction:column;gap:1rem;">
+          <div class="ref-block" style="background:#f9fafb;border-radius:.75rem;padding:1rem;border:1px solid #e5e7eb;">
+            <div class="grid-2">
+              <div>
+                <label class="field-label">Recommender's Full Name</label>
+                <input class="form-input" type="text" name="ref_name[]" placeholder="Dr. Priya Sharma">
+              </div>
+              <div>
+                <label class="field-label">Relationship to You</label>
+                <input class="form-input" type="text" name="ref_relation[]" placeholder="Supervisor / Colleague">
+              </div>
+              <div>
+                <label class="field-label">Phone / Email</label>
+                <input class="form-input" type="text" name="ref_contact[]"
+                  placeholder="+91 XXXXX XXXXX or email@example.com">
+              </div>
+            </div>
+            <button type="button" class="remove-btn" onclick="removeRef(this)" style="display:none;margin-top:.5rem;">✕ Remove</button>
+          </div>
+        </div>
+        <button type="button" class="add-btn" onclick="addRef()" style="margin-top:.75rem;">+ Add another reference</button>
+      </div>
+
+      <!-- Save Progress -->
+      <button type="button" id="saveDraftBtn" onclick="saveDraft()" class="save-draft-btn">
+        💾 Save Progress
+      </button>
+      <p style="text-align:center;font-size:.73rem;color:#9ca3af;margin:0 0 1.25rem;">Not done yet? Save your progress — we'll restore your answers when you come back.</p>
+
+      <!-- Submit -->
+      <button type="submit" class="submit-btn">
+        Submit Application
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+        </svg>
+      </button>
+      <p style="text-align:center;font-size:.75rem;color:#9ca3af;margin-top:.75rem;">Your information is stored securely and used only for application review.</p>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Phone changed and OTP verification tracking
+  let originalPhone = "{{ user.phone_number or '' }}".replace(/[^0-9]/g, '').slice(-10);
+  let phoneVerified = false;
+  let otpTimer = null;
+  let otpCountdown = 0;
+
+  function checkPhoneChanged() {
+    const phoneInput = document.getElementById('phoneNumber');
+    const sendOtpBtn = document.getElementById('sendOtpBtn');
+    const otpContainer = document.getElementById('otpContainer');
+    
+    // Strip out non-digits for validation
+    const currentVal = phoneInput.value.replace(/[^0-9]/g, '');
+    
+    if (currentVal.slice(-10) === originalPhone) {
+      sendOtpBtn.style.display = 'none';
+      otpContainer.style.display = 'none';
+      phoneVerified = false;
+    } else {
+      if (!phoneVerified && currentVal !== '') {
+        sendOtpBtn.style.display = 'block';
+      } else {
+        sendOtpBtn.style.display = 'none';
+      }
+    }
+  }
+
+  async function sendProfileOtp() {
+    const phoneInput = document.getElementById('phoneNumber');
+    const sendOtpBtn = document.getElementById('sendOtpBtn');
+    const otpContainer = document.getElementById('otpContainer');
+    
+    const phone = phoneInput.value.trim();
+    if (phone.length !== 10) {
+      alert('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    
+    sendOtpBtn.disabled = true;
+    sendOtpBtn.textContent = 'Sending…';
+
+    try {
+      const res = await fetch('/api/auth/phone-otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        alert('Verification OTP sent successfully to +91 ' + phone);
+        otpContainer.style.display = 'block';
+        
+        // Countdown timer
+        otpCountdown = 60;
+        if (otpTimer) clearInterval(otpTimer);
+        otpTimer = setInterval(() => {
+          otpCountdown--;
+          if (otpCountdown <= 0) {
+            clearInterval(otpTimer);
+            sendOtpBtn.textContent = 'Resend OTP';
+            sendOtpBtn.disabled = false;
+          } else {
+            sendOtpBtn.textContent = `Resend (${otpCountdown}s)`;
+          }
+        }, 1000);
+
+      } else {
+        alert(data.error || 'Failed to send OTP.');
+        sendOtpBtn.disabled = false;
+        sendOtpBtn.textContent = 'Send OTP';
+      }
+    } catch (e) {
+      alert('Network error sending OTP.');
+      sendOtpBtn.disabled = false;
+      sendOtpBtn.textContent = 'Send OTP';
+    }
+  }
+
+  async function verifyProfileOtp() {
+    const phoneInput = document.getElementById('phoneNumber');
+    const otpInput = document.getElementById('otpCode');
+    const otpContainer = document.getElementById('otpContainer');
+    const sendOtpBtn = document.getElementById('sendOtpBtn');
+    
+    const phone = phoneInput.value.trim();
+    const otp = otpInput.value.trim();
+    
+    if (!otp || otp.length !== 6) {
+      alert('Please enter a valid 6-digit code.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/auth/phone-otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone, otp: otp })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        alert('Phone number verified successfully!');
+        phoneVerified = true;
+        otpContainer.style.display = 'none';
+        sendOtpBtn.style.display = 'none';
+        
+        phoneInput.style.borderColor = '#10b981';
+        phoneInput.style.boxShadow = '0 0 0 2px #d1fae5';
+      } else {
+        alert(data.error || 'Incorrect OTP code.');
+      }
+    } catch (e) {
+      alert('Network error verifying OTP.');
+    }
+  }
+
+  // Expose to window for inline handlers
+  window.checkPhoneChanged = checkPhoneChanged;
+  window.sendProfileOtp = sendProfileOtp;
+  window.verifyProfileOtp = verifyProfileOtp;
+
+  // ── Form Validation (Client-Side File Size Guards) ──────────────────
+  function validateForm(event) {
+    // Validate phone number is verified if changed
+    const phoneInput = document.getElementById('phoneNumber');
+    const currentVal = phoneInput.value.replace(/[^0-9]/g, '').slice(0, 10);
+    if (currentVal !== originalPhone && !phoneVerified && currentVal !== '') {
+      alert('Please verify your new mobile number first.');
+      event.preventDefault();
+      phoneInput.focus();
+      return false;
+    }
+
+    const photoInput = document.getElementById('photoInput');
+    const cvInput = document.getElementById('cvInput');
+    const certInputs = document.querySelectorAll('input[name="cert_file[]"]');
+
+    let totalSize = 0;
+    const maxPhotoSize = 5 * 1024 * 1024; // 5MB
+    const maxCvSize = 10 * 1024 * 1024; // 10MB
+    const maxCertSize = 5 * 1024 * 1024; // 5MB per file
+    const maxTotalSize = 25 * 1024 * 1024; // 25MB total
+
+    // Validate Photo
+    if (photoInput && photoInput.files.length > 0) {
+      const size = photoInput.files[0].size;
+      if (size > maxPhotoSize) {
+        alert("Profile photo is too large! Maximum allowed size is 5 MB.");
+        event.preventDefault();
+        photoInput.focus();
+        return false;
+      }
+      totalSize += size;
+    }
+
+    // Validate CV
+    if (cvInput && cvInput.files.length > 0) {
+      const size = cvInput.files[0].size;
+      if (size > maxCvSize) {
+        alert("CV / Resume is too large! Maximum allowed size is 10 MB.");
+        event.preventDefault();
+        cvInput.focus();
+        return false;
+      }
+      totalSize += size;
+    }
+
+    // Validate Certificates
+    for (const certInput of certInputs) {
+      if (certInput.files.length > 0) {
+        for (const file of certInput.files) {
+          if (file.size > maxCertSize) {
+            alert(`Certificate "${file.name}" is too large! Maximum allowed size is 5 MB per file.`);
+            event.preventDefault();
+            certInput.focus();
+            return false;
+          }
+          totalSize += file.size;
+        }
+      }
+    }
+
+    // Validate Total Upload Size
+    if (totalSize > maxTotalSize) {
+      alert("Total size of uploaded files is too large! Please ensure total uploads are under 25 MB to submit successfully.");
+      event.preventDefault();
+      return false;
+    }
+
+    // Disable submit button to prevent double-click submissions
+    const submitBtn = document.querySelector('.submit-btn');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '⏳ Submitting Application…';
+    }
+    return true;
+  }
+
+  // ── Certification blocks ──────────────────────────────────────────
+  function addCert() {
+    const container = document.getElementById('certContainer');
+    const tmpl = container.querySelector('.cert-entry').cloneNode(true);
+    tmpl.querySelectorAll('input').forEach(i => { i.value = ''; if (i.type === 'file') i.value = ''; });
+    tmpl.querySelector('.remove-btn').style.display = 'inline-flex';
+    container.appendChild(tmpl);
+    updateRemoveCertBtns();
+  }
+  function removeCert(btn) {
+    btn.closest('.cert-entry').remove();
+    updateRemoveCertBtns();
+  }
+  function updateRemoveCertBtns() {
+    const entries = document.querySelectorAll('.cert-entry');
+    entries.forEach((e, i) => {
+      const rb = e.querySelector('.remove-btn');
+      rb.style.display = entries.length > 1 ? 'inline-flex' : 'none';
+    });
+  }
+
+  // ── Reference blocks ──────────────────────────────────────────────
+  function addRef() {
+    const container = document.getElementById('refContainer');
+    const tmpl = container.querySelector('.ref-block').cloneNode(true);
+    tmpl.querySelectorAll('input').forEach(i => i.value = '');
+    tmpl.querySelector('.remove-btn').style.display = 'inline-flex';
+    container.appendChild(tmpl);
+    updateRemoveRefBtns();
+  }
+  function removeRef(btn) {
+    btn.closest('.ref-block').remove();
+    updateRemoveRefBtns();
+  }
+  function updateRemoveRefBtns() {
+    const blocks = document.querySelectorAll('.ref-block');
+    blocks.forEach((b) => {
+      const rb = b.querySelector('.remove-btn');
+      rb.style.display = blocks.length > 1 ? 'inline-flex' : 'none';
+    });
+  }
+
+  // ── Others method text box ────────────────────────────────────────
+  function toggleOthersBox() {
+    const cb = document.getElementById('method-others-cb');
+    const box = document.getElementById('method-others-box');
+    box.style.display = cb.checked ? 'block' : 'none';
+    box.querySelector('input').required = cb.checked;
+  }
+
+  // ── Type card visual toggle ───────────────────────────────────────
+  document.querySelectorAll('.type-card').forEach(card => {
+    card.addEventListener('change', () => {
+      // CSS :has handles the highlight; just ensure label stays in sync
+    });
+  });
+
+  // ── Radio button highlight ────────────────────────────────────────
+  document.addEventListener('change', e => {
+    if (e.target.type === 'radio') {
+      const name = e.target.name;
+      document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+        r.closest('.radio-btn')?.classList.remove('selected');
+      });
+      e.target.closest('.radio-btn')?.classList.add('selected');
+    }
+  });
+
+  // ── Photo preview ─────────────────────────────────────────────────
+  function previewPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    document.getElementById('photoName').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('photoPreviewImg').src = e.target.result;
+      document.getElementById('photoPreview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ── Drag-drop ─────────────────────────────────────────────────────
+  function handleFileDrop(event, inputId, previewId) {
+    const dt = event.dataTransfer;
+    if (!dt || !dt.files.length) return;
+    const input = document.getElementById(inputId);
+    input.files = dt.files;
+    if (inputId === 'photoInput') previewPhoto(input);
+  }
+  function handleCvDrop(event) {
+    const dt = event.dataTransfer;
+    if (!dt || !dt.files.length) return;
+    const input = document.getElementById('cvInput');
+    input.files = dt.files;
+    document.getElementById('cvName').textContent = dt.files[0]?.name || 'File selected';
+  }
+  // ── Save Progress to cloud ────────────────────────────────────────
+  async function saveDraft() {
+    const btn = document.getElementById('saveDraftBtn');
+    const toast = document.getElementById('saveToast');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Saving…';
+    const fd = new FormData();
+    const form = document.querySelector('form');
+    // Determine save URL: assistant save-draft vs regular save-draft
+    const assistantProfileId = document.getElementById('assistantProfileId')?.value;
+    const saveUrl = assistantProfileId
+      ? `/assistant/consultant/${assistantProfileId}/save-draft`
+      : '/consultant/onboarding/save-draft';
+    for (const el of form.elements) {
+      if (!el.name || el.type === 'file') continue;
+      if (el.type === 'checkbox' || el.type === 'radio') {
+        if (el.checked) fd.append(el.name, el.value);
+      } else {
+        fd.append(el.name, el.value);
+      }
+    }
+    try {
+      const res = await fetch(saveUrl, { method: 'POST', body: fd });
+      const data = await res.json();
+      toast.textContent = data.success ? '✅ Progress saved to cloud!' : '❌ ' + (data.error || 'Save failed');
+      toast.style.background = data.success ? '#059669' : '#dc2626';
+    } catch {
+      toast.textContent = '❌ Network error — please try again.';
+      toast.style.background = '#dc2626';
+    }
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 3500);
+    btn.disabled = false;
+    btn.innerHTML = '💾 Save Progress';
+  }
+
+  // ── Pre-populate form from cloud draft (data embedded as JSON by server) ───────────
+  (function() {
+    const el = document.getElementById('draftData');
+    if (!el) return; // no draft saved yet
+    try {
+      const d = JSON.parse(el.textContent);
+      // Text / number / textarea
+      ['full_name','city','experience_years','availability_notes','expected_hourly_fee','bio','linkedin_url','education_specialization','phone'].forEach(n => {
+        const inp = document.querySelector(`[name="${n}"]`);
+        if (inp && d[n]) inp.value = d[n];
+      });
+      // Select
+      if (d.gender) { const s = document.querySelector('[name="gender"]'); if (s) s.value = d.gender; }
+      // Radio buttons
+      ['highest_qualification','referral_source','preferred_time','preferred_days','qacp_certified'].forEach(n => {
+        if (!d[n]) return;
+        document.querySelectorAll(`input[name="${n}"]`).forEach(rb => {
+          if (rb.value === d[n]) { rb.checked = true; rb.closest('.radio-btn')?.classList.add('selected'); }
+        });
+      });
+      // Multi-checkboxes
+      ['counselling_methods','expertise_areas'].forEach(n => {
+        if (!Array.isArray(d[n])) return;
+        d[n].forEach(v => {
+          document.querySelectorAll(`input[name="${n}"]`).forEach(cb => { if (cb.value === v) cb.checked = true; });
+        });
+      });
+      // Show banner if any non-empty value found
+      if (Object.values(d).some(v => Array.isArray(v) ? v.length > 0 : v !== '')) {
+        document.getElementById('draftBanner').style.display = 'flex';
+      }
+    } catch(e) {
+      console.warn('Draft pre-population error:', e);
+    }
+  })();
+</script>
+{% endblock %}

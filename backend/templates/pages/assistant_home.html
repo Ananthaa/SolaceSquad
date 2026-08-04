@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Assistant Dashboard — SolaceSquad{% endblock %}
+
+{% block content %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  :root {
+    --teal:       #0d9488;
+    --teal-dark:  #0f766e;
+    --teal-light: #f0fdf4;
+    --teal-mid:   #ccfbf1;
+    --slate:      #1e293b;
+    --muted:      #64748b;
+    --border:     #e2e8f0;
+    --bg:         #f8fafc;
+    --card:       #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); margin: 0; }
+
+  .asst-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    height: 58px;
+    background: linear-gradient(90deg, var(--teal-dark), var(--teal));
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; box-shadow: 0 2px 12px rgba(0,0,0,.18);
+  }
+  .asst-nav-brand { display: flex; align-items: center; gap: 10px; color: #fff; font-size: 1.05rem; font-weight: 800; }
+  .asst-nav-right { display: flex; align-items: center; gap: 14px; }
+  .asst-nav-name { color: rgba(255,255,255,.85); font-size: .875rem; font-weight: 500; background: rgba(255,255,255,.12); padding: 5px 14px; border-radius: 20px; }
+  .asst-nav-badge { background: rgba(255,255,255,.18); color: rgba(255,255,255,.7); font-size: .7rem; font-weight: 700; letter-spacing: .06em; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; }
+  .asst-logout { color: rgba(255,255,255,.65); font-size: .8rem; text-decoration: none; padding: 5px 12px; border: 1px solid rgba(255,255,255,.25); border-radius: 7px; transition: all .2s; }
+  .asst-logout:hover { background: rgba(255,255,255,.15); color: #fff; }
+
+  .asst-wrap { max-width: 1100px; margin: 0 auto; padding: 82px 24px 56px; }
+
+  .asst-header { margin-bottom: 36px; }
+  .asst-header h1 { font-size: 1.9rem; font-weight: 800; color: var(--slate); margin: 0 0 6px; }
+  .asst-header p { color: var(--muted); font-size: .9rem; margin: 0; }
+
+  .module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media(max-width:680px) { .module-grid { grid-template-columns: 1fr; } }
+
+  .module-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+    box-shadow: 0 2px 16px rgba(0,0,0,.06); overflow: hidden;
+    display: flex; flex-direction: column; transition: box-shadow .2s, transform .2s;
+  }
+  .module-card:hover { box-shadow: 0 8px 32px rgba(13,148,136,.12); transform: translateY(-2px); }
+
+  .module-header { padding: 24px 24px 0; }
+  .module-icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 14px; }
+  .module-icon.teal { background: var(--teal-mid); }
+  .module-icon.amber { background: #fef3c7; }
+  .module-title { font-size: 1.2rem; font-weight: 800; color: var(--slate); margin: 0 0 4px; }
+  .module-desc { font-size: .855rem; color: var(--muted); line-height: 1.55; margin: 0; }
+
+  .module-perms { margin: 16px 24px 0; padding: 12px 16px; background: var(--teal-light); border-radius: 10px; border: 1px solid var(--teal-mid); }
+  .module-perms p { font-size: .78rem; color: var(--teal-dark); font-weight: 600; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .06em; }
+  .perm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+  .perm-list li { font-size: .82rem; display: flex; align-items: center; gap: 6px; }
+  .perm-list li.yes { color: #166534; }
+  .perm-list li.no  { color: #9ca3af; }
+
+  .module-body { padding: 20px 24px; flex: 1; }
+  .stat-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-pill { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; display: flex; flex-direction: column; }
+  .stat-num { font-size: 1.5rem; font-weight: 800; color: var(--teal-dark); line-height: 1; }
+  .stat-label { font-size: .72rem; color: var(--muted); font-weight: 500; margin-top: 3px; }
+
+  .module-cta {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: calc(100% - 48px); margin: 0 24px 24px;
+    padding: 13px 20px;
+    background: linear-gradient(135deg, var(--teal-dark), var(--teal));
+    color: #fff; font-weight: 700; font-size: .95rem;
+    border-radius: 12px; text-decoration: none; transition: all .2s;
+  }
+  .module-cta:hover { box-shadow: 0 6px 20px rgba(13,148,136,.35); transform: translateY(-1px); }
+  .module-cta.amber-cta { background: linear-gradient(135deg, #d97706, #f59e0b); }
+  .module-cta.amber-cta:hover { box-shadow: 0 6px 20px rgba(245,158,11,.3); }
+
+  .incomplete-preview { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .inc-row { display: flex; align-items: center; gap: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; transition: background .15s; text-decoration: none; }
+  .inc-row:hover { background: var(--teal-light); }
+  .inc-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #134e4a, var(--teal)); color: #fff; font-weight: 800; font-size: .9rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .inc-name { font-weight: 600; font-size: .875rem; color: var(--slate); }
+  .inc-meta { font-size: .75rem; color: var(--muted); }
+  .inc-badge { margin-left: auto; font-size: .7rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+  .inc-badge.empty { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+  .no-results { text-align: center; padding: 24px; color: var(--muted); font-size: .9rem; }
+  .no-results span { font-size: 2rem; display: block; margin-bottom: 8px; }
+</style>
+
+<nav class="asst-nav">
+  <div class="asst-nav-brand">🌿 SolaceSquad</div>
+  <div class="asst-nav-right">
+    <span class="asst-nav-badge">Assistant</span>
+    <span class="asst-nav-name">{{ user_name }}</span>
+    <a href="/logout" class="asst-logout">Sign Out</a>
+  </div>
+</nav>
+
+<div class="asst-wrap">
+  <div class="asst-header">
+    <h1>👋 Hi, {{ user_name.split()[0] }}!</h1>
+    <p>Your two work areas are ready below. Fill consultant profiles and write blogs — Admin handles approvals and publishing.</p>
+  </div>
+
+  <div class="module-grid">
+
+    <!-- Module 1: Incomplete Consultants -->
+    <div class="module-card">
+      <div class="module-header">
+        <div class="module-icon teal">📋</div>
+        <h2 class="module-title">Incomplete Consultant Forms</h2>
+        <p class="module-desc">Fill in onboarding details on behalf of consultants whose profiles are incomplete. Saved data goes to Admin for approval.</p>
+        <div class="module-perms">
+          <p>Your Permissions</p>
+          <ul class="perm-list">
+            <li class="yes">✅ View incomplete profiles</li>
+            <li class="yes">✅ Fill &amp; save onboarding forms</li>
+            <li class="no">🔒 Approve consultants (Admin only)</li>
+            <li class="no">🔒 Reject consultants (Admin only)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="module-body">
+        <div class="stat-row">
+          <div class="stat-pill">
+            <span class="stat-num" id="incompleteCount">—</span>
+            <span class="stat-label">Incomplete</span>
+          </div>
+        </div>
+        <div class="incomplete-preview" id="incompletePreview">
+          <div class="no-results" id="previewLoading"><span>⏳</span>Loading...</div>
+        </div>
+      </div>
+      <a href="/assistant/consultants" class="module-cta">
+        📋 View All Incomplete Forms
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+
+    <!-- Module 2: Blog Studio -->
+    <div class="module-card">
+      <div class="module-header">
+        <div class="module-icon amber">✍️</div>
+        <h2 class="module-title">Blog Studio</h2>
+        <p class="module-desc">Write, edit, and save wellness blog posts. Use AI to generate drafts. Only Admins can publish to the live site.</p>
+        <div class="module-perms">
+          <p>Your Permissions</p>
+          <ul class="perm-list">
+            <li class="yes">✅ Create new blog posts</li>
+            <li class="yes">✅ Edit existing drafts</li>
+            <li class="yes">✅ Use AI writing assistant</li>
+            <li class="no">🔒 Publish posts (Admin only)</li>
+            <li class="no">🔒 Delete posts (Admin only)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="module-body">
+        <div class="stat-row">
+          <div class="stat-pill">
+            <span class="stat-num" id="draftCount">—</span>
+            <span class="stat-label">Drafts</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-num" id="publishedCount">—</span>
+            <span class="stat-label">Published</span>
+          </div>
+        </div>
+        <p style="font-size:.82rem;color:var(--muted);line-height:1.6;margin:0;">
+          Write wellness content for mental, physical, and professional wellness. Drafts will be reviewed and published by an Admin.
+        </p>
+      </div>
+      <a href="/admin/blogs" class="module-cta amber-cta">
+        ✍️ Open Blog Studio
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  (async () => {
+    try {
+      const res = await fetch('/api/assistant/incomplete-consultants');
+      const data = await res.json();
+      const preview = document.getElementById('incompletePreview');
+      const countEl = document.getElementById('incompleteCount');
+      document.getElementById('previewLoading')?.remove();
+      const list = data.consultants || [];
+      countEl.textContent = list.length;
+      if (list.length === 0) {
+        preview.innerHTML = '<div class="no-results"><span>🎉</span>All forms are complete!</div>';
+        return;
+      }
+      list.slice(0, 3).forEach(c => {
+        const row = document.createElement('a');
+        row.href = `/assistant/consultant/${c.profile_id}/fill`;
+        row.className = 'inc-row';
+        const initials = (c.name || 'C').slice(0, 2).toUpperCase();
+        const pct = c.completion_pct || 0;
+        const badgeCls = pct === 0 ? 'inc-badge empty' : 'inc-badge';
+        row.innerHTML = `
+          <div class="inc-avatar">${initials}</div>
+          <div><div class="inc-name">${c.name || 'Unknown'}</div><div class="inc-meta">${c.email || ''}</div></div>
+          <span class="${badgeCls}">${pct === 0 ? 'Empty' : pct + '% done'}</span>`;
+        preview.appendChild(row);
+      });
+      if (list.length > 3) {
+        const more = document.createElement('div');
+        more.style.cssText = 'font-size:.8rem;color:var(--muted);text-align:center;padding:6px;';
+        more.textContent = `+ ${list.length - 3} more`;
+        preview.appendChild(more);
+      }
+    } catch(e) {
+      document.getElementById('incompletePreview').innerHTML = '<div class="no-results"><span>⚠️</span>Could not load data</div>';
+    }
+  })();
+
+  (async () => {
+    try {
+      const res = await fetch('/api/assistant/blog-stats');
+      const d = await res.json();
+      if (d.drafts    !== undefined) document.getElementById('draftCount').textContent     = d.drafts;
+      if (d.published !== undefined) document.getElementById('publishedCount').textContent = d.published;
+    } catch(e) {}
+  })();
+</script>
+{% endblock %}

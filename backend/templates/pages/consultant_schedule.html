@@ -1,161 +1,368 @@
 {% extends "layouts/protected.html" %}
 
-{% set nav_items = [
-{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/consultant', 'key': 'dashboard'},
-{'icon': 'users', 'label': 'My Clients', 'href': '/consultant/clients', 'key': 'clients'},
-{'icon': 'calendar', 'label': 'Schedule', 'href': '/consultant/schedule', 'key': 'schedule'},
-{'icon': 'message-square', 'label': 'Messages', 'href': '/consultant/messages', 'key': 'messages'},
-{'icon': 'file-text', 'label': 'Reports', 'href': '/consultant/reports', 'key': 'reports'},
-{'icon': 'user', 'label': 'Profile', 'href': '/consultant/profile', 'key': 'profile'}
-] %}
+
+<style>
+    .day-card {
+        background: #fff;
+        border: 1.5px solid #e5e7eb;
+        border-radius: .875rem;
+        padding: 1rem 1.25rem;
+        transition: border-color .15s, background .15s;
+    }
+
+    .day-card.enabled {
+        border-color: #a7f3d0;
+        background: #f0fdf4;
+    }
+
+    .time-input {
+        padding: .4rem .65rem;
+        border: 1.5px solid #d1d5db;
+        border-radius: .5rem;
+        font-size: .8125rem;
+        color: #111827;
+        background: #fff;
+        cursor: pointer;
+        width: 120px;
+    }
+
+    .time-input:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, .12);
+    }
+
+    .break-row {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        background: #fffbeb;
+        border: 1.5px solid #fde68a;
+        border-radius: .625rem;
+        padding: .45rem .75rem;
+        margin-top: .5rem;
+    }
+
+    .add-break-btn {
+        margin-top: .5rem;
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        font-size: .75rem;
+        font-weight: 700;
+        color: #7c3aed;
+        cursor: pointer;
+        border: 1.5px dashed #c4b5fd;
+        border-radius: .5rem;
+        padding: .28rem .75rem;
+        background: #faf5ff;
+        transition: all .15s;
+    }
+
+    .add-break-btn:hover {
+        background: #ede9fe;
+        border-color: #7c3aed;
+    }
+
+    .remove-break-btn {
+        margin-left: auto;
+        flex-shrink: 0;
+        cursor: pointer;
+        color: #ef4444;
+        background: #fee2e2;
+        border: none;
+        border-radius: .375rem;
+        padding: .15rem .4rem;
+        font-size: .75rem;
+        font-weight: 700;
+        line-height: 1.4;
+        transition: background .15s;
+    }
+
+    .remove-break-btn:hover {
+        background: #fca5a5;
+    }
+</style>
 
 {% block dashboard_content %}
-<!-- Header -->
-<div class="mb-8">
-    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
-        My Schedule 📅
-    </h1>
-    <p class="text-gray-600">
-        Manage your availability and view upcoming appointments
-    </p>
+
+<div class="mb-6">
+    <h1 class="text-2xl font-display font-bold text-gray-900 mb-1">Set my Availability 📅</h1>
+    <p class="text-sm text-gray-500">Toggle each day on, set your working hours, and add any break periods.</p>
 </div>
 
-<!-- Schedule Management -->
 <div class="grid lg:grid-cols-3 gap-6">
-    <!-- Availability Settings -->
-    <div class="lg:col-span-2">
-        <div class="card">
-            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4">
-                Set Your Availability
-            </h2>
 
-            <div id="scheduleForm" class="space-y-4">
-                <p class="text-sm text-gray-600 mb-4">
-                    Define your working hours for each day of the week
-                </p>
-
-                {% set days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
-
-                {% for day in days %}
-                <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div class="flex-1">
-                        <label class="flex items-center gap-2">
-                            <input type="checkbox" class="day-toggle" data-day="{{ loop.index0 }}" {% if schedules and
-                                schedules|selectattr('day_of_week', 'equalto' , loop.index0)|list %}checked{% endif %}>
-                            <span class="font-medium text-gray-900">{{ day }}</span>
-                        </label>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input type="time" class="start-time px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                            data-day="{{ loop.index0 }}"
-                            value="{% if schedules %}{% for s in schedules %}{% if s.day_of_week == loop.index0 %}{{ s.start_time }}{% endif %}{% endfor %}{% else %}09:00{% endif %}">
-                        <span class="text-gray-500">to</span>
-                        <input type="time" class="end-time px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                            data-day="{{ loop.index0 }}"
-                            value="{% if schedules %}{% for s in schedules %}{% if s.day_of_week == loop.index0 %}{{ s.end_time }}{% endif %}{% endfor %}{% else %}17:00{% endif %}">
-                    </div>
-                </div>
-                {% endfor %}
-
-                <button onclick="saveSchedule()" class="btn btn-primary w-full mt-4">
-                    <i data-lucide="save" class="w-4 h-4"></i>
-                    Save Availability
-                </button>
-            </div>
+    <!-- ── Left: Availability Form ─────────────────────────── -->
+    <div class="lg:col-span-2 space-y-3" id="schedule-form">
+        <!-- JS renders 7 day cards here -->
+        <div class="text-center py-10 text-gray-400 text-sm" id="form-loading">
+            <i data-lucide="loader-2" class="w-6 h-6 mx-auto mb-2 animate-spin"></i>Loading your schedule…
         </div>
     </div>
 
-    <!-- Upcoming Appointments -->
+    <!-- ── Right: Upcoming Sessions ───────────────────────── -->
     <div>
-        <div class="card">
-            <h2 class="text-lg font-display font-semibold text-gray-900 mb-4">
-                Upcoming Sessions
-            </h2>
+        <div class="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+            <h2 class="text-base font-display font-semibold text-gray-900 mb-3">Upcoming Sessions</h2>
             <div id="upcomingAppointments">
-                <div class="text-center py-4 text-gray-500">
-                    Loading...
-                </div>
+                <div class="text-center py-6 text-gray-400 text-sm">Loading…</div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Load upcoming appointments
-    window.addEventListener('DOMContentLoaded', function () {
-        loadUpcomingAppointments();
+    const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    let breakIdx = 0;
+
+    // ── On load ────────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
+        buildForm().then(() => loadSavedSchedule());
+        loadUpcomingAppointments();
     });
 
-    function loadUpcomingAppointments() {
-        fetch('/api/appointments/consultant')
-            .then(response => response.json())
-            .then(data => {
-                const container = document.getElementById('upcomingAppointments');
+    // ── Build the 7 empty day cards ────────────────────────────
+    function buildForm() {
+        return new Promise(resolve => {
+            const form = document.getElementById('schedule-form');
+            form.innerHTML = DAY_NAMES.map((day, idx) => `
+            <div class="day-card" id="day-card-${idx}">
+                <!-- Row 1: toggle + label + working hours -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <label class="flex items-center gap-2 cursor-pointer select-none shrink-0 w-36">
+                        <input type="checkbox" id="toggle-${idx}"
+                            class="day-toggle w-4 h-4 rounded accent-emerald-600"
+                            data-day="${idx}"
+                            onchange="toggleDay(${idx})">
+                        <span class="font-semibold text-gray-800">${day}</span>
+                    </label>
 
-                if (data.success && data.appointments.length > 0) {
-                    const now = new Date();
-                    const upcoming = data.appointments.filter(appt => {
-                        const appointmentDate = new Date(appt.appointment_date);
-                        const appointmentEnd = new Date(appointmentDate.getTime() + appt.duration_minutes * 60000);
-                        // Show if appointment hasn't ended yet (upcoming or in progress)
-                        return appt.status === 'scheduled' && appointmentEnd > now;
-                    }).sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date));
+                    <div id="hours-wrap-${idx}" class="flex items-center gap-2" style="opacity:.4; pointer-events:none;">
+                        <input type="time" id="start-${idx}" class="time-input start-time" data-day="${idx}" value="09:00">
+                        <span class="text-gray-400 text-sm font-medium shrink-0">to</span>
+                        <input type="time" id="end-${idx}"   class="time-input end-time"   data-day="${idx}" value="17:00">
+                    </div>
+                </div>
 
-                    if (upcoming.length > 0) {
-                        container.innerHTML = upcoming.slice(0, 5).map(appt => {
-                            const date = new Date(appt.appointment_date);
-                            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                            const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                <!-- Break rows rendered here -->
+                <div id="breaks-${idx}"></div>
 
-                            return `
-                                <div class="p-3 bg-primary-50 rounded-lg mb-3">
-                                    <div class="font-medium text-gray-900 text-sm">${appt.client_name}</div>
-                                    <div class="text-xs text-gray-600 mt-1 mb-2">
-                                        <i data-lucide="calendar" class="w-3 h-3 inline"></i>
-                                        ${dateStr} at ${timeStr}
-                                    </div>
-                                    <a href="/app/call/${appt.id}" class="btn btn-primary text-xs w-full flex items-center justify-center gap-1">
-                                        <i data-lucide="phone" class="w-3 h-3"></i>
-                                        <span>Join Call</span>
-                                    </a>
-                                </div>
-                            `;
-                        }).join('');
-                        lucide.createIcons();
-                    } else {
-                        container.innerHTML = '<div class="text-center py-4 text-gray-500 text-sm">No upcoming sessions</div>';
-                    }
-                } else {
-                    container.innerHTML = '<div class="text-center py-4 text-gray-500 text-sm">No appointments yet</div>';
-                }
-            })
-            .catch(error => {
-                console.error('Error loading appointments:', error);
-            });
+                <!-- Add break button (hidden when day is off) -->
+                <div id="add-break-wrap-${idx}" style="display:none;">
+                    <button type="button" class="add-break-btn" onclick="addBreakRow(${idx},'','')">
+                        + Add Break
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+            // Save button after cards
+            const saveBtn = document.createElement('button');
+            saveBtn.id = 'saveBtn';
+            saveBtn.type = 'button';
+            saveBtn.onclick = saveSchedule;
+            saveBtn.className = 'w-full mt-2 px-6 py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2';
+            saveBtn.style.cssText = 'background:#4f46e5; transition:background .15s;';
+            saveBtn.onmouseover = () => saveBtn.style.background = '#4338ca';
+            saveBtn.onmouseout = () => saveBtn.style.background = '#4f46e5';
+            saveBtn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Save Availability';
+            form.appendChild(saveBtn);
+
+            lucide.createIcons();
+            resolve();
+        });
     }
 
-    function saveSchedule() {
-        const schedules = [];
-        const dayToggles = document.querySelectorAll('.day-toggle');
+    // ── Load saved schedule from API ───────────────────────────
+    function loadSavedSchedule() {
+        fetch('/api/consultant/schedule')
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
 
-        dayToggles.forEach(toggle => {
-            if (toggle.checked) {
-                const day = toggle.dataset.day;
-                const startTime = document.querySelector(`.start-time[data-day="${day}"]`).value;
-                const endTime = document.querySelector(`.end-time[data-day="${day}"]`).value;
-
-                schedules.push({
-                    day_of_week: parseInt(day),
-                    start_time: startTime,
-                    end_time: endTime
+                // Apply working hours
+                (data.schedules || []).forEach(s => {
+                    const idx = s.day_of_week;
+                    document.getElementById(`toggle-${idx}`).checked = true;
+                    document.getElementById(`start-${idx}`).value = s.start_time;
+                    document.getElementById(`end-${idx}`).value = s.end_time;
+                    enableDay(idx, true);
                 });
+
+                // Apply breaks
+                (data.breaks || []).forEach(b => {
+                    addBreakRow(b.day_of_week, b.break_start, b.break_end);
+                });
+            })
+            .catch(() => { });
+    }
+
+    // ── Toggle a day on/off ────────────────────────────────────
+    function toggleDay(idx) {
+        const on = document.getElementById(`toggle-${idx}`).checked;
+        enableDay(idx, on);
+        if (!on) {
+            // Clear breaks
+            document.getElementById(`breaks-${idx}`).innerHTML = '';
+        }
+    }
+
+    function enableDay(idx, on) {
+        const hoursWrap = document.getElementById(`hours-wrap-${idx}`);
+        const addWrap = document.getElementById(`add-break-wrap-${idx}`);
+        const card = document.getElementById(`day-card-${idx}`);
+
+        hoursWrap.style.opacity = on ? '1' : '.4';
+        hoursWrap.style.pointerEvents = on ? 'auto' : 'none';
+        addWrap.style.display = on ? '' : 'none';
+        card.classList.toggle('enabled', on);
+    }
+
+    // ── Add a break row to a day ───────────────────────────────
+    function addBreakRow(dayIdx, bStart, bEnd) {
+        const container = document.getElementById(`breaks-${dayIdx}`);
+        const uid = `br-${dayIdx}-${breakIdx++}`;
+        const row = document.createElement('div');
+        row.className = 'break-row';
+        row.id = uid;
+        row.innerHTML = `
+        <span style="font-size:.7rem;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;">Break</span>
+        <input type="time" class="time-input break-start" value="${bStart || '13:00'}" style="width:115px;">
+        <span style="color:#9ca3af;font-weight:500;font-size:.85rem;">–</span>
+        <input type="time" class="time-input break-end"   value="${bEnd || '14:00'}" style="width:115px;">
+        <button class="remove-break-btn" onclick="document.getElementById('${uid}').remove()">✕</button>
+    `;
+        container.appendChild(row);
+    }
+
+    // ── Save schedule ──────────────────────────────────────────
+    async function saveSchedule() {
+        const slots = [];
+        const brks = [];
+        let hasError = false;
+
+        DAY_NAMES.forEach((name, idx) => {
+            const toggle = document.getElementById(`toggle-${idx}`);
+            if (!toggle.checked) return;
+
+            const start = document.getElementById(`start-${idx}`).value;
+            const end = document.getElementById(`end-${idx}`).value;
+
+            if (!start || !end) {
+                alert(`Please set working hours for ${name}`);
+                hasError = true; return;
             }
+            if (start >= end) {
+                alert(`Start time must be before end time for ${name}`);
+                hasError = true; return;
+            }
+            slots.push({ day_of_week: idx, start_time: start, end_time: end });
+
+            // Collect breaks
+            document.querySelectorAll(`#breaks-${idx} .break-row`).forEach(row => {
+                const bs = row.querySelector('.break-start').value;
+                const be = row.querySelector('.break-end').value;
+                if (!bs || !be) return;
+                if (bs >= be) {
+                    alert(`Break start must be before break end for ${name}`);
+                    hasError = true; return;
+                }
+                brks.push({ day_of_week: idx, break_start: bs, break_end: be });
+            });
         });
 
-        // TODO: Implement API endpoint to save schedule
-        console.log('Saving schedule:', schedules);
-        alert('Schedule saved successfully! (API endpoint to be implemented)');
+        if (hasError) return;
+
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Saving…';
+        lucide.createIcons();
+
+        try {
+            const res = await fetch('/api/consultant/schedule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ schedules: slots, breaks: brks }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                btn.style.background = '#16a34a';
+                btn.innerHTML = '✅  Saved!';
+                setTimeout(() => {
+                    btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Save Availability';
+                    btn.style.background = '#4f46e5';
+                    btn.disabled = false;
+                    lucide.createIcons();
+                }, 2500);
+            } else {
+                alert('Error: ' + data.error);
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Save Availability';
+                btn.style.background = '#4f46e5';
+                lucide.createIcons();
+            }
+        } catch {
+            alert('Network error — please try again.');
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Save Availability';
+            btn.style.background = '#4f46e5';
+            lucide.createIcons();
+        }
+    }
+
+    // ── Upcoming appointments ──────────────────────────────────
+    function loadUpcomingAppointments() {
+        fetch('/api/appointments/consultant')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('upcomingAppointments');
+                if (!data.success || !data.appointments?.length) {
+                    container.innerHTML = '<div class="text-center py-4 text-gray-400 text-sm">No appointments yet</div>';
+                    return;
+                }
+                const now = new Date();
+                const upcoming = data.appointments
+                    .filter(a => a.status === 'scheduled' && new Date(a.appointment_date) > now)
+                    .sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date))
+                    .slice(0, 5);
+
+                if (!upcoming.length) {
+                    container.innerHTML = '<div class="text-center py-4 text-gray-400 text-sm">No upcoming sessions</div>';
+                    return;
+                }
+                container.innerHTML = upcoming.map(a => {
+                    const d = new Date(a.appointment_date);
+                    const date = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                    const time = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+                    const notesHtml = a.notes ? `
+                        <div class="mt-2 flex items-start gap-1.5 bg-white border border-indigo-100 rounded-lg px-2.5 py-2">
+                            <i data-lucide="message-square" class="w-3 h-3 text-indigo-400 mt-0.5 flex-shrink-0"></i>
+                            <span class="text-xs text-gray-600 italic">${a.notes}</span>
+                        </div>` : '';
+                    return `<div class="p-3 mb-2 bg-indigo-50 border border-indigo-100 rounded-xl">
+                    <div class="text-sm font-semibold text-gray-800">${a.client_name}</div>
+                    <div class="text-xs text-gray-500 mt-0.5">${date} · ${time} · ${a.duration_minutes} min</div>
+                    ${notesHtml}
+                    <div class="mt-2 flex gap-2">
+                        <a href="/consultant/patient/${a.client_id}"
+                            class="flex-1 flex items-center justify-center gap-1 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-lg py-1.5 hover:bg-gray-50 transition-colors">
+                            <i data-lucide="info" class="w-3 h-3"></i>Details
+                        </a>
+                        <a href="/app/call/${a.id}"
+                            class="flex-1 flex items-center justify-center gap-1 text-xs font-bold text-white rounded-lg py-1.5 transition-colors"
+                            style="background:#4f46e5;">
+                            <i data-lucide="phone" class="w-3 h-3"></i> Join Call
+                        </a>
+                    </div>
+                </div>`;
+                }).join('');
+                lucide.createIcons();
+            })
+            .catch(() => { });
     }
 </script>
+
 {% endblock %}

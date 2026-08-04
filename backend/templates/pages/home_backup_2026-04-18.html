@@ -1,0 +1,727 @@
+{% extends "base.html" %}
+
+{% block title %}SolaceSquad&reg; &mdash; Online Wellness Consultations in India{% endblock %}
+{% block meta_desc %}Book certified wellness consultants for mental, physical & professional wellbeing. 500+ happy
+clients. Confidential, affordable online sessions across India. Start today.{% endblock %}
+{% block og_title %}SolaceSquad&reg; &mdash; Online Wellness Consultations in India{% endblock %}
+{% block og_desc %}Connect with certified wellness consultants for mental, physical & professional wellbeing.
+Confidential online sessions. 500+ happy clients across India.{% endblock %}
+{% block tw_title %}SolaceSquad&reg; &mdash; Wellness Consultations Online{% endblock %}
+{% block tw_desc %}Book certified wellness consultants online. Mental, physical & professional wellbeing sessions.
+Confidential & affordable. Trusted by 500+ Indians.{% endblock %}
+
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "SolaceSquad",
+  "url": "https://www.solacesquad.in",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://www.solacesquad.in/consultants?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HealthAndBeautyBusiness",
+  "name": "SolaceSquad",
+  "url": "https://www.solacesquad.in",
+  "logo": "https://www.solacesquad.in/static/images/logo.png",
+  "image": "https://www.solacesquad.in/static/images/og-cover.jpg",
+  "description": "SolaceSquad connects people with certified wellness consultants for mental, physical and professional wellbeing through confidential online sessions.",
+  "priceRange": "₹499 - ₹9999",
+  "address": {"@type": "PostalAddress", "addressCountry": "IN", "addressRegion": "Karnataka"},
+  "areaServed": "IN",
+  "serviceType": ["Mental Wellness", "Physical Wellness", "Professional Coaching", "Family Workshop"],
+  "aggregateRating": {"@type": "AggregateRating", "ratingValue": "4.9", "reviewCount": "500"},
+  "contactPoint": {"@type": "ContactPoint", "contactType": "customer support", "email": "support@solacesquad.in"},
+  "sameAs": ["https://www.instagram.com/solacesquad", "https://www.linkedin.com/company/solacesquad"]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+{% include "components/header.html" %}
+
+<style>
+    html,
+    body {
+        overflow-x: hidden !important;
+        max-width: 100%;
+    }
+
+    .ss-trust-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 24px;
+    }
+
+    .ss-promise-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 20px;
+    }
+
+    @media (max-width: 500px) {
+        .ss-trust-card-body {
+            flex-direction: column !important;
+            height: auto !important;
+        }
+
+        .ss-trust-card-img {
+            width: 100% !important;
+            height: 160px !important;
+        }
+
+        .ss-promise-circle {
+            width: 100px !important;
+            height: 100px !important;
+        }
+    }
+</style>
+<script>
+    /* ── Dynamic header clearance: measure actual header, pad hero ── */
+    (function () {
+        function fixHeroSpacing() {
+            var hdr = document.querySelector('header');
+            var hero = document.querySelector('body > section, main > section, section');
+            if (!hdr || !hero) return;
+            var hdrH = hdr.getBoundingClientRect().height;
+            /* Apply on mobile where header stacks taller than the desktop h-20 (80px) */
+            if (hdrH > 80) {
+                hero.style.setProperty('padding-top', (hdrH + 16) + 'px', 'important');
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fixHeroSpacing);
+        } else { fixHeroSpacing(); }
+        window.addEventListener('resize', fixHeroSpacing);
+    })();
+</script>
+
+
+
+<!-- Hero Section -->
+<section class="pt-56 md:pt-32 pb-20 bg-gradient-to-br from-primary-50 via-white to-secondary-50">
+    <div class="container-custom">
+        <div class="grid lg:grid-cols-2 gap-12 items-center">
+            <div class="animate-slide-up">
+                <div class="inline-flex items-center gap-2 bg-primary-100 text-primary-700 px-4 py-2 rounded-full mb-6">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    <span class="text-sm font-medium">Promoting Mental, Physical and Professional Wellness</span>
+                </div>
+
+                <h1 class="text-5xl md:text-6xl font-display font-bold text-gray-900 mb-6 leading-tight">
+                    Welcome to <span class="gradient-text">SolaceSquad&reg;</span>
+                </h1>
+
+                <p class="text-xl text-gray-600 mb-8 leading-relaxed">
+                    It's all about the Trust you have on SolaceSquad&reg; and we promise to be your best partner during
+                    tough
+                    times.
+                </p>
+
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a href="/signup" class="btn btn-primary text-lg">
+                        Start Your Journey
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </a>
+                    <a href="/#services" class="btn btn-secondary text-lg">
+                        Book Discovery Call
+                    </a>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3 mt-3">
+                    <a href="#age-groups"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border-2 border-secondary-600 text-secondary-700 font-semibold text-sm hover:bg-secondary-50 transition-all">
+                        <i data-lucide="grid-3x3" class="w-4 h-4"></i>
+                        Services
+                    </a>
+                    <a href="#pricing"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border-2 border-primary-600 text-primary-700 font-semibold text-sm hover:bg-primary-50 transition-all">
+                        <i data-lucide="tag" class="w-4 h-4"></i>
+                        Price Plans
+                    </a>
+                </div>
+
+                <!-- Trust Indicators -->
+                <div class="flex flex-wrap items-center gap-4 md:gap-8 mt-12 pt-8 border-t border-gray-200">
+                    <div>
+                        <div class="text-3xl font-bold text-gray-900">500+</div>
+                        <div class="text-sm text-gray-600">Happy Clients</div>
+                    </div>
+                    <div>
+                        <div class="text-3xl font-bold text-gray-900">50+</div>
+                        <div class="text-sm text-gray-600">Expert Consultants</div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <i data-lucide="star" class="w-5 h-5 text-accent-500 fill-accent-500"></i>
+                        <span class="text-3xl font-bold text-gray-900">4.9</span>
+                        <span class="text-sm text-gray-600 ml-1">/5 Rating</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hero Image -->
+            <div class="relative animate-fade-in mt-8 lg:mt-0">
+                <img src="https://static.wixstatic.com/media/11062b_a383b4a21f5a44e390ff58cb07599423~mv2.jpg"
+                    alt="SolaceSquad Hero" class="rounded-3xl shadow-2xl w-full object-cover">
+
+                <!-- Floating Card: visible on sm+ only (hides on narrow phones) -->
+                <div class="absolute -top-4 -left-4 bg-white p-4 rounded-2xl shadow-xl hidden sm:flex">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-green-100 p-2 rounded-lg">
+                            <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-gray-900">100% Confidential</div>
+                            <div class="text-sm text-gray-600">Your privacy matters</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="absolute -bottom-4 -right-4 bg-white p-4 rounded-2xl shadow-xl hidden sm:flex">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-primary-100 p-2 rounded-lg">
+                            <i data-lucide="users" class="w-6 h-6 text-primary-600"></i>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-gray-900">Expert Support</div>
+                            <div class="text-sm text-gray-600">24/7 Available</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Why Us Section -->
+<section id="why-us" class="section bg-white">
+    <div class="container-custom">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl md:text-5xl font-display font-bold text-gray-900 mb-4">
+                Why Choose <span class="gradient-text">SolaceSquad&reg;</span>?
+            </h2>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                We provide personalized support tailored to your unique journey
+            </p>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-8">
+            <!-- Feature 1 -->
+            <div class="card card-hover text-center">
+                <div
+                    class="bg-gradient-to-br from-primary-100 to-primary-200 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <i data-lucide="shield" class="w-8 h-8 text-primary-700"></i>
+                </div>
+                <h3 class="text-2xl font-display font-semibold text-gray-900 mb-3">
+                    100% Confidential
+                </h3>
+                <p class="text-gray-600">
+                    Your privacy is our priority. All sessions and data are completely confidential and secure.
+                </p>
+            </div>
+
+            <!-- Feature 2 -->
+            <div class="card card-hover text-center">
+                <div
+                    class="bg-gradient-to-br from-secondary-100 to-secondary-200 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <i data-lucide="heart" class="w-8 h-8 text-secondary-700"></i>
+                </div>
+                <h3 class="text-2xl font-display font-semibold text-gray-900 mb-3">
+                    Empathy First
+                </h3>
+                <p class="text-gray-600">
+                    Our consultants are trained to listen with care, understanding, and genuine compassion.
+                </p>
+            </div>
+
+            <!-- Feature 3 -->
+            <div class="card card-hover text-center">
+                <div
+                    class="bg-gradient-to-br from-accent-100 to-accent-200 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <i data-lucide="users" class="w-8 h-8 text-accent-700"></i>
+                </div>
+                <h3 class="text-2xl font-display font-semibold text-gray-900 mb-3">
+                    Matched for You
+                </h3>
+                <p class="text-gray-600">
+                    AI-powered matching ensures you connect with the right consultant for your needs.
+                </p>
+            </div>
+        </div>
+
+        <!-- Age Group Approach -->
+        <div class="mt-20" id="age-groups">
+            <h3 class="text-3xl font-display font-bold text-center text-gray-900 mb-12">
+                Special Approach by Age Group
+            </h3>
+
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-8 rounded-2xl border border-blue-200">
+                    <div class="text-2xl font-bold text-blue-900 mb-3">For Young Minds</div>
+                    <p class="text-blue-800">
+                        Every one needs a special focus, be it during school days or young hearts in their starting days
+                        of adulthood.
+                    </p>
+                </div>
+
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-8 rounded-2xl border border-purple-200">
+                    <div class="text-2xl font-bold text-purple-900 mb-3">For Rock Solid Hearts</div>
+                    <p class="text-purple-800">
+                        You feel that you are rock solid in your heart after crossing so many huddles in life, you have
+                        seen a lot of family, friends and love life - but still need someone to open your heart out?
+                    </p>
+                </div>
+
+                <div class="bg-gradient-to-br from-pink-50 to-pink-100 p-8 rounded-2xl border border-pink-200">
+                    <div class="text-2xl font-bold text-pink-900 mb-3">For Softer You</div>
+                    <p class="text-pink-800">
+                        You thought life will be cozy after 60, everyone is settled around but still you are worried,
+                        may be you are seeing lot more that you never expected to come in your way at this part of your
+                        journey.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Services Section -->
+<section id="services" class="section bg-gray-50">
+    <div class="container-custom">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl md:text-5xl font-display font-bold text-gray-900 mb-4">
+                Our Services
+            </h2>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                Comprehensive wellbeing solutions tailored to your needs
+            </p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Service Cards -->
+            {% set services = [
+            {
+            'icon': 'target',
+            'title': 'Self Mastery Training',
+            'duration': '1 hr',
+            'price': '₹2,000',
+            'description': 'Master your mind/emotions'
+            },
+            {
+            'icon': 'message-circle',
+            'title': 'Discovery Call',
+            'duration': '30 min',
+            'price': '₹499',
+            'description': 'Explore how we can support your journey'
+            },
+            {
+            'icon': 'activity',
+            'title': 'Virtual Consultation',
+            'duration': '1 hr',
+            'price': '₹999',
+            'description': 'One-on-one session with a consultant'
+            },
+            {
+            'icon': 'calendar-check',
+            'title': 'Build a Wellness Plan',
+            'duration': '1 hr',
+            'price': '₹1,499',
+            'description': 'Personalized wellness roadmap'
+            },
+            {
+            'icon': 'star',
+            'title': 'Professional Coaching',
+            'duration': '1 hr',
+            'price': '₹4,999',
+            'description': 'Advanced coaching for career/life'
+            },
+            {
+            'icon': 'users',
+            'title': 'Family Workshop',
+            'duration': '1 hr',
+            'price': '₹9,999',
+            'description': 'Strengthen family bonds'
+            },
+            {
+            'icon': 'briefcase',
+            'title': 'Corporate Session',
+            'duration': '2 hr',
+            'price': 'Negotiable',
+            'description': 'Team wellbeing workshops'
+            }
+            ] %}
+
+            {% for service in services %}
+            <div class="card card-hover group">
+                <div
+                    class="bg-gradient-to-br from-primary-100 to-primary-200 w-14 h-14 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <i data-lucide="{{ service.icon }}" class="w-7 h-7 text-primary-700"></i>
+                </div>
+
+                <h3 class="text-xl font-display font-semibold text-gray-900 mb-2">
+                    {{ service.title }}
+                </h3>
+
+                <div class="flex items-center gap-4 mb-3 text-sm text-gray-600">
+                    <span class="flex items-center gap-1">
+                        <i data-lucide="clock" class="w-4 h-4"></i>
+                        {{ service.duration }}
+                    </span>
+                    <span class="font-semibold text-primary-700">{{ service.price }}</span>
+                </div>
+
+                <p class="text-gray-600 mb-4">
+                    {{ service.description }}
+                </p>
+
+                <a href="/signup"
+                    class="text-primary-700 font-medium flex items-center gap-2 group-hover:gap-3 transition-all">
+                    Book Now
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Trust Us Section -->
+<section class="section" style="background:#f9f6f0;">
+    <div class="container-custom">
+        <div class="text-center mb-14">
+            <h2
+                style="font-family:'Georgia',serif; font-size:2.8rem; color:#2d6a5a; font-weight:400; letter-spacing:0.01em;">
+                Trust Us &hellip; You are the Best
+            </h2>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-8">
+
+            <!-- Mental Wellness Card -->
+            <div style="background:#fff; border-radius:4px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                <div style="display:flex; flex-direction:row; height:220px;">
+                    <div style="width:48%; flex-shrink:0; overflow:hidden;">
+                        <img src="https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=450&fit=crop&q=80"
+                            alt="Mental Wellness"
+                            style="width:100%; height:100%; object-fit:cover; filter:saturate(0.8) hue-rotate(120deg) brightness(0.75);">
+                    </div>
+                    <div style="padding:1.2rem; flex:1; display:flex; align-items:center;">
+                        <p style="font-size:0.82rem; color:#444; line-height:1.6; text-align:justify;">
+                            Choose to live a healthy and fulfilling life. Mental wellness is more than being free from
+                            illness; it is a process of change and growth towards a mentally which leads towards a
+                            healthy lifestyle.
+                        </p>
+                    </div>
+                </div>
+                <div style="padding:1rem 1.4rem 1.4rem;">
+                    <h3 style="font-size:1.15rem; font-weight:600; color:#222; margin-bottom:0.75rem;">Mental Wellness
+                    </h3>
+                </div>
+            </div>
+
+            <!-- Physical Wellness Card -->
+            <div style="background:#fff; border-radius:4px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                <div style="display:flex; flex-direction:row; height:220px;">
+                    <div style="width:48%; flex-shrink:0; overflow:hidden;">
+                        <img src="https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&h=450&fit=crop&q=80"
+                            alt="Physical Wellness" style="width:100%; height:100%; object-fit:cover;">
+                    </div>
+                    <div style="padding:1.2rem; flex:1; display:flex; align-items:center;">
+                        <p style="font-size:0.82rem; color:#444; line-height:1.6; text-align:justify;">
+                            In order to subdue stress, reduce illness, and ensure positive moments in your life, you
+                            must achieve optimal wellness. Physical wellness is not just doing exercise, it is about the
+                            feel of being fit and well too.
+                        </p>
+                    </div>
+                </div>
+                <div style="padding:1rem 1.4rem 1.4rem;">
+                    <h3 style="font-size:1.15rem; font-weight:600; color:#222; margin-bottom:0.75rem;">Physical Wellness
+                    </h3>
+                </div>
+            </div>
+
+            <!-- Professional Wellness Card -->
+            <div style="background:#fff; border-radius:4px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                <div style="display:flex; flex-direction:row; height:220px;">
+                    <div style="width:48%; flex-shrink:0; overflow:hidden;">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=450&fit=crop&q=80"
+                            alt="Professional Wellness"
+                            style="width:100%; height:100%; object-fit:cover; object-position:top;">
+                    </div>
+                    <div style="padding:1.2rem; flex:1; display:flex; align-items:center;">
+                        <p style="font-size:0.82rem; color:#444; line-height:1.6; text-align:justify;">
+                            To achieve optimal wellness, one must apply it towards every possible endeavor. Apply a
+                            wellness approach towards your environment, community, career, belief systems, self care,
+                            self esteem, and creative activities.
+                        </p>
+                    </div>
+                </div>
+                <div style="padding:1rem 1.4rem 1.4rem;">
+                    <h3 style="font-size:1.15rem; font-weight:600; color:#222; margin-bottom:0.75rem;">Professional
+                        Wellness</h3>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- Our Promise Section -->
+<section style="background:#b2ded6; padding:60px 0;">
+    <div style="max-width:1100px; margin:0 auto; padding:0 24px; text-align:center;">
+        <h2 style="font-family:'Georgia',serif; font-size:2.6rem; color:#2d6a5a; font-weight:400; margin:0 0 16px;">Our
+            Promise</h2>
+        <p style="color:#2d6a5a; font-size:1rem; max-width:560px; margin:0 auto 48px; line-height:1.7;">
+            It's all about the Trust you have on SolaceSquad&reg; and we promise to be your best partner during tough
+            times
+        </p>
+        <div class="ss-promise-grid">
+
+            <div style="text-align:center;">
+                <div style="width:140px; height:140px; border-radius:50%; overflow:hidden; margin:0 auto 20px;">
+                    <img src="https://images.unsplash.com/photo-1529699211952-734e80c4d42b?w=300&h=300&fit=crop&q=80"
+                        alt="Right Consultant" style="width:100%; height:100%; object-fit:cover;">
+                </div>
+                <h3 style="font-size:1rem; font-weight:600; color:#2d6a5a; margin:0 0 16px; line-height:1.4;">The RIGHT
+                    Consultant for YOU</h3>
+                <p style="font-size:0.85rem; color:#2d5a52; line-height:1.6; margin:0;">Our initial query form helps to
+                    find the right Consultant for you. Just be honest to yourself</p>
+            </div>
+
+            <div style="text-align:center;">
+                <div style="width:140px; height:140px; border-radius:50%; overflow:hidden; margin:0 auto 20px;">
+                    <img src="https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=300&h=300&fit=crop&q=80"
+                        alt="Privacy" style="width:100%; height:100%; object-fit:cover;">
+                </div>
+                <h3 style="font-size:1rem; font-weight:600; color:#2d6a5a; margin:0 0 16px; line-height:1.4;">Your
+                    PRIVACY is Priority</h3>
+                <p style="font-size:0.85rem; color:#2d5a52; line-height:1.6; margin:0;">Do not hold back, open up and
+                    talk. Your Privacy is guaranteed and strictly confidential</p>
+            </div>
+
+            <div style="text-align:center;">
+                <div class="ss-promise-circle"
+                    style="width:140px; height:140px; border-radius:50%; overflow:hidden; margin:0 auto 20px;">
+                    <img src="https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?w=300&h=300&fit=crop&q=80"
+                        alt="Flexi Price" style="width:100%; height:100%; object-fit:cover;">
+                </div>
+                <h3 style="font-size:1rem; font-weight:600; color:#2d6a5a; margin:0 0 16px; line-height:1.4;">FLEXI
+                    Price Plan</h3>
+                <p style="font-size:0.85rem; color:#2d5a52; line-height:1.6; margin:0;">Our flexi price plan is designed
+                    for you, so that you don't have to think twice while reaching out to us</p>
+            </div>
+
+            <div style="text-align:center;">
+                <div class="ss-promise-circle"
+                    style="width:140px; height:140px; border-radius:50%; overflow:hidden; margin:0 auto 20px;">
+                    <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&h=300&fit=crop&q=80"
+                        alt="Better You" style="width:100%; height:100%; object-fit:cover;">
+                </div>
+                <h3 style="font-size:1rem; font-weight:600; color:#2d6a5a; margin:0 0 16px; line-height:1.4;">BETTER You
+                </h3>
+                <p style="font-size:0.85rem; color:#2d5a52; line-height:1.6; margin:0;">Our promise of a better you, we
+                    don't change you, we invest time in bringing out the brighter side of You</p>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials Section -->
+<section id="testimonials" class="section bg-white">
+
+    <div class="container-custom">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl md:text-5xl font-display font-bold text-gray-900 mb-4">
+                What Our Clients Say
+            </h2>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                Real stories from people who found support and growth
+            </p>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-8">
+            {% set testimonials = [
+            {
+            'name': 'Priya S.',
+            'role': 'Software Engineer',
+            'content': 'SolaceSquad&reg; helped me navigate work stress and anxiety. The consultant matched to me
+            understood
+            my challenges perfectly. Highly recommended!',
+            'rating': 5
+            },
+            {
+            'name': 'Rahul M.',
+            'role': 'Entrepreneur',
+            'content': 'I was skeptical at first, but the personalized approach and genuine care changed my perspective.
+            Best decision for my emotional wellbeing.',
+            'rating': 5
+            },
+            {
+            'name': 'Anjali K.',
+            'role': 'Teacher',
+            'content': 'The family workshop brought us closer together. Our consultant created a safe space for everyone
+            to share and heal.',
+            'rating': 5
+            }
+            ] %}
+
+            {% for testimonial in testimonials %}
+            <div class="card card-hover">
+                <div class="flex gap-1 mb-4">
+                    {% for i in range(testimonial.rating) %}
+                    <i data-lucide="star" class="w-5 h-5 text-accent-500 fill-accent-500"></i>
+                    {% endfor %}
+                </div>
+
+                <p class="text-gray-700 mb-6 italic">
+                    "{{ testimonial.content }}"
+                </p>
+
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-12 h-12 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-full flex items-center justify-center text-white font-semibold">
+                        {{ testimonial.name[0] }}
+                    </div>
+                    <div>
+                        <div class="font-semibold text-gray-900">{{ testimonial.name }}</div>
+                        <div class="text-sm text-gray-600">{{ testimonial.role }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- ═══ Wellness Insights / Blog Section ═══ -->
+<section id="blog-section" style="display:none; padding:80px 0; background:linear-gradient(135deg,#134e4a 0%,#0f766e 50%,#0d9488 100%);">
+<style>
+  .blog-eyebrow-home {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,0.15); color:#fff;
+    padding:6px 16px; border-radius:100px;
+    font-size:0.75rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+    margin-bottom:16px;
+  }
+  .blog-carousel-home {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:24px;
+    margin-top:40px;
+  }
+  .blog-hcard {
+    background:rgba(255,255,255,0.08); backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,0.15); border-radius:20px; overflow:hidden;
+    cursor:pointer; transition:transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+    text-decoration:none; display:flex; flex-direction:column;
+  }
+  .blog-hcard:hover { transform:translateY(-6px); border-color:rgba(255,255,255,0.35); box-shadow:0 20px 50px rgba(0,0,0,0.25); }
+  .blog-hcard-img { width:100%; height:180px; object-fit:cover; background:rgba(255,255,255,0.05); flex-shrink:0; }
+  .blog-hcard-imgph { width:100%; height:180px; display:flex; align-items:center; justify-content:center; font-size:3.5rem; background:rgba(255,255,255,0.05); flex-shrink:0; }
+  .blog-hcard-body { padding:20px; flex:1; display:flex; flex-direction:column; }
+  .blog-hcard-cat { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:rgba(255,255,255,0.5); margin-bottom:8px; }
+  .blog-hcard-title { font-family:"Playfair Display",serif; font-size:1.05rem; font-weight:700; color:#fff; line-height:1.4; margin-bottom:8px; }
+  .blog-hcard-excerpt { font-size:0.83rem; color:rgba(255,255,255,0.65); line-height:1.6; flex:1; margin-bottom:14px; }
+  .blog-hcard-footer { display:flex; justify-content:space-between; align-items:center; }
+  .blog-hcard-meta { font-size:0.75rem; color:rgba(255,255,255,0.45); }
+  .blog-hcard-read { font-size:0.78rem; font-weight:700; color:#5eead4; }
+  @media(max-width:900px){.blog-carousel-home{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:600px){.blog-carousel-home{grid-template-columns:1fr;}}
+</style>
+  <div style="max-width:1200px;margin:0 auto;padding:0 24px;">
+    <div style="text-align:center;margin-bottom:8px;">
+      <div class="blog-eyebrow-home">&#10024; From Our Blog</div>
+      <h2 style="font-family:'Playfair Display',serif;font-size:2.6rem;font-weight:700;color:#fff;margin:0 0 12px;line-height:1.2;">Wellness Insights</h2>
+      <p style="color:rgba(255,255,255,0.7);font-size:1rem;max-width:500px;margin:0 auto;">
+        Expert-written articles to guide your mental, physical &amp; professional wellbeing
+      </p>
+    </div>
+    <div class="blog-carousel-home" id="homeBlogCarousel"></div>
+    <div style="text-align:center;margin-top:40px;">
+      <a href="/blog" style="display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.3);color:#fff;padding:12px 28px;border-radius:100px;font-weight:700;font-size:0.95rem;text-decoration:none;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+        Explore All Articles &rarr;
+      </a>
+    </div>
+  </div>
+</section>
+<script>
+(function(){
+  var EMOJI={Mental:"&#129504;",Physical:"&#128170;",Professional:"&#128188;",General:"&#127807;"};
+  function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  fetch("/api/blogs/featured").then(function(r){return r.json();}).then(function(d){
+    var posts=d.posts||[];
+    if(!posts.length) return;
+    document.getElementById("blog-section").style.display="block";
+    document.getElementById("homeBlogCarousel").innerHTML=posts.map(function(p){
+      var emoji=EMOJI[p.category]||"&#127807;";
+      var imgHtml=p.cover_image_url
+        ?"<img class=\"blog-hcard-img\" src=\""+p.cover_image_url+"\" alt=\""+esc(p.title)+"\" loading=\"lazy\" onerror=\"this.style.display=\'none\'\">"
+        :"<div class=\"blog-hcard-imgph\">"+emoji+"</div>";
+      return "<a class=\"blog-hcard\" href=\"/blog/"+p.slug+"\">"+imgHtml+"<div class=\"blog-hcard-body\"><div class=\"blog-hcard-cat\">"+emoji+" "+esc(p.category)+"</div><div class=\"blog-hcard-title\">"+esc(p.title)+"</div>"+(p.excerpt?"<div class=\"blog-hcard-excerpt\">"+esc(p.excerpt)+"</div>":"")+"<div class=\"blog-hcard-footer\"><span class=\"blog-hcard-meta\">&#9201; "+p.read_time_minutes+" min &nbsp;&middot;&nbsp; &#128065; "+p.view_count+"</span><span class=\"blog-hcard-read\">Read &rarr;</span></div></div></a>";
+    }).join("");
+  }).catch(function(){});
+})();
+</script>
+
+<!-- ═══ Pricing Section ═══ -->
+<section id="pricing" class="section bg-white">
+    <div class="container-custom">
+        <div class="text-center mb-12">
+            <div class="inline-flex items-center gap-2 bg-primary-100 text-primary-700 px-4 py-2 rounded-full mb-4">
+                <i data-lucide="tag" class="w-4 h-4"></i>
+                <span class="text-sm font-medium">Transparent Pricing</span>
+            </div>
+            <h2 class="text-4xl md:text-5xl font-display font-bold text-gray-900 mb-4">Our Price Plans</h2>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">Choose a plan that fits your wellness journey</p>
+        </div>
+        <div id="pricing-grid" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <!-- Plans loaded dynamically -->
+            <div class="col-span-full text-center py-12 text-gray-400">
+                <i data-lucide="loader" class="w-8 h-8 mx-auto mb-3 animate-spin"></i>
+                <p>Loading plans…</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    (function () {
+        async function loadPlans() {
+            const grid = document.getElementById('pricing-grid');
+            try {
+                const res = await fetch('/api/plans/public');
+                const data = await res.json();
+                const plans = data.plans || [];
+                if (!plans.length) { grid.innerHTML = '<p class="col-span-full text-center text-gray-400">No plans available yet.</p>'; return; }
+                grid.innerHTML = plans.map(p => {
+                    const colour = p.colour || '#0d9488';
+                    const badge = p.is_popular ? '<span style="background:' + colour + ';color:#fff;" class="text-xs font-bold px-3 py-1 rounded-full ml-2">Popular</span>' : '';
+                    const price = p.billing_cycle === 'monthly' ? '₹' + p.price + '/mo' : p.billing_cycle === 'yearly' ? '₹' + p.price + '/yr' : p.billing_cycle === 'weekly' ? '₹' + p.price + '/wk' : '₹' + p.price;
+                    return `
+        <div class="card flex flex-col" style="border-top:4px solid ${colour};">
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-xl font-display font-bold text-gray-900">${p.plan_name}</h3>${badge}
+          </div>
+          <div class="text-3xl font-bold mt-2 mb-4" style="color:${colour};">${price}</div>
+          ${p.description ? '<p class="text-sm text-gray-600 mb-4 flex-1">' + p.description + '</p>' : '<div class="flex-1"></div>'}
+          <a href="/signup" class="btn w-full text-center mt-auto" style="background:${colour};color:#fff;">Get Started</a>
+        </div>`;
+                }).join('');
+            } catch (e) {
+                grid.innerHTML = '<p class="col-span-full text-center text-gray-400">Could not load plans. Please try again later.</p>';
+            }
+        }
+        loadPlans();
+    })();
+</script>
+
+{% include "components/cta_section.html" %}
+
+
+{% include "components/footer.html" %}
+{% endblock %}

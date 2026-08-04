@@ -1,0 +1,208 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<style>
+  .badge-asst  { background:#fef9c3; color:#854d0e; }
+  .badge-user  { background:#f3f4f6; color:#374151; }
+  .badge       { font-size:.72rem; font-weight:700; padding:.2rem .65rem; border-radius:999px; }
+  .action-btn  { font-size:.8rem; padding:.35rem .85rem; border-radius:.5rem; cursor:pointer; border:1px solid transparent; font-weight:600; transition:all .2s ease; box-shadow:0 1px 2px rgba(0,0,0,0.05); }
+  .btn-demote  { background:#fef2f2; border-color:#fca5a5; color:#991b1b; }
+  .btn-demote:hover  { background:#fee2f2; border-color:#f87171; }
+  .btn-delete  { background:#f9fafb; border-color:#e5e7eb; color:#374151; }
+  .btn-delete:hover  { background:#f3f4f6; border-color:#d1d5db; }
+</style>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Header -->
+  <div class="md:flex md:items-center md:justify-between mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Admin Assistant Management</h1>
+      <p class="mt-1 text-sm text-gray-500">Create accounts for assistants who fill consultant forms and draft blogs. They cannot approve consultants or publish blogs.</p>
+    </div>
+  </div>
+
+  <!-- Create New Assistant Card -->
+  <div class="card px-6 py-5 mb-6 border-l-4 border-yellow-400">
+    <h2 class="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      <i data-lucide="user-plus" class="w-4 h-4 text-yellow-600"></i>
+      Create New Assistant Account
+    <h2 class="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      <i data-lucide="user-plus" class="w-4 h-4 text-yellow-600"></i>
+      Create New Assistant Account
+    </h2>
+    <p class="text-xs text-gray-500 mb-3">Assistants log in at <a href="/assistant/login" target="_blank" class="text-teal-600 font-medium underline">/assistant/login</a> using their <strong>username</strong> and password — no email required.</p>
+    <form id="createForm" onsubmit="createAssistant(event)" class="flex flex-wrap gap-3 items-end">
+      <div class="flex-1 min-w-[180px]">
+        <label class="text-xs font-medium text-gray-500 mb-1 block">Full Name (Display Name)</label>
+        <input id="newName" type="text" required placeholder="e.g. Priya Sharma" class="input w-full text-sm py-2">
+      </div>
+      <div class="flex-1 min-w-[180px]">
+        <label class="text-xs font-medium text-gray-500 mb-1 block">Username <span class="text-red-500">*</span></label>
+        <input id="newUsername" type="text" required placeholder="e.g. priya_sharma" pattern="[a-zA-Z0-9_]+" title="Letters, numbers, underscores only" class="input w-full text-sm py-2">
+        <span class="text-xs text-gray-400 mt-1 block">Used to log in. No spaces.</span>
+      </div>
+      <div class="flex-1 min-w-[150px]">
+        <label class="text-xs font-medium text-gray-500 mb-1 block">Password</label>
+        <input id="newPassword" type="password" required placeholder="Min. 8 characters" class="input w-full text-sm py-2" minlength="8">
+      </div>
+      <button type="submit" class="btn btn-primary text-sm py-2 px-4 whitespace-nowrap">
+        <i data-lucide="plus" class="w-4 h-4 inline mr-1"></i> Create Assistant
+      </button>
+    </form>
+    <div id="createMsg" class="mt-3 text-sm hidden"></div>
+  </div>
+
+  <!-- Promote Existing User Card -->
+  <div class="card px-6 py-5 mb-6 border-l-4 border-blue-400">
+    <h2 class="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      <i data-lucide="arrow-up-circle" class="w-4 h-4 text-blue-600"></i>
+      Promote Existing User to Assistant
+    </h2>
+    <form id="promoteForm" onsubmit="promoteAssistant(event)" class="flex flex-wrap gap-3 items-end">
+      <div class="flex-1 min-w-[260px]">
+        <label class="text-xs font-medium text-gray-500 mb-1 block">User Email</label>
+        <input id="promoteEmail" type="email" required placeholder="user@example.com" class="input w-full text-sm py-2">
+      </div>
+      <button type="submit" class="btn btn-primary text-sm py-2 px-4 whitespace-nowrap" style="background:#3b82f6;">
+        <i data-lucide="arrow-up" class="w-4 h-4 inline mr-1"></i> Promote
+      </button>
+    </form>
+    <div id="promoteMsg" class="mt-3 text-sm hidden"></div>
+  </div>
+
+  <!-- Current Assistants Table -->
+  <div class="card overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-gray-800 flex items-center gap-2">
+        <i data-lucide="users" class="w-4 h-4 text-yellow-600"></i>
+        Current Assistants
+        <span class="badge badge-asst ml-1">{{ assistants | length }}</span>
+      </h2>
+    </div>
+
+    {% if assistants %}
+    <div id="assistantTable">
+      {% for a in assistants %}
+      <div class="flex items-center gap-4 px-6 py-4 border-b border-gray-50 hover:bg-gray-50 transition-colors" id="row-{{ a.id }}">
+        <div class="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 font-bold text-sm flex-shrink-0">
+          {{ a.name[:2].upper() }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-gray-900 text-sm">{{ a.name }}</div>
+          {% if a.email.endswith('@assistant.internal') %}
+          <div class="text-xs text-gray-500">@{{ a.email.split('@')[0] }} <span class="text-gray-300 mx-1">·</span> <span class="italic text-gray-400">username login</span></div>
+          {% else %}
+          <div class="text-xs text-gray-500">{{ a.email }}</div>
+          {% endif %}
+        </div>
+        <span class="badge badge-asst">Assistant</span>
+        <!-- Desktop Actions -->
+        <div class="hidden sm:flex gap-2 flex-shrink-0">
+          <button class="action-btn btn-demote" onclick="demoteAssistant({{ a.id }}, '{{ a.name }}')">
+            <i data-lucide="arrow-down" class="w-3 h-3 inline mr-1"></i>Demote to User
+          </button>
+          {% if a.id != current_user_id %}
+          <button class="action-btn btn-delete" onclick="deleteAssistant({{ a.id }}, '{{ a.name }}')">
+            <i data-lucide="trash-2" class="w-3 h-3 inline mr-1"></i>Delete
+          </button>
+          {% endif %}
+        </div>
+
+        <!-- Mobile/PWA Actions -->
+        <div class="sm:hidden flex items-center justify-end">
+          <button id="asst-opt-{{ a.id }}" class="dropdown-trigger inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-500 shadow-sm transition" onclick="toggleTableDropdown(this, event)">
+            <i data-lucide="more-vertical" class="w-4 h-4"></i>
+          </button>
+          <div class="hidden">
+            <button onclick="demoteAssistant({{ a.id }}, '{{ a.name }}')">
+              <i data-lucide="arrow-down" class="w-4 h-4 inline mr-2"></i> Demote to User
+            </button>
+            {% if a.id != current_user_id %}
+            <button onclick="deleteAssistant({{ a.id }}, '{{ a.name }}')">
+              <i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i> Delete
+            </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="px-6 py-12 text-center text-gray-400" id="emptyState">
+      <i data-lucide="user-x" class="w-12 h-12 mx-auto mb-3 opacity-30"></i>
+      <p class="text-sm">No admin assistants yet. Create one above.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+  function showMsg(id, msg, ok) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = `mt-3 text-sm ${ok ? 'text-green-700 bg-green-50' : 'text-red-700 bg-red-50'} border rounded p-2`;
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 4000);
+  }
+
+  async function createAssistant(e) {
+    e.preventDefault();
+    const body = {
+      name:     document.getElementById('newName').value.trim(),
+      username: document.getElementById('newUsername').value.trim(),
+      password: document.getElementById('newPassword').value,
+    };
+    try {
+      const r = await fetch('/api/admin/assistants/create', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      });
+      const d = await r.json();
+      if (d.success) {
+        showMsg('createMsg', `✅ Assistant created! Username: ${body.username}`, true);
+        document.getElementById('createForm').reset();
+        setTimeout(() => location.reload(), 1800);
+      } else {
+        showMsg('createMsg', '❌ ' + d.error, false);
+      }
+    } catch(err) { showMsg('createMsg', '❌ Network error', false); }
+  }
+
+  async function promoteAssistant(e) {
+    e.preventDefault();
+    const email = document.getElementById('promoteEmail').value.trim();
+    try {
+      const r = await fetch('/api/admin/assistants/promote', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email })
+      });
+      const d = await r.json();
+      if (d.success) {
+        showMsg('promoteMsg', `✅ ${email} promoted to Assistant`, true);
+        document.getElementById('promoteForm').reset();
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        showMsg('promoteMsg', '❌ ' + d.error, false);
+      }
+    } catch(err) { showMsg('promoteMsg', '❌ Network error', false); }
+  }
+
+  async function demoteAssistant(id, name) {
+    if (!confirm(`Demote ${name} back to a regular user?`)) return;
+    const r = await fetch('/api/admin/assistants/demote', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ user_id: id })
+    });
+    const d = await r.json();
+    if (d.success) { document.getElementById(`row-${id}`)?.remove(); }
+    else { alert('Error: ' + d.error); }
+  }
+
+  async function deleteAssistant(id, name) {
+    if (!confirm(`Permanently delete ${name}'s account? This cannot be undone.`)) return;
+    const r = await fetch(`/api/admin/assistants/${id}/delete`, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.success) { document.getElementById(`row-${id}`)?.remove(); }
+    else { alert('Error: ' + d.error); }
+  }
+</script>
+{% endblock %}

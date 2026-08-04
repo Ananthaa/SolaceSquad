@@ -1,27 +1,146 @@
 {% extends "layouts/protected.html" %}
 
-{% set nav_items = [
-{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
-{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
-{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
-{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
-{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
-{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
-{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
-{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
-{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
-{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'},
-{'icon': 'user', 'label': 'Profile', 'href': '/app/profile', 'key': 'profile'}
-] %}
 
 {% block dashboard_content %}
+
+<!-- ═══════════════════════════════════════════════════════════
+     BOT-CHECK POPUP — reCAPTCHA v2 verification
+═══════════════════════════════════════════════════════════ -->
+<!-- Bot-check: session stored so popup only shows once per login -->
+
+<div id="botCheckOverlay" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;
+     justify-content:center;background:rgba(0,0,0,0.65);padding:1rem;">
+    <div style="background:#fff;border-radius:1.5rem;box-shadow:0 25px 60px rgba(0,0,0,0.3);
+         width:100%;max-width:380px;overflow:hidden;animation:botCardIn 0.4s cubic-bezier(.34,1.56,.64,1) both;">
+
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#2d6a5a,#1e4d40);padding:1.75rem;text-align:center;color:#fff;">
+            <div style="font-size:2.5rem;margin-bottom:0.4rem;">🛡️</div>
+            <h2 style="font-size:1.25rem;font-weight:700;margin:0 0 0.2rem;">Human Verification</h2>
+            <p style="font-size:0.8rem;color:rgba(255,255,255,0.8);margin:0;">Before we chat, please verify you're human
+            </p>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:1.5rem;text-align:center;">
+            <p style="color:#374151;font-size:0.9rem;margin-bottom:1.25rem;line-height:1.5;">
+                Emora - Your buddy is designed for real people seeking emotional support.
+                Automated bots are not permitted.
+            </p>
+
+            <!-- Math CAPTCHA —— no 3rd-party key needed -->
+            <div
+                style="background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:0.75rem;padding:1rem 1.25rem;margin-bottom:1.25rem;">
+                <p style="font-size:0.8rem;color:#6b7280;margin:0 0 0.5rem 0;">Quick verification — solve this:</p>
+                <p id="mathQuestion" style="font-size:1.15rem;font-weight:700;color:#1f2937;margin:0 0 0.75rem 0;"></p>
+                <script>
+                    (function(){
+                        var a=Math.floor(Math.random()*9)+1, b=Math.floor(Math.random()*9)+1;
+                        window._mcA=a; window._mcB=b; window._mcCorrect=a+b;
+                        document.getElementById('mathQuestion').textContent='What is '+a+' + '+b+' ?';
+                    })();
+                    window.checkMathAnswer=function(){
+                        var v=parseInt(document.getElementById('mathAnswer').value,10);
+                        var ok=(!isNaN(v)&&v===window._mcCorrect);
+                        var btn=document.getElementById('startChatBtn');
+                        var err=document.getElementById('mathError');
+                        var inp=document.getElementById('mathAnswer');
+                        btn.disabled=!ok; btn.style.opacity=ok?'1':'0.45'; btn.style.cursor=ok?'pointer':'not-allowed';
+                        inp.style.borderColor=ok?'#10b981':'#d1d5db';
+                        if(err) err.style.display=(!ok&&inp.value.length>0)?'block':'none';
+                    };
+                    window.confirmHuman=function(){
+                        var btn=document.getElementById('startChatBtn');
+                        if(btn.disabled) return;
+                        sessionStorage.setItem('solace_buddy_verified','1');
+                        var ov=document.getElementById('botCheckOverlay');
+                        ov.style.opacity='0'; ov.style.transition='opacity 0.3s';
+                        setTimeout(function(){ov.style.display='none';},300);
+                        // Boot the chat — calls into main IIFE via window hook
+                        if(typeof window._bootChat==='function') window._bootChat();
+                        else window._bootPending=true;
+                    };
+                </script>
+                <input type="number" id="mathAnswer" placeholder="Enter answer" style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #d1d5db;border-radius:0.5rem;
+                           font-size:1rem;text-align:center;box-sizing:border-box;outline:none;"
+                    oninput="checkMathAnswer()" autocomplete="off" />
+                <p id="mathError" style="color:#ef4444;font-size:0.75rem;margin:0.4rem 0 0 0;display:none;">Incorrect —
+                    try again.</p>
+            </div>
+
+            <!-- Start button — disabled until CAPTCHA solved -->
+            <button id="startChatBtn" onclick="window.confirmHuman()" disabled style="width:100%;background:linear-gradient(to right,#2d6a5a,#1e4d40);color:#fff;
+                font-weight:600;padding:0.8rem;border-radius:0.875rem;border:none;cursor:not-allowed;
+                font-size:0.95rem;opacity:0.45;transition:opacity 0.2s,transform 0.1s;">
+                🚀 Start Chatting
+            </button>
+
+            <a href="/app" style="display:block;margin-top:0.75rem;font-size:0.8rem;
+               color:#9ca3af;text-decoration:none;">
+                ← Take me back
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Hide overlay immediately if already verified this session -->
+<script>(function () {
+        if (sessionStorage.getItem('solace_buddy_verified') === '1') {
+            var ov = document.getElementById('botCheckOverlay');
+            if (ov) ov.style.display = 'none';
+        }
+    })();</script>
+
+<style>
+    @keyframes botCardIn {
+        from {
+            opacity: 0;
+            transform: scale(0.85) translateY(24px);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+</style>
+
+<!-- ═══════════════════════════════════════════════════════════
+     EMERGENCY CONSULTANT BOOKING POPUP
+═══════════════════════════════════════════════════════════ -->
+<div id="emergencyOverlay"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+        <div class="bg-gradient-to-br from-red-500 to-orange-500 p-6 text-white text-center">
+            <div class="text-4xl mb-2">🆘</div>
+            <h2 class="text-xl font-bold">Let's get you more support</h2>
+        </div>
+        <div class="p-6 text-center">
+            <p class="text-gray-700 mb-4">It sounds like you could benefit from speaking with a real consultant right
+                now. We've found one available for you.</p>
+            <div id="emergencyConsultantInfo" class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4 hidden">
+                <p class="font-semibold text-orange-900" id="emergencyConsultantName"></p>
+                <p class="text-sm text-orange-700">Ready to talk in ~5 minutes</p>
+            </div>
+            <button onclick="joinEmergencyCall()" id="joinCallBtn"
+                class="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity mb-3 hidden">
+                📞 Join Call Now
+            </button>
+            <div id="emergencyLoading" class="text-gray-500 text-sm py-2">Finding an available consultant…</div>
+            <button onclick="dismissEmergency()" class="w-full text-sm text-gray-400 hover:text-gray-600 py-1 mt-2">
+                I'm okay, continue chatting
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Header -->
-<div class="mb-8">
-    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
-        AI Wellbeing Assistant 🤖
+<div class="mb-6">
+    <h1 class="text-2xl md:text-3xl font-display font-bold text-gray-900 mb-1">
+        Emora — Your Buddy 🤖
     </h1>
-    <p class="text-gray-600">
-        Chat with our AI assistant for instant support and guidance
+    <p class="text-sm md:text-base text-gray-500">
+        Instant emotional support, guidance, and wellness companionship
     </p>
 </div>
 
@@ -29,283 +148,981 @@
 <div class="max-w-4xl mx-auto">
     <div class="card h-[600px] flex flex-col">
         <!-- Chat Header -->
-        <div class="pb-4 mb-4 border-b border-gray-200">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div
-                        class="w-12 h-12 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center">
-                        <i data-lucide="bot" class="w-6 h-6 text-white"></i>
+        <div class="pb-3 border-b border-gray-100">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="relative w-11 h-11 rounded-full bg-secondary-50 border border-secondary-100 flex items-center justify-center text-secondary-600 flex-shrink-0">
+                        <i data-lucide="sparkles" class="w-5 h-5 text-secondary-600 animate-pulse"></i>
+                        <span class="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-white"></span>
                     </div>
-                    <div>
-                        <div class="font-semibold text-gray-900">SolaceSquad AI</div>
-                        <div id="aiStatus" class="text-sm text-gray-600">
-                            <span class="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
-                            Online
+                    <div class="min-w-0">
+                        <div class="font-bold text-gray-900 text-sm md:text-base leading-tight">Emora</div>
+                        <div class="flex items-center gap-1.5 mt-0.5">
+                            <span class="text-[11px] text-gray-400">Wellness Buddy</span>
+                            <span class="text-gray-300 text-[10px]">•</span>
+                            <div id="aiStatus" class="text-[11px] text-green-600 font-medium flex items-center">
+                                Online
+                            </div>
                         </div>
                     </div>
                 </div>
                 <button onclick="resetSession()"
-                    class="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg border border-red-200 transition-colors"
+                    class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-full border border-red-100 transition-all active:scale-95 flex-shrink-0"
                     title="Start fresh session">
                     <i data-lucide="refresh-cw" class="w-3 h-3"></i>
-                    Reset Session
+                    Reset
                 </button>
             </div>
         </div>
 
-        <!-- Chat Messages -->
-        <div id="chatMessages" class="flex-1 overflow-y-auto space-y-4 mb-4 px-2">
-            <div class="text-center py-8">
-                <div
-                    class="w-16 h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i data-lucide="sparkles" class="w-8 h-8 text-purple-600"></i>
-                </div>
-                <p class="text-gray-600 mb-2">Welcome! I'm your AI wellbeing assistant.</p>
-                <p class="text-sm text-gray-500">How can I support you today?</p>
+        <!-- Quota Banner -->
+        <div class="flex items-center justify-between px-3.5 py-2.5 bg-secondary-50/50 border border-secondary-100/60 rounded-xl my-3 text-xs">
+            <div id="msgQuotaMeter" class="flex items-center gap-2" title="Emora messages remaining today">
+                <i data-lucide="message-circle" class="w-4 h-4 text-secondary-600"></i>
+                <span id="msgQuotaText" class="text-secondary-800 font-semibold">…</span>
             </div>
+            <button onclick="openEmoraStore()" id="getMoreMsgsBtn"
+                style="display:none;align-items:center;gap:4px;"
+                class="px-3 py-1 rounded-full bg-secondary-600 hover:bg-secondary-700 text-white font-bold transition-all text-[11px] active:scale-95 flex-shrink-0 shadow-sm">
+                🛒 Buy Packs
+            </button>
+        </div>
+
+        <div id="chatMessages" class="flex-1 overflow-y-auto space-y-4 mb-4 px-2">
+            <div class="text-center py-8 animate-fade-in" id="welcomeScreen">
+                <div
+                    class="w-16 h-16 bg-gradient-to-br from-secondary-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="sparkles" class="w-8 h-8 text-secondary-600"></i>
+                </div>
+                <p class="text-gray-600 mb-2">Hi <strong>{{ preferred_name }}</strong>! I'm Emora, your wellness buddy 👋</p>
+                <p class="text-sm text-gray-400">Just a moment while I get ready for you...</p>
+            </div>
+        </div>
+
+        <!-- Listening indicator (shown while recording) -->
+        <div id="voiceListeningBar" style="display:none;align-items:center;gap:8px;padding:6px 12px;
+             background:#fff0f0;border-radius:8px;margin-bottom:6px;border:1px solid #fca5a5;">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#dc2626;
+                         animation:micPulse 0.8s ease-in-out infinite;"></span>
+            <span style="font-size:0.8rem;color:#dc2626;font-weight:600;">Listening… release the button when done</span>
         </div>
 
         <!-- Chat Input -->
-        <div class="border-t border-gray-200 pt-4">
-            <div class="flex gap-2">
+        <div class="border-t border-gray-100 pt-4">
+            <div class="flex gap-2 items-center">
                 <input type="text" id="messageInput" placeholder="Type your message..."
-                    class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    onkeypress="if(event.key==='Enter') sendMessage()" autocomplete="off">
-                <button onclick="sendMessage()" id="sendButton" class="btn btn-primary px-6">
-                    <i data-lucide="send" class="w-4 h-4"></i>
-                    Send
+                    class="flex-1 px-5 py-3.5 border border-gray-300 rounded-full focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 text-sm"
+                    onkeypress="if(event.key==='Enter') sendMessage()" autocomplete="off" disabled>
+                <!-- Mic button with plan-gate tooltip -->
+                <div id="micWrapper" style="position:relative;flex-shrink:0;" title="Hold to speak">
+                  <button id="micButton" disabled
+                      style="width:48px;height:48px;border-radius:9999px;border:none;cursor:pointer;
+                             background:#f0fdf4;color:#0d9488;display:flex;align-items:center;
+                             justify-content:center;transition:all 0.2s;"
+                      onmousedown="startVoiceRecord()" onmouseup="stopVoiceRecord()"
+                      ontouchstart="startVoiceRecord()" ontouchend="stopVoiceRecord()">
+                      <i data-lucide="mic" class="w-5 h-5" id="micIcon"></i>
+                  </button>
+                  <!-- Lock overlay shown for Free plan users -->
+                  <div id="micLockBadge" style="display:none;position:absolute;inset:0;
+                       border-radius:9999px;background:rgba(107,114,128,0.15);cursor:pointer;
+                       align-items:center;justify-content:center;"
+                       onclick="_showMicUpgradeTooltip()">
+                      <span style="font-size:0.85rem;">🔒</span>
+                  </div>
+                  <!-- Upgrade tooltip -->
+                  <div id="micUpgradeTooltip" style="display:none;position:absolute;bottom:56px;
+                       left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;
+                       font-size:0.7rem;font-weight:600;padding:6px 10px;border-radius:8px;
+                       white-space:nowrap;z-index:999;pointer-events:none;">
+                      🎙️ Upgrade to White plan to unlock Voice Emora
+                      <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);
+                           width:8px;height:8px;background:#1f2937;clip-path:polygon(0 0,100% 0,50% 100%);"></div>
+                  </div>
+                </div>
+                <button onclick="sendMessage()" id="sendButton" class="btn btn-primary rounded-full flex-shrink-0"
+                    style="width:48px; height:48px; padding:0; display:flex; align-items:center; justify-content:center;" disabled>
+                    <i data-lucide="send" class="w-5 h-5"></i>
                 </button>
             </div>
             <p class="text-xs text-gray-500 mt-2">
-                💡 This AI assistant provides general wellbeing support. For professional help,
+                💡 Emora - Your buddy provides general wellbeing support. For professional help,
                 <a href="/app/consultants" class="text-primary-600 hover:underline">book a consultant</a>.
             </p>
         </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" async></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<!-- ═══ EMORA PACK QUOTA-EXHAUSTION POPUP ══════════════════════════════════ -->
+<div id="emoraStoreOverlay" style="display:none;position:fixed;inset:0;z-index:10000;
+     background:rgba(0,0,0,0.72);backdrop-filter:blur(4px);
+     align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:#fff;border-radius:24px;width:100%;max-width:520px;
+              box-shadow:0 32px 80px rgba(0,0,0,0.35);overflow:hidden;
+              animation:emoraStoreIn 0.4s cubic-bezier(.34,1.56,.64,1) both;">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#2d6a5a,#1e4d40);padding:1.6rem 1.75rem 1.25rem;color:#fff;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:1.4rem;margin-bottom:.15rem;">🚀 Emora Chat Packs</div>
+          <div style="font-size:.82rem;opacity:.85;">Lifetime message top-ups — never expire</div>
+        </div>
+        <button onclick="closeEmoraStore()" style="background:rgba(255,255,255,.15);border:none;color:#fff;
+                border-radius:50%;width:32px;height:32px;font-size:1.1rem;cursor:pointer;
+                display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+    </div>
+
+    <!-- Quota exhausted notice (shown only when triggered by exhaustion) -->
+    <div id="emoraExhaustedNotice" style="display:none;background:#fef3c7;border-bottom:1px solid #fde68a;
+         padding:.75rem 1.75rem;font-size:.82rem;color:#92400e;font-weight:600;">
+      ⏳ You've used all your messages for today — your 20 daily messages refresh at midnight.
+      Top up with a pack to keep chatting right now!
+    </div>
+
+    <!-- Pack cards -->
+    <div style="padding:1.25rem 1.75rem 1.5rem;">
+      <div id="emoraPackCards" style="display:flex;flex-direction:column;gap:.75rem;">
+        <div style="text-align:center;padding:1.5rem;color:#9ca3af;font-size:.9rem;">Loading packs…</div>
+      </div>
+
+      <!-- Discount badge (shown for Blue plan) -->
+      <div id="emoraDiscountBadge" style="display:none;margin-top:.85rem;text-align:center;
+           font-size:.75rem;color:#2d6a5a;font-weight:700;">
+        🎉 Your Blue plan discount is applied!
+      </div>
+
+      <div style="margin-top:1rem;text-align:center;">
+        <a href="/app/plans" onclick="closeEmoraStore()" style="font-size:.75rem;color:#9ca3af;
+           text-decoration:none;">Or switch your plan for daily message allowances →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes emoraStoreIn {
+    from { opacity:0; transform:scale(0.88) translateY(20px); }
+    to   { opacity:1; transform:scale(1) translateY(0); }
+  }
+  .emora-pack-card {
+    display:flex; align-items:center; justify-content:space-between;
+    border:1.5px solid #e5e7eb; border-radius:14px; padding:.9rem 1.1rem;
+    background:#fff; transition:border-color .2s,box-shadow .2s; gap:.75rem;
+    cursor:default;
+  }
+  .emora-pack-card:hover { border-color:#2d6a5a; box-shadow:0 4px 16px rgba(45,106,90,.12); }
+  .emora-pack-pill { font-size:.65rem;font-weight:800;padding:.18rem .55rem;border-radius:999px;
+    text-transform:uppercase;letter-spacing:.04em; }
+  .emora-pack-btn {
+    padding:.5rem 1.1rem; border-radius:10px; border:none; font-weight:700;
+    font-size:.82rem; cursor:pointer; transition:opacity .2s; white-space:nowrap;
+    color:#fff;
+  }
+  .emora-pack-btn:hover { opacity:.88; }
+</style>
 
 <script>
-    let isLoading = false;
+    (function () {
+        // Wrapped in IIFE to avoid any global scope conflicts
+        var isLoading = false;
+        var emergencyCallUrl = null;
+        var chatEnabled = false;
+        var escalationTriggered = false;
 
-    // Load chat history on page load
-    window.addEventListener('DOMContentLoaded', function () {
-        loadChatHistory();
-        checkAIStatus();
-        lucide.createIcons();
-    });
+        // Read mood from URL
+        var urlParams = new URLSearchParams(window.location.search);
+        var incomingMood = urlParams.get('mood');
 
-    function checkAIStatus() {
-        fetch('/api/ai-chat/status')
-            .then(response => response.json())
-            .then(data => {
-                const statusEl = document.getElementById('aiStatus');
-                if (data.available) {
-                    statusEl.innerHTML = '<span class="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>Online (Advanced AI)';
-                } else {
-                    statusEl.innerHTML = '<span class="inline-block w-2 h-2 bg-yellow-500 rounded-full mr-1"></span>Basic Mode (Rule-based)';
-                    statusEl.title = "Advanced AI (Ollama) is not detected. Using simple offline bot.";
-                }
-            })
-            .catch(error => {
-                console.error('Error checking AI status:', error);
-            });
-    }
+        // ── Message quota (plan-based) ─────────────────────────────────────────
+        // msgRemaining = total messages the user can still send right now
+        // (daily_remaining + pack_balance, or week1 pool remaining)
+        var msgRemaining = -1;   // -1 = unlimited
+        var msgDailyLimit = 20;
+        var msgPackBalance = 0;
+        var msgInFirstWeek = false;
 
-    function loadChatHistory() {
-        fetch('/api/ai-chat/history')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.history.length > 0) {
-                    const container = document.getElementById('chatMessages');
-                    container.innerHTML = '';
-
-                    data.history.forEach(chat => {
-                        appendMessage(chat.message, true, false);
-                        appendMessage(chat.response, false, false);
-                    });
-
-                    scrollToBottom();
-                }
-            })
-            .catch(error => {
-                console.error('Error loading chat history:', error);
-            });
-    }
-
-    function sendMessage() {
-        const input = document.getElementById('messageInput');
-        const message = input.value.trim();
-
-        if (!message || isLoading) return;
-
-        // Clear input and show user message
-        input.value = '';
-        appendMessage(message, true, true);
-
-        // Show loading indicator
-        isLoading = true;
-        const loadingId = showLoadingMessage();
-
-        // Send to AI
-        fetch('/api/ai-chat/send', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ message: message })
-        })
-            .then(response => response.json())
-            .then(data => {
-                // Remove loading indicator
-                removeLoadingMessage(loadingId);
-                isLoading = false;
-
-                if (data.success) {
-                    appendMessage(data.response, false, true);
-                } else {
-                    const errorDetails = data.error || "I'm having trouble responding right now.";
-                    appendMessage(`${errorDetails} Please try again.`, false, true);
-                    console.error("Backend error:", data.error);
-                }
-            })
-            .catch(error => {
-                removeLoadingMessage(loadingId);
-                isLoading = false;
-                console.error('Error sending message:', error);
-                appendMessage("I encountered an error. Please try again.", false, true);
-            });
-    }
-
-    function appendMessage(content, isUser, animate) {
-        const container = document.getElementById('chatMessages');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `flex gap-3 ${isUser ? 'justify-end' : ''} ${animate ? 'message-fade-in' : ''}`;
-
-        // Parse markdown for bot messages, plain text for user (to avoid injection if possible, though user sees their own input)
-        // Actually, parsing both is fine usually, but let's parse content.
-        const parsedContent = isUser ? escapeHtml(content) : marked.parse(content);
-
-        if (isUser) {
-            messageDiv.innerHTML = `
-                    <div class="flex-1 text-right">
-                        <div class="bg-primary-600 text-white rounded-lg p-3 inline-block max-w-[80%] text-left prose prose-invert prose-sm">
-                            ${parsedContent}
-                        </div>
-                    </div>
-                `;
-        } else {
-            messageDiv.innerHTML = `
-                    <div class="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <i data-lucide="bot" class="w-4 h-4 text-white"></i>
-                    </div>
-                    <div class="flex-1">
-                        <div class="bg-gray-100 rounded-lg p-3 inline-block max-w-[80%] prose prose-sm">
-                            ${parsedContent}
-                        </div>
-                    </div>
-                `;
-        }
-
-        container.appendChild(messageDiv);
-        lucide.createIcons();
-        scrollToBottom();
-    }
-
-    function showLoadingMessage() {
-        const container = document.getElementById('chatMessages');
-        const loadingDiv = document.createElement('div');
-        const loadingId = 'loading-' + Date.now();
-        loadingDiv.id = loadingId;
-        loadingDiv.className = 'flex gap-3';
-        loadingDiv.innerHTML = `
-                <div class="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center flex-shrink-0">
-                    <i data-lucide="bot" class="w-4 h-4 text-white"></i>
-                </div>
-                <div class="flex-1">
-                    <div class="bg-gray-100 rounded-lg p-3 inline-block">
-                        <div class="flex gap-1">
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                            <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        container.appendChild(loadingDiv);
-        lucide.createIcons();
-        scrollToBottom();
-        return loadingId;
-    }
-
-    function removeLoadingMessage(loadingId) {
-        const loadingDiv = document.getElementById(loadingId);
-        if (loadingDiv) {
-            loadingDiv.remove();
-        }
-    }
-
-    function resetSession() {
-        if (confirm('Start a fresh session? This will clear your chat history.')) {
-            // Call API to reset
-            fetch('/api/ai-chat/reset', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const container = document.getElementById('chatMessages');
-                        container.innerHTML = `
-                                <div class="text-center py-8">
-                                    <div class="w-16 h-16 bg-gradient-to-br from-purple-100 to-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <i data-lucide="sparkles" class="w-8 h-8 text-purple-600"></i>
-                                    </div>
-                                    <p class="text-gray-600 mb-2">Session reset! I'm ready for a fresh start.</p>
-                                    <p class="text-sm text-gray-500">How can I support you now?</p>
-                                </div>
-                            `;
-                        lucide.createIcons();
+        function fetchMessageQuota() {
+            fetch('/api/plans/my-usage')
+                .then(function(r){ return r.json(); })
+                .then(function(d){
+                    if (!d.success) return;
+                    var cap = (d.caps || {})['ai_chat'];
+                    if (!cap) return;
+                    msgInFirstWeek  = cap.in_first_week || false;
+                    msgPackBalance  = cap.pack_balance  || 0;
+                    if (msgInFirstWeek) {
+                        msgRemaining  = cap.daily_remaining !== undefined ? cap.daily_remaining : (cap.limit - cap.used);
+                        msgDailyLimit = msgRemaining;
                     } else {
-                        alert('Failed to reset session');
+                        var dailyRem = cap.daily_remaining !== undefined ? cap.daily_remaining : Math.max(0, cap.limit - cap.used);
+                        msgRemaining  = dailyRem + msgPackBalance;
+                        msgDailyLimit = dailyRem;
+                    }
+                    renderMsgQuota();
+                })
+                .catch(function(){});
+        }
+
+        function renderMsgQuota() {
+            var el = document.getElementById('msgQuotaText');
+            if (!el) return;
+            if (msgRemaining < 0) {
+                el.textContent = '∞ msgs';
+                el.style.color = '#2d6a5a';
+                return;
+            }
+            var remaining = Math.max(0, msgRemaining);
+            var label;
+            if (msgInFirstWeek) {
+                var welcomeRemaining = Math.max(0, msgRemaining - msgPackBalance);
+                if (msgPackBalance > 0 && welcomeRemaining <= 0) {
+                    label = msgPackBalance + ' pack msgs left';
+                } else if (msgPackBalance > 0) {
+                    label = welcomeRemaining + ' welcome + ' + msgPackBalance + ' pack';
+                } else {
+                    label = remaining + ' welcome msgs left';
+                }
+            } else if (msgPackBalance > 0 && msgDailyLimit <= 0) {
+                label = msgPackBalance + ' pack msgs left';
+            } else if (msgPackBalance > 0) {
+                label = msgDailyLimit + ' daily + ' + msgPackBalance + ' pack';
+            } else {
+                label = remaining + ' msgs left today';
+            }
+            el.textContent = label;
+            el.style.color = remaining <= 0 ? '#dc2626'
+                           : remaining <= 5  ? '#d97706'
+                           : '#2d6a5a';
+        }
+
+        function tickMsgUsed() {
+            // Optimistically deduct one message after a successful send
+            if (msgRemaining > 0) {
+                msgRemaining--;
+                if (msgInFirstWeek) {
+                    var welcomeLeft = msgRemaining - msgPackBalance;
+                    if (welcomeLeft < 0) {
+                        msgPackBalance = Math.max(0, msgPackBalance - 1);
+                    }
+                } else {
+                    if (msgDailyLimit > 0) msgDailyLimit--;
+                    else if (msgPackBalance > 0) msgPackBalance--;
+                }
+            }
+            renderMsgQuota();
+        }
+
+
+
+
+        // ── Boot hook (called by inline confirmHuman) ─────────────────────────
+        window._bootChat = function () {
+            chatEnabled = true;
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendButton').disabled = false;
+            document.getElementById('messageInput').focus();
+            fetchMessageQuota();
+            if (incomingMood === 'anxious' || incomingMood === 'angry') {
+                primeMoodChat(incomingMood);
+            } else {
+                loadChatHistory();
+            }
+            checkAIStatus();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        };
+        // Drain any click that happened before IIFE finished loading
+        if (window._bootPending) { window._bootPending = false; window._bootChat(); }
+
+
+        // ── Mood-Aware Priming ───────────────────────────────────────────────────
+        function primeMoodChat(mood) {
+            var moodMessages = {
+                anxious: "I'm feeling really anxious right now and I don't know what to do.",
+                angry: "I'm feeling very angry and frustrated and I need to talk to someone."
+            };
+            var openingMsg = moodMessages[mood] || ("I'm feeling " + mood + " right now.");
+
+            appendMessage(openingMsg, true, true);
+            isLoading = true;
+            var loadingId = showLoadingMessage();
+
+            fetch('/api/ai-chat/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: openingMsg, mood_context: mood })
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    removeLoadingMessage(loadingId);
+                    isLoading = false;
+                    if (data.success) {
+                        appendMessage(data.response, false, true);
+                        tickMsgUsed();
+                        checkForEscalation(data.response);
                     }
                 })
-                .catch(e => {
-                    console.error(e);
-                    alert('Error resetting session');
+                .catch(function () {
+                    removeLoadingMessage(loadingId);
+                    isLoading = false;
                 });
+        }  // end primeMoodChat
+
+        // ── Escalation Detection ─────────────────────────────────────────────────
+        function checkForEscalation(aiResponse) {
+            if (escalationTriggered) return;
+            var keywords = [
+                'schedule an appointment', 'book a consultant', 'speak with a professional',
+                'connect you with a consultant', 'professional help', 'crisis', 'emergency',
+                'immediate support', 'talk to someone', 'real person'
+            ];
+            var lower = aiResponse.toLowerCase();
+            var shouldEscalate = keywords.some(function (kw) { return lower.indexOf(kw) !== -1; });
+            if (shouldEscalate) {
+                escalationTriggered = true;
+                triggerEmergencyBooking();
+            }
+        }
+
+        // ── Emergency Booking ────────────────────────────────────────────────────
+        function triggerEmergencyBooking() {
+            document.getElementById('emergencyOverlay').classList.remove('hidden');
+            fetch('/api/mood/emergency-book', { method: 'POST' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    document.getElementById('emergencyLoading').classList.add('hidden');
+                    if (data.success) {
+                        emergencyCallUrl = data.call_url;
+                        document.getElementById('emergencyConsultantName').textContent = '👤 ' + data.consultant_name;
+                        document.getElementById('emergencyConsultantInfo').classList.remove('hidden');
+                        document.getElementById('joinCallBtn').classList.remove('hidden');
+                        appendMessage(
+                            '🆘 I\'ve noticed you might need more support right now. I\'ve arranged a session with **' + data.consultant_name + '** for you. You can join the call whenever you\'re ready.',
+                            false, true
+                        );
+                    } else {
+                        document.getElementById('emergencyLoading').textContent = data.error || 'No consultants available right now.';
+                    }
+                })
+                .catch(function () {
+                    document.getElementById('emergencyLoading').textContent = 'Could not connect. Please try booking manually.';
+                });
+        }
+
+        window.joinEmergencyCall = function () {
+            if (emergencyCallUrl) window.location.href = emergencyCallUrl;
+        };
+
+        window.dismissEmergency = function () {
+            document.getElementById('emergencyOverlay').classList.add('hidden');
+        };
+
+        // ── Cost meter removed — replaced by message quota ────────────────────
+
+        // ── AI Status ────────────────────────────────────────────────────────────
+        function checkAIStatus() {
+            fetch('/api/ai-chat/status')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var el = document.getElementById('aiStatus');
+                    if (data.available) {
+                        el.innerHTML = '<span class="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>Online (Advanced AI)';
+                    } else {
+                        el.innerHTML = '<span class="inline-block w-2 h-2 bg-yellow-500 rounded-full mr-1"></span>Basic Mode';
+                    }
+                }).catch(function () { });
+        }
+
+        // ── Chat History ─────────────────────────────────────────────────────────
+        var USER_FIRST_NAME = '{{ preferred_name }}';
+
+        function loadChatHistory() {
+            fetch('/api/ai-chat/history')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success && data.history.length > 0) {
+                        // Existing history — render it
+                        var container = document.getElementById('chatMessages');
+                        container.innerHTML = '';
+                        data.history.forEach(function (chat) {
+                            appendMessage(chat.message, true, false);
+                            appendMessage(chat.response, false, false);
+                        });
+                        scrollToBottom();
+                    } else {
+                        // No history — trigger a personalised AI greeting
+                        var container = document.getElementById('chatMessages');
+                        container.innerHTML = ''; // clear welcome screen
+                        var loadingId = showLoadingMessage();
+                        fetch('/api/ai-chat/send', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message: '__GREET__:' + USER_FIRST_NAME })
+                        })
+                        .then(function (r) { return r.json(); })
+                        .then(function (data) {
+                            removeLoadingMessage(loadingId);
+                            if (data.success) {
+                                appendMessage(data.response, false, true);
+                            } else {
+                                appendMessage('Hi ' + USER_FIRST_NAME + '! 👋 I\'m Emora, your wellness buddy. How are you feeling today?', false, true);
+                            }
+                        })
+                        .catch(function () {
+                            removeLoadingMessage(loadingId);
+                            appendMessage('Hi ' + USER_FIRST_NAME + '! 👋 I\'m Emora, your wellness buddy. How are you feeling today?', false, true);
+                        });
+                    }
+                }).catch(function () { });
+        }
+
+        // ── Send Message ─────────────────────────────────────────────────────────
+        window.sendMessage = function () {
+            if (!chatEnabled) return;
+            var input = document.getElementById('messageInput');
+            var message = input.value.trim();
+            if (!message || isLoading) return;
+
+            var msgLower = message.toLowerCase();
+            var isGreeting = (msgLower === 'hi' || msgLower === 'hello' || msgLower === 'hey' || msgLower === 'hi emora' || msgLower === 'hello emora');
+
+            input.value = '';
+            appendMessage(message, true, true);
+            isLoading = true;
+            var loadingId = showLoadingMessage();
+
+            // ── Front-end quota guard ──────────────────────────────────────
+            if (msgRemaining === 0 && !isGreeting) {
+                removeLoadingMessage(loadingId);
+                isLoading = false;
+                // Show the Emora store popup instead of a plain text message
+                openEmoraStore(true);
+                return;
+            }
+
+            fetch('/api/ai-chat/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message })
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    removeLoadingMessage(loadingId);
+                    isLoading = false;
+                    if (data.success) {
+                        appendMessage(data.response, false, true);
+                        if (!isGreeting) {
+                            tickMsgUsed();
+                        }
+                        checkForEscalation(data.response);
+                    } else if (data.quota_exhausted) {
+                        // Backend confirmed exhaustion — refresh meter and show store popup
+                        fetchMessageQuota();
+                        openEmoraStore(true);
+                    } else if (data.connectivity_error) {
+                        // Warm connectivity error — keep input enabled so user can retry
+                        appendMessage(data.error || "I\'m experiencing a connectivity issue — feel free to send your message again! 💚", false, true);
+                    } else {
+                        appendMessage((data.error || "I\'m having trouble responding right now.") + " Please try again.", false, true);
+                    }
+                })
+                .catch(function () {
+                    removeLoadingMessage(loadingId);
+                    isLoading = false;
+                    appendMessage("💚 I\'m having a connectivity hiccup — your message is safe, please try sending again!", false, true);
+                });
+        };
+
+        // ── Message Rendering ────────────────────────────────────────────────────
+        // Expose key functions on window so the Voice IIFE can call them
+        window.appendMessage       = appendMessage;
+        window.showLoadingMessage  = showLoadingMessage;
+        window.removeLoadingMessage = removeLoadingMessage;
+        window.tickMsgUsed         = tickMsgUsed;
+
+        function appendMessage(content, isUser, animate) {
+            var container = document.getElementById('chatMessages');
+            var messageDiv = document.createElement('div');
+            messageDiv.className = 'flex gap-3' + (isUser ? ' justify-end' : '') + (animate ? ' message-fade-in' : '');
+
+            var parsedContent = isUser ? escapeHtml(content) : (typeof marked !== 'undefined' ? marked.parse(content) : escapeHtml(content));
+
+            if (isUser) {
+                messageDiv.innerHTML = '<div class="flex-1 text-right"><div class="bg-secondary-700 text-white rounded-2xl rounded-tr-none p-3.5 inline-block max-w-[80%] text-left prose prose-invert prose-sm shadow-sm">' + parsedContent + '</div></div>';
+            } else {
+                messageDiv.innerHTML = '<div class="w-8 h-8 rounded-full bg-secondary-100 border border-secondary-200 flex items-center justify-center text-secondary-700 flex-shrink-0"><i data-lucide="sparkles" class="w-4 h-4 animate-pulse"></i></div><div class="flex-1"><div class="bg-gray-100/80 border border-gray-200/50 rounded-2xl rounded-tl-none p-3.5 inline-block max-w-[80%] prose prose-sm shadow-sm">' + parsedContent + '</div></div>';
+            }
+
+            container.appendChild(messageDiv);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            scrollToBottom();
+        }
+
+        function showLoadingMessage() {
+            var container = document.getElementById('chatMessages');
+            var loadingDiv = document.createElement('div');
+            var loadingId = 'loading-' + Date.now();
+            loadingDiv.id = loadingId;
+            loadingDiv.className = 'flex gap-3';
+            loadingDiv.innerHTML = '<div class="w-8 h-8 rounded-full bg-secondary-100 border border-secondary-200 flex items-center justify-center text-secondary-700 flex-shrink-0"><i data-lucide="sparkles" class="w-4 h-4"></i></div><div class="flex-1"><div class="bg-gray-100/80 border border-gray-200/50 rounded-2xl rounded-tl-none p-3.5 inline-block"><div class="flex gap-1"><div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div><div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.1s"></div><div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay:0.2s"></div></div></div></div>';
+            container.appendChild(loadingDiv);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            scrollToBottom();
+            return loadingId;
+        }
+
+        function removeLoadingMessage(id) {
+            var el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        window.resetSession = function () {
+            if (confirm('Start a fresh session? This will clear your chat history.')) {
+                fetch('/api/ai-chat/reset', { method: 'POST' })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.success) {
+                            escalationTriggered = false;
+                            // Clear the chat UI and re-trigger a fresh greeting from Emora.
+                            // The greeting is quota-free, so the usage counter is NOT affected.
+                            // Refresh the counter from the server to keep the display in sync.
+                            document.getElementById('chatMessages').innerHTML = '';
+                            fetchMessageQuota();
+                            loadChatHistory();
+                        }
+                    });
+            }
+        };
+
+        function scrollToBottom() {
+            var container = document.getElementById('chatMessages');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ── Already-verified: skip popup, boot straight into chat ─────────────────
+        if (sessionStorage.getItem('solace_buddy_verified') === '1') {
+            chatEnabled = true;
+            // Inputs already visible; enable them and load history
+            var inp = document.getElementById('messageInput');
+            var snd = document.getElementById('sendButton');
+            if (inp) inp.disabled = false;
+            if (snd) snd.disabled = false;
+            fetchMessageQuota();
+            if (incomingMood === 'anxious' || incomingMood === 'angry') {
+                primeMoodChat(incomingMood);
+            } else {
+                loadChatHistory();
+            }
+            checkAIStatus();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    // ── Show/hide "Get More" button based on quota ────────────────────────
+    var _origRenderMsgQuota = renderMsgQuota;
+    // Expose a hook so the Emora store JS below can call openEmoraStore
+    window._msgRemaining = function() { return msgRemaining; };
+    })();
+</script>
+
+<!-- ═══ EMORA PACK STORE JS ════════════════════════════════════════════════ -->
+<script>
+(function() {
+    var _emPacks      = [];
+    var _emRzKey      = '';
+    var _emLoaded     = false;
+    var _emExhausted  = false;
+
+    // ── Open / Close store ─────────────────────────────────────────────────
+    window.openEmoraStore = function(fromExhaustion) {
+        _emExhausted = !!fromExhaustion;
+        var overlay = document.getElementById('emoraStoreOverlay');
+        overlay.style.display = 'flex';
+        var notice = document.getElementById('emoraExhaustedNotice');
+        if (notice) notice.style.display = _emExhausted ? 'block' : 'none';
+        if (!_emLoaded) _loadEmoraPacks();
+    };
+
+    window.closeEmoraStore = function() {
+        document.getElementById('emoraStoreOverlay').style.display = 'none';
+    };
+
+    // Close on overlay click
+    document.getElementById('emoraStoreOverlay').addEventListener('click', function(e) {
+        if (e.target === this) window.closeEmoraStore();
+    });
+
+    // ── Load packs from API ────────────────────────────────────────────────
+    function _loadEmoraPacks() {
+        fetch('/api/emora-packs')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (!d.success) throw new Error('API error');
+                _emPacks  = d.packs || [];
+                _emRzKey  = d.razorpay_key_id || '';
+                _emLoaded = true;
+                _renderPackCards();
+                // Also fetch razorpay key from plans API if not returned here
+                if (!_emRzKey) {
+                    fetch('/api/plans', { credentials: 'include' })
+                        .then(function(r) { return r.json(); })
+                        .then(function(pd) { if (pd.razorpay_key_id) _emRzKey = pd.razorpay_key_id; })
+                        .catch(function() {});
+                }
+            })
+            .catch(function() {
+                document.getElementById('emoraPackCards').innerHTML =
+                    '<div style="text-align:center;color:#ef4444;font-size:.85rem;padding:1rem;">Could not load packs. Please try again.</div>';
+            });
+    }
+
+    // ── Render pack cards ──────────────────────────────────────────────────
+    function _renderPackCards() {
+        var container = document.getElementById('emoraPackCards');
+        if (!_emPacks.length) {
+            container.innerHTML = '<div style="text-align:center;color:#9ca3af;">No packs available.</div>';
+            return;
+        }
+
+        var hasDiscount = _emPacks.some(function(p) { return p.discount_pct > 0; });
+        var discBadge = document.getElementById('emoraDiscountBadge');
+        if (discBadge && hasDiscount) discBadge.style.display = 'block';
+
+        var getMoreBtn = document.getElementById('getMoreMsgsBtn');
+        if (getMoreBtn) getMoreBtn.style.display = 'flex';
+
+        var COLOURS = {
+            'S': { bg:'#f0fdf4', border:'#6ee7b7', btn:'linear-gradient(135deg,#059669,#0d9488)', pill:'#d1fae5', pillTxt:'#065f46', icon:'💬' },
+            'M': { bg:'#f5f3ff', border:'#c4b5fd', btn:'linear-gradient(135deg,#7c3aed,#6d28d9)', pill:'#ede9fe', pillTxt:'#5b21b6', icon:'⚡' },
+            'L': { bg:'#fff1f2', border:'#fca5a5', btn:'linear-gradient(135deg,#dc2626,#b91c1c)', pill:'#fee2e2', pillTxt:'#991b1b', icon:'🚀' },
+        };
+
+        container.innerHTML = _emPacks.map(function(pack) {
+            var c = COLOURS[pack.pack_id] || COLOURS['S'];
+            var priceHtml = pack.discount_pct > 0
+                ? '<span style="text-decoration:line-through;color:#9ca3af;font-size:.78rem;margin-right:.3rem;">₹' + pack.original_price.toLocaleString('en-IN') + '</span>'
+                + '<strong style="color:#1f2937;font-size:1.05rem;">₹' + pack.price.toLocaleString('en-IN') + '</strong><span style="font-size:0.7rem;color:#6b7280;display:block;">+ GST</span>'
+                : '<strong style="color:#1f2937;font-size:1.05rem;">₹' + pack.price.toLocaleString('en-IN') + '</strong><span style="font-size:0.7rem;color:#6b7280;display:block;">+ GST</span>';
+
+            return '<div class="emora-pack-card" style="background:' + c.bg + ';border-color:' + c.border + ';">' +
+                '<div style="display:flex;align-items:center;gap:.6rem;min-width:0;">' +
+                  '<div style="font-size:1.4rem;flex-shrink:0;">' + c.icon + '</div>' +
+                  '<div>' +
+                    '<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;">' +
+                      '<span style="font-weight:800;color:#1f2937;font-size:.95rem;">' + pack.name + '</span>' +
+                      (pack.discount_pct > 0 ? '<span class="emora-pack-pill" style="background:' + c.pill + ';color:' + c.pillTxt + ';">-' + pack.discount_pct + '% off</span>' : '') +
+                    '</div>' +
+                    '<div style="font-size:.75rem;color:#6b7280;margin-top:.1rem;">' +
+                      pack.messages.toLocaleString('en-IN') + ' messages &nbsp;·&nbsp; <em>lifetime</em>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div style="text-align:right;flex-shrink:0;">' +
+                  '<div>' + priceHtml + '</div>' +
+                  '<button class="emora-pack-btn" style="margin-top:.4rem;background:' + c.btn + ';"' +
+                    ' onclick="buyEmoraPack(\'' + pack.pack_id + '\')">' +
+                    'Buy Now' +
+                  '</button>' +
+                '</div>' +
+              '</div>';
+        }).join('');
+    }
+
+    // ── Buy a pack ─────────────────────────────────────────────────────────
+    window.buyEmoraPack = function(packId) {
+        fetch('/api/emora-packs/buy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pack_id: packId })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (!d.success) {
+                alert(d.error || 'Could not initiate purchase. Please try again.');
+                return;
+            }
+            var rzKey = _emRzKey || d.razorpay_key_id || '';
+            if (!rzKey || !window.Razorpay) {
+                alert('Payment gateway not available. Please refresh and try again.');
+                return;
+            }
+            closeEmoraStore();
+            var totalAmt = d.amount / 100;
+            var baseAmt = totalAmt / 1.18;
+            var gstAmt = totalAmt - baseAmt;
+            var options = {
+                key:         rzKey,
+                amount:      d.amount,
+                currency:    'INR',
+                name:        'SolaceSquad',
+                description: d.pack_name + ' — ' + (d.messages || '').toLocaleString('en-IN') + ' messages (Base: ₹' + baseAmt.toFixed(2) + ' + 18% GST: ₹' + gstAmt.toFixed(2) + ')',
+                order_id:    d.order_id,
+                prefill:     {},
+                theme:       { color: '#7c3aed' },
+                handler: function(resp) {
+                    _verifyEmoraPackPayment(resp, d.pack_name, d.messages);
+                },
+                modal: {
+                    ondismiss: function() {
+                        _showToast('Purchase cancelled — your previous messages are still available.');
+                    }
+                }
+            };
+            try {
+                var rzp = new window.Razorpay(options);
+                rzp.on('payment.failed', function(r) {
+                    _showToast('❌ Payment failed: ' + (r.error && r.error.description || 'Unknown error'));
+                });
+                rzp.open();
+            } catch(e) {
+                alert('Could not open payment gateway: ' + e.message);
+            }
+        })
+        .catch(function(e) {
+            alert('Network error: ' + e.message + '. Please try again.');
+        });
+    };
+
+    // ── Verify payment and credit messages ─────────────────────────────────
+    function _verifyEmoraPackPayment(resp, packName, messages) {
+        fetch('/api/emora-packs/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(resp)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.success) {
+                _showToast('✅ ' + (messages || '').toLocaleString('en-IN') + ' Emora messages added! Happy chatting 🎉');
+                // Refresh quota display
+                if (typeof fetchMessageQuota === 'function') fetchMessageQuota();
+                else setTimeout(function() { location.reload(); }, 2000);
+            } else {
+                _showToast('⚠️ Payment received but verification failed. Contact support@solacesquad.com');
+            }
+        })
+        .catch(function() {
+            _showToast('⚠️ Could not verify payment. Please contact support@solacesquad.com');
+        });
+    }
+
+    // ── Toast helper ───────────────────────────────────────────────────────
+    function _showToast(msg) {
+        var t = document.createElement('div');
+        t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);' +
+            'background:#1f2937;color:#fff;padding:.7rem 1.4rem;border-radius:12px;font-size:.875rem;' +
+            'font-weight:600;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:90%;text-align:center;';
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(function() { t.remove(); }, 4000);
+    }
+
+    // ── Also fetch RZ key from plans API on load ───────────────────────────
+    fetch('/api/plans', { credentials: 'include' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) { if (d.razorpay_key_id) _emRzKey = d.razorpay_key_id; })
+        .catch(function() {});
+
+    // ── Show "Get More" button once quota is known ─────────────────────────
+    setTimeout(function() {
+        var btn = document.getElementById('getMoreMsgsBtn');
+        if (btn) btn.style.display = 'flex';
+    }, 2000);
+
+})();
+</script>
+
+<!-- ═══ VOICE EMORA — Sarvam AI ═══════════════════════════════════════════ -->
+<script>
+(function () {
+    var _mediaRecorder = null;
+    var _audioChunks   = [];
+    var _isRecording   = false;
+    var _micBtn        = null;
+    var _micIcon       = null;
+    var _emoraAudio    = null;
+
+    // ── Init: check mic permission & show lang selector ──────────────────────
+    function initVoice() {
+        _micBtn  = document.getElementById('micButton');
+        _micIcon = document.getElementById('micIcon');
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    }
+
+    // Called when chat is enabled (after bot-check)
+    var _origBoot = window._bootChat;
+    window._bootChat = function () {
+        if (_origBoot) _origBoot();
+        initVoice();
+        _applyVoicePlanGate();
+    };
+    // Also handle already-verified users
+    if (sessionStorage.getItem('solace_buddy_verified') === '1') {
+        window.addEventListener('DOMContentLoaded', function() {
+            initVoice();
+            _applyVoicePlanGate();
+        });
+    }
+
+    // ── Apply voice plan gate: lock mic for Free plan users ────────────────
+    var _voicePlanChecked = false;
+    function _applyVoicePlanGate() {
+        if (_voicePlanChecked) return;
+        _voicePlanChecked = true;
+        fetch('/api/plans/my-usage', { credentials: 'include' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                var planName = ((d.plan_name || d.plan || '')).toLowerCase().trim();
+                var voicePlans = ['white', 'green', 'blue'];
+                var hasVoice = voicePlans.some(function(p) { return planName.indexOf(p) !== -1; });
+                var mb   = document.getElementById('micButton');
+                var lock = document.getElementById('micLockBadge');
+                if (hasVoice) {
+                    // Unlock mic
+                    if (mb)   { mb.disabled = false; mb.style.opacity = '1'; }
+                    if (lock) lock.style.display = 'none';
+                } else {
+                    // Lock mic — show overlay + keep disabled
+                    if (mb)   { mb.disabled = true; mb.style.opacity = '0.5'; }
+                    if (lock) lock.style.display = 'flex';
+                }
+            })
+            .catch(function() {
+                // On error, default to enabling mic (fail open)
+                var mb = document.getElementById('micButton');
+                if (mb) mb.disabled = false;
+            });
+    }
+
+    window._showMicUpgradeTooltip = function() {
+        var tip = document.getElementById('micUpgradeTooltip');
+        if (!tip) return;
+        tip.style.display = 'block';
+        setTimeout(function() { tip.style.display = 'none'; }, 3000);
+    };
+
+    // ── Start Recording ───────────────────────────────────────────────────────
+    window.startVoiceRecord = function () {
+        if (_isRecording || !_micBtn || _micBtn.disabled) return;
+
+        // Unlock audio context on iOS Safari
+        if (!_emoraAudio) _emoraAudio = new Audio();
+        _emoraAudio.src = 'data:audio/mp3;base64,'; 
+        _emoraAudio.play().catch(function(e) {});
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function (stream) {
+                _audioChunks   = [];
+                _isRecording   = true;
+                _mediaRecorder = new MediaRecorder(stream);
+                _mediaRecorder.ondataavailable = function (e) {
+                    if (e.data.size > 0) _audioChunks.push(e.data);
+                };
+                _mediaRecorder.start(100); // collect chunks every 100ms
+                // UI: pulsing red + show listening bar
+                _micBtn.style.background = '#fee2e2';
+                _micBtn.style.color      = '#dc2626';
+                _micBtn.style.animation  = 'micPulse 0.8s ease-in-out infinite';
+                var lb = document.getElementById('voiceListeningBar');
+                if (lb) lb.style.display = 'flex';
+            })
+            .catch(function () {
+                appendVoiceError('Microphone access denied. Please allow mic in browser settings.');
+            });
+    };
+
+    // ── Stop Recording & Send ─────────────────────────────────────────────────
+    window.stopVoiceRecord = function () {
+        if (!_isRecording || !_mediaRecorder) return;
+        _isRecording = false;
+        // Hide listening bar
+        var lb = document.getElementById('voiceListeningBar');
+        if (lb) lb.style.display = 'none';
+        _mediaRecorder.onstop = function () {
+            var blob = new Blob(_audioChunks, { type: 'audio/webm' });
+            _mediaRecorder.stream.getTracks().forEach(function (t) { t.stop(); });
+            sendVoiceToEmora(blob);
+        };
+        _mediaRecorder.stop();
+        // UI: back to green
+        _micBtn.style.background = '#f0fdf4';
+        _micBtn.style.color      = '#0d9488';
+        _micBtn.style.animation  = 'none';
+    };
+
+    // ── Send blob to /api/ai-chat/voice ───────────────────────────────────────
+    function sendVoiceToEmora(blob) {
+        // Read selected language from the UI selector, fallback to en-IN
+        var langEl  = document.getElementById('voiceLangSelect');
+        var lang    = (langEl && langEl.value && langEl.value !== 'unknown') ? langEl.value : 'en-IN';
+        var formData = new FormData();
+        formData.append('audio', blob, 'recording.webm');
+        formData.append('language', lang);
+
+        // Use window.* to access functions from the main IIFE
+        var loadId = window.showLoadingMessage();
+        _micBtn.disabled = true;
+
+        fetch('/api/ai-chat/voice', { method: 'POST', body: formData })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                window.removeLoadingMessage(loadId);
+                _micBtn.disabled = false;
+                if (data.success) {
+                    window.appendMessage('🎙️ ' + data.transcript, true, true);
+                    window.appendMessage(data.reply_text, false, true);
+                    window.tickMsgUsed();
+                    if (data.audio_b64) playEmoraAudio(data.audio_b64);
+                } else {
+                    window.appendMessage('🎙️ ' + (data.error || 'Could not process. Please try again.'), false, true);
+                }
+            })
+            .catch(function () {
+                window.removeLoadingMessage(loadId);
+                _micBtn.disabled = false;
+                window.appendMessage('🎙️ Voice processing failed. Please try typing instead.', false, true);
+            });
+    }
+
+    // ── Play Emora audio response ─────────────────────────────────────────────
+    function playEmoraAudio(base64Audio) {
+        try {
+            if (!_emoraAudio) _emoraAudio = new Audio();
+            _emoraAudio.src = 'data:audio/mpeg;base64,' + base64Audio;
+            _emoraAudio.play().catch(function(e){ console.warn('[Voice Emora] play error:', e); });
+            var statusEl = document.getElementById('aiStatus');
+            if (statusEl) {
+                var orig = statusEl.innerHTML;
+                statusEl.innerHTML = '<span class="inline-block w-2 h-2 bg-purple-500 rounded-full mr-1 animate-pulse"></span>Speaking...';
+                _emoraAudio.onended = function () { statusEl.innerHTML = orig; };
+            }
+        } catch (e) {
+            console.warn('[Voice Emora] Audio play error:', e);
         }
     }
 
-    function scrollToBottom() {
-        const container = document.getElementById('chatMessages');
-        container.scrollTop = container.scrollHeight;
-    }
-
-    function escapeHtml(text) {
-        // Basic escaping for user input if we don't want markdown there, 
-        // but user input often benefits from markdown too (e.g. code blocks)
-        // For now, let's keep it simple text escaping or let marked handle it if we want rich text.
-        // If we want simple text:
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+})();
 </script>
 
 <style>
     @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
+    .message-fade-in { animation: fadeIn 0.3s ease-out; }
 
-    .message-fade-in {
-        animation: fadeIn 0.3s ease-out;
+    /* Mic recording pulse animation */
+    @keyframes micPulse {
+        0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(220,38,38,0.4); }
+        50%       { transform: scale(1.08); box-shadow: 0 0 0 8px rgba(220,38,38,0); }
     }
 </style>
 {% endblock %}

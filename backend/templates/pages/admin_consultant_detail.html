@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+{% block title %}Application — {{ profile.user.name }} | Admin{% endblock %}
+
+{% block content %}
+<style>
+    .detail-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+    }
+
+    .section-head {
+        font-size: .8rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #6b7280;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+    }
+
+    .badge-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.4rem;
+        height: 1.4rem;
+        border-radius: 50%;
+        background: #0f766e;
+        color: #fff;
+        font-size: .65rem;
+        font-weight: 800;
+    }
+
+    .info-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: .6rem .5rem;
+    }
+
+    .info-label {
+        font-size: .7rem;
+        font-weight: 600;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+    }
+
+    .info-val {
+        font-size: .875rem;
+        color: #1f2937;
+        margin-top: .1rem;
+    }
+
+    .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .35rem;
+        margin-top: .35rem;
+    }
+
+    .tag {
+        display: inline-flex;
+        padding: .2rem .6rem;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 9999px;
+        font-size: .75rem;
+        color: #166534;
+        font-weight: 500;
+    }
+
+    .tag.blue {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1d4ed8;
+    }
+
+    .tag.purple {
+        background: #faf5ff;
+        border-color: #e9d5ff;
+        color: #7e22ce;
+    }
+
+    .tag.orange {
+        background: #fff7ed;
+        border-color: #fed7aa;
+        color: #c2410c;
+    }
+
+    .na {
+        color: #d1d5db;
+        font-style: italic;
+        font-size: .8rem;
+    }
+
+    .cv-link {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        color: #0d9488;
+        font-weight: 600;
+        font-size: .875rem;
+        text-decoration: none;
+        padding: .4rem .8rem;
+        border: 1px solid #99f6e4;
+        border-radius: .5rem;
+        background: #f0fdf4;
+        transition: .15s;
+    }
+
+    .cv-link:hover {
+        background: #ccfbf1;
+    }
+
+    .photo-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #0d9488;
+    }
+
+    .btn-approve {
+        padding: .55rem 1.25rem;
+        background: linear-gradient(135deg, #0f766e, #0d9488);
+        color: #fff;
+        border: none;
+        border-radius: .5rem;
+        font-weight: 700;
+        font-size: .875rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+    }
+
+    .btn-reject {
+        padding: .55rem 1.25rem;
+        background: #fff;
+        color: #dc2626;
+        border: 1px solid #fca5a5;
+        border-radius: .5rem;
+        font-weight: 600;
+        font-size: .875rem;
+        cursor: pointer;
+    }
+
+    .btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        color: #6b7280;
+        font-size: .875rem;
+        text-decoration: none;
+    }
+
+    .btn-back:hover {
+        color: #374151;
+    }
+</style>
+
+<div style="max-width:900px; margin:0 auto; padding:1.5rem 1rem 4rem;">
+
+    <!-- Top Action Bar -->
+    <div
+        style="background:#fff; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:1.25rem; box-shadow:0 1px 4px rgba(0,0,0,.06); padding:.75rem 1.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+        <a href="{{ '/assistant' if viewer_type == 'admin_assistant' else '/admin' }}" class="btn-back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5" />
+                <polyline points="12 19 5 12 12 5" />
+            </svg>
+            Back
+        </a>
+        <div style="display:flex; align-items:center; gap:.5rem; flex:1; justify-content:center;">
+            <span style="font-weight:700; color:#1f2937; font-size:1rem;">{{ profile.user.name }}</span>
+            <span style="font-size:.75rem; color:#6b7280;">— Application Review</span>
+        </div>
+        {% if viewer_type != 'admin_assistant' %}
+        <div style="display:flex; gap:.5rem;">
+            <form action="/api/admin/reject/{{ profile.id }}" method="POST"
+                onsubmit="return confirm('Reject this application?');">
+                <button class="btn-reject" type="submit">✗ Reject</button>
+            </form>
+            <form action="/api/admin/approve/{{ profile.id }}" method="POST"
+                style="display:flex; align-items:center; gap:.5rem;">
+                <input type="number" name="hourly_rate" placeholder="₹/hr rate" step="50" min="0"
+                    value="{{ profile.hourly_rate or '' }}"
+                    style="width:110px; padding:.45rem .6rem; border:1px solid #d1d5db; border-radius:.4rem; font-size:.8rem;"
+                    required>
+                <button class="btn-approve" type="submit">✓ Approve</button>
+            </form>
+        </div>
+        {% else %}
+        <span style="font-size:.8rem;color:#6b7280;padding:.4rem .9rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:.5rem;">&#128274; Only Admin can Approve</span>
+        {% endif %}
+    </div>
+
+    <!-- Header Card -->
+    <div class="detail-card" style="display:flex; align-items:flex-start; gap:1.25rem; flex-wrap:wrap;">
+        {% if profile.photo_url %}
+        <img src="/api/profile-photo/{{ profile.user.id }}" class="photo-circle" alt="Photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div style="display:none;width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#134e4a,#0d9488);align-items:center;justify-content:center;color:#fff;font-size:1.75rem;font-weight:800;flex-shrink:0;">
+            {{ profile.user.name[:1].upper() }}
+        </div>
+        {% else %}
+        <div
+            style="width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg,#134e4a,#0d9488); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.75rem; font-weight:800; flex-shrink:0;">
+            {{ profile.user.name[:1].upper() }}
+        </div>
+        {% endif %}
+        <div style="flex:1;">
+            <h1 style="font-size:1.4rem; font-weight:800; color:#1f2937; margin:0;">{{ profile.user.name }}</h1>
+            <div style="color:#6b7280; font-size:.875rem; margin-top:.15rem;">
+                {{ profile.user.email }}
+                {% if profile.user.phone_number %}
+                <span style="margin:0 .4rem; color:#d1d5db;">|</span>
+                <span>📞 {{ profile.user.phone_number }}</span>
+                {% endif %}
+            </div>
+            {% if profile.city %}
+            <div style="font-size:.8rem; color:#9ca3af; margin-top:.2rem;">📍 {{ profile.city }}</div>
+            {% endif %}
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.6rem;">
+                {% if profile.specialization %}<span class="tag">{{ profile.specialization }}</span>{% endif %}
+                {% if profile.experience_years %}<span class="tag blue">{{ profile.experience_years }} yrs
+                    experience</span>{% endif %}
+                {% if profile.clinical_experience %}<span class="tag blue">Clinical: {{ profile.clinical_experience
+                    }}</span>{% endif %}
+                {% if profile.engagement_type %}<span class="tag orange">{{ profile.engagement_type }}</span>{% endif %}
+                {% if profile.qacp_certified %}<span class="tag purple">QACP Certified</span>{% endif %}
+            </div>
+        </div>
+        {% if profile.cv_url %}
+        <a href="/api/admin/view-cv/{{ profile.id }}" class="cv-link" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+            </svg>
+            View CV
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- S1: Personal Details -->
+    <div class="detail-card">
+        <div class="section-head"><span class="badge-num">1</span> Personal Details</div>
+        <div class="info-row">
+            <div>
+                <div class="info-label">Full Name</div>
+                <div class="info-val">{{ profile.full_name or profile.user.name }}</div>
+            </div>
+            <div>
+                <div class="info-label">Email</div>
+                <div class="info-val">{{ profile.user.email }}</div>
+            </div>
+            <div>
+                <div class="info-label">Phone</div>
+                <div class="info-val">
+                    {% if profile.user.phone_number %}{{ profile.user.phone_number }}{% else %}<span class="na">Not
+                        provided</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="info-label">City</div>
+                <div class="info-val">
+                    {% if profile.city %}{{ profile.city }}{% else %}<span class="na">Not set</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="info-label">Gender</div>
+                <div class="info-val">
+                    {% if profile.gender %}{{ profile.gender }}{% else %}<span class="na">Not set</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="info-label">Date of Birth</div>
+                <div class="info-val">
+                    {% if profile.date_of_birth %}{{ profile.date_of_birth }}{% else %}<span class="na">Not set</span>{%
+                    endif %}
+                </div>
+            </div>
+            <div>
+                <div class="info-label">Years of Experience</div>
+                <div class="info-val">{{ profile.experience_years or 0 }} years</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- S2: Qualifications & Background -->
+    <div class="detail-card">
+        <div class="section-head"><span class="badge-num">2</span> Qualifications &amp; Background</div>
+        <div class="info-row">
+            <div style="grid-column:1/-1">
+                <div class="info-label">Highest Qualification</div>
+                <div class="info-val">
+                    {% if profile.highest_qualification %}{{ profile.highest_qualification }}{% else %}<span
+                        class="na">Not set</span>{% endif %}
+                </div>
+            </div>
+            <div style="grid-column:1/-1">
+                <div class="info-label">Degrees / Certifications (detail)</div>
+                <div class="info-val" style="white-space:pre-wrap;">
+                    {% if profile.education %}{{ profile.education }}{% else %}<span class="na">Not provided</span>{%
+                    endif %}
+                </div>
+            </div>
+            <div>
+                <div class="info-label">How they heard about SolaceSquad</div>
+                <div class="info-val">
+                    {% if profile.referral_source %}{{ profile.referral_source }}{% else %}<span class="na">Not
+                        set</span>{% endif %}
+                </div>
+            </div>
+            {% if profile.linkedin_url %}
+            <div>
+                <div class="info-label">LinkedIn / Professional URL</div>
+                <div class="info-val"><a href="{{ profile.linkedin_url }}" target="_blank" style="color:#0d9488;">{{
+                        profile.linkedin_url }}</a></div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- S3: Availability & Engagement -->
+    <div class="detail-card">
+        <div class="section-head"><span class="badge-num">3</span> Availability &amp; Engagement</div>
+        <div class="info-row">
+            <div>
+                <div class="info-label">Preferred Time</div>
+                <div class="info-val">
+                    {% if profile.preferred_time %}{{ profile.preferred_time }}{% else %}<span class="na">Not
+                        set</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="info-label">Preferred Days</div>
+                <div class="info-val">
+                    {% if profile.preferred_days %}{{ profile.preferred_days }}{% else %}<span class="na">Not
+                        set</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="info-label">Engagement Type</div>
+                <div class="info-val">
+                    {% if profile.engagement_type %}{{ profile.engagement_type }}{% else %}<span class="na">Not
+                        set</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="info-label">Intended Hours / Week</div>
+                <div class="info-val">
+                    {% if profile.intended_hours %}{{ profile.intended_hours }}{% else %}<span class="na">Not
+                        set</span>{% endif %}
+                </div>
+            </div>
+            {% if profile.availability_notes %}
+            <div style="grid-column:1/-1">
+                <div class="info-label">Additional Notes</div>
+                <div class="info-val">{{ profile.availability_notes }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- S4: Counselling Methods -->
+    <div class="detail-card">
+        <div class="section-head"><span class="badge-num">4</span> Counselling Methods</div>
+        {% set methods = profile.counselling_methods | from_json_list %}
+        {% if methods %}
+        <div class="tag-list">
+            {% for m in methods %}<span class="tag blue">{{ m }}</span>{% endfor %}
+        </div>
+        {% else %}
+        <span class="na">Not provided</span>
+        {% endif %}
+    </div>
+
+    <!-- S5: Expertise Areas -->
+    <div class="detail-card">
+        <div class="section-head"><span class="badge-num">5</span> Expertise Areas</div>
+        {% set areas = profile.expertise_areas | from_json_list %}
+        {% if areas %}
+        <div class="tag-list">
+            {% for a in areas %}<span class="tag">{{ a }}</span>{% endfor %}
+        </div>
+        {% else %}
+        <span class="na">Not provided</span>
+        {% endif %}
+    </div>
+
+    <!-- S6: Practice Details -->
+    <div class="detail-card">
+        <div class="section-head"><span class="badge-num">6</span> Practice Details</div>
+        <div class="info-row">
+            <div>
+                <div class="info-label">QACP Certified</div>
+                <div class="info-val">
+                    {% if profile.qacp_certified == True %}✅ Yes
+                    {% elif profile.qacp_certified == False %}❌ No
+                    {% else %}<span class="na">Not answered</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="info-label">Requested Fee / Session</div>
+                <div class="info-val">
+                    {% if profile.hourly_rate %}₹{{ "%.0f"|format(profile.hourly_rate) }}{% else %}<span class="na">Not
+                        set</span>{% endif %}
+                </div>
+            </div>
+            <div style="grid-column:1/-1">
+                <div class="info-label">Target Audience</div>
+                <div class="info-val">
+                    {% if profile.target_audience %}{{ profile.target_audience }}{% else %}<span class="na">Not
+                        set</span>{% endif %}
+                </div>
+            </div>
+            <div style="grid-column:1/-1">
+                <div class="info-label">Languages</div>
+                {% set langs = profile.languages | from_json_list %}
+                {% if langs %}
+                <div class="tag-list">{% for l in langs %}<span class="tag">{{ l }}</span>{% endfor %}</div>
+                {% else %}
+                <div class="info-val"><span class="na">Not set</span></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- S7: Delivery & Clinical Experience -->
+    <div class="detail-card">
+        <div class="section-head"><span class="badge-num">7</span> Delivery &amp; Clinical Experience</div>
+        <div class="info-row">
+            <div>
+                <div class="info-label">Delivery Methods</div>
+                <div class="info-val">
+                    {% if profile.delivery_methods %}{{ profile.delivery_methods }}{% else %}<span class="na">Not
+                        set</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="info-label">Clinical Experience Range</div>
+                <div class="info-val">
+                    {% if profile.clinical_experience %}{{ profile.clinical_experience }}{% else %}<span class="na">Not
+                        set</span>{% endif %}
+                </div>
+            </div>
+            <div>
+                <div class="info-label">Administers Psychometric Tests</div>
+                <div class="info-val">
+                    {% if profile.psychometric_tests == True %}✅ Yes
+                    {% elif profile.psychometric_tests == False %}❌ No
+                    {% else %}<span class="na">Not answered</span>{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- S8: Bio -->
+    <div class="detail-card">
+        <div class="section-head"><span class="badge-num">8</span> About / Bio</div>
+        {% if profile.bio %}
+        <div
+            style="background:#f9fafb; border-radius:.6rem; padding:1rem; font-size:.875rem; color:#374151; line-height:1.6; border-left:3px solid #0d9488;">
+            {{ profile.bio }}
+        </div>
+        {% else %}
+        <span class="na">No bio provided</span>
+        {% endif %}
+    </div>
+
+    <!-- S9: Recommendations -->
+    <div class="detail-card">
+        <div class="section-head"><span class="badge-num">9</span> Recommendations / References</div>
+        {% set refs = profile.recommendations | from_json_list %}
+        {% if refs %}
+        <div style="display:flex; flex-direction:column; gap:.75rem;">
+            {% for ref in refs %}
+            <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:.6rem; padding:.75rem 1rem;">
+                <div style="font-weight:700; color:#1f2937; font-size:.875rem;">{{ ref.name }}</div>
+                {% if ref.relation %}<div style="font-size:.75rem; color:#6b7280;">{{ ref.relation }}</div>{% endif %}
+                {% if ref.contact %}<div style="font-size:.8rem; color:#0d9488; margin-top:.2rem;">📞 {{ ref.contact }}
+                </div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <span class="na">No references provided</span>
+        {% endif %}
+    </div>
+
+    <!-- Bottom Approve/Reject -->
+    {% if viewer_type != 'admin_assistant' %}
+    <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:1.5rem;">
+        <form action="/api/admin/reject/{{ profile.id }}" method="POST"
+            onsubmit="return confirm('Reject this application?');">
+            <button class="btn-reject" type="submit" style="padding:.7rem 2rem;">✗ Reject Application</button>
+        </form>
+        <form action="/api/admin/approve/{{ profile.id }}" method="POST"
+            style="display:flex; align-items:center; gap:.5rem;">
+            <input type="number" name="hourly_rate" placeholder="₹/hr rate" step="50" min="0"
+                value="{{ profile.hourly_rate or '' }}"
+                style="width:130px; padding:.6rem .8rem; border:1px solid #d1d5db; border-radius:.4rem; font-size:.875rem;"
+                required>
+            <button class="btn-approve" type="submit" style="padding:.7rem 2rem;">✓ Approve Application</button>
+        </form>
+    </div>
+    {% else %}
+    <div style="display:flex; justify-content:flex-end; margin-top:1.5rem;">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:.6rem;padding:.75rem 1.25rem;font-size:.875rem;color:#166534;font-weight:600;display:flex;align-items:center;gap:.5rem;">
+            <span>✅</span>
+            <span>Form saved — pending Admin approval</span>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

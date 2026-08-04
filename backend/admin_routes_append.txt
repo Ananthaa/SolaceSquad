@@ -1,0 +1,278 @@
+from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from sqlalchemy.orm import Session
+from fastapi import Form
+import os
+import secrets
+import uuid
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Import database and models
+from database import init_db, get_db, get_db_session
+from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile, VideoFolder, Video, UserExerciseLog
+
+from email_utils import send_password_reset_email, send_welcome_email
+from gemini_chat import gemini_chat as vertex_chat  # Using Gemini API directly
+from audit_logging import AuditLogger
+from firebase_otp import FallbackOTP
+
+# Import Socket.IO for WebRTC signaling
+from call_signaling import sio, get_socket_app
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="SolaceSquad",
+    description="Mental Health & Wellness Platform",
+    version="1.0.0"
+)
+
+# Add session middleware
+SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Templates
+templates = Jinja2Templates(directory="templates")
+
+# Initialize database
+init_db()
+
+# Audit logger
+audit_logger = AuditLogger()
+
+# OTP service
+otp_service = FallbackOTP()
+
+
+# Middleware for logging
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        return response
+
+app.add_middleware(LoggingMiddleware)
+
+
+# ============================================================================
+# ADMIN VIDEO LIBRARY ROUTES
+# ============================================================================
+
+@app.get("/admin/videos", response_class=HTMLResponse)
+async def admin_videos(request: Request, db: Session = Depends(get_db)):
+    """Admin video library management page"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+    
+    # Get all folders with video count
+    folders = db.query(VideoFolder).all()
+    for folder in folders:
+        folder.video_count = len(folder.videos)
+    
+    return templates.TemplateResponse(
+        "pages/admin_videos_list.html",
+        {
+            "request": request,
+            "page_title": "Video Library - Admin",
+            "user": user,
+            "folders": folders
+        }
+    )
+
+@app.get("/admin/videos/folder/{folder_id}", response_class=HTMLResponse)
+async def admin_folder(request: Request, folder_id: int, db: Session = Depends(get_db)):
+    """Admin folder detail page with videos"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+    
+    folder = db.query(VideoFolder).filter(VideoFolder.id == folder_id).first()
+    if not folder:
+        return RedirectResponse(url="/admin/videos", status_code=303)
+    
+    return templates.TemplateResponse(
+        "pages/admin_folder_detail.html",
+        {
+            "request": request,
+            "page_title": f"{folder.name} - Admin",
+            "user": user,
+            "folder": folder
+        }
+    )
+
+@app.post("/api/admin/folders/create")
+async def create_folder(
+    request: Request,
+    name: str = Form(...),
+    description: str = Form(""),
+    thumbnail_url: str = Form(""),
+    db: Session = Depends(get_db)
+):
+    """Create a new video folder"""
+    user_id = request.session.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    folder = VideoFolder(
+        name=name,
+        description=description,
+        thumbnail_url=thumbnail_url if thumbnail_url else None
+    )
+    db.add(folder)
+    db.commit()
+    db.refresh(folder)
+    
+    return JSONResponse({"success": True, "folder_id": folder.id})
+
+@app.delete("/api/admin/folders/{folder_id}")
+async def delete_folder(request: Request, folder_id: int, db: Session = Depends(get_db)):
+    """Delete a video folder"""
+    user_id = request.session.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    folder = db.query(VideoFolder).filter(VideoFolder.id == folder_id).first()
+    if folder:
+        db.delete(folder)
+        db.commit()
+        return JSONResponse({"success": True})
+    
+    return JSONResponse({"success": False, "error": "Folder not found"}, status_code=404)
+
+@app.post("/api/admin/videos/create")
+async def create_video(
+    request: Request,
+    folder_id: int = Form(...),
+    title: str = Form(...),
+    description: str = Form(""),
+    video_url: str = Form(...),
+    thumbnail_url: str = Form(""),
+    duration_seconds: int = Form(0),
+    is_youtube: bool = Form(False),
+    db: Session = Depends(get_db)
+):
+    """Create a new video in a folder"""
+    user_id = request.session.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    video = Video(
+        folder_id=folder_id,
+        title=title,
+        description=description,
+        video_url=video_url,
+        thumbnail_url=thumbnail_url if thumbnail_url else None,
+        duration_seconds=duration_seconds,
+        is_youtube=is_youtube
+    )
+    db.add(video)
+    db.commit()
+    db.refresh(video)
+    
+    return JSONResponse({"success": True, "video_id": video.id})
+
+@app.delete("/api/admin/videos/{video_id}")
+async def delete_video(request: Request, video_id: int, db: Session = Depends(get_db)):
+    """Delete a video"""
+    user_id = request.session.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if video:
+        db.delete(video)
+        db.commit()
+        return JSONResponse({"success": True})
+    
+    return JSONResponse({"success": False, "error": "Video not found"}, status_code=404)
+
+# ============================================================================
+# ADMIN USER MANAGEMENT ROUTES
+# ============================================================================
+
+@app.get("/admin/users", response_class=HTMLResponse)
+async def admin_users(request: Request, db: Session = Depends(get_db)):
+    """Admin users management page"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+    
+    # Get all users
+    users = db.query(User).all()
+    
+    # Add stats for each user
+    for u in users:
+        u.vitals_count = db.query(VitalsRecord).filter(VitalsRecord.user_id == u.id).count()
+        u.appointments_count = db.query(Appointment).filter(Appointment.user_id == u.id).count()
+    
+    return templates.TemplateResponse(
+        "pages/admin_users.html",
+        {
+            "request": request,
+            "page_title": "Users Management - Admin",
+            "user": user,
+            "users": users
+        }
+    )
+
+@app.post("/api/admin/users/{user_id}/toggle")
+async def toggle_user(request: Request, user_id: int, db: Session = Depends(get_db)):
+    """Toggle user active/inactive status"""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if target_user:
+        target_user.is_active = not target_user.is_active
+        db.commit()
+        return JSONResponse({"success": True, "is_active": target_user.is_active})
+    
+    return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+
+@app.delete("/api/admin/users/{user_id}")
+async def delete_user_route(request: Request, user_id: int, db: Session = Depends(get_db)):
+    """Delete a user"""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    # Don't allow deleting yourself
+    if user_id == admin_id:
+        return JSONResponse({"success": False, "error": "Cannot delete yourself"}, status_code=400)
+    
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if target_user:
+        db.delete(target_user)
+        db.commit()
+        return JSONResponse({"success": True})
+    
+    return JSONResponse({"success": False, "error": "User not found"}, status_code=404)

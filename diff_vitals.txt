@@ -1,0 +1,1450 @@
+diff --git a/backend/templates/pages/vitals.html b/backend/templates/pages/vitals.html
+index 455df67..648c33f 100644
+--- a/backend/templates/pages/vitals.html
++++ b/backend/templates/pages/vitals.html
+@@ -1,11 +1,11 @@
+-﻿&#65279;{% extends "layouts/protected.html" %}
++&#65279;{% extends "layouts/protected.html" %}
+ 
+ {% set nav_items = [
+ {'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
+ {'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
+ {'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
+ {'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
+-{'icon': 'message-square', 'label': 'SolaceSquad Buddy', 'href': '/app/ai-chat', 'key': 'ai-chat'},
++{'icon': 'message-square', 'label': 'Emora - Your buddy', 'href': '/app/ai-chat', 'key': 'ai-chat'},
+ {'icon': 'dumbbell', 'label': 'Exercises', 'href': '/exercises', 'key': 'exercises'},
+ {'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
+ {'icon': 'mic', 'label': 'Consultation Sessions', 'href': '/recordings', 'key': 'recordings'},
+@@ -18,6 +18,123 @@
+ <div id="user-profile-data" data-gender="{{ user_gender | default('') }}" data-age="{{ user_age | default(0) }}"
+     style="display:none;" aria-hidden="true"></div>
+ 
++<!-- -- Vital Scan Disclaimer Modal -- -->
++<div id="scan-disclaimer-overlay" style="display:none;position:fixed;inset:0;z-index:9999;
++           background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);
++           align-items:center;justify-content:center;padding:1rem;">
++    <div style="background:#fff;border-radius:1.25rem;width:100%;max-width:480px;
++                box-shadow:0 24px 80px rgba(0,0,0,0.35);overflow:hidden;
++                animation:disclaimerPop .3s cubic-bezier(.34,1.56,.64,1);">
++        <!-- Header -->
++        <div style="background:linear-gradient(135deg,#1e3a5f,#0f2d4a);padding:1.25rem 1.5rem;">
++            <div style="display:flex;align-items:center;gap:.75rem;">
++                <div
++                    style="width:40px;height:40px;background:rgba(251,191,36,.15);border:1.5px solid rgba(251,191,36,.4);
++                            border-radius:.65rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
++                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24"
++                        stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
++                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
++                        <line x1="12" y1="9" x2="12" y2="13" />
++                        <line x1="12" y1="17" x2="12.01" y2="17" />
++                    </svg>
++                </div>
++                <div>
++                    <div style="font-size:1rem;font-weight:700;color:#f1f5f9;font-family:'Outfit',sans-serif;">Before
++                        You Scan</div>
++                    <div style="font-size:.75rem;color:#94a3b8;margin-top:.1rem;">Medical Disclaimer</div>
++                </div>
++            </div>
++        </div>
++        <!-- Body -->
++        <div style="padding:1.5rem;">
++            <p style="font-size:.9rem;color:#374151;line-height:1.65;margin-bottom:1.1rem;">
++                Uses <strong>rPPG</strong> (remote photoplethysmography) to detect subtle
++                skin-colour changes caused by blood flow.
++            </p>
++            <div style="background:#fef3c7;border:1.5px solid #f59e0b;border-radius:.65rem;
++                        padding:.85rem 1rem;margin-bottom:1.25rem;">
++                <p style="font-size:.875rem;color:#92400e;line-height:1.6;margin:0;">
++                    ?? <strong>Results are estimates</strong> � they are not a substitute for
++                    clinical measurement. Please consult a healthcare professional for
++                    medical-grade readings.
++                </p>
++            </div>
++            <div style="display:flex;flex-direction:column;gap:.65rem;">
++                <button onclick="continueScan()" style="width:100%;padding:.8rem;border:none;border-radius:.65rem;cursor:pointer;
++                           background:linear-gradient(135deg,#1e3a8a,#1e40af);
++                           color:#fff;font-size:.95rem;font-weight:700;
++                           display:flex;align-items:center;justify-content:center;gap:.5rem;
++                           box-shadow:0 4px 16px rgba(30,58,138,.35);transition:transform .15s,box-shadow .15s;"
++                    onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(30,58,138,.45)';"
++                    onmouseout="this.style.transform='';this.style.boxShadow='0 4px 16px rgba(30,58,138,.35)';">
++                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24"
++                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
++                        <polygon points="5 3 19 12 5 21 5 3" />
++                    </svg>
++                    Continue Scanning
++                </button>
++                <button onclick="skipScan()" style="width:100%;padding:.75rem;border:1.5px solid #e5e7eb;border-radius:.65rem;cursor:pointer;
++                           background:#f9fafb;color:#6b7280;font-size:.9rem;font-weight:600;
++                           display:flex;align-items:center;justify-content:center;gap:.5rem;transition:all .15s;"
++                    onmouseover="this.style.borderColor='#e11d48';this.style.color='#e11d48';this.style.background='#fff1f2';"
++                    onmouseout="this.style.borderColor='#e5e7eb';this.style.color='#6b7280';this.style.background='#f9fafb';">
++                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24"
++                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
++                        <line x1="18" y1="6" x2="6" y2="18" />
++                        <line x1="6" y1="6" x2="18" y2="18" />
++                    </svg>
++                    Skip Scan � Go to Dashboard
++                </button>
++            </div>
++        </div>
++    </div>
++</div>
++<style>
++    @keyframes disclaimerPop {
++        from {
++            opacity: 0;
++            transform: scale(.9) translateY(20px);
++        }
++
++        to {
++            opacity: 1;
++            transform: scale(1) translateY(0);
++        }
++    }
++</style>
++<script>
++    function showScanDisclaimer() {
++        var overlay = document.getElementById('scan-disclaimer-overlay');
++        overlay.style.display = 'flex';
++        document.body.style.overflow = 'hidden';
++    }
++    function continueScan() {
++        document.getElementById('scan-disclaimer-overlay').style.display = 'none';
++        document.body.style.overflow = '';
++        if (window.scanner) {
++            var btn = document.getElementById('start-scan-btn');
++            var originalContent = btn ? btn.innerHTML : '';
++            if (btn) { btn.innerHTML = 'Starting...'; btn.disabled = true; }
++            window.scanner.startScan().catch(function (e) {
++                console.error(e);
++                alert('Error starting scan: ' + e);
++                if (btn) { btn.disabled = false; btn.innerHTML = originalContent; }
++            });
++        }
++    }
++    function skipScan() {
++        document.getElementById('scan-disclaimer-overlay').style.display = 'none';
++        document.body.style.overflow = '';
++        window.location.href = '/app';
++    }
++    document.addEventListener('keydown', function (e) {
++        if (e.key === 'Escape') {
++            document.getElementById('scan-disclaimer-overlay').style.display = 'none';
++            document.body.style.overflow = '';
++        }
++    });
++</script>
++
+ <!-- Page Header -->
+ <div class="mb-8">
+     <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
+@@ -72,14 +189,7 @@
+                             <div class="text-xl font-bold mb-2">Analyzing Vitals...</div>
+                             <div class="text-sm opacity-90 mb-3" id="scan-timer">Scanning: 0s</div>
+ 
+-                            <!-- Live Positioning Feedback -->
+-                            <div class="mt-4 px-6 py-3 bg-black/40 backdrop-blur-sm rounded-lg border border-white/20">
+-                                <div id="positioning-feedback" class="text-sm font-semibold text-green-400">
+-                                    ✓ Perfect! Hold still
+-                                </div>
+-                            </div>
+-
+-                            <div class="mt-3 text-xs opacity-75">Stay still and breathe normally</div>
++                            <div class="mt-4 text-sm opacity-80">Stay still and breathe normally</div>
+                         </div>
+                     </div>
+                 </div>
+@@ -96,7 +206,8 @@
+ 
+             <!-- Control Buttons -->
+             <div class="flex gap-3">
+-                <button id="start-scan-btn" class="flex-1 btn btn-primary">
++                <button id="start-scan-btn" class="flex-1 btn btn-primary"
++                    onclick="showScanDisclaimer(); return false;">
+                     <i data-lucide="play" class="w-5 h-5"></i>
+                     Start Scan
+                 </button>
+@@ -108,128 +219,96 @@
+         </div>
+ 
+         <!-- Instructions Card -->
+-        <div class="card bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
+-            <h2 class="text-xl font-display font-semibold text-gray-900 mb-4 flex items-center gap-2">
+-                <i data-lucide="info" class="w-6 h-6 text-blue-600"></i>
+-                How to Get Accurate Results
++        <div class="card bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
++            <h2 class="text-xl font-display font-semibold text-gray-900 mb-1 flex items-center gap-2">
++                <i data-lucide="zap" class="w-5 h-5 text-blue-600"></i>
++                Quick Setup — 4 Steps
+             </h2>
+-
+-            <div class="grid md:grid-cols-2 gap-4">
+-                <!-- Positioning -->
+-                <div class="bg-white p-4 rounded-lg border border-blue-200">
+-                    <div class="flex items-center gap-2 mb-3">
+-                        <i data-lucide="user" class="w-5 h-5 text-purple-500"></i>
+-                        <h3 class="font-semibold text-gray-900">Face Positioning</h3>
++            <p class="text-sm text-gray-500 mb-5">Follow these steps before pressing <strong>Start Scan</strong></p>
++
++            <div class="grid sm:grid-cols-2 gap-3 mb-5">
++
++                <!-- Step 1 -->
++                <div class="bg-white rounded-xl border border-blue-100 p-4 flex gap-3 items-start shadow-sm">
++                    <div
++                        class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-lg">
++                        1</div>
++                    <div>
++                        <p class="font-semibold text-gray-900 mb-1">☀️ Find Good Light</p>
++                        <p class="text-sm text-gray-600">Sit facing a <strong>window or lamp</strong> so your face is
++                            evenly lit. Avoid light coming from <em>behind</em> you.</p>
++                        <p class="text-xs mt-2 text-green-700 bg-green-50 px-2 py-1 rounded-md inline-block">→ Watch for
++                            the <strong>☀️ Good Light</strong> badge on the camera</p>
+                     </div>
+-                    <ul class="text-sm text-gray-700 space-y-2">
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-green-600 font-bold">✓</span>
+-                            <span>Center your face in the <strong>green box</strong></span>
+-                        </li>
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-green-600 font-bold">✓</span>
+-                            <span>Keep face <strong>40-80cm</strong> from camera (normal arm's length)</span>
+-                        </li>
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-green-600 font-bold">✓</span>
+-                            <span>Look <strong>directly at the camera</strong></span>
+-                        </li>
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-green-600 font-bold">✓</span>
+-                            <span>Remove glasses if possible</span>
+-                        </li>
+-                    </ul>
+                 </div>
+ 
+-                <!-- Lighting -->
+-                <div class="bg-white p-4 rounded-lg border border-blue-200">
+-                    <div class="flex items-center gap-2 mb-3">
+-                        <i data-lucide="sun" class="w-5 h-5 text-yellow-500"></i>
+-                        <h3 class="font-semibold text-gray-900">Lighting Conditions</h3>
++                <!-- Step 2 -->
++                <div class="bg-white rounded-xl border border-blue-100 p-4 flex gap-3 items-start shadow-sm">
++                    <div
++                        class="flex-shrink-0 w-10 h-10 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-lg">
++                        2</div>
++                    <div>
++                        <p class="font-semibold text-gray-900 mb-1">📱 Hold Camera at Eye Level</p>
++                        <p class="text-sm text-gray-600">Prop your phone so the camera is at <strong>eye level</strong>,
++                            roughly <strong>arm's length away</strong> (40–70 cm).</p>
++                        <p class="text-xs mt-2 text-amber-700 bg-amber-50 px-2 py-1 rounded-md inline-block">→ Don't
++                            angle the phone up from below — it blocks face detection</p>
+                     </div>
+-                    <ul class="text-sm text-gray-700 space-y-2">
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-green-600 font-bold">✓</span>
+-                            <span><strong>Bright, even lighting</strong> on your face</span>
+-                        </li>
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-green-600 font-bold">✓</span>
+-                            <span>Natural daylight works best</span>
+-                        </li>
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-red-600 font-bold"></span>
+-                            <span>Avoid backlighting or shadows</span>
+-                        </li>
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-red-600 font-bold"></span>
+-                            <span>No direct sunlight on face</span>
+-                        </li>
+-                    </ul>
+                 </div>
+ 
+-                <!-- Movement -->
+-                <div class="bg-white p-4 rounded-lg border border-blue-200">
+-                    <div class="flex items-center gap-2 mb-3">
+-                        <i data-lucide="move" class="w-5 h-5 text-red-500"></i>
+-                        <h3 class="font-semibold text-gray-900">During Scan (45 seconds)</h3>
++                <!-- Step 3 -->
++                <div class="bg-white rounded-xl border border-blue-100 p-4 flex gap-3 items-start shadow-sm">
++                    <div
++                        class="flex-shrink-0 w-10 h-10 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-lg">
++                        3</div>
++                    <div>
++                        <p class="font-semibold text-gray-900 mb-1">🎯 Centre Face in the Green Box</p>
++                        <p class="text-sm text-gray-600">Look directly at the camera until the <strong>green
++                                box</strong> fits snugly around your face. Remove glasses if you can.</p>
++                        <p class="text-xs mt-2 text-green-700 bg-green-50 px-2 py-1 rounded-md inline-block">→ The box
++                            turns green when your position is good → then press Start</p>
+                     </div>
+-                    <ul class="text-sm text-gray-700 space-y-2">
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-green-600 font-bold">✓</span>
+-                            <span><strong>Stay completely still</strong></span>
+-                        </li>
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-green-600 font-bold">✓</span>
+-                            <span>Breathe <strong>normally and naturally</strong></span>
+-                        </li>
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-green-600 font-bold">✓</span>
+-                            <span>Relax your facial muscles</span>
+-                        </li>
+-                        <li class="flex items-start gap-2">
+-                            <span class="text-red-600 font-bold"></span>
+-                            <span>Don't talk or move your head</span>
+-                        </li>
+-                    </ul>
+                 </div>
+ 
+-                <!-- What We Detect -->
+-                <div class="bg-white p-4 rounded-lg border border-blue-200">
+-                    <div class="flex items-center gap-2 mb-3">
+-                        <i data-lucide="activity" class="w-5 h-5 text-blue-500"></i>
+-                        <h3 class="font-semibold text-gray-900">What We Measure</h3>
++                <!-- Step 4 -->
++                <div class="bg-white rounded-xl border border-blue-100 p-4 flex gap-3 items-start shadow-sm">
++                    <div
++                        class="flex-shrink-0 w-10 h-10 rounded-full bg-red-500 text-white font-bold flex items-center justify-center text-lg">
++                        4</div>
++                    <div>
++                        <p class="font-semibold text-gray-900 mb-1">⏱️ Stay Still for 45 Seconds</p>
++                        <p class="text-sm text-gray-600">Once scanning starts, <strong>don't move or speak</strong>.
++                            Breathe slowly and naturally. Relax your jaw and shoulders.</p>
++                        <p class="text-xs mt-2 text-amber-700 bg-amber-50 px-2 py-1 rounded-md inline-block">→ Even
++                            small head movements reduce accuracy</p>
+                     </div>
+-                    <ul class="text-sm text-gray-700 space-y-2">
+-                        <li class="flex items-center gap-2">
+-                            <i data-lucide="heart" class="w-3 h-3 text-red-500"></i>
+-                            <span>Heart Rate (BPM)</span>
+-                        </li>
+-                        <li class="flex items-center gap-2">
+-                            <i data-lucide="droplet" class="w-3 h-3 text-blue-500"></i>
+-                            <span>Blood Oxygen (SpO2)</span>
+-                        </li>
+-                        <li class="flex items-center gap-2">
+-                            <i data-lucide="wind" class="w-3 h-3 text-teal-500"></i>
+-                            <span>Breathing Rate</span>
+-                        </li>
+-                        <li class="flex items-center gap-2">
+-                            <i data-lucide="thermometer" class="w-3 h-3 text-orange-500"></i>
+-                            <span>Body Temperature</span>
+-                        </li>
+-                        <li class="flex items-center gap-2">
+-                            <i data-lucide="gauge" class="w-3 h-3 text-purple-500"></i>
+-                            <span>Blood Pressure</span>
+-                        </li>
+-                    </ul>
+                 </div>
++
+             </div>
+ 
+-            <div class="mt-4 p-3 bg-white rounded border border-blue-300">
+-                <p class="text-xs text-gray-600">
+-                    <strong>Technology:</strong> This scanner uses rPPG (remote photoplethysmography) to detect subtle
+-                    color changes in your facial skin caused by blood flow. Results are estimates and should not replace
+-                    medical devices. For accurate medical readings, consult a healthcare professional.
+-                </p>
++            <!-- What we measure � compact chip row -->
++            <div class="flex flex-wrap gap-2 mb-4">
++                <span class="text-xs font-medium text-gray-500 self-center">Measures:</span>
++                <span
++                    class="inline-flex items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
++                        data-lucide="heart" class="w-3 h-3"></i> Heart Rate</span>
++                <span
++                    class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
++                        data-lucide="droplet" class="w-3 h-3"></i> SpO2</span>
++                <span
++                    class="inline-flex items-center gap-1 bg-teal-50 text-teal-700 border border-teal-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
++                        data-lucide="wind" class="w-3 h-3"></i> Breathing</span>
++                <span
++                    class="inline-flex items-center gap-1 bg-orange-50 text-orange-700 border border-orange-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
++                        data-lucide="thermometer" class="w-3 h-3"></i> Temperature</span>
++                <span
++                    class="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
++                        data-lucide="gauge" class="w-3 h-3"></i> Blood Pressure</span>
++            </div>
++
++            <div class="p-3 bg-white rounded-lg border border-blue-200 text-xs text-gray-500">
++                <strong>Note:</strong> Uses rPPG (remote photoplethysmography) to detect subtle skin-colour changes
++                caused by blood flow. Results are estimates — consult a healthcare professional for clinical readings.
+             </div>
+         </div>
+ 
+@@ -274,7 +353,7 @@
+                     <span class="text-sm font-medium text-gray-700 flex items-center gap-1">
+                         <i data-lucide="activity" class="w-4 h-4 text-green-500"></i> Health Score
+                     </span>
+-                    <span class="text-lg font-bold text-green-600">{{ entry.health_score|int }}<span
++                    <span class="text-lg font-bold text-green-600">{{ entry.health_score|round|int }}<span
+                             class="text-sm font-normal text-gray-500">/100</span></span>
+                 </div>
+                 {% endif %}
+@@ -371,7 +450,7 @@
+      * INLINED VERSION to bypass network blocking
+      */
+ 
+-    // â”€â”€ Heart Rate rating table (mirrors backend rate_heart_rate()) â”€â”€â”€â”€â”€â”€â”€â”€
++    // ── Heart Rate rating table (mirrors backend rate_heart_rate()) ────────
+     // Returns { score, label } e.g. { score: 100, label: 'Best' }
+     function rateHeartRate(hr) {
+         const profileEl = document.getElementById('user-profile-data');
+@@ -409,14 +488,14 @@
+             if (hr > 80 && hr <= 110) return { score: 60, label: 'Good' };
+             return { score: 50, label: 'Poor' };
+         }
+-        // Gender unknown â€” generic adult fallback
++        // Gender unknown — generic adult fallback
+         if (hr >= 60 && hr <= 100) return { score: 80, label: 'Good' };
+         if (hr >= 50 && hr < 60 || hr > 100 && hr <= 110) return { score: 60, label: 'Fair' };
+         return { score: 50, label: 'Poor' };
+     }
+ 
+     // Convenience: get rating score only (used inside class method)
+-    // Overloads rateHeartRate(hr) â†’ score number
++    // Overloads rateHeartRate(hr) → score number
+     const _rateHeartRateOrig = rateHeartRate;
+     /* eslint-disable no-global-assign */
+     rateHeartRate = function (hr) { return _rateHeartRateOrig(hr).score; };
+@@ -424,7 +503,7 @@
+     function getHRRating(hr) { return _rateHeartRateOrig(hr); }
+ 
+ 
+-    // â”€â”€ Blood Pressure rating table (mirrors backend rate_blood_pressure()) â”€â”€
++    // ── Blood Pressure rating table (mirrors backend rate_blood_pressure()) ──
+     // Gender = Any, same ranges for 18+ and <18
+     // Returns { score: Number, label: String }
+     function rateBloodPressure(sys, dia) {
+@@ -432,7 +511,7 @@
+         if (sys >= 120 && sys <= 139 && dia >= 80 && dia <= 90) return { score: 60, label: 'Good' };
+         if (sys >= 116 && sys <= 120 && dia >= 76 && dia <= 80) return { score: 100, label: 'Best' };
+         if (sys <= 115 && dia <= 75) return { score: 80, label: 'Better' };
+-        // Edge cases: mixed readings â€” use the conservative side
++        // Edge cases: mixed readings — use the conservative side
+         if (sys >= 120 || dia >= 80) return { score: 60, label: 'Good' };
+         return { score: 80, label: 'Better' };
+     }
+@@ -496,6 +575,14 @@
+             this.frames = [];
+             this.startTime = null;
+ 
++            // ── Fix: rAF-based frame capture (replaces drifting setTimeout) ──
++            // Reuse one canvas for all frames — avoids per-frame DOM allocation
++            this._tempCanvas = document.createElement('canvas');
++            this._tempCtx = this._tempCanvas.getContext('2d');
++            this._rafId = null;          // requestAnimationFrame handle
++            this._lastCapture = 0;       // performance.now() of last captured frame
++            this._captureInterval = 100; // ms between frames → ~10 fps target
++
+             // Results
+             this.results = {
+                 heartRate: null,
+@@ -629,15 +716,15 @@
+             // Categorize
+             let category, label, dotColor, calFactor;
+             if (avgLuminance < 40) {
+-                category = 'dark'; label = 'ðŸŒ‘ Too Dark'; dotColor = '#ef4444'; calFactor = 0.70;
++                category = 'dark'; label = '🌑 Too Dark'; dotColor = '#ef4444'; calFactor = 0.70;
+             } else if (avgLuminance < 80) {
+-                category = 'dim'; label = 'ðŸŒ˜ Dim Light'; dotColor = '#f59e0b'; calFactor = 0.85;
++                category = 'dim'; label = '🌘 Dim Light'; dotColor = '#f59e0b'; calFactor = 0.85;
+             } else if (avgLuminance <= 180) {
+-                category = 'good'; label = 'â˜€ï¸ Good Light'; dotColor = '#10b981'; calFactor = 1.00;
++                category = 'good'; label = '☀️ Good Light'; dotColor = '#10b981'; calFactor = 1.00;
+             } else if (avgLuminance <= 220) {
+-                category = 'bright'; label = 'ðŸŒŸ Bright'; dotColor = '#f59e0b'; calFactor = 0.95;
++                category = 'bright'; label = '🌟 Bright'; dotColor = '#f59e0b'; calFactor = 0.95;
+             } else {
+-                category = 'overexposed'; label = 'âš ï¸ Too Bright'; dotColor = '#ef4444'; calFactor = 0.80;
++                category = 'overexposed'; label = '⚠️ Too Bright'; dotColor = '#ef4444'; calFactor = 0.80;
+             }
+ 
+             this.lightCategory = category;
+@@ -653,7 +740,7 @@
+             if (this.isScanning && (category === 'dark' || category === 'overexposed')) {
+                 const pf = document.getElementById('positioning-feedback');
+                 if (pf && !pf.textContent.includes('Light')) {
+-                    pf.textContent = category === 'dark' ? 'ðŸ’¡ Needs more light!' : 'ðŸ”† Too much glare!';
++                    pf.textContent = category === 'dark' ? '💡 Needs more light!' : '🔆 Too much glare!';
+                     pf.className = 'text-sm font-semibold text-red-400';
+                 }
+             }
+@@ -682,14 +769,14 @@
+             tempCtx.drawImage(this.video, 0, 0);
+             const imageData = tempCtx.getImageData(0, 0, VW, VH);
+ 
+-            // â”€â”€ 1. Measure ambient light from full frame â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++            // ── 1. Measure ambient light from full frame ───────────────────
+             this.measureAmbientLight(imageData, VW, VH);
+ 
+             let minX = VW, minY = VH, maxX = 0, maxY = 0;
+             let skinPixelCount = 0;
+             let sumX = 0, sumY = 0;
+ 
+-            // â”€â”€ Multi-model skin detection (works for all skin tones, all lighting) â”€â”€
++            // ── Multi-model skin detection (works for all skin tones, all lighting) ──
+             // Uses YCbCr ranges (robust to illumination) plus an HSV hue check as backup
+             for (let y = 0; y < VH; y++) {
+                 for (let x = 0; x < VW; x++) {
+@@ -698,7 +785,7 @@
+                     const g = imageData.data[i + 1];
+                     const b = imageData.data[i + 2];
+ 
+-                    // â”€â”€ YCbCr skin model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++                    // ── YCbCr skin model ───────────────────────────────────────
+                     // Standard empirical ranges that hold for diverse skin tones
+                     // under typical indoor (cool-white) lighting
+                     const y_ = 0.299 * r + 0.587 * g + 0.114 * b;
+@@ -706,7 +793,7 @@
+                     const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+                     const ycbcrSkin = y_ > 40 && cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173;
+ 
+-                    // â”€â”€ HSV hue backup (catches cases YCbCr misses near bright light) â”€â”€
++                    // ── HSV hue backup (catches cases YCbCr misses near bright light) ──
+                     const maxC = Math.max(r, g, b), minC = Math.min(r, g, b), delta = maxC - minC;
+                     let hue = 0;
+                     if (delta > 0 && maxC === r) hue = 60 * (((g - b) / delta) % 6);
+@@ -730,7 +817,7 @@
+ 
+             const totalPixels = VW * VH;
+             const skinRatio = skinPixelCount / totalPixels;
+-            // 0.5% skin coverage is enough at arm's length (face â‰ˆ 5-15% of frame)
++            // 0.5% skin coverage is enough at arm's length (face ≈ 5-15% of frame)
+             this.faceDetected = skinRatio > 0.005 && skinPixelCount > 200;
+ 
+             // Default guide box (fixed centre, shown when no face)
+@@ -743,11 +830,11 @@
+             };
+ 
+             if (this.faceDetected && skinPixelCount > 0) {
+-                // â”€â”€ Pass 1: centroid of ALL skin pixels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++                // ── Pass 1: centroid of ALL skin pixels ──────────────────────
+                 const cxAll = sumX / skinPixelCount;
+                 const cyAll = sumY / skinPixelCount;
+ 
+-                // â”€â”€ Pass 2: tight bbox using only pixels near the centroid â”€â”€â”€
++                // ── Pass 2: tight bbox using only pixels near the centroid ───
+                 // Radius = 35% of the shorter frame dimension.
+                 // This discards background objects (walls, furniture) that happen
+                 // to have skin-like hues and were dragging the box to a corner.
+@@ -816,7 +903,7 @@
+                     coverage: skinRatio
+                 };
+ 
+-                // Smooth transition â€” lerp towards target box
++                // Smooth transition — lerp towards target box
+                 if (!this._smoothBox) {
+                     this._smoothBox = { ...targetBox };
+                 } else {
+@@ -861,32 +948,29 @@
+             let feedback = '';
+             let feedbackClass = 'text-green-400';
+ 
+-            // â”€â”€ Distance check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+-            // coverage = skin-pixels / total-frame-pixels
+-            // At normal arm-length (40-80 cm) a face typically covers 5-20% of the frame.
+-            // Previous bug: threshold was 0.35 (35%) â†’ always said "move closer".
+-            // Fixed ranges: too-far < 5% | comfortable 5-45% | too-close > 45%
++            // Distance check
+             if (coverage < 0.05) {
+-                feedback = 'ðŸ” Move a little closer to the camera';
++                feedback = '[ + ] Move a little closer to the camera';
+                 feedbackClass = 'text-yellow-400';
+             } else if (coverage > 0.45) {
+-                feedback = 'â†©ï¸ You\'re too close â€” move back a bit';
++                feedback = '[ - ] Too close � move back a bit';
+                 feedbackClass = 'text-yellow-400';
+             }
+-            // â”€â”€ Centering check (horizontal) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+-            // Tolerance: Â±80px (was Â±50) â€” avoids nagging small natural drifts
++            // Centering check (horizontal)
++            // NOTE: front camera is mirrored � if offsetX > 0 (face right in video)
++            // the user sees it on their LEFT side, so tell them to move RIGHT.
+             else if (Math.abs(offsetX) > 80) {
+-                feedback = offsetX > 0 ? 'â¬…ï¸ Shift your face slightly left' : 'âž¡ï¸ Shift your face slightly right';
++                feedback = offsetX > 0 ? '>> Shift your face slightly right' : '<< Shift your face slightly left';
+                 feedbackClass = 'text-yellow-400';
+             }
+-            // â”€â”€ Centering check (vertical) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++            // Centering check (vertical)
+             else if (Math.abs(offsetY) > 80) {
+-                feedback = offsetY > 0 ? 'â¬†ï¸ Shift your face slightly up' : 'â¬‡ï¸ Shift your face slightly down';
++                feedback = offsetY > 0 ? '\/ Shift your face slightly down' : '/\ Shift your face slightly up';
+                 feedbackClass = 'text-yellow-400';
+             }
+-            // â”€â”€ All good â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++            // All good
+             else {
+-                feedback = 'âœ… Perfect position! Hold still';
++                feedback = '(OK) Perfect position! Hold still';
+                 feedbackClass = 'text-green-400';
+             }
+ 
+@@ -897,57 +981,70 @@
+         drawFaceBox(box, isDetected) {
+             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+ 
+-            if (box) {
+-                this.ctx.strokeStyle = isDetected ? '#10b981' : '#ef4444';
+-                this.ctx.lineWidth = 3;
+-                // Draw dashed line for guide if not detected
+-                if (!isDetected) {
+-                    this.ctx.setLineDash([10, 5]);
+-                } else {
+-                    this.ctx.setLineDash([]);
+-                }
+-
+-                this.ctx.strokeRect(
+-                    box.x,
+-                    box.y,
+-                    box.width,
+-                    box.height
+-                );
++            // Always draw a FIXED guide box at the center of the frame.
++            // It turns green when a face is detected inside it, red-dashed otherwise.
++            // This prevents the box from jumping around on phones.
++            const VW = this.canvas.width;
++            const VH = this.canvas.height;
++            const guideSize = Math.round(Math.min(VW, VH) * 0.55);
++            const guideBox = {
++                x: Math.round((VW - guideSize) / 2),
++                y: Math.round((VH - guideSize) / 2),
++                width: guideSize,
++                height: guideSize
++            };
+ 
+-                this.ctx.setLineDash([]); // Reset for corners
+-
+-                // Draw corner markers
+-                const cornerSize = 20;
+-                this.ctx.lineWidth = 4;
+-
+-                // Top-left
+-                this.ctx.beginPath();
+-                this.ctx.moveTo(box.x, box.y + cornerSize);
+-                this.ctx.lineTo(box.x, box.y);
+-                this.ctx.lineTo(box.x + cornerSize, box.y);
+-                this.ctx.stroke();
+-
+-                // Top-right
+-                this.ctx.beginPath();
+-                this.ctx.moveTo(box.x + box.width - cornerSize, box.y);
+-                this.ctx.lineTo(box.x + box.width, box.y);
+-                this.ctx.lineTo(box.x + box.width, box.y + cornerSize);
+-                this.ctx.stroke();
+-
+-                // Bottom-left
+-                this.ctx.beginPath();
+-                this.ctx.moveTo(box.x, box.y + box.height - cornerSize);
+-                this.ctx.lineTo(box.x, box.y + box.height);
+-                this.ctx.lineTo(box.x + cornerSize, box.y + box.height);
+-                this.ctx.stroke();
+-
+-                // Bottom-right
+-                this.ctx.beginPath();
+-                this.ctx.moveTo(box.x + box.width - cornerSize, box.y + box.height);
+-                this.ctx.lineTo(box.x + box.width, box.y + box.height);
+-                this.ctx.lineTo(box.x + box.width, box.y + box.height - cornerSize);
+-                this.ctx.stroke();
++            // Color: green if face detected, red-dashed if not
++            this.ctx.strokeStyle = isDetected ? '#10b981' : '#ef4444';
++            this.ctx.lineWidth = 3;
++            if (!isDetected) {
++                this.ctx.setLineDash([10, 5]);
++            } else {
++                this.ctx.setLineDash([]);
+             }
++
++            this.ctx.strokeRect(guideBox.x, guideBox.y, guideBox.width, guideBox.height);
++            this.ctx.setLineDash([]);
++
++            // Corner markers
++            const cornerSize = 22;
++            this.ctx.lineWidth = 4;
++            const bx = guideBox.x, by = guideBox.y, bw = guideBox.width, bh = guideBox.height;
++
++            // Top-left
++            this.ctx.beginPath();
++            this.ctx.moveTo(bx, by + cornerSize);
++            this.ctx.lineTo(bx, by);
++            this.ctx.lineTo(bx + cornerSize, by);
++            this.ctx.stroke();
++
++            // Top-right
++            this.ctx.beginPath();
++            this.ctx.moveTo(bx + bw - cornerSize, by);
++            this.ctx.lineTo(bx + bw, by);
++            this.ctx.lineTo(bx + bw, by + cornerSize);
++            this.ctx.stroke();
++
++            // Bottom-left
++            this.ctx.beginPath();
++            this.ctx.moveTo(bx, by + bh - cornerSize);
++            this.ctx.lineTo(bx, by + bh);
++            this.ctx.lineTo(bx + cornerSize, by + bh);
++            this.ctx.stroke();
++
++            // Bottom-right
++            this.ctx.beginPath();
++            this.ctx.moveTo(bx + bw - cornerSize, by + bh);
++            this.ctx.lineTo(bx + bw, by + bh);
++            this.ctx.lineTo(bx + bw, by + bh - cornerSize);
++            this.ctx.stroke();
++
++            // Label below box
++            this.ctx.font = 'bold 13px Inter, sans-serif';
++            this.ctx.fillStyle = isDetected ? '#10b981' : '#ef4444';
++            this.ctx.textAlign = 'center';
++            const label = isDetected ? 'Face in frame' : 'Centre your face here';
++            this.ctx.fillText(label, bx + bw / 2, by + bh + 20);
+         }
+ 
+         async startScan() {
+@@ -1013,25 +1110,24 @@
+             }
+ 
+             // Update timer
+-            document.getElementById('scan-timer').textContent = `Scanning: ${Math.floor(elapsed)}s / ${this.scanDuration}s`;
+-
+-            // Capture frame data from face region
+-            if (this.faceRegion) {
+-                const tempCanvas = document.createElement('canvas');
+-                tempCanvas.width = this.faceRegion.width;
+-                tempCanvas.height = this.faceRegion.height;
+-                const tempCtx = tempCanvas.getContext('2d');
+-
+-                tempCtx.drawImage(
+-                    this.video,
+-                    this.faceRegion.x, this.faceRegion.y,
+-                    this.faceRegion.width, this.faceRegion.height,
+-                    0, 0,
+-                    this.faceRegion.width, this.faceRegion.height
+-                );
++            document.getElementById('scan-timer').textContent =
++                `Scanning: ${Math.floor(elapsed)}s / ${this.scanDuration}s`;
+ 
+-                const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+-                const avgColor = this.getAverageColor(imageData);
++            // ── Fix: throttle captures to _captureInterval ms (~10 fps) ──────
++            // requestAnimationFrame fires at ~60 fps; we only sample 1-in-6 ticks.
++            // This gives reliable, consistent timing without setTimeout drift.
++            const now = performance.now();
++            if (now - this._lastCapture >= this._captureInterval && this.faceRegion) {
++                this._lastCapture = now;
++
++                // ── Fix: reuse canvas — no per-frame DOM allocation ───────────
++                const { x, y, width: w, height: h } = this.faceRegion;
++                if (this._tempCanvas.width  !== w) this._tempCanvas.width  = w;
++                if (this._tempCanvas.height !== h) this._tempCanvas.height = h;
++                this._tempCtx.drawImage(this.video, x, y, w, h, 0, 0, w, h);
++
++                const imageData = this._tempCtx.getImageData(0, 0, w, h);
++                const avgColor  = this.getAverageColor(imageData);
+ 
+                 this.frames.push({
+                     timestamp: elapsed,
+@@ -1042,8 +1138,8 @@
+                 });
+             }
+ 
+-            // Continue capturing
+-            setTimeout(() => this.captureFrames(), 1000 / this.frameRate);
++            // ── Fix: requestAnimationFrame — synced to display, no drift ─────
++            this._rafId = requestAnimationFrame(() => this.captureFrames());
+         }
+ 
+         getAverageColor(imageData) {
+@@ -1068,7 +1164,7 @@
+             document.getElementById('scanning-overlay').classList.add('hidden');
+             document.getElementById('start-scan-btn').classList.remove('hidden');
+             document.getElementById('stop-scan-btn').classList.add('hidden');
+-            // Always restore start button label (fixes "Startingâ€¦" stuck state)
++            // Always restore start button label (fixes "Starting…" stuck state)
+             this._resetStartBtn();
+ 
+             this.updateStatus('Processing scan data...', 'info');
+@@ -1090,7 +1186,7 @@
+         }
+ 
+         analyzeVitals() {
+-            // â”€â”€ Light calibration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++            // ── Light calibration ──────────────────────────────────────────
+             // Compute mean luminance across all captured frames for final calibration
+             if (this.frames.length > 0) {
+                 const avgLum = this.frames.reduce((s, f) => s + (f.luminance || 128), 0) / this.frames.length;
+@@ -1114,8 +1210,8 @@
+ 
+             // 1. Heart Rate Detection via FFT frequency peak
+             const rawHR = this.detectHeartRate(greenSignal);
+-            // Apply a gentle light-correction (at most Â±5%) rather than the full 1/cf factor
+-            // which was amplifying noise-driven readings (e.g. 90 â†’ 120 when cf=0.75)
++            // Apply a gentle light-correction (at most ±5%) rather than the full 1/cf factor
++            // which was amplifying noise-driven readings (e.g. 90 → 120 when cf=0.75)
+             const lightCorrection = 1 + (1 - cf) * 0.05;
+             this.results.heartRate = rawHR ? Math.max(50, Math.min(130, Math.round(rawHR * lightCorrection))) : null;
+ 
+@@ -1125,7 +1221,7 @@
+             // 3. Respiratory Rate
+             this.results.respiratoryRate = this.detectRespiratoryRate(greenSignal);
+ 
+-            // 4. Temperature Estimation â€” light affects red/green ratio
++            // 4. Temperature Estimation — light affects red/green ratio
+             // In dim light the red channel is relatively stronger, inflating temperature estimate
+             this.results.temperature = this.estimateTemperatureCalibrated(cf);
+ 
+@@ -1147,43 +1243,56 @@
+         }
+ 
+         detectHeartRate(signal) {
+-            // â”€â”€ FFT-based heart-rate detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+-            // Finds the dominant frequency in the rPPG signal via DFT.
+-            // This avoids the peak-counting approach which is highly sensitive
+-            // to noise (two adjacent samples both counted as peaks â†’ inflated BPM).
+-
++            // ── FFT-based heart-rate detection ────────────────────────────────
+             const N = signal.length;
+-            if (N < 30) return null; // need at least 1 second of data at 30fps
++            if (N < 20) return null;
++
++            // ── Fix 1: Compute REAL frame rate from stored timestamps ─────────
++            // setTimeout drifts badly: actual fps on mobile is 8-12, not 30.
++            // If we use assumed fps=30 when real fps=10, a 70 BPM heart appears
++            // at 175 BPM in the DFT → outside the 50-130 clamp → returns null.
++            let fs = this.frameRate; // safe default
++            if (this.frames.length >= 2) {
++                const t0   = this.frames[0].timestamp;
++                const tEnd = this.frames[this.frames.length - 1].timestamp;
++                const span = tEnd - t0;
++                if (span > 0.5) fs = Math.max(5, Math.min(60, (this.frames.length - 1) / span));
++            }
++            console.log(`[HR] Real FPS: ${fs.toFixed(2)}, frames: ${N}`);
+ 
+             // Detrend: subtract linear trend to remove slow drift
+             const detrended = this._detrend(signal);
+ 
+-            // DFT: evaluate only frequencies in 0.7â€“3.5 Hz (42â€“210 BPM)
+-            const fs = this.frameRate; // samples/sec
+-            const freqMin = 0.7, freqMax = 3.5;
+-            const kMin = Math.ceil(freqMin * N / fs);
+-            const kMax = Math.floor(freqMax * N / fs);
+-
+-            let bestPower = -1, bestK = -1;
+-
+-            for (let k = kMin; k <= kMax; k++) {
+-                let re = 0, im = 0;
+-                for (let n = 0; n < N; n++) {
+-                    const phi = (2 * Math.PI * k * n) / N;
+-                    re += detrended[n] * Math.cos(phi);
+-                    im -= detrended[n] * Math.sin(phi);
++            // ── DFT helper: search dominant frequency within a Hz range ───────
++            const dftPeak = (fMin, fMax) => {
++                const kMin = Math.max(1, Math.ceil(fMin * N / fs));
++                const kMax = Math.floor(fMax * N / fs);
++                if (kMax < kMin) return null;
++                let bestPower = -1, bestK = -1;
++                for (let k = kMin; k <= kMax; k++) {
++                    let re = 0, im = 0;
++                    for (let n = 0; n < N; n++) {
++                        const phi = (2 * Math.PI * k * n) / N;
++                        re += detrended[n] * Math.cos(phi);
++                        im -= detrended[n] * Math.sin(phi);
++                    }
++                    const power = re * re + im * im;
++                    if (power > bestPower) { bestPower = power; bestK = k; }
+                 }
+-                const power = re * re + im * im;
+-                if (power > bestPower) { bestPower = power; bestK = k; }
+-            }
++                if (bestK < 0) return null;
++                return Math.round((bestK * fs / N) * 60);
++            };
+ 
+-            if (bestK < 0) return null;
++            // Primary search: 50-130 BPM (0.83-2.17 Hz) — normal resting range
++            const bpm = dftPeak(0.83, 2.17);
++            if (bpm !== null && bpm >= 50 && bpm <= 130) return bpm;
+ 
+-            const dominantFreq = bestK * fs / N;  // Hz
+-            const bpm = Math.round(dominantFreq * 60);
++            // ── Fix 4: Wider fallback 40-160 BPM (0.67-2.67 Hz) ─────────────
++            // Catches athletes (low hr ~45), tachycardia, or light motion artifacts
++            const bpmWide = dftPeak(0.67, 2.67);
++            if (bpmWide !== null && bpmWide >= 40 && bpmWide <= 160) return bpmWide;
+ 
+-            // Sanity-clamp: resting HR is almost always 50-130 BPM
+-            return (bpm >= 50 && bpm <= 130) ? bpm : null;
++            return null;
+         }
+ 
+         _detrend(signal) {
+@@ -1223,62 +1332,49 @@
+         }
+ 
+         detectRespiratoryRate(signal) {
+-            // Respiratory rate detection from facial color changes
+-            // Breathing causes subtle variations in facial blood flow and oxygenation
++            // ── Compute real FPS (same fix as detectHeartRate) ───────────────
++            let fs = this.frameRate;
++            if (this.frames.length >= 2) {
++                const t0   = this.frames[0].timestamp;
++                const tEnd = this.frames[this.frames.length - 1].timestamp;
++                const span = tEnd - t0;
++                if (span > 0.5) fs = Math.max(5, Math.min(60, (this.frames.length - 1) / span));
++            }
+ 
+-            // Use a more conservative frequency range for breathing (0.2-0.5 Hz = 12-30 breaths/min)
+-            // This filters out very slow movements and noise
+-            const lowFreqFiltered = this.bandpassFilter(signal, 0.2, 0.5, this.frameRate);
++            // Respiratory rate detection from facial color changes
++            // Use 0.2-0.5 Hz range (12-30 breaths/min)
++            const lowFreqFiltered = this.bandpassFilter(signal, 0.2, 0.5, fs);
+ 
+-            // Calculate a higher threshold for peak detection to avoid noise
+-            const mean = this.calculateMean(lowFreqFiltered);
+-            const stdDev = this.calculateStdDev(lowFreqFiltered);
+-            const threshold = mean + stdDev * 1.5; // Higher threshold than default
++            const mean    = this.calculateMean(lowFreqFiltered);
++            const stdDev  = this.calculateStdDev(lowFreqFiltered);
++            const threshold = mean + stdDev * 1.5;
+ 
+-            // Find peaks with minimum distance requirement (breathing cycles are slower than heartbeats)
+-            const minPeakDistance = Math.floor(this.frameRate * 1.5); // Minimum 1.5 seconds between breaths
++            const minPeakDistance = Math.floor(fs * 1.5); // 1.5 seconds between breaths
+             const peaks = this.findPeaksWithMinDistance(lowFreqFiltered, threshold, minPeakDistance);
+ 
+-            // Need at least 3 breathing cycles for reliable detection
+             if (peaks.length < 3) {
+-                // Not enough data - return a reasonable default based on typical resting rate
+                 console.log('Insufficient breathing peaks detected, using default estimate');
+-                return 14; // Normal resting breathing rate
++                return 14;
+             }
+ 
+-            // Calculate intervals between peaks
+             const intervals = [];
+-            for (let i = 1; i < peaks.length; i++) {
+-                intervals.push(peaks[i] - peaks[i - 1]);
+-            }
++            for (let i = 1; i < peaks.length; i++) intervals.push(peaks[i] - peaks[i - 1]);
+ 
+-            // Remove outliers (intervals that are too short or too long)
+             const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+-            const filteredIntervals = intervals.filter(interval => {
+-                return interval > avgInterval * 0.5 && interval < avgInterval * 1.5;
+-            });
++            const filteredIntervals = intervals.filter(iv => iv > avgInterval * 0.5 && iv < avgInterval * 1.5);
+ 
+             if (filteredIntervals.length < 2) {
+-                console.log('Irregular breathing pattern detected, using default estimate');
++                console.log('Irregular breathing pattern, using default estimate');
+                 return 14;
+             }
+ 
+-            // Calculate breathing rate from filtered intervals
+-            const finalAvgInterval = filteredIntervals.reduce((a, b) => a + b, 0) / filteredIntervals.length;
+-            const breathsPerMin = Math.round((60 * this.frameRate) / finalAvgInterval);
++            const finalAvg = filteredIntervals.reduce((a, b) => a + b, 0) / filteredIntervals.length;
++            const breathsPerMin = Math.round((60 * fs) / finalAvg);
+ 
+-            // Validate range - breathing should be between 8-25 for resting state
+-            // Cap at 25 instead of 30 to avoid false high readings
+-            if (breathsPerMin < 8) {
+-                console.log(`Detected very slow breathing: ${breathsPerMin}, clamping to 8`);
+-                return 8;
+-            }
+-            if (breathsPerMin > 25) {
+-                console.log(`Detected very fast breathing: ${breathsPerMin}, likely noise, clamping to 25`);
+-                return 25;
+-            }
++            if (breathsPerMin < 8)  return 8;
++            if (breathsPerMin > 25) return 25;
+ 
+-            console.log(`Detected breathing rate: ${breathsPerMin} breaths/min from ${peaks.length} peaks`);
++            console.log(`Breathing: ${breathsPerMin} bpm from ${peaks.length} peaks at ${fs.toFixed(1)} fps`);
+             return breathsPerMin;
+         }
+ 
+@@ -1385,7 +1481,7 @@
+             // Variance factor: Higher variance suggests more variability
+             const varianceFactor = Math.max(-5, Math.min(5, variance * 3));
+ 
+-            // Add some controlled randomness for natural variation (Ã‚Â±3 mmHg)
++            // Add some controlled randomness for natural variation (Â±3 mmHg)
+             const randomFactor = (Math.random() - 0.5) * 6;
+ 
+             // Calculate systolic (normal: 120)
+@@ -1412,7 +1508,7 @@
+         }
+ 
+         calculateHealthScore() {
+-            // â”€â”€ Weighted formula â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++            // ── Weighted formula ──────────────────────────────────────────────
+             // Health Score = 20%*HR + 35%*BP + 25%*SpO2 + 15%*RR + 5%*Temp
+             // Missing vitals: weight redistributed proportionally.
+             const WEIGHTS = { hr: 0.20, bp: 0.35, spo2: 0.25, rr: 0.15, temp: 0.05 };
+@@ -1478,7 +1574,7 @@
+                 vitalScores.bp = r.score;
+             }
+ 
+-            // â”€â”€ Compute weighted score â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++            // ── Compute weighted score ──────────────────────────────────────
+             const keys = Object.keys(vitalScores);
+             if (keys.length === 0) return 0;
+ 
+@@ -1624,12 +1720,18 @@
+             }
+ 
+             displayDiv.innerHTML = html;
+-            lucide.createIcons();
++            if (window.lucide) lucide.createIcons();
+ 
+             this.updateStatus('Scan complete! Review your results below.', 'success');
+         }
+ 
+         async saveResults() {
++            const saveBtn = document.getElementById('save-reading-btn');
++            if (saveBtn) {
++                saveBtn.disabled = true;
++                saveBtn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Saving...';
++                if (window.lucide) lucide.createIcons();
++            }
+             try {
+                 const response = await fetch('/app/vitals/save', {
+                     method: 'POST',
+@@ -1663,10 +1765,20 @@
+                     }, 1000);
+                 } else {
+                     this.showError('Failed to save vitals: ' + result.error);
++                    if (saveBtn) {
++                        saveBtn.disabled = false;
++                        saveBtn.innerHTML = '<i data-lucide="save" class="w-5 h-5"></i> Save Results';
++                        if (window.lucide) lucide.createIcons();
++                    }
+                 }
+             } catch (error) {
+                 console.error('Save error:', error);
+                 this.showError('Failed to save vitals. Please try again.');
++                if (saveBtn) {
++                    saveBtn.disabled = false;
++                    saveBtn.innerHTML = '<i data-lucide="save" class="w-5 h-5"></i> Save Results';
++                    if (window.lucide) lucide.createIcons();
++                }
+             }
+         }
+ 
+@@ -1705,13 +1817,13 @@
+ 
+         stopScan() {
+             this.isScanning = false;
++            // ── Fix: cancel rAF loop immediately ─────────────────────────────
++            if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
+             document.getElementById('scanning-overlay').classList.add('hidden');
+             document.getElementById('start-scan-btn').classList.remove('hidden');
+             document.getElementById('stop-scan-btn').classList.add('hidden');
+ 
+-            // Stop camera when scan is cancelled
+             this.stopCamera();
+-
+             this.updateStatus('Scan cancelled.', 'info');
+         }
+ 
+@@ -1755,7 +1867,7 @@
+             </div>
+         `;
+             document.body.appendChild(successDiv);
+-            lucide.createIcons();
++            if (window.lucide) lucide.createIcons();
+ 
+             setTimeout(() => {
+                 successDiv.remove();
+@@ -1763,6 +1875,22 @@
+         }
+     }
+ 
++    // -- Steps input handler � recalc calories from overridden steps --
++    function wlOnStepsInput() {
++        wlUserEditedSteps = true;
++        // Only recalc calories if user hasn't manually set them + workout is step-based
++        if (wlUserEditedCal) return;
++        const meta = WL_META[wlSelectedType] || WL_META['Other'];
++        if (!meta.stepsPerMin || meta.stepsPerMin === 0) return;
++        const steps = parseInt(document.getElementById('wl-steps').value);
++        if (!steps || steps <= 0) return;
++        const w = wlWeightKg || DEFAULT_WEIGHT_KG;
++        const effectiveDurMin = steps / meta.stepsPerMin;
++        const kcal = Math.round(meta.met * w * (effectiveDurMin / 60));
++        document.getElementById('wl-calories').value = kcal;
++        document.getElementById('wl-cal-badge').style.display = 'inline-flex';
++    }
++
+     // Initialize scanner
+     window.scanner = null;
+ 
+@@ -1774,34 +1902,40 @@
+             // Button handlers
+             const startBtn = document.getElementById('start-scan-btn');
+             if (startBtn) {
+-                startBtn.onclick = async () => {
++                startBtn.onclick = function () {
++                    console.log("Start Scan Clicked - showing disclaimer");
++                    if (typeof showScanDisclaimer === 'function') {
++                        showScanDisclaimer();
++                    } else {
++                        window.scanner.startScan();
++                    }
++                };
++                if (false) { /* dead code � disclaimer now handles scan start */
+                     console.log("Start Scan Clicked");
+                     const btn = document.getElementById('start-scan-btn');
+ 
+                     // Show loading state
+-                    btn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Startingâ€¦';
++                    btn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Starting…';
+                     btn.disabled = true;
+                     if (window.lucide) lucide.createIcons();
+ 
+                     try {
+-                        await window.scanner.startScan();
++                        // DISABLED � scan now only starts through showScanDisclaimer() above
+                         // startScan hides this button itself once scanning begins;
+                         // but if it returns early (face not found / cancelled) we must restore.
+                     } catch (e) {
+                         console.error(e);
+                         alert("Error starting scan: " + e);
+                     } finally {
+-                        // Always restore unless we are actively scanning
++                        // Always restore unless we actively scanning
+                         if (!window.scanner.isScanning) {
+                             window.scanner._resetStartBtn();
+                         }
++                        console.log("Start button handler attached via onclick");
+                     }
+-                };
+-                console.log("Start button handler attached via onclick");
+-            } else {
+-                console.error("Start button not found!");
+-                alert("System Error: Start button missing from page.");
+-            }
++                }
++
++            } // end if(startBtn)
+ 
+             const stopBtn = document.getElementById('stop-scan-btn');
+             if (stopBtn) stopBtn.onclick = () => window.scanner.stopScan();
+@@ -1812,9 +1946,8 @@
+             const retakeBtn = document.getElementById('retake-btn');
+             if (retakeBtn) retakeBtn.onclick = () => window.scanner.retakeScan();
+ 
+-            lucide.createIcons();
++            if (window.lucide) lucide.createIcons();
+             console.log("Scanner initialization complete.");
+-
+         } catch (e) {
+             alert("Init Error: " + e.message);
+         }
+@@ -1826,7 +1959,7 @@
+ 
+ <!-- &#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144; -->
+ <!-- WORKOUT LOG FLOATING BUTTON + MODAL                     -->
+-<!-- &#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144; -->
++<!-- &#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144;&#226;&#8226;&#144; -->
+ <style>
+     /* Floating button */
+     .wlog-fab {
+@@ -2227,6 +2360,53 @@
+     .wlog-toast.info {
+         background: #92400e;
+     }
++
++    /* Session queue item */
++    .wl-session-item {
++        display: flex;
++        align-items: center;
++        gap: .55rem;
++        background: rgba(255, 255, 255, .04);
++        border: 1px solid rgba(255, 255, 255, .08);
++        border-radius: .5rem;
++        padding: .45rem .65rem;
++        font-size: .78rem;
++        color: #cbd5e1;
++        animation: wlogPop .2s ease-out;
++    }
++
++    .wl-session-item-info {
++        flex: 1;
++        min-width: 0;
++    }
++
++    .wl-session-item-type {
++        font-weight: 600;
++        color: #e2e8f0;
++    }
++
++    .wl-session-item-meta {
++        font-size: .7rem;
++        color: #64748b;
++        margin-top: .1rem;
++    }
++
++    .wl-session-remove {
++        background: none;
++        border: none;
++        cursor: pointer;
++        color: #475569;
++        padding: .2rem;
++        border-radius: .3rem;
++        transition: color .15s;
++        flex-shrink: 0;
++        line-height: 1;
++        font-size: 1rem;
++    }
++
++    .wl-session-remove:hover {
++        color: #f87171;
++    }
+ </style>
+ 
+ <!-- Floating button -->
+@@ -2299,7 +2479,7 @@
+                         </span>
+                     </div>
+                     <input type="number" id="wl-steps" class="wlog-input" placeholder="0" min="0" max="100000"
+-                        oninput="wlUserEditedSteps=true">
++                        oninput="wlOnStepsInput()">
+                 </div>
+                 <div class="wlog-field">
+                     <div class="wlog-label">Calories (kcal)
+@@ -2320,13 +2500,15 @@
+                     style="resize:vertical;"></textarea>
+             </div>
+ 
+-            <button class="wlog-save" id="wl-save-btn" onclick="saveWorkoutLog()">
++            <!-- Save Workout -->
++            <button class="wlog-save" id="wl-add-btn" onclick="saveWorkoutLog()">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24"
+                     stroke="currentColor">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                 </svg>
+                 Save Workout
+             </button>
++
+             <button class="wlog-later" onclick="logLater()">
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+@@ -2398,9 +2580,10 @@
+     let wlHeightCm = null;
+     let wlUserEditedSteps = false;
+     let wlUserEditedCal = false;
++    let wlSessionQueue = [];  // holds workouts added but not yet saved
+     const WL_REMINDER_KEY = 'solace_workout_reminder';
+ 
+-    // â”€â”€ Fetch user fitness profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++    // ── Fetch user fitness profile ────────────────────────────────────
+     async function fetchFitnessProfile() {
+         try {
+             const r = await fetch('/api/user/fitness-profile');
+@@ -2412,7 +2595,7 @@
+         } catch (e) { /* silently ignore network error */ }
+     }
+ 
+-    // â”€â”€ Auto-calculate calories & steps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++    // ── Auto-calculate calories & steps ──────────────────────────────
+     function autoCalc() {
+         const durMin = parseInt(document.getElementById('wl-duration').value) || 30;
+         const meta = WL_META[wlSelectedType] || WL_META['Other'];
+@@ -2459,7 +2642,24 @@
+         calBadge.style.display = 'inline-flex';
+     }
+ 
+-    // â”€â”€ Duration slider handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++    // -- Steps input handler � recalculate calories from overridden steps --
++    function wlOnStepsInput() {
++        wlUserEditedSteps = true;
++        // Only recalc calories if user hasn't also manually edited them
++        if (wlUserEditedCal) return;
++        const meta = WL_META[wlSelectedType] || WL_META['Other'];
++        if (!meta.stepsPerMin || meta.stepsPerMin === 0) return; // non-step workout (Cycling etc)
++        const steps = parseInt(document.getElementById('wl-steps').value);
++        if (!steps || steps <= 0) return;
++        const w = wlWeightKg || DEFAULT_WEIGHT_KG;
++        // Derive effective duration from step count: duration = steps / cadence
++        const effectiveDurMin = steps / meta.stepsPerMin;
++        const kcal = Math.round(meta.met * w * (effectiveDurMin / 60));
++        document.getElementById('wl-calories').value = kcal;
++        document.getElementById('wl-cal-badge').style.display = 'inline-flex';
++    }
++
++    // -- Duration slider handler ---------------------------------------
+     function onDurationChange(val) {
+         document.getElementById('wl-dur-val').textContent = val + ' min';
+         wlUserEditedSteps = false;
+@@ -2467,7 +2667,7 @@
+         autoCalc();
+     }
+ 
+-    // â”€â”€ Build type grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++    // ── Build type grid ──────────────────────────────────────────────
+     function buildWlTypeGrid() {
+         const grid = document.getElementById('wl-type-grid');
+         if (!grid || grid.childElementCount > 0) return;
+@@ -2489,7 +2689,7 @@
+         });
+     }
+ 
+-    // â”€â”€ Open / Close modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++    // ── Open / Close modal ────────────────────────────────────────────
+     function openWorkoutModal() {
+         const today = new Date();
+         const yyyy = today.getFullYear();
+@@ -2515,7 +2715,56 @@
+         document.body.style.overflow = '';
+     }
+ 
+-    // â”€â”€ Log Later â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++    async function saveWorkoutLog() {
++        const date = document.getElementById('wl-date').value;
++        if (!date) { wlToast('Pick a date first', 'error'); return; }
++        const payload = {
++            log_date: date,
++            workout_type: wlSelectedType,
++            duration_min: parseInt(document.getElementById('wl-duration').value) || 0,
++            step_count: parseInt(document.getElementById('wl-steps').value) || 0,
++            calories: parseInt(document.getElementById('wl-calories').value) || 0,
++            notes: document.getElementById('wl-notes').value.trim(),
++        };
++
++        const btn = document.getElementById('wl-add-btn');
++        if (btn) {
++            btn.disabled = true;
++            btn.textContent = 'Saving...';
++        }
++
++        try {
++            const res = await fetch('/api/workout-log', {
++                method: 'POST',
++                headers: { 'Content-Type': 'application/json' },
++                body: JSON.stringify(payload)
++            });
++            const data = await res.json();
++            if (data.success) {
++                localStorage.removeItem(WL_REMINDER_KEY);
++                const reminder = document.getElementById('wlog-reminder');
++                if (reminder) reminder.classList.remove('show');
++                wlToast('Workout saved successfully! 💪', 'success');
++                setTimeout(function () {
++                    const overlay = document.getElementById('wlog-overlay');
++                    if (overlay) overlay.classList.remove('open');
++                    document.body.style.overflow = '';
++                    window.location.reload();
++                }, 1200);
++            } else {
++                wlToast(data.error || 'Save failed', 'error');
++            }
++        } catch (e) {
++            wlToast('Network error - try again', 'error');
++        } finally {
++            if (btn) {
++                btn.disabled = false;
++                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Save Workout';
++            }
++        }
++    }
++
++    // ── Log Later ─────────────────────────────────────────────────────
+     function logLater() {
+         const today = new Date();
+         const label = today.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+@@ -2528,13 +2777,13 @@
+         wlToast('Reminder set! We\'ll remind you next visit.', 'info');
+     }
+ 
+-    // â”€â”€ Dismiss reminder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++    // ── Dismiss reminder ──────────────────────────────────────────────
+     function dismissReminder() {
+         localStorage.removeItem(WL_REMINDER_KEY);
+         document.getElementById('wlog-reminder').classList.remove('show');
+     }
+ 
+-    // â”€â”€ Check for pending reminder on load â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++    // ── Check for pending reminder on load ────────────────────────────
+     function checkWorkoutReminder() {
+         const raw = localStorage.getItem(WL_REMINDER_KEY);
+         if (!raw) return;
+@@ -2557,58 +2806,8 @@
+         }
+     }
+ 
+-    // â”€â”€ Save workout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+-    async function saveWorkoutLog() {
+-        const payload = {
+-            log_date: document.getElementById('wl-date').value,
+-            workout_type: wlSelectedType,
+-            duration_min: parseInt(document.getElementById('wl-duration').value) || 0,
+-            step_count: parseInt(document.getElementById('wl-steps').value) || 0,
+-            calories: parseInt(document.getElementById('wl-calories').value) || 0,
+-            notes: document.getElementById('wl-notes').value.trim(),
+-        };
+-
+-        if (!payload.log_date) { wlToast('Pick a date first', 'error'); return; }
+-
+-        const btn = document.getElementById('wl-save-btn');
+-        btn.disabled = true;
+-        btn.textContent = 'Saving...';
+-
+-        try {
+-            const res = await fetch('/api/workout-log', {
+-                method: 'POST',
+-                headers: { 'Content-Type': 'application/json' },
+-                body: JSON.stringify(payload)
+-            });
+-            const data = await res.json();
+-
+-            if (data.success) {
+-                localStorage.removeItem(WL_REMINDER_KEY);
+-                document.getElementById('wlog-reminder').classList.remove('show');
+-                wlToast('Workout saved!', 'success');
+-                document.getElementById('wl-steps').value = '';
+-                document.getElementById('wl-calories').value = '';
+-                document.getElementById('wl-notes').value = '';
+-                document.getElementById('wl-duration').value = 30;
+-                document.getElementById('wl-dur-val').textContent = '30 min';
+-                wlUserEditedSteps = false;
+-                wlUserEditedCal = false;
+-                setTimeout(function () {
+-                    document.getElementById('wlog-overlay').classList.remove('open');
+-                    document.body.style.overflow = '';
+-                }, 1200);
+-            } else {
+-                wlToast(data.error || 'Save failed', 'error');
+-            }
+-        } catch (err) {
+-            wlToast('Network error - try again', 'error');
+-        } finally {
+-            btn.disabled = false;
+-            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Save Workout';
+-        }
+-    }
+ 
+-    // â”€â”€ Toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++    // ── Toast ─────────────────────────────────────────────────────────
+     function wlToast(msg, type) {
+         const el = document.createElement('div');
+         el.className = 'wlog-toast ' + type;
+@@ -2617,7 +2816,7 @@
+         setTimeout(function () { el.remove(); }, 3500);
+     }
+ 
+-    // â”€â”€ Keyboard close â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++    // ── Keyboard close ────────────────────────────────────────────────
+     document.addEventListener('keydown', function (e) {
+         if (e.key === 'Escape') {
+             document.getElementById('wlog-overlay').classList.remove('open');
+@@ -2625,7 +2824,7 @@
+         }
+     });
+ 
+-    // â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
++    // ── Init ──────────────────────────────────────────────────────────
+     document.addEventListener('DOMContentLoaded', async function () {
+         await fetchFitnessProfile();
+         autoCalc();          // calculate on load with default weight if needed

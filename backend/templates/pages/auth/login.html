@@ -1,77 +1,164 @@
 {% extends "base.html" %}
 
+{% block title %}Sign In to SolaceSquad — Your Wellness Dashboard{% endblock %}
+{% block meta_desc %}Sign in to your SolaceSquad account and continue your mental, physical and professional wellness journey with certified consultants.{% endblock %}
+{% block meta_robots %}noindex, follow{% endblock %}
+{% block og_title %}Sign In to SolaceSquad — Your Wellness Dashboard{% endblock %}
+{% block og_desc %}Sign in to SolaceSquad and continue your wellness journey with certified consultants.{% endblock %}
+{% block tw_title %}Sign In to SolaceSquad — Your Wellness Dashboard{% endblock %}
+{% block tw_desc %}Sign in to SolaceSquad and continue your wellness journey with certified consultants.{% endblock %}
+
 {% block content %}
 <div
     class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-secondary-50 py-12 px-4">
     <div class="max-w-md w-full">
         <!-- Logo -->
         <div class="text-center mb-8">
-            <a href="/" class="inline-flex items-center gap-2 mb-4">
-                <div class="bg-gradient-to-br from-primary-600 to-secondary-600 p-2 rounded-xl">
-                    <i data-lucide="heart" class="w-6 h-6 text-white fill-white"></i>
-                </div>
-                <span class="text-2xl font-display font-bold gradient-text">SolaceSquad</span>
+            <a href="/" class="inline-block mb-4">
+                <img src="/static/images/logo.png" alt="SolaceSquad" class="h-16 w-auto mx-auto">
             </a>
-            <h2 class="text-3xl font-display font-bold text-gray-900 mt-4">Welcome Back</h2>
+            <h1 class="text-3xl font-display font-bold text-gray-900 mt-4">Welcome Back</h1>
             <p class="text-gray-600 mt-2">Sign in to continue your wellbeing journey</p>
         </div>
 
         <!-- Login Form -->
         <div class="card">
-            <form method="POST" action="/login" class="space-y-6">
-                <!-- Error/Success Messages -->
-                {% if error %}
-                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                    <div class="flex items-center">
-                        <i data-lucide="alert-circle" class="w-5 h-5 text-red-500 mr-2"></i>
-                        <p class="text-sm text-red-700">{{ error }}</p>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if success %}
-                <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded">
-                    <div class="flex items-center">
-                        <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mr-2"></i>
-                        <p class="text-sm text-green-700">{{ success }}</p>
-                    </div>
-                </div>
-                {% endif %}
-
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-                        Email Address
-                    </label>
-                    <input type="email" id="email" name="email" required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
-                        placeholder="you@example.com">
-                </div>
-
-                <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
-                        Password
-                    </label>
-                    <input type="password" id="password" name="password" required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
-                        placeholder="••••••••">
-                </div>
-
-                <div class="flex items-center justify-between">
-                    <label class="flex items-center">
-                        <input type="checkbox"
-                            class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
-                        <span class="ml-2 text-sm text-gray-600">Remember me</span>
-                    </label>
-                    <a href="/forgot-password" class="text-sm text-primary-600 hover:text-primary-700">
-                        Forgot password?
-                    </a>
-                </div>
-
-                <button type="submit" class="btn btn-primary w-full text-lg">
-                    Sign In
-                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            <!-- Login Tabs -->
+            <div class="flex border-b border-gray-200 mb-6">
+                <button type="button" id="tab-email-btn" onclick="switchLoginTab('email')"
+                    class="flex-1 pb-3 text-center border-b-2 border-primary-600 font-semibold text-primary-600 text-sm focus:outline-none transition-colors duration-200">
+                    <span class="flex items-center justify-center gap-2">
+                        <i data-lucide="mail" class="w-4.5 h-4.5"></i>
+                        Email
+                    </span>
                 </button>
-            </form>
+                <button type="button" id="tab-phone-btn" onclick="switchLoginTab('phone')"
+                    class="flex-1 pb-3 text-center border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 text-sm focus:outline-none transition-colors duration-200">
+                    <span class="flex items-center justify-center gap-2">
+                        <i data-lucide="smartphone" class="w-4.5 h-4.5"></i>
+                        Mobile OTP
+                    </span>
+                </button>
+                <button type="button" id="tab-google-btn" onclick="switchLoginTab('google')"
+                    class="flex-1 pb-3 text-center border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 text-sm focus:outline-none transition-colors duration-200">
+                    <span class="flex items-center justify-center gap-2">
+                        <i data-lucide="chrome" class="w-4.5 h-4.5"></i>
+                        Google Login
+                    </span>
+                </button>
+            </div>
+
+            <!-- Global Error / Success Messages (for Email) -->
+            {% if error %}
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded mb-6">
+                <div class="flex items-center">
+                    <i data-lucide="alert-circle" class="w-5 h-5 text-red-500 mr-2"></i>
+                    <p class="text-sm text-red-700">{{ error }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if success %}
+            <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded mb-6">
+                <div class="flex items-center">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-green-500 mr-2"></i>
+                    <p class="text-sm text-green-700">{{ success }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Panel 1: Email Login -->
+            <div id="panel-email" class="space-y-6">
+                <form method="POST" action="/login" class="space-y-6">
+                    <input type="hidden" name="next_url" value="{{ next_url or '' }}">
+
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                            Email Address
+                        </label>
+                        <input type="email" id="email" name="email" required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                            placeholder="you@example.com">
+                    </div>
+
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                            Password
+                        </label>
+                        <input type="password" id="password" name="password" required
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                            placeholder="••••••••">
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center">
+                            <input type="checkbox"
+                                class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                            <span class="ml-2 text-sm text-gray-600">Remember me</span>
+                        </label>
+                        <a href="/forgot-password" class="text-sm text-primary-600 hover:text-primary-700">
+                            Forgot password?
+                        </a>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-full text-lg py-3 flex items-center justify-center gap-2">
+                        Sign In
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Panel 2: Mobile OTP Login -->
+            <div id="panel-phone" class="hidden space-y-6">
+                <!-- OTP Status Banners -->
+                <div id="login-otp-error" class="hidden bg-red-50 border-l-4 border-red-500 p-4 rounded text-sm text-red-700"></div>
+                <div id="login-otp-success" class="hidden bg-green-50 border-l-4 border-green-500 p-4 rounded text-sm text-green-700"></div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="login-phone" class="block text-sm font-medium text-gray-700 mb-2">
+                            Mobile Number
+                        </label>
+                        <div class="flex gap-2">
+                            <span class="inline-flex items-center px-3 border border-gray-300 bg-gray-50 rounded-lg text-gray-500 text-sm font-medium">
+                                🇮🇳 +91
+                            </span>
+                            <input type="tel" id="login-phone" placeholder="98765 43210" pattern="[0-9]{10}"
+                                class="flex-grow px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition text-base">
+                            <button type="button" id="login-send-otp-btn" onclick="sendLoginOtp()"
+                                class="btn border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm px-4 whitespace-nowrap rounded-lg">
+                                Send OTP
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="login-otp-container" class="hidden space-y-2">
+                        <label for="login-otp-code" class="block text-sm font-medium text-gray-700">
+                            Enter 6-Digit OTP
+                        </label>
+                        <input type="text" id="login-otp-code" placeholder="123456" maxlength="6" pattern="[0-9]{6}"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg text-center tracking-widest text-lg font-bold focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition">
+                    </div>
+
+                    <button type="button" id="login-verify-otp-btn" onclick="verifyLoginOtp()" disabled
+                        class="btn btn-primary w-full text-lg py-3 flex items-center justify-center gap-2">
+                        Verify & Sign In
+                        <i data-lucide="check-circle" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Panel 3: Google Login -->
+            <div id="panel-google" class="hidden space-y-6 py-4 text-center">
+                <p class="text-sm text-gray-600 mb-4">
+                    Fast and secure authentication using your Google Work or personal account.
+                </p>
+                <a href="/auth/google/login" id="google-login-btn"
+                   class="flex items-center justify-center gap-3 w-full py-3 border border-gray-300 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition font-medium text-gray-700 text-sm shadow-sm">
+                    <svg width="20" height="20" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+                    Continue with Google
+                </a>
+            </div>
 
             <div class="mt-6 text-center">
                 <p class="text-sm text-gray-600">
@@ -85,10 +172,177 @@
 
         <p class="text-center text-sm text-gray-500 mt-6">
             By signing in, you agree to our
-            <a href="#" class="text-primary-600 hover:text-primary-700">Terms of Service</a>
+            <a href="/terms" class="text-primary-600 hover:text-primary-700">Terms of Service</a>
             and
-            <a href="#" class="text-primary-600 hover:text-primary-700">Privacy Policy</a>
+            <a href="/privacy" class="text-primary-600 hover:text-primary-700">Privacy Policy</a>
         </p>
     </div>
 </div>
+
+<script>
+    function switchLoginTab(tab) {
+        const emailBtn = document.getElementById('tab-email-btn');
+        const phoneBtn = document.getElementById('tab-phone-btn');
+        const googleBtn = document.getElementById('tab-google-btn');
+        
+        const emailPanel = document.getElementById('panel-email');
+        const phonePanel = document.getElementById('panel-phone');
+        const googlePanel = document.getElementById('panel-google');
+        
+        // Reset classes
+        [emailBtn, phoneBtn, googleBtn].forEach(btn => {
+            btn.classList.remove('border-primary-600', 'text-primary-600', 'font-semibold');
+            btn.classList.add('border-transparent', 'text-gray-500', 'font-medium');
+        });
+        
+        [emailPanel, phonePanel, googlePanel].forEach(panel => {
+            panel.classList.add('hidden');
+        });
+        
+        if (tab === 'email') {
+            emailBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
+            emailBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            emailPanel.classList.remove('hidden');
+        } else if (tab === 'phone') {
+            phoneBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
+            phoneBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            phonePanel.classList.remove('hidden');
+        } else if (tab === 'google') {
+            googleBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
+            googleBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            googlePanel.classList.remove('hidden');
+        }
+    }
+
+    let phoneTimer = null;
+    let phoneCountdown = 0;
+
+    function startPhoneCountdown() {
+        phoneCountdown = 60;
+        const sendBtn = document.getElementById('login-send-otp-btn');
+        sendBtn.disabled = true;
+        
+        if (phoneTimer) clearInterval(phoneTimer);
+        
+        phoneTimer = setInterval(() => {
+            phoneCountdown--;
+            if (phoneCountdown <= 0) {
+                clearInterval(phoneTimer);
+                sendBtn.textContent = 'Resend OTP';
+                sendBtn.disabled = false;
+            } else {
+                sendBtn.textContent = `Resend in ${phoneCountdown}s`;
+            }
+        }, 1000);
+    }
+
+    async function sendLoginOtp() {
+        const phoneInput = document.getElementById('login-phone');
+        const errorDiv = document.getElementById('login-otp-error');
+        const successDiv = document.getElementById('login-otp-success');
+        const otpContainer = document.getElementById('login-otp-container');
+        const sendBtn = document.getElementById('login-send-otp-btn');
+        
+        errorDiv.classList.add('hidden');
+        successDiv.classList.add('hidden');
+        
+        let phone = phoneInput.value.trim().replace(/\s+/g, '');
+        if (!phone) {
+            errorDiv.textContent = 'Phone number is required.';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+
+        // Basic validation: must be 10 digits
+        let clean = phone.replace(/[^0-9]/g, '');
+        if (clean.startsWith('91') && clean.length === 12) {
+            clean = clean.substring(2);
+        }
+        if (clean.length !== 10) {
+            errorDiv.textContent = 'Please enter a valid 10-digit mobile number.';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+        
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending...';
+
+        try {
+            const res = await fetch('/api/auth/login-otp/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: phone })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                successDiv.textContent = 'OTP sent successfully to your mobile number.';
+                successDiv.classList.remove('hidden');
+                otpContainer.classList.remove('hidden');
+                document.getElementById('login-verify-otp-btn').disabled = false;
+                startPhoneCountdown();
+            } else {
+                errorDiv.textContent = data.error || 'Failed to send OTP.';
+                errorDiv.classList.remove('hidden');
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send OTP';
+            }
+        } catch (err) {
+            errorDiv.textContent = 'A network error occurred. Please try again.';
+            errorDiv.classList.remove('hidden');
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send OTP';
+        }
+    }
+
+    async function verifyLoginOtp() {
+        const phoneInput = document.getElementById('login-phone');
+        const otpInput = document.getElementById('login-otp-code');
+        const errorDiv = document.getElementById('login-otp-error');
+        const successDiv = document.getElementById('login-otp-success');
+        const verifyBtn = document.getElementById('login-verify-otp-btn');
+        
+        errorDiv.classList.add('hidden');
+        successDiv.classList.add('hidden');
+        
+        const phone = phoneInput.value.trim().replace(/\s+/g, '');
+        const otp = otpInput.value.trim();
+        
+        if (!otp || otp.length !== 6) {
+            errorDiv.textContent = 'Please enter a valid 6-digit OTP code.';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+        
+        verifyBtn.disabled = true;
+        verifyBtn.textContent = 'Verifying...';
+
+        try {
+            const res = await fetch('/api/auth/login-otp/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: phone, otp: otp })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                successDiv.textContent = 'Login successful! Redirecting...';
+                successDiv.classList.remove('hidden');
+                setTimeout(() => {
+                    window.location.href = data.redirect_url;
+                }, 1000);
+            } else {
+                errorDiv.textContent = data.error || 'Invalid OTP. Please try again.';
+                errorDiv.classList.remove('hidden');
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = 'Verify & Sign In';
+            }
+        } catch (err) {
+            errorDiv.textContent = 'A verification error occurred. Please try again.';
+            errorDiv.classList.remove('hidden');
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = 'Verify & Sign In';
+        }
+    }
+</script>
 {% endblock %}

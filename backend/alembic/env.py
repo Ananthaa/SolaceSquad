@@ -16,19 +16,25 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from models import Base
+# Add the project root to the python path so imports work
 import os
 import sys
+from dotenv import load_dotenv
 
-# Add the project root to the python path so imports work
+# Load env vars first
+load_dotenv()
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+from models import Base
+from database import engine
 
 # from myapp import mymodel
 target_metadata = Base.metadata
 
 # Override sqlalchemy.url with env var if present
-database_url = os.getenv("DATABASE_URL", "sqlite:///./soul_squad.db")
-config.set_main_option("sqlalchemy.url", database_url)
+# database_url = os.getenv("DATABASE_URL", "sqlite:///./soul_squad.db")
+# config.set_main_option("sqlalchemy.url", database_url)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -67,11 +73,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    connectable = engine
 
     with connectable.connect() as connection:
         context.configure(

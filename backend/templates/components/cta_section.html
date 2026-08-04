@@ -1,0 +1,72 @@
+<!-- Shared CTA Section -->
+<style>
+    .ss-cta-section {
+        background: linear-gradient(135deg, #f0faf7 0%, #f8fafc 100%);
+        padding: clamp(2.5rem, 8vw, 5rem) 0;
+        text-align: center;
+        width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    .ss-cta-title {
+        font-size: clamp(1.4rem, 5vw, 2.5rem);
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 0.75rem;
+        line-height: 1.2;
+        padding: 0 1rem;
+    }
+
+    .ss-cta-sub {
+        font-size: clamp(0.875rem, 3vw, 1.125rem);
+        background: linear-gradient(135deg, #2d6a5a, #1e4d40);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 1.75rem;
+        max-width: 36rem;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 0 1rem;
+        line-height: 1.6;
+    }
+
+    .ss-cta-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.85rem 2rem;
+        background: linear-gradient(135deg, #2d6a5a, #1e4d40);
+        color: #fff;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: clamp(0.875rem, 3vw, 1rem);
+        text-decoration: none;
+        box-shadow: 0 4px 15px rgba(45, 106, 90, 0.35);
+        transition: opacity 0.2s;
+        white-space: nowrap;
+    }
+
+    .ss-cta-fine {
+        font-size: 0.8rem;
+        color: #374151;
+        margin-top: 1rem;
+    }
+</style>
+
+<section class="ss-cta-section">
+    <div class="container-custom">
+        <h2 class="ss-cta-title">Ready to Start Your Wellbeing Journey?</h2>
+        <p class="ss-cta-sub">Join hundreds of people who have found support, growth, and peace with SolaceSquad</p>
+        <a href="/signup" class="ss-cta-btn" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+            Get Started Free
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+            </svg>
+        </a>
+        <p class="ss-cta-fine">No credit card required &bull; 100% confidential &bull; Cancel anytime</p>
+    </div>
+</section>

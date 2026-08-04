@@ -1,13 +1,164 @@
 {% extends "layouts/protected.html" %}
 
 {% block content %}
-<div class="profile-container">
+<div class="profile-outer">
+
+    <!-- ── LEFT: Summary Card (sticky preview) ─────────────── -->
+    <div class="profile-left">
+        <div class="summary-card">
+
+            <!-- Photo + Name header -->
+            <div class="sc-header">
+                <div class="sc-photo-wrap" onclick="document.getElementById('photoInput').click()"
+                    title="Click to change photo">
+                    {% if consultant_profile.photo_url %}
+                    <img id="photoPreview" src="/api/profile-photo/{{ user_id }}" alt="Profile photo" onerror="this.style.display='none';document.getElementById('photoPlaceholder') && (document.getElementById('photoPlaceholder').style.display='flex')">
+                    {% else %}
+                    <div id="photoPlaceholder" class="sc-avatar-initials">{{ user_initials }}</div>
+                    <img id="photoPreview" src="" alt=""
+                        style="display:none; width:100%; height:100%; object-fit:cover; border-radius:50%;">
+                    {% endif %}
+                    <div class="sc-photo-overlay">📷</div>
+                </div>
+                <div>
+                    <div class="sc-name">{{ consultant_profile.full_name or user_name }}</div>
+                    <div class="sc-spec">{{ consultant_profile.specialization or 'Wellness Consultant' }}</div>
+                    <div style="font-size:.63rem; font-family: monospace; opacity:.7; margin-bottom:4px;">SS-{{ '%06d' % user_id }}</div>
+                    <div class="sc-badges">
+                        {% if consultant_profile.experience_years %}
+                        <span class="sc-badge">{{ consultant_profile.experience_years }} yrs</span>
+                        {% endif %}
+                        {% if consultant_profile.city %}
+                        <span class="sc-badge">{{ consultant_profile.city }}</span>
+                        {% endif %}
+                        {% if consultant_profile.qacp_certified %}
+                        <span class="sc-badge">QACP ✓</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="uploadPhoto(this)">
+            <div id="photoStatus" class="sc-status-msg"></div>
+
+            <!-- CV Management Row -->
+            <div class="sc-cv-row" id="cvRow">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="#059669" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                </svg>
+                {% if consultant_profile.cv_url %}
+                <a href="{{ consultant_profile.cv_url }}" target="_blank" id="cvViewLink">CV uploaded — View</a>
+                <button onclick="deleteCV()" id="cvDeleteBtn" title="Delete CV"
+                    style="margin-left:auto;background:none;border:none;cursor:pointer;color:#ef4444;font-size:.7rem;font-weight:700;padding:0 2px;">✕ Delete</button>
+                {% else %}
+                <span id="cvViewLink" style="color:#f59e0b;">⚠ No CV uploaded yet</span>
+                {% endif %}
+            </div>
+            <!-- CV Upload Area (shown when no CV or after delete) -->
+            <div id="cvUploadArea" style="padding:.5rem 1rem;background:#f9fafb;border-bottom:1px solid #f0f0f0;{% if consultant_profile.cv_url %}display:none;{% endif %}">
+                <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.72rem;color:#6b7280;font-weight:600;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <span id="cvFileName">Click to upload CV (PDF/DOC, max 10MB)</span>
+                    <input type="file" id="cvFileInput" accept=".pdf,.doc,.docx" style="display:none;" onchange="uploadCV(this)">
+                </label>
+                <div id="cvUploadStatus" style="font-size:.68rem;margin-top:.25rem;"></div>
+            </div>
+
+
+            <!-- Bio -->
+            <div class="sc-section">
+                <div class="sc-label">Professional Summary</div>
+                {% if consultant_profile.bio %}{{ consultant_profile.bio }}{% else %}<span class="sc-bio-ph">Your
+                    professional bio will appear here once you save your profile.</span>{% endif %}
+            </div>
+
+            <!-- Expertise chips -->
+            {% if expertise_list %}
+            <div class="sc-section">
+                <div class="sc-label">Expertise</div>
+                <div class="sc-chips">
+                    {% for item in expertise_list %}<span class="sc-chip indigo">{{ item }}</span>{% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Methods chips -->
+            {% if methods_list %}
+            <div class="sc-section">
+                <div class="sc-label">Approach</div>
+                <div class="sc-chips">
+                    {% for item in methods_list %}<span class="sc-chip teal">{{ item }}</span>{% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Languages -->
+            {% if languages_list %}
+            <div class="sc-section">
+                <div class="sc-label">Languages</div>
+                <div class="sc-chips">
+                    {% for item in languages_list %}<span class="sc-chip">{{ item }}</span>{% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Detail rows -->
+            <div class="sc-detail-grid">
+                {% if consultant_profile.highest_qualification %}
+                <div class="sc-detail-item">
+                    <div class="sc-dk">Qualification</div>
+                    <div class="sc-dv">{{ consultant_profile.highest_qualification }}</div>
+                </div>
+                {% endif %}
+                {% if consultant_profile.delivery_methods %}
+                <div class="sc-detail-item">
+                    <div class="sc-dk">Delivers via</div>
+                    <div class="sc-dv">{{ consultant_profile.delivery_methods }}</div>
+                </div>
+                {% endif %}
+                {% if consultant_profile.target_audience %}
+                <div class="sc-detail-item">
+                    <div class="sc-dk">Serves</div>
+                    <div class="sc-dv">{{ consultant_profile.target_audience }}</div>
+                </div>
+                {% endif %}
+                {% if consultant_profile.linkedin_url %}
+                <div class="sc-detail-item">
+                    <div class="sc-dk">LinkedIn</div>
+                    <div class="sc-dv"><a href="{{ consultant_profile.linkedin_url }}" target="_blank"
+                            style="color:#4f46e5;">Profile ↗</a></div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Actions -->
+            <div class="sc-actions">
+                <a href="/consultant/my-summary" class="sc-btn-print" target="_blank">🖸 Print / PDF</a>
+            </div>
+        </div>
+        <div class="gen-status-msg" id="genStatus"></div>
+    </div>
+</div>
+
+<!-- ── RIGHT: Edit Form ─────────────────────────────────── -->
+<div class="profile-right">
     <div class="profile-header">
-        <h1>My Professional Profile</h1>
-        <p class="profile-subtitle">Manage your professional information and credentials</p>
+        <div>
+            <h1>Edit Profile</h1>
+            <p class="profile-subtitle">Keep your information up to date</p>
+        </div>
+        <a href="/settings" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; font-size: 0.875rem; font-weight: 600; text-decoration: none; padding: 0.5rem 1rem; border: 1.5px solid #d1d5db; border-radius: 8px; color: #374151; background: #fff; transition: background 0.2s;">
+            <i data-lucide="settings" style="width: 16px; height: 16px;"></i>
+            Account & Privacy Settings
+        </a>
     </div>
 
     <form id="profileForm" class="profile-form">
+
         <div class="profile-sections">
             <!-- Personal Information -->
             <div class="profile-section">
@@ -34,7 +185,8 @@
                             </option>
                             <option value="Female" {% if consultant_profile.gender=='Female' %}selected{% endif %}>
                                 Female</option>
-                            <option value="Other" {% if consultant_profile.gender=='Other' %}selected{% endif %}>Other
+                            <option value="Other" {% if consultant_profile.gender=='Other' %}selected{% endif %}>
+                                Other
                             </option>
                             <option value="Prefer not to say" {% if consultant_profile.gender=='Prefer not to say'
                                 %}selected{% endif %}>Prefer not to say</option>
@@ -76,6 +228,36 @@
                             placeholder="Enter your contact details (Address, Phone, Email, etc.)">{{ consultant_profile.contact_details or '' }}</textarea>
                         <span class="field-hint">This will be visible to your clients</span>
                     </div>
+                    <div class="form-group">
+                        <label for="phoneNumber">Mobile Number</label>
+                        <div style="display: flex; gap: 8px; width: 100%;">
+                            <div style="position: relative; flex-grow: 1;">
+                                <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6b7280; font-size: 0.875rem;">+91</span>
+                                <input type="tel" id="phoneNumber" name="phone_number" value="{{ user_phone or '' }}"
+                                    style="padding-left: 45px; width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding-top: 10px; padding-bottom: 10px; font-size: 0.875rem;"
+                                    placeholder="9876543210" pattern="[0-9]{10}" oninput="checkPhoneChanged()">
+                            </div>
+                            <button type="button" id="sendOtpBtn" onclick="sendProfileOtp()"
+                                style="display: none; padding: 0 16px; border: 1px solid #d1d5db; background: #fff; color: #374151; font-size: 0.875rem; font-weight: 600; border-radius: 8px; cursor: pointer; white-space: nowrap;">
+                                Send OTP
+                            </button>
+                        </div>
+
+                        <!-- Inline OTP verification container -->
+                        <div id="otpContainer" style="display: none; margin-top: 12px; padding: 16px; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; width: 100%;">
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <label for="otpCode" style="font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase;">Enter Verification Code</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="text" id="otpCode" placeholder="123456" maxlength="6"
+                                        style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem; text-align: center; font-weight: bold;">
+                                    <button type="button" onclick="verifyProfileOtp()"
+                                        style="padding: 8px 16px; background: #6d28d9; color: #fff; border: none; font-size: 0.875rem; font-weight: 600; border-radius: 8px; cursor: pointer; white-space: nowrap;">
+                                        Verify Code
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -115,53 +297,322 @@
 
         <div class="form-actions">
             <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+            <a href="/consultant/my-summary" class="btn btn-outline">View Summary</a>
             <button type="submit" class="btn btn-primary" id="saveBtn">
                 <i data-lucide="save" style="width: 18px; height: 18px;"></i>
                 Save Changes
             </button>
         </div>
     </form>
-</div>
+</div><!-- /profile-right -->
+</div><!-- /profile-outer -->
 
 <style>
-    .profile-container {
-        max-width: 1000px;
+    /* ── Two-column layout ──────────────────────────────────────── */
+    .profile-outer {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        gap: 1.5rem;
+        align-items: start;
+        max-width: 1200px;
         margin: 0 auto;
-        padding: 2rem;
+        padding: 0 .5rem 2rem;
     }
 
+    .profile-left {
+        position: sticky;
+        top: 80px;
+    }
+
+    .profile-right {
+        min-width: 0;
+    }
+
+    /* ── Summary Card ───────────────────────────────────────────── */
+    .summary-card {
+        background: #fff;
+        border-radius: 14px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, .08);
+        overflow: hidden;
+        font-size: .875rem;
+    }
+
+    .sc-header {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        color: #fff;
+    }
+
+    .sc-photo-wrap {
+        position: relative;
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        overflow: hidden;
+        cursor: pointer;
+        flex-shrink: 0;
+        border: 2.5px solid rgba(255, 255, 255, .5);
+        background: rgba(255, 255, 255, .15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sc-photo-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .sc-avatar-initials {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #fff;
+    }
+
+    .sc-photo-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, .45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: .85rem;
+        opacity: 0;
+        transition: opacity .2s;
+    }
+
+    .sc-photo-wrap:hover .sc-photo-overlay {
+        opacity: 1;
+    }
+
+    .sc-name {
+        font-size: .95rem;
+        font-weight: 800;
+    }
+
+    .sc-spec {
+        font-size: .75rem;
+        opacity: .85;
+        margin: 2px 0 6px;
+    }
+
+    .sc-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .sc-badge {
+        background: rgba(255, 255, 255, .15);
+        border: 1px solid rgba(255, 255, 255, .25);
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: .65rem;
+        font-weight: 700;
+    }
+
+    .sc-cv-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: .5rem 1rem;
+        font-size: .72rem;
+        border-bottom: 1px solid #f0f0f0;
+        background: #f9fafb;
+        font-weight: 600;
+        color: #059669;
+    }
+
+    .sc-cv-row a {
+        color: #4f46e5;
+        text-decoration: underline;
+    }
+
+    .sc-section {
+        padding: .7rem 1rem;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .sc-section:last-of-type {
+        border-bottom: none;
+    }
+
+    .sc-label {
+        font-size: .58rem;
+        font-weight: 800;
+        letter-spacing: .07em;
+        text-transform: uppercase;
+        color: #9ca3af;
+        margin-bottom: 5px;
+    }
+
+    .sc-bio {
+        font-size: .8rem;
+        color: #1f2937;
+        line-height: 1.65;
+        background: #f5f3ff;
+        border-left: 3px solid #7c3aed;
+        border-radius: 0 6px 6px 0;
+        padding: .55rem .75rem;
+        min-height: 44px;
+    }
+
+    .sc-bio-ph {
+        color: #9ca3af;
+        font-style: italic;
+        font-size: .75rem;
+    }
+
+    .sc-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .sc-chip {
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        border-radius: 999px;
+        padding: 2px 7px;
+        font-size: .7rem;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .sc-chip.indigo {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+        color: #4338ca;
+    }
+
+    .sc-chip.teal {
+        background: #f0fdfa;
+        border-color: #99f6e4;
+        color: #0f766e;
+    }
+
+    .sc-detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .4rem .6rem;
+        padding: .7rem 1rem;
+        border-top: 1px solid #f3f4f6;
+    }
+
+    .sc-dk {
+        font-size: .62rem;
+        font-weight: 700;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .sc-dv {
+        font-size: .75rem;
+        font-weight: 500;
+        color: #1f2937;
+    }
+
+    .sc-actions {
+        display: flex;
+        gap: .5rem;
+        padding: .7rem 1rem;
+        border-top: 1px solid #e5e7eb;
+        background: #f9fafb;
+        flex-wrap: wrap;
+    }
+
+    .sc-btn-gen {
+        flex: 1;
+        padding: .45rem .75rem;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: #fff;
+        border: none;
+        border-radius: 7px;
+        font-size: .75rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity .2s;
+    }
+
+    .sc-btn-gen:hover {
+        opacity: .88;
+    }
+
+    .sc-btn-gen:disabled {
+        opacity: .55;
+        cursor: not-allowed;
+    }
+
+    .sc-btn-print {
+        padding: .45rem .75rem;
+        background: #fff;
+        border: 1.5px solid #d1d5db;
+        border-radius: 7px;
+        font-size: .75rem;
+        font-weight: 600;
+        color: #374151;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: background .2s;
+    }
+
+    .sc-btn-print:hover {
+        background: #f3f4f6;
+    }
+
+    .sc-status-msg,
+    .gen-status-msg {
+        font-size: .72rem;
+        padding: .2rem 1rem;
+        font-weight: 600;
+        color: #6b7280;
+    }
+
+    /* ── Edit form (right column) ─────────────────────────────── */
     .profile-header {
-        margin-bottom: 2rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
     }
 
     .profile-header h1 {
-        font-size: 2rem;
+        font-size: 1.4rem;
         font-weight: 700;
         color: #1a1a2e;
-        margin-bottom: 0.5rem;
+        margin-bottom: .2rem;
     }
 
     .profile-subtitle {
         color: #6b7280;
-        font-size: 1rem;
+        font-size: .875rem;
     }
 
     .profile-form {
-        background: white;
+        background: #fff;
         border-radius: 12px;
-        padding: 2rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
     }
 
     .profile-sections {
         display: flex;
         flex-direction: column;
-        gap: 2.5rem;
+        gap: 1.75rem;
     }
 
     .profile-section {
         border-bottom: 1px solid #e5e7eb;
-        padding-bottom: 2rem;
+        padding-bottom: 1.75rem;
     }
 
     .profile-section:last-of-type {
@@ -172,29 +623,29 @@
     .section-title {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        font-size: 1.25rem;
+        gap: .6rem;
+        font-size: 1rem;
         font-weight: 600;
         color: #1a1a2e;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.1rem;
     }
 
     .section-icon {
-        width: 22px;
-        height: 22px;
+        width: 18px;
+        height: 18px;
         color: #8b5cf6;
     }
 
     .form-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 1.5rem;
+        gap: 1rem;
     }
 
     .form-group {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
+        gap: .35rem;
     }
 
     .form-group.full-width {
@@ -204,17 +655,17 @@
     .form-group label {
         font-weight: 500;
         color: #374151;
-        font-size: 0.9rem;
+        font-size: .84rem;
     }
 
     .form-group input,
     .form-group select,
     .form-group textarea {
-        padding: 0.75rem;
+        padding: .6rem .8rem;
         border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        transition: all 0.2s;
+        border-radius: 7px;
+        font-size: .875rem;
+        transition: all .2s;
         font-family: inherit;
     }
 
@@ -223,34 +674,36 @@
     .form-group textarea:focus {
         outline: none;
         border-color: #8b5cf6;
-        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, .1);
     }
 
     .field-hint {
-        font-size: 0.8rem;
+        font-size: .72rem;
         color: #6b7280;
     }
 
     .form-actions {
         display: flex;
         justify-content: flex-end;
-        gap: 1rem;
-        margin-top: 2rem;
-        padding-top: 2rem;
+        gap: .75rem;
+        margin-top: 1.25rem;
+        padding-top: 1.25rem;
         border-top: 1px solid #e5e7eb;
+        flex-wrap: wrap;
     }
 
     .btn {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1.5rem;
+        gap: .4rem;
+        padding: .6rem 1.1rem;
         border: none;
         border-radius: 8px;
-        font-size: 0.95rem;
-        font-weight: 500;
+        font-size: .875rem;
+        font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all .2s;
+        text-decoration: none;
     }
 
     .btn-secondary {
@@ -263,42 +716,22 @@
     }
 
     .btn-primary {
-        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-        color: white;
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        color: #fff;
     }
 
     .btn-primary:hover {
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, .3);
     }
 
-    .btn-primary:active {
-        transform: translateY(0);
-    }
-
-    /* Responsive */
-    @media (max-width: 768px) {
-        .profile-container {
-            padding: 1rem;
-        }
-
-        .profile-form {
-            padding: 1.5rem;
-        }
-
-        .form-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    /* Success/Error Messages */
     .message {
-        padding: 1rem;
+        padding: .875rem;
         border-radius: 8px;
         margin-bottom: 1rem;
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: .75rem;
     }
 
     .message.success {
@@ -312,10 +745,285 @@
         border: 1px solid #fecaca;
         color: #991b1b;
     }
+
+    /* ── Responsive ──────────────────────────────────────────────── */
+    @media (max-width: 920px) {
+        .profile-outer {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-left {
+            position: static;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 
+
+<!-- Phone OTP state variables -->
 <script>
+    // Original phone (set on page load to detect changes)
+    const originalPhone = ("{{ user_phone or '' }}").replace(/[^0-9]/g, '').slice(-10);
+    let phoneVerified = false;
+    let otpTimer = null;
+    let otpCountdown = 60;
+
+    function checkPhoneChanged() {
+        const phoneInput = document.getElementById('phoneNumber');
+        const sendOtpBtn = document.getElementById('sendOtpBtn');
+        const otpContainer = document.getElementById('otpContainer');
+        const saveBtn = document.getElementById('saveBtn');
+
+        const currentVal = phoneInput.value.replace(/[^0-9]/g, '').slice(0, 10);
+
+        if (currentVal.slice(-10) === originalPhone) {
+            sendOtpBtn.style.display = 'none';
+            otpContainer.style.display = 'none';
+            saveBtn.disabled = false;
+            phoneVerified = false;
+        } else {
+            if (!phoneVerified && currentVal !== '') {
+                sendOtpBtn.style.display = 'block';
+                saveBtn.disabled = true;
+            } else {
+                sendOtpBtn.style.display = 'none';
+                saveBtn.disabled = false;
+            }
+        }
+    }
+
+    async function sendProfileOtp() {
+        const phoneInput = document.getElementById('phoneNumber');
+        const sendOtpBtn = document.getElementById('sendOtpBtn');
+        const otpContainer = document.getElementById('otpContainer');
+
+        const phone = phoneInput.value.trim();
+        if (phone.length !== 10) {
+            alert('Please enter a valid 10-digit mobile number.');
+            return;
+        }
+
+        sendOtpBtn.disabled = true;
+        sendOtpBtn.textContent = 'Sending...';
+
+        try {
+            const res = await fetch('/api/auth/phone-otp/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: phone })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                alert('Verification OTP sent successfully to +91 ' + phone);
+                otpContainer.style.display = 'block';
+
+                // Countdown timer
+                otpCountdown = 60;
+                if (otpTimer) clearInterval(otpTimer);
+                otpTimer = setInterval(() => {
+                    otpCountdown--;
+                    if (otpCountdown <= 0) {
+                        clearInterval(otpTimer);
+                        sendOtpBtn.textContent = 'Resend OTP';
+                        sendOtpBtn.disabled = false;
+                    } else {
+                        sendOtpBtn.textContent = `Resend (${otpCountdown}s)`;
+                    }
+                }, 1000);
+
+            } else {
+                alert(data.error || 'Failed to send OTP.');
+                sendOtpBtn.disabled = false;
+                sendOtpBtn.textContent = 'Send OTP';
+            }
+        } catch (e) {
+            alert('Network error sending OTP.');
+            sendOtpBtn.disabled = false;
+            sendOtpBtn.textContent = 'Send OTP';
+        }
+    }
+
+    async function verifyProfileOtp() {
+        const phoneInput = document.getElementById('phoneNumber');
+        const otpInput = document.getElementById('otpCode');
+        const otpContainer = document.getElementById('otpContainer');
+        const sendOtpBtn = document.getElementById('sendOtpBtn');
+        const saveBtn = document.getElementById('saveBtn');
+
+        const phone = phoneInput.value.trim();
+        const otp = otpInput.value.trim();
+
+        if (!otp || otp.length !== 6) {
+            alert('Please enter a valid 6-digit code.');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/auth/phone-otp/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: phone, otp: otp })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                alert('Phone number verified successfully!');
+                phoneVerified = true;
+                otpContainer.style.display = 'none';
+                sendOtpBtn.style.display = 'none';
+                saveBtn.disabled = false;
+
+                phoneInput.style.borderColor = '#10b981';
+                phoneInput.style.boxShadow = '0 0 0 2px #d1fae5';
+            } else {
+                alert(data.error || 'Incorrect OTP code.');
+            }
+        } catch (e) {
+            alert('Network error verifying OTP.');
+        }
+    }
+
+    // Expose to window for inline onclick handlers
+    window.checkPhoneChanged = checkPhoneChanged;
+    window.sendProfileOtp = sendProfileOtp;
+    window.verifyProfileOtp = verifyProfileOtp;
+</script>
+
+<script>
+    // Generate AI Summary
+    async function generateSummary() {
+        const btn = document.getElementById('genBtn');
+        const status = document.getElementById('genStatus');
+        const bioBox = document.getElementById('scBio');
+        btn.disabled = true;
+        btn.textContent = '⏳ Generating…';
+        status.textContent = 'Reading your CV and profile…';
+        try {
+            const res = await fetch('/api/consultant/generate-summary', { method: 'POST' });
+            const data = await res.json();
+            if (data.success && data.bio) {
+                bioBox.textContent = data.bio;
+                status.textContent = '✓ AI summary generated from your CV + profile.';
+                status.style.color = '#059669';
+            } else {
+                status.textContent = 'Could not generate: ' + (data.error || 'unknown error');
+                status.style.color = '#ef4444';
+            }
+        } catch (e) {
+            status.textContent = 'Network error — please try again.';
+            status.style.color = '#ef4444';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '✨ Generate AI Summary';
+        }
+    }
+
+    // Photo upload
+    async function uploadPhoto(input) {
+        const file = input.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            document.getElementById('photoStatus').textContent = 'File too large — max 5 MB.';
+            document.getElementById('photoStatus').style.color = '#ef4444';
+            return;
+        }
+        const statusEl = document.getElementById('photoStatus');
+        statusEl.textContent = 'Uploading…';
+        statusEl.style.color = '#6b7280';
+
+        const fd = new FormData();
+        fd.append('photo', file);
+        try {
+            const res = await fetch('/api/consultant/upload-photo', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                const preview = document.getElementById('photoPreview');
+                const placeholder = document.getElementById('photoPlaceholder');
+                // Use proxy URL (GCS bucket is private — raw URLs return 403)
+                preview.src = '/api/profile-photo/{{ user_id }}?t=' + Date.now();
+                preview.style.display = 'block';
+                if (placeholder) placeholder.style.display = 'none';
+                statusEl.textContent = 'Photo updated!';
+                statusEl.style.color = '#059669';
+            } else {
+                statusEl.textContent = data.error || 'Upload failed.';
+                statusEl.style.color = '#ef4444';
+            }
+        } catch {
+            statusEl.textContent = 'Upload failed — please try again.';
+            statusEl.style.color = '#ef4444';
+        }
+    }
+
+    // ── CV delete ────────────────────────────────────────────────────────
+    async function deleteCV() {
+        if (!confirm('Delete your CV? You can upload a new one immediately after.')) return;
+        const btn = document.getElementById('cvDeleteBtn');
+        if (btn) btn.disabled = true;
+        try {
+            const res = await fetch('/api/consultant/delete-cv', { method: 'DELETE' });
+            const data = await res.json();
+            if (data.success) {
+                // Change the view link to warning text
+                const viewLink = document.getElementById('cvViewLink');
+                if (viewLink) { viewLink.outerHTML = '<span id="cvViewLink" style="color:#f59e0b;">⚠ No CV uploaded yet</span>'; }
+                if (btn) btn.remove();
+                // Show upload area
+                document.getElementById('cvUploadArea').style.display = '';
+            } else {
+                alert('Could not delete CV: ' + (data.error || 'Unknown error'));
+                if (btn) btn.disabled = false;
+            }
+        } catch {
+            alert('Network error — please try again.');
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    // ── CV upload (AJAX) ──────────────────────────────────────────────────
+    async function uploadCV(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById('cvUploadStatus');
+        const nameEl = document.getElementById('cvFileName');
+        nameEl.textContent = file.name;
+        statusEl.textContent = 'Uploading…';
+        statusEl.style.color = '#6b7280';
+        const fd = new FormData();
+        fd.append('cv', file);
+        try {
+            const res = await fetch('/api/consultant/upload-cv', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                statusEl.textContent = '✓ CV uploaded!';
+                statusEl.style.color = '#059669';
+                // Update the row link
+                const viewLink = document.getElementById('cvViewLink');
+                if (viewLink) {
+                    viewLink.outerHTML = `<a href="${data.cv_url}" target="_blank" id="cvViewLink">CV uploaded — View</a>
+                        <button onclick="deleteCV()" id="cvDeleteBtn" title="Delete CV"
+                            style="margin-left:auto;background:none;border:none;cursor:pointer;color:#ef4444;font-size:.7rem;font-weight:700;padding:0 2px;">✕ Delete</button>`;
+                }
+                // Hide upload area after success
+                setTimeout(() => { document.getElementById('cvUploadArea').style.display = 'none'; }, 1200);
+            } else {
+                statusEl.textContent = '✗ ' + (data.error || 'Upload failed');
+                statusEl.style.color = '#ef4444';
+            }
+        } catch {
+            statusEl.textContent = '✗ Network error — please try again.';
+            statusEl.style.color = '#ef4444';
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+
         lucide.createIcons();
 
         const form = document.getElementById('profileForm');
@@ -339,6 +1047,22 @@
                 data[key] = value;
             });
 
+            // Add phone number separately (it's tracked independently)
+            const phoneInput = document.getElementById('phoneNumber');
+            if (phoneInput) {
+                data['phone_number'] = phoneInput.value.trim();
+            }
+
+            // Validate phone verified if changed
+            const currentPhoneVal = phoneInput ? phoneInput.value.replace(/[^0-9]/g, '').slice(0, 10) : '';
+            if (currentPhoneVal !== originalPhone && !phoneVerified && currentPhoneVal !== '') {
+                showMessage('Please verify your new mobile number first.', 'error');
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i data-lucide="save" style="width: 18px; height: 18px;"></i> Save Changes';
+                lucide.createIcons();
+                return;
+            }
+
             try {
                 const response = await fetch('/consultant/profile/save', {
                     method: 'POST',
@@ -352,9 +1076,13 @@
 
                 if (result.success) {
                     showMessage('Profile updated successfully!', 'success');
-                    // Optionally reload after a delay
+                    // Redirect or reload
                     setTimeout(() => {
-                        window.location.reload();
+                        if (result.redirect_url) {
+                            window.location.href = result.redirect_url;
+                        } else {
+                            window.location.reload();
+                        }
                     }, 1500);
                 } else {
                     showMessage(result.error || 'Failed to update profile', 'error');
@@ -369,11 +1097,9 @@
             }
         });
 
-        // Cancel button
+        // Cancel button — go back to dashboard
         cancelBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to discard your changes?')) {
-                window.location.reload();
-            }
+            window.location.href = '/consultant';
         });
 
         // Show message

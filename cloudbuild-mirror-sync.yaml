@@ -1,0 +1,65 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Cloud Build — Mirror DB Sync (copies production data → mirror DB)
+# Run this ONCE to set up, or anytime you want a fresh copy of prod data.
+# Usage: gcloud builds submit --config cloudbuild-mirror-sync.yaml --project abiding-idea-485817-k2 --no-source
+# ─────────────────────────────────────────────────────────────────────────────
+steps:
+  # Step 1: Export production DB to GCS with --clean flag (drops objects before recreate)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        EXPORT_URI="gs://abiding-idea-485817-k2-mirror-sync/prod-snapshot.sql"
+        echo "Exporting prod DB to $$EXPORT_URI ..."
+        gcloud sql export sql solacesquad-login-data1 "$$EXPORT_URI" \
+          --database=solacesquad_prod \
+          --project=$PROJECT_ID \
+          --offload
+        echo "$$EXPORT_URI" > /workspace/export_uri.txt
+        echo "Export complete."
+
+  # Step 2: Ensure mirror DB exists
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        gcloud sql databases create solacesquad_mirror \
+          --instance=solacesquad-login-data1 \
+          --project=$PROJECT_ID \
+          2>/dev/null || echo "DB already exists, continuing..."
+        echo "Mirror DB ready."
+
+  # Step 3: Install Cloud SQL Proxy + psql, then drop all tables before import
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        apt-get install -y postgresql-client wget 2>/dev/null
+        wget -q https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.2/cloud-sql-proxy.linux.amd64 -O /usr/local/bin/cloud-sql-proxy
+        chmod +x /usr/local/bin/cloud-sql-proxy
+        /usr/local/bin/cloud-sql-proxy --port=5433 abiding-idea-485817-k2:us-central1:solacesquad-login-data1 &
+        sleep 5
+        echo "Dropping all tables in mirror DB..."
+        PGPASSWORD="SoulSquad2024x" psql -h 127.0.0.1 -p 5433 -U Admin -d solacesquad_mirror -c \
+          "DO \$\$ DECLARE r RECORD; BEGIN FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE'; END LOOP; END \$\$;"
+        echo "All tables dropped."
+
+  # Step 4: Import prod snapshot into now-empty mirror DB
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        EXPORT_URI=$$(cat /workspace/export_uri.txt)
+        echo "Importing $$EXPORT_URI into solacesquad_mirror ..."
+        gcloud sql import sql solacesquad-login-data1 "$$EXPORT_URI" \
+          --database=solacesquad_mirror \
+          --project=$PROJECT_ID \
+          --quiet
+        echo "Sync complete! Mirror DB is now a fresh copy of production."
+
+logsBucket: 'gs://abiding-idea-485817-k2-build-logs'
+timeout: 1800s

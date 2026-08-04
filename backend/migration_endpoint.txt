@@ -1,0 +1,20 @@
+
+# Database migration endpoint for consultation_fee
+@app.get("/api/admin/migrate-consultation-fee")
+async def migrate_consultation_fee(db: Session = Depends(get_db)):
+    """Add consultation_fee column to consultant_profiles table"""
+    try:
+        from sqlalchemy import text
+        # Add consultation_fee column if missing
+        try:
+            db.execute(text("ALTER TABLE consultant_profiles ADD COLUMN consultation_fee FLOAT DEFAULT 0.0"))
+            db.commit()
+            return {"success": True, "message": "consultation_fee column added successfully"}
+        except Exception as e:
+            db.rollback()
+            # Column might already exist
+            if "already exists" in str(e).lower() or "duplicate column" in str(e).lower():
+                return {"success": True, "message": "consultation_fee column already exists"}
+            return {"success": False, "message": f"Error: {str(e)}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

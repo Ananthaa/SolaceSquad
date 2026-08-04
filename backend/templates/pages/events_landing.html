@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+
+{% block title %}Events & Workshops | SolaceSquad Wellness{% endblock %}
+{% block meta_desc %}Browse and join premium wellness events and transformative workshops hosted by SolaceSquad's certified wellness experts. Real-time virtual sessions, physical venues, and hybrid learning.{% endblock %}
+
+{% block content %}
+{% include "components/header.html" %}
+
+<!-- Main Section -->
+<main class="min-h-screen bg-[#faf9f6] text-gray-800 pt-20 pb-16 font-sans">
+    
+    <!-- Hero Header -->
+    <div class="max-w-6xl mx-auto px-6 text-center mt-12 mb-16">
+        <p class="text-gray-600 max-w-2xl mx-auto mt-4 text-base md:text-lg leading-relaxed">
+            Nurture your mind, body, and professional growth through our hand-crafted experiences led by certified therapists and wellbeing practitioners.
+        </p>
+    </div>
+
+    <!-- Category Tabs Navigation -->
+    <div class="max-w-md mx-auto px-6 mb-12">
+        <div class="flex bg-gray-100 p-1.5 rounded-full border border-gray-200">
+            <button onclick="switchCategory('events')" id="btn-events" class="flex-1 py-2.5 text-sm font-semibold rounded-full transition-all duration-300 shadow-sm bg-white text-primary-800">
+                ✨ Webinar
+            </button>
+            <button onclick="switchCategory('workshops')" id="btn-workshops" class="flex-1 py-2.5 text-sm font-semibold rounded-full transition-all duration-300 text-gray-500 hover:text-gray-950">
+                🌱 Workshops
+            </button>
+        </div>
+    </div>
+
+    <!-- Events Category Container -->
+    <div id="section-events" class="category-section max-w-6xl mx-auto px-4 relative">
+        {% if events %}
+            <!-- Left/Right Desktop Navigation Buttons -->
+            <button onclick="scrollCarousel('events-carousel', -1)" class="carousel-nav-btn left-btn hidden md:flex" aria-label="Previous">
+                <i data-lucide="chevron-left" class="w-6 h-6"></i>
+            </button>
+            
+            <div id="events-carousel" class="carousel-container" onscroll="updateActiveCard('events-carousel')">
+                {% for item in events %}
+                    <div class="event-card group bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all duration-300" onclick="location.href='/events/{{ item.slug }}'">
+                        <!-- Image & Mode Tag -->
+                        <div class="relative h-56 overflow-hidden bg-gray-100">
+                            {% if item.featured_image %}
+                                <img src="{% if 'storage.googleapis.com' in item.featured_image %}/api/events/media?url={{ item.featured_image | urlencode }}{% else %}{{ item.featured_image }}{% endif %}" alt="{{ item.title }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                            {% else %}
+                                <div class="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                                    <i data-lucide="image" class="w-12 h-12"></i>
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Badges -->
+                            <div class="absolute top-4 left-4 flex gap-2">
+                                <span class="text-[11px] font-bold tracking-wider uppercase bg-white/95 text-gray-900 px-3 py-1 rounded-full shadow-sm">
+                                    {% if item.type == 'event' %}Webinar{% else %}{{ item.type | capitalize }}{% endif %}
+                                </span>
+                                <span class="text-[11px] font-bold tracking-wider uppercase {% if item.event_mode == 'online' %}bg-[#2d6a5a] text-white{% elif item.event_mode == 'offline' %}bg-amber-600 text-white{% else %}bg-purple-700 text-white{% endif %} px-3 py-1 rounded-full shadow-sm">
+                                    {{ item.event_mode | capitalize }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Card Body -->
+                        <div class="p-6 flex flex-col justify-between h-64">
+                            <div>
+                                <div class="flex items-center gap-2 text-xs font-semibold text-primary-700 uppercase tracking-wider mb-2">
+                                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                                    <span>{{ item.event_date.strftime('%b %d, %Y') }}</span>
+                                    {% if item.start_time %}
+                                        <span class="text-gray-300">•</span>
+                                        <span>{{ item.start_time }}</span>
+                                    {% endif %}
+                                </div>
+                                <h3 class="text-xl font-bold text-gray-900 group-hover:text-primary-800 line-clamp-1 mb-2">{{ item.title }}</h3>
+                                <p class="text-sm text-gray-500 line-clamp-3 leading-relaxed">{{ item.short_summary or 'No description available.' }}</p>
+                            </div>
+                            
+                            <div class="border-t border-gray-100 pt-4 flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-xs uppercase">
+                                        {{ item.author_name[:2] }}
+                                    </div>
+                                    <span class="text-xs font-semibold text-gray-600">
+                                        {{ item.author_name }}
+                                        {% if item.expert_name %}
+                                            <span class="text-gray-300 mx-1.5">|</span>
+                                            <span class="text-gray-500 font-medium">Expert: {{ item.expert_name }}</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <span class="text-xs font-bold text-primary-700 flex items-center gap-1 group-hover:gap-1.5 transition-all">
+                                    View Details <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <button onclick="scrollCarousel('events-carousel', 1)" class="carousel-nav-btn right-btn hidden md:flex" aria-label="Next">
+                <i data-lucide="chevron-right" class="w-6 h-6"></i>
+            </button>
+        {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-20 bg-white border border-gray-100 rounded-3xl p-8 max-w-lg mx-auto shadow-sm">
+                <div class="w-16 h-16 bg-[#2d6a5a]/10 text-[#2d6a5a] rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i data-lucide="calendar" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900">No Upcoming Events</h3>
+                <p class="text-gray-500 text-sm mt-2 max-w-sm mx-auto leading-relaxed">
+                    We are currently designing fresh wellness events and gatherings. Please check back soon or sign up for workshops!
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Workshops Category Container -->
+    <div id="section-workshops" class="category-section max-w-6xl mx-auto px-4 relative hidden">
+        {% if workshops %}
+            <!-- Left/Right Desktop Navigation Buttons -->
+            <button onclick="scrollCarousel('workshops-carousel', -1)" class="carousel-nav-btn left-btn hidden md:flex" aria-label="Previous">
+                <i data-lucide="chevron-left" class="w-6 h-6"></i>
+            </button>
+            
+            <div id="workshops-carousel" class="carousel-container" onscroll="updateActiveCard('workshops-carousel')">
+                {% for item in workshops %}
+                    <div class="event-card group bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all duration-300" onclick="location.href='/events/{{ item.slug }}'">
+                        <!-- Image & Mode Tag -->
+                        <div class="relative h-56 overflow-hidden bg-gray-100">
+                            {% if item.featured_image %}
+                                <img src="{% if 'storage.googleapis.com' in item.featured_image %}/api/events/media?url={{ item.featured_image | urlencode }}{% else %}{{ item.featured_image }}{% endif %}" alt="{{ item.title }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                            {% else %}
+                                <div class="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                                    <i data-lucide="image" class="w-12 h-12"></i>
+                                </div>
+                            {% endif %}
+                            
+                            <!-- Badges -->
+                            <div class="absolute top-4 left-4 flex gap-2">
+                                <span class="text-[11px] font-bold tracking-wider uppercase bg-white/95 text-gray-900 px-3 py-1 rounded-full shadow-sm">
+                                    {% if item.type == 'event' %}Webinar{% else %}{{ item.type | capitalize }}{% endif %}
+                                </span>
+                                <span class="text-[11px] font-bold tracking-wider uppercase {% if item.event_mode == 'online' %}bg-[#2d6a5a] text-white{% elif item.event_mode == 'offline' %}bg-amber-600 text-white{% else %}bg-purple-700 text-white{% endif %} px-3 py-1 rounded-full shadow-sm">
+                                    {{ item.event_mode | capitalize }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Card Body -->
+                        <div class="p-6 flex flex-col justify-between h-64">
+                            <div>
+                                <div class="flex items-center gap-2 text-xs font-semibold text-primary-700 uppercase tracking-wider mb-2">
+                                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                                    <span>{{ item.event_date.strftime('%b %d, %Y') }}</span>
+                                    {% if item.start_time %}
+                                        <span class="text-gray-300">•</span>
+                                        <span>{{ item.start_time }}</span>
+                                    {% endif %}
+                                </div>
+                                <h3 class="text-xl font-bold text-gray-900 group-hover:text-primary-800 line-clamp-1 mb-2">{{ item.title }}</h3>
+                                <p class="text-sm text-gray-500 line-clamp-3 leading-relaxed">{{ item.short_summary or 'No description available.' }}</p>
+                            </div>
+                            
+                            <div class="border-t border-gray-100 pt-4 flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-xs uppercase">
+                                        {{ item.author_name[:2] }}
+                                    </div>
+                                    <span class="text-xs font-semibold text-gray-600">
+                                        {{ item.author_name }}
+                                        {% if item.expert_name %}
+                                            <span class="text-gray-300 mx-1.5">|</span>
+                                            <span class="text-gray-500 font-medium">Expert: {{ item.expert_name }}</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <span class="text-xs font-bold text-primary-700 flex items-center gap-1 group-hover:gap-1.5 transition-all">
+                                    View Details <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <button onclick="scrollCarousel('workshops-carousel', 1)" class="carousel-nav-btn right-btn hidden md:flex" aria-label="Next">
+                <i data-lucide="chevron-right" class="w-6 h-6"></i>
+            </button>
+        {% else %}
+            <!-- Empty State -->
+            <div class="text-center py-20 bg-white border border-gray-100 rounded-3xl p-8 max-w-lg mx-auto shadow-sm">
+                <div class="w-16 h-16 bg-[#2d6a5a]/10 text-[#2d6a5a] rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i data-lucide="sparkles" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900">No Upcoming Workshops</h3>
+                <p class="text-gray-500 text-sm mt-2 max-w-sm mx-auto leading-relaxed">
+                    We are crafting deep-dive transformative workshops. Check back soon or register for our events!
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+</main>
+
+<style>
+    /* Carousel styling */
+    .carousel-container {
+        display: flex;
+        gap: 2rem;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scroll-behavior: smooth;
+        padding: 2.5rem 1rem;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE */
+    }
+    .carousel-container::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+    }
+    .event-card {
+        flex: 0 0 88%; /* Mobile default peek */
+        scroll-snap-align: center;
+        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+        opacity: 0.6;
+        transform: scale(0.93);
+    }
+    @media (min-width: 640px) {
+        .event-card {
+            flex: 0 0 380px;
+        }
+    }
+    .event-card.active {
+        opacity: 1;
+        transform: scale(1.02);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+    }
+
+    /* Carousel Nav Buttons */
+    .carousel-nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 9999px;
+        background-color: white;
+        border: 1px solid #e5e7eb;
+        color: #1f2937;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 10;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        transition: all 0.2s ease;
+    }
+    .carousel-nav-btn:hover {
+        background-color: #f9fafb;
+        color: #2d6a5a;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.08);
+    }
+    .left-btn { left: -1.5rem; }
+    .right-btn { right: -1.5rem; }
+
+    /* Root Accent Variable override to match SolaceSquad */
+    :root {
+        --primary-50: #f0fdf4;
+        --primary-100: #dcfce7;
+        --primary-200: #bbf7d0;
+        --primary-700: #15803d;
+        --primary-800: #166534;
+    }
+</style>
+
+<script>
+    function switchCategory(cat) {
+        const eventsSec = document.getElementById('section-events');
+        const workshopsSec = document.getElementById('section-workshops');
+        
+        const btnEvents = document.getElementById('btn-events');
+        const btnWorkshops = document.getElementById('btn-workshops');
+
+        if (cat === 'events') {
+            eventsSec.classList.remove('hidden');
+            workshopsSec.classList.add('hidden');
+            
+            btnEvents.classList.add('shadow-sm', 'bg-white', 'text-primary-800');
+            btnEvents.classList.remove('text-gray-500', 'hover:text-gray-950');
+            
+            btnWorkshops.classList.remove('shadow-sm', 'bg-white', 'text-primary-800');
+            btnWorkshops.classList.add('text-gray-500', 'hover:text-gray-950');
+            
+            setTimeout(() => { updateActiveCard('events-carousel'); }, 100);
+        } else {
+            workshopsSec.classList.remove('hidden');
+            eventsSec.classList.add('hidden');
+            
+            btnWorkshops.classList.add('shadow-sm', 'bg-white', 'text-primary-800');
+            btnWorkshops.classList.remove('text-gray-500', 'hover:text-gray-950');
+            
+            btnEvents.classList.remove('shadow-sm', 'bg-white', 'text-primary-800');
+            btnEvents.classList.add('text-gray-500', 'hover:text-gray-950');
+            
+            setTimeout(() => { updateActiveCard('workshops-carousel'); }, 100);
+        }
+    }
+
+    function scrollCarousel(carouselId, direction) {
+        const carousel = document.getElementById(carouselId);
+        if (!carousel) return;
+        
+        const cardWidth = carousel.querySelector('.event-card')?.offsetWidth || 380;
+        const gap = 32; // Gap specified in CSS is 2rem = 32px
+        
+        carousel.scrollBy({
+            left: direction * (cardWidth + gap),
+            behavior: 'smooth'
+        });
+    }
+
+    function updateActiveCard(carouselId) {
+        const carousel = document.getElementById(carouselId);
+        if (!carousel) return;
+
+        const cards = carousel.querySelectorAll('.event-card');
+        const carouselRect = carousel.getBoundingClientRect();
+        const carouselCenter = carouselRect.left + (carouselRect.width / 2);
+
+        let closestCard = null;
+        let minDistance = Infinity;
+
+        cards.forEach(card => {
+            const cardRect = card.getBoundingClientRect();
+            const cardCenter = cardRect.left + (cardRect.width / 2);
+            const distance = Math.abs(carouselCenter - cardCenter);
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestCard = card;
+            }
+        });
+
+        cards.forEach(card => {
+            if (card === closestCard) {
+                card.classList.add('active');
+            } else {
+                card.classList.remove('active');
+            }
+        });
+    }
+
+    // Initialize first category card active states on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            updateActiveCard('events-carousel');
+            updateActiveCard('workshops-carousel');
+        }, 300);
+    });
+</script>
+
+{% include "components/footer.html" %}
+{% endblock %}

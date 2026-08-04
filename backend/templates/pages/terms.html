@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Terms &amp; Conditions | SolaceSquad{% endblock %}
+{% block meta_desc %}Read SolaceSquad's Terms &amp; Conditions governing use of our wellness platform, consultant booking, content, and cancellation policies. Governed by Indian law.{% endblock %}
+{% block og_title %}Terms &amp; Conditions | SolaceSquad{% endblock %}
+{% block og_desc %}SolaceSquad Terms of Service — your rights, obligations and our policies for using India's trusted online wellness platform.{% endblock %}
+{% block tw_title %}Terms &amp; Conditions | SolaceSquad{% endblock %}
+{% block tw_desc %}SolaceSquad Terms &amp; Conditions — platform usage rules, booking policies, and legal framework for India's online wellness platform.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","name":"Terms & Conditions","url":"{{ request.base_url }}terms","description":"SolaceSquad Terms of Service governing platform use, booking, content, and cancellation.","breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"{{ request.base_url }}"},{"@type":"ListItem","position":2,"name":"Terms & Conditions","item":"{{ request.base_url }}terms"}]}}
+</script>
+{% endblock %}
+
+{% block content %}
+{% include "components/header.html" %}
+
+<style>
+    .ss-page-section {
+        padding-top: 9rem;
+        padding-bottom: 4rem;
+        background: #f8faf9;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    .ss-page-inner {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+        box-sizing: border-box;
+    }
+
+    .ss-page-eyebrow {
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #2d6a5a;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+    }
+
+    .ss-page-title {
+        text-align: center;
+        font-size: clamp(1.4rem, 5vw, 1.75rem);
+        font-weight: 800;
+        color: #2d6a5a;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.5rem;
+    }
+
+    .ss-page-divider {
+        width: 3rem;
+        height: 3px;
+        background: linear-gradient(90deg, #2d6a5a, #1e4d40);
+        border-radius: 2px;
+        margin: 0 auto 1.75rem;
+    }
+
+    .ss-legal-body {
+        font-size: 0.875rem;
+        color: #2d6a5a;
+        line-height: 1.85;
+    }
+
+    .ss-legal-section {
+        background: #fff;
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(45, 106, 90, .08);
+        border-left: 3px solid #2d6a5a;
+        box-sizing: border-box;
+    }
+
+    .ss-legal-section-title {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 0.9rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .ss-legal-sub {
+        color: #2d6a5a;
+        font-size: 0.85rem;
+        line-height: 1.75;
+        margin-bottom: 0.5rem;
+    }
+</style>
+
+<section class="ss-page-section">
+    <div class="ss-page-inner">
+        <p class="ss-page-eyebrow">Legal</p>
+        <h1 class="ss-page-title">TERMS &amp; CONDITIONS</h1>
+        <div class="ss-page-divider"></div>
+
+        <div class="ss-legal-body">
+            <div class="ss-legal-section">
+                <p class="ss-legal-sub">SolaceSquad&reg; Technologies, on behalf of itself and its affiliates/group
+                    companies under the brand "SolaceSquad&reg;", is the author and publisher of the internet resource <a
+                        href="https://www.solacesquad.com" style="color:#2d6a5a;">www.SolaceSquad.com</a> and on the
+                    world wide web as well as the software and applications provided by SolaceSquad&reg;, including but not
+                    limited to the mobile application(s), Mobile Website, the other associated/ancillary applications,
+                    products, websites, and SolaceSquad&reg; Platform.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">1. NATURE AND APPLICABILITY OF TERMS</p>
+                <p class="ss-legal-sub">1.1. Please carefully go through these Terms of Use ("Terms") and the Privacy
+                    Policy before you decide to access the Website or avail the services from the SolaceSquad&reg; Platform.
+                    These Terms and the Privacy Policy together constitute a legal agreement ("Agreement") between you
+                    and SolaceSquad&reg;.</p>
+                <p class="ss-legal-sub">1.2. The Agreement applies to you whether you are a Mental Health Care
+                    Professional or other health care service provider ("Practitioner"); a Consumer/Client searching for
+                    Practitioners ("End-User"); or otherwise a user of the Website.</p>
+                <p class="ss-legal-sub">1.6. By downloading or accessing the Website to use the SolaceSquad&reg; Platform,
+                    you irrevocably accept all the conditions stipulated in this Agreement.</p>
+                <p class="ss-legal-sub">1.7. We reserve the right to modify or terminate any portion of the Agreement
+                    for any reason and at any time.</p>
+                <p class="ss-legal-sub">1.10. The Agreement is governed by the provisions of Indian law, including the
+                    Indian Contract Act 1872 and the Information Technology Act 2000.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">2. CONDITIONS OF USE</p>
+                <p class="ss-legal-sub">2.1. You must be 18 years of age or older to register, use the SolaceSquad&reg;
+                    Platform, or visit or use the Website in any manner.</p>
+                <p class="ss-legal-sub">2.2. If you use the SolaceSquad&reg; Platform on behalf of someone else or an
+                    entity, you represent that you are authorised by such individual or entity to accept this privacy
+                    policy and consent to collection and disclosure of their information.</p>
+                <p class="ss-legal-sub">2.3. Corporate User: If you are registering an employee on behalf of a corporate
+                    organization, you represent and warrant that you have received express consent from such employee.
+                </p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">3. TERMS OF USE APPLICABLE TO ALL USERS (Non-Practitioners)</p>
+                <p class="ss-legal-sub">3.2. End-User Account And Data Privacy — SolaceSquad&reg; may collect information
+                    relating to the devices through which you access the Website and anonymous usage data to improve the
+                    quality of the Platform.</p>
+                <p class="ss-legal-sub">3.5. Booking A Consultation — SolaceSquad&reg; enables Users to connect with
+                    Practitioners through Book Now, phone/SMS/WhatsApp scheduling, and tele-consultation services (chat,
+                    audio, and video).</p>
+                <p class="ss-legal-sub">3.6. Rescheduling, Refund &amp; Cancellation Policy — A minimum of 24 hours'
+                    notice is required for rescheduling or cancellation. Cancellations within 24 hours or no-shows will
+                    be charged 100% of the session fee.</p>
+                <p class="ss-legal-sub">3.7. No Doctor-Patient Relationship — The SolaceSquad&reg; Platform is not for use
+                    in medical emergencies. If you think you have a medical or mental health emergency, please call 112
+                    or go to the nearest hospital.</p>
+                <p class="ss-legal-sub">3.8. Reviews And Feedback — You are solely responsible for any feedback,
+                    ratings, or reviews ("Critical Content") you post. SolaceSquad&reg;'s role is restricted to that of an
+                    'intermediary' under the Information Technology Act, 2000.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">4. TERMS OF USE — PRACTITIONERS</p>
+                <p class="ss-legal-sub">4.1. Listing Policy — SolaceSquad&reg; reserves the right to take down any
+                    Practitioner's profile with or without notice.</p>
+                <p class="ss-legal-sub">4.2. Profile Ownership — SolaceSquad&reg; reserves the right of ownership of all
+                    Practitioner profiles and photographs and the right to moderate changes or updates.</p>
+                <p class="ss-legal-sub">4.5. Practitioner Undertaking — The Practitioner is duly registered, licensed,
+                    and qualified to provide mental health care services as per applicable laws and shall maintain high
+                    standards of professionalism.</p>
+                <p class="ss-legal-sub">4.6. Usage In Promotional &amp; Marketing Materials — Practitioner shall allow
+                    SolaceSquad&reg; to include brief descriptions, case studies, testimonials, and use the Practitioner's
+                    name/logo in marketing materials.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">5. SOLACESQUAD&reg; FEED</p>
+                <p class="ss-legal-sub">5.1–5.3. SolaceSquad&reg; Feed is an online content platform where Practitioners can
+                    post health and wellness-related content including text, audio, video, and images. Content uploaded
+                    does not constitute medical advice.</p>
+                <p class="ss-legal-sub">5.4–5.5. Practitioners acknowledge they are the original authors of any Content
+                    uploaded and hereby assign to SolaceSquad&reg;, in perpetuity and worldwide, all intellectual property
+                    rights in such Content.</p>
+                <p class="ss-legal-sub">5.16. Content Ownership — Contents on the Website either belong to SolaceSquad&reg;
+                    or are User-generated. Users are authorised to view and access content solely for personal,
+                    non-commercial use.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">6. HEALTH RECORDS</p>
+                <p class="ss-legal-sub">6.1. SolaceSquad&reg; may provide End-Users with a 'Records' facility. Health
+                    Records are of two types: User-created and Practice-created.</p>
+                <p class="ss-legal-sub">6.2. Health Records are provided on an as-is basis. SolaceSquad&reg; is not liable
+                    for any interruption in access, late reminders, or unauthorized access due to loss of login
+                    credentials. If you wish to delete your Records, contact our service support team.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">8. RIGHTS AND OBLIGATIONS RELATING TO CONTENT</p>
+                <p class="ss-legal-sub">8.1. Users are not permitted to host, display, upload, modify, publish,
+                    transmit, or share any information that is unlawful, harmful, defamatory, obscene, infringing of
+                    third-party rights, or threatening to national security.</p>
+                <p class="ss-legal-sub">8.2. Users are also prohibited from: violating platform security, submitting
+                    false information, making unsolicited communications, using bots or scrapers, decompiling the
+                    platform, or deep-linking SolaceSquad&reg; content.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">9. TERMINATION</p>
+                <p class="ss-legal-sub">9.1. SolaceSquad&reg; reserves the right to suspend or terminate a User's access to
+                    the Website and Platform with or without notice in cases of breach of Terms, third-party rights
+                    violations, unverifiable information, fraudulent activity, or actions causing legal liability.</p>
+                <p class="ss-legal-sub">9.2. Once terminated, the User may not continue to use the Website under any
+                    account. The User shall ensure continuous backup of any Health Records on the Platform.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">10. LIMITATION OF LIABILITY</p>
+                <p class="ss-legal-sub">10.1. In no event shall SolaceSquad&reg; or any of its directors, officers,
+                    employees, or agents be liable for any direct, indirect, special, incidental, or consequential
+                    damages arising from the use of the Website.</p>
+                <p class="ss-legal-sub">10.2. In no event shall the total aggregate liability of SolaceSquad&reg; to a User
+                    exceed Rs. 1000/- (Rupees One Thousand Only).</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">12. APPLICABLE LAW AND DISPUTE SETTLEMENT</p>
+                <p class="ss-legal-sub">12.1. This Agreement is governed by the laws of India.</p>
+                <p class="ss-legal-sub">12.2. Any dispute shall be determined by arbitration in India before a sole
+                    arbitrator appointed by SolaceSquad&reg;, conducted under the Arbitration and Conciliation Act, 1996.
+                </p>
+                <p class="ss-legal-sub">12.4. The courts at Delhi shall have exclusive jurisdiction over any disputes
+                    arising out of this Agreement.</p>
+            </div>
+
+            <div class="ss-legal-section">
+                <p class="ss-legal-section-title">13. CONTACT INFORMATION — GRIEVANCE OFFICER</p>
+                <p class="ss-legal-sub">For any questions, SolaceSquad&reg; customer support can be reached at <a
+                        href="mailto:hello@SolaceSquad.co" style="color:#2d6a5a;">hello@SolaceSquad.co</a>.</p>
+                <p class="ss-legal-sub">Grievance Officer Email: <a href="mailto:sg@SolaceSquad.com"
+                        style="color:#2d6a5a;">sg@SolaceSquad.com</a></p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% include "components/cta_section.html" %}
+{% include "components/footer.html" %}
+{% endblock %}

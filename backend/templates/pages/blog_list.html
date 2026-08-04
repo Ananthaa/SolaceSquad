@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+{% block title %}Wellness Blog — Mental & Physical Health Tips | SolaceSquad{% endblock %}
+{% block meta_desc %}Explore expert wellness articles, mental health tips, physical fitness guides, and professional wellbeing insights from SolaceSquad's certified consultants. Read, learn, and grow.{% endblock %}
+{% block og_title %}Wellness Blog — Expert Insights | SolaceSquad{% endblock %}
+{% block og_desc %}Evidence-based wellness articles, practical mental health tips, and expert lifestyle advice from certified Indian consultants.{% endblock %}
+{% block tw_title %}Wellness Blog — SolaceSquad{% endblock %}
+{% block tw_desc %}Expert mental, physical & professional wellness tips from certified consultants. Real insights, practical advice — SolaceSquad.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Blog","name":"SolaceSquad Wellness Blog","description":"Evidence-based wellness articles covering mental health, physical fitness, and professional wellbeing from certified consultants.","url":"https://www.solacesquad.com/blog","publisher":{"@type":"Organization","name":"SolaceSquad","logo":{"@type":"ImageObject","url":"https://www.solacesquad.com/static/images/logo.png"},"url":"https://www.solacesquad.com"},"breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.solacesquad.com"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.solacesquad.com/blog"}]}}
+</script>
+{% endblock %}
+
+{% block content %}
+{% include "components/header.html" %}
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
+
+  :root {
+    --teal: #0d9488;
+    --teal-light: #ccfbf1;
+    --teal-dark: #0f766e;
+  }
+
+  body { font-family: 'Inter', sans-serif; }
+
+  /* Hero post */
+  .hero-post {
+    position: relative; border-radius: 24px; overflow: hidden;
+    height: 480px; margin-bottom: 48px;
+    cursor: pointer; box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+  .hero-post:hover { transform: translateY(-4px); box-shadow: 0 30px 80px rgba(0,0,0,0.2); }
+  .hero-post img { width: 100%; height: 100%; object-fit: cover; }
+  .hero-post-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 60%, transparent 100%);
+    display: flex; flex-direction: column; justify-content: flex-end; padding: 40px;
+  }
+  .hero-post-overlay h2 {
+    font-family: 'Playfair Display', serif; font-size: 2.2rem; font-weight: 700;
+    color: #fff; margin: 0 0 12px; line-height: 1.25;
+    max-width: 700px;
+  }
+  .hero-post-meta { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .hero-excerpt { color: rgba(255,255,255,0.8); font-size: 1rem; margin-bottom: 16px; max-width: 600px; line-height: 1.6; }
+
+  /* Category pills */
+  .cat-bar {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 40px;
+    overflow-x: auto; padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .cat-bar::-webkit-scrollbar { display: none; }
+  .cat-pill {
+    padding: 8px 20px; border-radius: 100px; font-size: 0.875rem; font-weight: 600;
+    cursor: pointer; border: 2px solid transparent; white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .cat-pill.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .cat-pill:not(.active) { background: #fff; border-color: #e2e8f0; color: #475569; }
+  .cat-pill:not(.active):hover { border-color: var(--teal); color: var(--teal); }
+
+  /* Blog grid */
+  .blog-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 28px;
+    margin-bottom: 48px;
+  }
+
+  /* Blog card */
+  .blog-card {
+    background: #fff; border-radius: 20px; overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+    display: flex; flex-direction: column;
+    text-decoration: none;
+  }
+  .blog-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(0,0,0,0.12); }
+  .blog-card-img {
+    width: 100%; height: 200px; object-fit: cover;
+    background: linear-gradient(135deg, #ccfbf1, #a7f3d0);
+    flex-shrink: 0;
+  }
+  .blog-card-img-placeholder {
+    width: 100%; height: 200px; flex-shrink: 0;
+    background: linear-gradient(135deg, #ccfbf1 0%, #a7f3d0 50%, #6ee7b7 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 3rem; color: var(--teal);
+  }
+  .blog-card-body { padding: 20px; flex: 1; display: flex; flex-direction: column; }
+  .blog-card-cat {
+    display: inline-flex; align-items: center;
+    padding: 3px 12px; border-radius: 100px;
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 10px;
+  }
+  .cat-Mental { background: #ede9fe; color: #6d28d9; }
+  .cat-Physical { background: #dcfce7; color: #15803d; }
+  .cat-Professional { background: #fef3c7; color: #92400e; }
+  .cat-General { background: #e0f2fe; color: #0369a1; }
+
+  .blog-card-title {
+    font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 700;
+    color: #1e293b; margin-bottom: 8px; line-height: 1.4;
+  }
+  .blog-card-excerpt { font-size: 0.875rem; color: #64748b; line-height: 1.6; flex: 1; margin-bottom: 16px; }
+  .blog-card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; border-top: 1px solid #f1f5f9; }
+  .blog-card-stats { display: flex; gap: 12px; font-size: 0.78rem; color: #94a3b8; }
+  .blog-read-more { font-size: 0.78rem; font-weight: 700; color: var(--teal); display: flex; align-items: center; gap: 4px; }
+
+  /* Category badge color on hero */
+  .cat-badge-hero {
+    display: inline-flex; align-items: center;
+    padding: 4px 14px; border-radius: 100px;
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 12px;
+  }
+  .cat-Mental.cat-badge-hero { background: rgba(237,233,254,0.9); color: #6d28d9; }
+  .cat-Physical.cat-badge-hero { background: rgba(220,252,231,0.9); color: #15803d; }
+  .cat-Professional.cat-badge-hero { background: rgba(254,243,199,0.9); color: #92400e; }
+  .cat-General.cat-badge-hero { background: rgba(224,242,254,0.9); color: #0369a1; }
+
+  /* Pagination */
+  .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
+  .page-btn { padding: 8px 16px; border: 2px solid #e2e8f0; border-radius: 8px; background: #fff; color: #475569; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; }
+  .page-btn.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .page-btn:hover:not(.active) { border-color: var(--teal); color: var(--teal); }
+
+  /* Empty + Skeleton */
+  .empty-state { text-align: center; padding: 80px 24px; color: #94a3b8; }
+  .empty-state .icon { font-size: 4rem; margin-bottom: 16px; }
+  .skel { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: skel-anim 1.5s infinite; border-radius: 8px; }
+  @keyframes skel-anim { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  /* Section header */
+  .section-eyebrow {
+    display: inline-flex; align-items: center; gap-6px;
+    background: var(--teal-light); color: var(--teal-dark);
+    padding: 6px 16px; border-radius: 100px;
+    font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 16px;
+  }
+
+  @media (max-width: 640px) {
+    .hero-post { height: 320px; }
+    .hero-post-overlay h2 { font-size: 1.5rem; }
+    .hero-post-overlay { padding: 24px; }
+    .hero-excerpt { display: none; }
+  }
+</style>
+
+<!-- Page hero banner -->
+<div style="background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%); padding: 100px 0 60px; margin-bottom: 0;">
+  <div style="max-width: 900px; margin: 0 auto; padding: 0 24px; text-align: center;">
+    <div class="section-eyebrow" style="margin-bottom:16px;">✨ Wellness Insights</div>
+    <h1 style="font-size:1rem; font-weight:700; color:rgba(255,255,255,0.6); letter-spacing:0.08em; text-transform:uppercase; margin:0 0 10px;">
+      Wellness Blog — Mental Health, Fitness &amp; Professional Tips
+    </h1>
+    <h2 style="font-family:'Playfair Display',serif; font-size:3rem; font-weight:700; color:#fff; margin:0 0 16px; line-height:1.2;">
+      Your Guide to Living Well
+    </h2>
+    <p style="color:rgba(255,255,255,0.75); font-size:1.1rem; max-width:560px; margin:0 auto;">
+      Evidence-based articles, practical tips, and expert insights from the SolaceSquad team
+    </p>
+  </div>
+</div>
+
+<div style="max-width: 1200px; margin: 0 auto; padding: 48px 24px;">
+
+  <!-- Category filter -->
+  <div class="cat-bar" id="catBar">
+    <button class="cat-pill active" onclick="setCategory('All', this)">All</button>
+    <button class="cat-pill" onclick="setCategory('Mental', this)">🧠 Mental Wellness</button>
+    <button class="cat-pill" onclick="setCategory('Physical', this)">💪 Physical Wellness</button>
+    <button class="cat-pill" onclick="setCategory('Professional', this)">💼 Professional</button>
+    <button class="cat-pill" onclick="setCategory('General', this)">🌿 General</button>
+  </div>
+
+  <!-- Hero post (JS-rendered) -->
+  <div id="heroSection"></div>
+
+  <!-- SSR blog grid: real HTML for Googlebot — replaced by JS for users -->
+  <div class="blog-grid" id="ssrGrid">
+    {% for post in ssr_posts %}
+    <a class="blog-card" href="/blog/{{ post.slug }}">
+      {% if post.cover_image_url %}
+        <img class="blog-card-img" src="{{ post.cover_image_url }}" alt="{{ post.title }}" loading="lazy">
+      {% else %}
+        <div class="blog-card-img-placeholder">🌿</div>
+      {% endif %}
+      <div class="blog-card-body">
+        <span class="blog-card-cat cat-{{ post.category }}">{{ post.category }}</span>
+        <h2 class="blog-card-title">{{ post.title }}</h2>
+        {% if post.excerpt %}<p class="blog-card-excerpt">{{ post.excerpt }}</p>{% endif %}
+        <div class="blog-card-footer">
+          <div class="blog-card-stats">
+            <span>⏱ {{ post.read_time_minutes }} min read</span>
+            <span>👁 {{ post.view_count }} views</span>
+          </div>
+          <span class="blog-read-more">Read article →</span>
+        </div>
+      </div>
+    </a>
+    {% else %}
+    <div style="grid-column:1/-1;text-align:center;padding:60px;color:#64748b;">
+      <p>No articles published yet. Check back soon!</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- JS-powered blog grid (hidden until JS loads) -->
+  <div class="blog-grid" id="blogGrid" style="display:none;"></div>
+
+  <!-- Pagination -->
+  <div class="pagination" id="pagination"></div>
+</div>
+
+{% include "components/footer.html" %}
+
+<script>
+  const EMOJI_MAP = { Mental:'🧠', Physical:'💪', Professional:'💼', General:'🌿' };
+
+  let currentPage = 1;
+  let currentCategory = 'All';
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Hide SSR grid (for Googlebot) — show JS-powered grid for real users
+    const ssrGrid = document.getElementById('ssrGrid');
+    const blogGrid = document.getElementById('blogGrid');
+    if (ssrGrid) ssrGrid.style.display = 'none';
+    if (blogGrid) blogGrid.style.display = '';
+    loadBlogs();
+  });
+
+  function setCategory(cat, btn) {
+    currentCategory = cat;
+    currentPage = 1;
+    document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadBlogs();
+  }
+
+  async function loadBlogs() {
+    try {
+      const params = new URLSearchParams({ page: currentPage, limit: 9 });
+      if (currentCategory !== 'All') params.set('category', currentCategory);
+      const r = await fetch('/api/blogs?' + params);
+      const d = await r.json();
+
+      const posts = d.posts || [];
+      const total = d.total || 0;
+      const pages = d.pages || 1;
+
+      renderHero(posts[0]);
+      renderGrid(posts.slice(1));
+      renderPagination(pages);
+
+    } catch(e) {
+      document.getElementById('blogGrid').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">⚠️</div><p>Failed to load articles. Please try again.</p></div>`;
+    }
+  }
+
+  function renderHero(post) {
+    const sec = document.getElementById('heroSection');
+    if (!post) { sec.innerHTML = ''; return; }
+    const emoji = EMOJI_MAP[post.category] || '🌿';
+    const img = post.cover_image_url
+      ? `<img src="${post.cover_image_url}" alt="${escHtml(post.title)}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
+      : `<div style="width:100%;height:100%;background:linear-gradient(135deg,#0f766e,#134e4a);display:flex;align-items:center;justify-content:center;font-size:6rem;">${emoji}</div>`;
+    sec.innerHTML = `
+      <div class="hero-post" onclick="location.href='/blog/${post.slug}'">
+        ${img}
+        <div class="hero-post-overlay">
+          <span class="cat-badge-hero cat-${post.category}">${emoji} ${post.category}</span>
+          <h2>${escHtml(post.title)}</h2>
+          ${post.excerpt ? `<p class="hero-excerpt">${escHtml(post.excerpt)}</p>` : ''}
+          <div class="hero-post-meta">
+            <span style="color:rgba(255,255,255,0.6);font-size:0.85rem;">✍️ ${escHtml(post.author_name)}</span>
+            <span style="color:rgba(255,255,255,0.4)">•</span>
+            <span style="color:rgba(255,255,255,0.6);font-size:0.85rem;">⏱ ${post.read_time_minutes} min read</span>
+            <span style="color:rgba(255,255,255,0.4)">•</span>
+            <span style="color:rgba(255,255,255,0.6);font-size:0.85rem;">👁 ${post.view_count} views</span>
+            <a href="/blog/${post.slug}" style="margin-left:auto;background:var(--teal);color:#fff;padding:8px 20px;border-radius:8px;font-weight:700;font-size:0.875rem;text-decoration:none;" onclick="event.stopPropagation()">Read Article →</a>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderGrid(posts) {
+    const grid = document.getElementById('blogGrid');
+    if (!posts.length) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+        <div class="icon">📭</div>
+        <div style="font-size:1.1rem;font-weight:600;color:#475569;margin-bottom:8px;">No articles yet</div>
+        <p style="font-size:0.9rem;">Check back soon for wellness insights!</p>
+      </div>`;
+      return;
+    }
+    const emoji = post => EMOJI_MAP[post.category] || '🌿';
+    grid.innerHTML = posts.map(p => `
+      <a class="blog-card" href="/blog/${p.slug}">
+        ${p.cover_image_url
+          ? `<img class="blog-card-img" src="${p.cover_image_url}" alt="${escHtml(p.title)}" loading="lazy" onerror="this.style.display='none'">`
+          : `<div class="blog-card-img-placeholder">${emoji(p)}</div>`}
+        <div class="blog-card-body">
+          <span class="blog-card-cat cat-${p.category}">${emoji(p)} ${p.category}</span>
+          <h3 class="blog-card-title">${escHtml(p.title)}</h3>
+          ${p.excerpt ? `<p class="blog-card-excerpt">${escHtml(p.excerpt)}</p>` : ''}
+          <div class="blog-card-footer">
+            <div class="blog-card-stats">
+              <span>⏱ ${p.read_time_minutes} min</span>
+              <span>👁 ${p.view_count}</span>
+            </div>
+            <span class="blog-read-more">Read →</span>
+          </div>
+        </div>
+      </a>`).join('');
+  }
+
+  function renderPagination(pages) {
+    const pg = document.getElementById('pagination');
+    if (pages <= 1) { pg.innerHTML = ''; return; }
+    let html = '';
+    if (currentPage > 1) html += `<button class="page-btn" onclick="goPage(${currentPage-1})">← Prev</button>`;
+    for (let i = 1; i <= pages; i++) {
+      html += `<button class="page-btn${i===currentPage?' active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    if (currentPage < pages) html += `<button class="page-btn" onclick="goPage(${currentPage+1})">Next →</button>`;
+    pg.innerHTML = html;
+  }
+
+  function goPage(p) { currentPage = p; loadBlogs(); window.scrollTo(0,0); }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+
+{% endblock %}

@@ -38,7 +38,9 @@ Set-Location backend
     --platform managed `
     --region $REGION `
     --allow-unauthenticated `
-    --set-env-vars="GCP_PROJECT_ID=$PROJECT_ID,GCP_LOCATION=$REGION,ENVIRONMENT=production,DEBUG=False" `
+    --set-env-vars="GCP_PROJECT_ID=abiding-idea-485817-k2,GCP_LOCATION=us-central1,ENVIRONMENT=production,INSTANCE_CONNECTION_NAME=abiding-idea-485817-k2:us-central1:solacesquad-login-data1,DB_USER=solacesquad_user,DB_NAME=solacesquad_prod,BYPASS_OTP_VERIFICATION=true,GEMINI_API_KEY=AIzaSyDzlEfQKdWv08Ar-SC4Mw5y9DlxPaZ34HA,SARVAM_API_KEY=sk_f9d5krj6_zkw9uIg9o4gUFIcy0yjkCM3B,TURN_HOST=34.47.239.160,TURN_SECRET=e1b303678fd6159434efec760b6953cc22986e118f1b551a45665439597114469" `
+    --set-secrets="DB_PASSWORD=db-password:latest,SECRET_KEY=session-secret:latest" `
+    --add-cloudsql-instances="abiding-idea-485817-k2:us-central1:solacesquad-login-data1" `
     --memory=512Mi `
     --cpu=1 `
     --min-instances=0 `

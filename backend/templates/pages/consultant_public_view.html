@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ profile.full_name or user.name }} — Wellness Consultant | SolaceSquad</title>
+
+    <!-- SEO Meta -->
+    <meta name="description" content="{{ (profile.bio or '') | truncate(155, True, '…') if profile.bio else 'Book a confidential wellness session with ' ~ (profile.full_name or user.name) ~ ', a certified ' ~ (profile.specialization or 'wellness') ~ ' consultant on SolaceSquad.' }}">
+    <meta name="robots" content="index, follow">
+    <meta property="og:locale" content="en_IN">
+    <link rel="canonical" href="https://www.solacesquad.com/consultant/{{ user.id }}">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="profile">
+    <meta property="og:site_name" content="SolaceSquad">
+    <meta property="og:title" content="{{ profile.full_name or user.name }} — {{ profile.specialization or 'Wellness' }} Consultant | SolaceSquad">
+    <meta property="og:description" content="{{ (profile.bio or '') | truncate(155, True, '…') if profile.bio else 'Book a confidential wellness session with ' ~ (profile.full_name or user.name) ~ ' on SolaceSquad — India\'s trusted wellness platform.' }}">
+    <meta property="og:image" content="https://www.solacesquad.com/static/images/og-cover.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="SolaceSquad — Online Wellness Consultations in India">
+    <meta property="og:url" content="https://www.solacesquad.com/consultant/{{ user.id }}">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@solacesquad">
+    <meta name="twitter:title" content="{{ profile.full_name or user.name }} — {{ profile.specialization or 'Wellness' }} Consultant | SolaceSquad">
+    <meta name="twitter:description" content="{{ (profile.bio or '') | truncate(155, True, '…') if profile.bio else 'Book a session with ' ~ (profile.full_name or user.name) ~ ' on SolaceSquad.' }}">
+    <meta name="twitter:image" content="https://www.solacesquad.com/static/images/og-cover.jpg">
+
+    <!-- JSON-LD: Person + Service -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "name": "{{ profile.full_name or user.name }}",
+      "jobTitle": "{{ profile.specialization or 'Wellness Consultant' }}",
+      "description": "{{ (profile.bio or 'Certified wellness consultant on SolaceSquad.') | replace('\"', '\\\"') | truncate(200, True, '…') }}",
+      "worksFor": {
+        "@type": "Organization",
+        "name": "SolaceSquad",
+        "url": "https://www.solacesquad.com"
+      },
+      "url": "https://www.solacesquad.com/consultant/{{ user.id }}",
+      "image": "https://www.solacesquad.com/static/images/og-cover.jpg"
+    }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-2xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+
+        <!-- Profile Card -->
+        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+
+            <!-- Header with Avatar -->
+            <div class="px-4 py-5 sm:px-6 flex items-center bg-gray-50 border-b border-gray-200">
+                <div
+                    class="flex-shrink-0 h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl font-bold shadow-inner">
+                    {{ user.name[:2].upper() }}
+                </div>
+                <div class="ml-4">
+                    <h1 class="text-2xl font-bold text-gray-900">{{ user.name }}</h1>
+                    <p class="text-sm font-medium text-gray-500">{{ user.email }}</p>
+                    {% if profile.is_approved %}
+                    <span
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-1">
+                        Verified Consultant
+                    </span>
+                    {% else %}
+                    <span
+                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-1">
+                        Pending Approval
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Details List -->
+            <div class="border-t border-gray-200 px-4 py-5 sm:p-0">
+                <dl class="divide-y divide-gray-200">
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Full Name</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ profile.full_name or user.name
+                            }}</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Specialization</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ profile.specialization or 'Not
+                            specified' }}</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Bio</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 italic">
+                            "{{ profile.bio or 'No bio provided.' }}"
+                        </dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Experience</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ profile.experience_years }}
+                            years</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Education</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 whitespace-pre-wrap">{{
+                            profile.education or 'N/A' }}</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Contact Details</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 whitespace-pre-wrap">{{
+                            profile.contact_details or 'N/A' }}</dd>
+                    </div>
+                    {% if profile.hourly_rate %}
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Hourly Rate</dt>
+                        <dd class="mt-1 text-sm font-bold text-green-600 sm:mt-0 sm:col-span-2">${{ profile.hourly_rate
+                            }} / hr</dd>
+                    </div>
+                    {% endif %}
+
+                    <!-- Ratings -->
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Avg Rating</dt>
+                        <dd class="mt-1 sm:mt-0 sm:col-span-2">
+                            <span class="text-yellow-500 text-lg font-bold" id="avg-rating-stars">—</span>
+                            <span class="text-sm text-gray-500 ml-1" id="avg-rating-label"></span>
+                        </dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Sessions Completed</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            {{ profile.calls_completed or 0 }}
+                        </dd>
+                    </div>
+                </dl>
+            </div>
+
+            <!-- Reviews Section -->
+            <div class="border-t border-gray-200 px-4 py-5 sm:px-6">
+                <h3 class="text-sm font-semibold text-gray-700 mb-3">Client Reviews</h3>
+                <div id="reviews-list" class="space-y-3 max-h-80 overflow-y-auto">
+                    <p class="text-sm text-gray-400">Loading reviews...</p>
+                </div>
+            </div>
+
+            <!-- Close Button -->
+            <div class="bg-gray-50 px-4 py-4 sm:px-6 flex justify-end">
+                <button onclick="window.close()"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-100 focus:outline-none ring-1 ring-gray-200">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+
+<script>
+    // Load reviews for this consultant from Cloud SQL
+    var CONSULTANT_PROFILE_ID = {{ profile.id }};
+
+    function renderStars(rating) {
+        var full = Math.round(rating);
+        return '★'.repeat(full) + '☆'.repeat(5 - full);
+    }
+
+    window.addEventListener('DOMContentLoaded', function () {
+        fetch('/api/consultants/' + CONSULTANT_PROFILE_ID + '/reviews?per_page=20')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var avgEl = document.getElementById('avg-rating-stars');
+                var avgLabel = document.getElementById('avg-rating-label');
+                var reviewsList = document.getElementById('reviews-list');
+
+                if (data.success && data.total_reviews > 0) {
+                    avgEl.textContent = renderStars(data.avg_rating) + ' ' + data.avg_rating.toFixed(1);
+                    avgLabel.textContent = '(' + data.total_reviews + ' review' + (data.total_reviews !== 1 ? 's' : '') + ')';
+
+                    reviewsList.innerHTML = data.reviews.map(function (r) {
+                        return '<div class="p-3 bg-gray-50 rounded-lg border border-gray-100">' +
+                            '<div class="flex items-center justify-between mb-1">' +
+                            '<span class="text-xs font-semibold text-gray-800">' + r.display_name + '</span>' +
+                            '<span class="text-yellow-500 text-sm">' + renderStars(r.rating) + '</span>' +
+                            '</div>' +
+                            (r.feedback ? '<p class="text-xs text-gray-600 italic">"' + r.feedback + '"</p>' : '') +
+                            '<div class="text-xs text-gray-400 mt-1">' + r.created_at + '</div>' +
+                            '</div>';
+                    }).join('');
+                } else {
+                    avgEl.textContent = '—';
+                    avgLabel.textContent = '';
+                    reviewsList.innerHTML = '<p class="text-sm text-gray-400">No reviews yet</p>';
+                }
+            })
+            .catch(function () {
+                document.getElementById('reviews-list').innerHTML = '<p class="text-sm text-gray-400">Could not load reviews</p>';
+            });
+    });
+</script>
+
+</html>

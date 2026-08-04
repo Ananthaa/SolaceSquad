@@ -1,0 +1,2675 @@
+{% extends "layouts/protected.html" %}
+
+{% block title %}Voice Call - SolaceSquad{% endblock %}
+
+{% block extra_head %}
+<!-- Socket.IO Client -->
+<script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+
+<!-- Chart.js for health charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- Call room: hide the bottom nav bar on mobile for full-screen call experience -->
+<style>
+    @media (max-width: 1024px) {
+
+        /* Hide bottom nav during active call to maximise screen space */
+        body>nav:last-of-type,
+        nav.fixed.bottom-0 {
+            display: none !important;
+        }
+
+        /* Remove the padding-bottom that was reserved for bottom nav */
+        main {
+            padding-bottom: 0 !important;
+        }
+    }
+</style>
+
+<style>
+    .call-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .call-status {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 1rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .call-timer {
+        font-size: 3rem;
+        font-weight: bold;
+        margin: 1rem 0;
+        font-family: 'Courier New', monospace;
+    }
+
+    .connection-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    .status-connecting {
+        background-color: #fbbf24;
+    }
+
+    .status-connected {
+        background-color: #10b981;
+    }
+
+    .status-disconnected {
+        background-color: #ef4444;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    .participant-info {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .health-dashboard {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 0.75rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .health-card {
+        background: #f9fafb;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        border: 1px solid #e5e7eb;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-top: 1rem;
+    }
+
+    .chart-container.loaded {
+        display: block;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .call-controls {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+
+    .call-btn {
+        padding: 1rem 2rem;
+        border: none;
+        border-radius: 0.75rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-mute {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-mute:hover {
+        background: #2563eb;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-mute.muted {
+        background: #ef4444;
+    }
+
+    .btn-end {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-end:hover {
+        background: #dc2626;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    /* ── Video panels ──────────────────────────────────────────────── */
+    .btn-camera {
+        background: #1e293b;
+        color: white;
+    }
+    .btn-camera:hover {
+        background: #334155;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,.15);
+    }
+    .btn-camera.camera-on {
+        background: #2563eb;
+    }
+    .btn-camera.camera-on:hover {
+        background: #1d4ed8;
+    }
+    #video-panels {
+        display: none;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    #video-panels.active {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: stretch;
+    }
+    #remote-video, #local-video {
+        width: 100%;
+        height: 240px;
+        border-radius: 0.75rem;
+        background: #0f172a;
+        object-fit: cover;
+        border: 2px solid #1e293b;
+    }
+    .video-label {
+        position: absolute;
+        bottom: 6px;
+        left: 8px;
+        font-size: 0.7rem;
+        color: #e2e8f0;
+        background: rgba(0,0,0,.5);
+        padding: 1px 6px;
+        border-radius: 4px;
+    }
+    .video-wrapper {
+        position: relative;
+    }
+    @media (max-width: 640px) {
+        #video-panels.active {
+            grid-template-columns: 1fr;
+        }
+        #remote-video, #local-video {
+            height: 180px;
+        }
+    }
+
+    .grid {
+        display: grid;
+    }
+
+    .md\:grid-cols-2 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gap-4 {
+        gap: 1rem;
+    }
+
+    .mb-4 {
+        margin-bottom: 1rem;
+    }
+
+    /* Modals & Overlays */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 1rem;
+        max-width: 500px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        animation: scaleIn 0.3s ease-out;
+    }
+
+    @keyframes scaleIn {
+        from {
+            transform: scale(0.95);
+            opacity: 0;
+        }
+
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .recording-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(220, 38, 38, 0.1);
+        border: 1px solid rgba(220, 38, 38, 0.2);
+        color: #dc2626;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        animation: pulse-red 2s infinite;
+        margin-left: 1rem;
+        vertical-align: middle;
+    }
+
+    @keyframes pulse-red {
+        0% {
+            box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+        }
+
+        70% {
+            box-shadow: 0 0 0 6px rgba(220, 38, 38, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+        }
+    }
+
+    /* ── 5-minute warning banner ──────────────────────────────────── */
+    #warning-banner {
+        position: fixed;
+        top: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        display: none;
+        min-width: 320px;
+        max-width: 90vw;
+        background: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%);
+        color: white;
+        border-radius: 1rem;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 8px 32px rgba(220, 38, 38, 0.35);
+        animation: slide-in-down 0.4s cubic-bezier(.22, 1, .36, 1) both;
+        font-size: 0.95rem;
+        font-weight: 600;
+        text-align: center;
+    }
+
+    #warning-banner.visible {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    #warning-banner .warn-pulse {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: white;
+        animation: pulse 1s infinite;
+        flex-shrink: 0;
+    }
+
+    #warning-banner .dismiss-btn {
+        background: rgba(255, 255, 255, 0.25);
+        border: none;
+        border-radius: 9999px;
+        padding: 0.25rem 0.75rem;
+        color: white;
+        font-size: 0.75rem;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    #warning-banner .dismiss-btn:hover {
+        background: rgba(255, 255, 255, 0.4);
+    }
+
+    @keyframes slide-in-down {
+        from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    }
+
+    /* ── Mobile / PWA Responsive Styles ──────────────────────────────── */
+
+    /* Tablet (≤768px) */
+    @media (max-width: 768px) {
+        .call-container {
+            padding: 1rem;
+        }
+
+        .call-status {
+            padding: 1.25rem 1rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .call-timer {
+            font-size: 2rem;
+            margin: 0.5rem 0;
+        }
+
+        .call-status h1 {
+            font-size: 1.25rem;
+        }
+
+        .call-status p.text-lg {
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .participant-info {
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .participant-info h3 {
+            font-size: 1rem;
+        }
+
+        .health-dashboard {
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Collapse the 2-col health grid to single column */
+        .md\:grid-cols-2 {
+            grid-template-columns: 1fr !important;
+        }
+
+        /* Shrink vitals row label column */
+        #vitals-dashboard-rows>div .w-48 {
+            width: 9rem;
+        }
+
+        /* Call controls: 2-column grid so buttons fit */
+        .call-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .call-btn {
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            border-radius: 0.6rem;
+            justify-content: center;
+        }
+
+        /* End Call / Complete Session spans full width */
+        .call-btn.btn-end {
+            grid-column: 1 / -1;
+        }
+
+        /* Modals full-width on mobile */
+        .modal-content {
+            width: 95%;
+            padding: 1.25rem;
+            border-radius: 0.75rem;
+        }
+
+        /* Warning banner full-width */
+        #warning-banner {
+            min-width: 0;
+            width: calc(100% - 2rem);
+            left: 1rem;
+            right: 1rem;
+            transform: none;
+            border-radius: 0.75rem;
+        }
+
+        #warning-banner.visible {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.5rem;
+            text-align: center;
+        }
+    }
+
+    /* Mobile (≤480px) */
+    @media (max-width: 480px) {
+        .call-container {
+            padding: 0.75rem;
+        }
+
+        .call-status {
+            padding: 1rem 0.75rem;
+        }
+
+        .call-timer {
+            font-size: 1.75rem;
+        }
+
+        /* Button text hidden on very small screens — icon only */
+        .call-btn span {
+            display: none;
+        }
+
+        .call-btn {
+            padding: 0.75rem;
+            border-radius: 50%;
+            width: 3.25rem;
+            height: 3.25rem;
+            justify-content: center;
+        }
+
+        /* End call is pill-shaped, not circle, to retain text */
+        .call-btn.btn-end {
+            border-radius: 0.75rem;
+            width: auto;
+            height: auto;
+            padding: 0.75rem 1.25rem;
+        }
+
+        .call-btn.btn-end span {
+            display: inline;
+        }
+
+        /* Controls row: all icons centered, end call full width */
+        .call-controls {
+            grid-template-columns: repeat(auto-fit, 3.25rem);
+            justify-content: center;
+        }
+
+        .call-btn.btn-end {
+            grid-column: 1 / -1;
+            width: 100%;
+        }
+
+        /* Lobby / consent modal full-screen feel */
+        .modal-overlay {
+            padding: 0.5rem;
+        }
+
+        .modal-content {
+            width: 100%;
+            max-width: 100%;
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+
+        /* Shrink health vitals chart height */
+        .flex-grow.h-\[60px\] {
+            height: 40px;
+        }
+
+        /* Rating popup stars bigger tap targets */
+        .star-btn svg,
+        .star-btn i {
+            width: 2rem;
+            height: 2rem;
+        }
+    }
+
+    /* PWA safe-area insets (notched iPhones etc.) */
+    @supports (padding: env(safe-area-inset-bottom)) {
+        .call-controls {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .call-container {
+            padding-left: max(0.75rem, env(safe-area-inset-left));
+            padding-right: max(0.75rem, env(safe-area-inset-right));
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="call-container">
+    <!-- Call Status -->
+    <div class="call-status">
+        <div class="flex items-center justify-center gap-2 mb-2">
+            <h1 class="text-2xl font-bold">Voice Call</h1>
+            <div id="recording-badge" class="recording-indicator hidden">
+                <div class="w-2 h-2 bg-red-600 rounded-full"></div>
+                REC
+            </div>
+        </div>
+        <p class="text-lg mb-4">
+            {% if user.user_type == 'user' %}
+            Consultation with {{ consultant.specialization if consultant else 'Consultant' }}
+            {% else %}
+            Session with {{ patient.name if patient else 'Patient' }}
+            {% endif %}
+        </p>
+
+        <div class="call-timer" id="timer">
+            --:--
+        </div>
+
+        <div class="connection-status">
+            <span class="status-indicator status-connecting" id="status-indicator"></span>
+            <span id="status-text">Connecting...</span>
+        </div>
+    </div>
+
+    <!-- Persistent remote audio element — MUST stay in DOM to prevent GC killing playback -->
+    <audio id="remote-audio" autoplay playsinline style="display:none"></audio>
+
+    <!-- Video Panels (hidden until camera enabled) -->
+    <div id="video-panels">
+        <div class="video-wrapper">
+            <video id="remote-video" autoplay playsinline></video>
+            <span class="video-label">{% if user.user_type == 'user' %}Consultant{% else %}{{ patient.name.split()[0] if patient else 'Patient' }}{% endif %}</span>
+        </div>
+        <div class="video-wrapper">
+            <video id="local-video" autoplay playsinline muted></video>
+            <span class="video-label">You</span>
+        </div>
+    </div>
+
+    <!-- Participant Info -->
+    <div class="participant-info">
+        <h3 class="text-lg font-semibold mb-3">Call Information</h3>
+        <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+                <span class="text-gray-600">Scheduled Time:</span>
+                <span class="font-medium">{{ appointment.appointment_date | format_local("%B %d, %Y at %I:%M %p") }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600">Duration:</span>
+                <span class="font-medium">{{ appointment.duration_minutes }} minutes</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-600">Room ID:</span>
+                <span class="font-mono text-xs">{{ call_session.room_id }}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if user.user_type == 'consultant' %}
+    <!-- Patient Health Dashboard (Consultant Only) -->
+    <div class="health-dashboard">
+        <h3 class="text-xl font-semibold mb-4 text-gray-900">{{ patient.name if patient else 'Patient' }}&#39;s Health
+            Overview</h3>
+
+        <div class="grid md:grid-cols-2 gap-4 mb-4">
+            <!-- Individual Vitals Rows -->
+            <div id="vitals-dashboard-rows" class="space-y-4 mb-6">
+                <!-- Heart Rate -->
+                <div
+                    class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
+                    <div class="flex items-center gap-3 w-48">
+                        <div class="bg-red-50 p-2.5 rounded-lg flex-shrink-0">
+                            <i data-lucide="heart" class="w-5 h-5 text-red-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wide">Heart Rate</div>
+                            <div class="text-2xl font-bold text-gray-900 leading-none mt-0.5" id="val-hr">--</div>
+                            <div class="text-[10px] text-gray-400">BPM</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow h-[60px] ml-4 relative">
+                        <canvas id="chart-hr"></canvas>
+                    </div>
+                </div>
+
+                <!-- Blood Pressure -->
+                <div
+                    class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
+                    <div class="flex items-center gap-3 w-48">
+                        <div class="bg-purple-50 p-2.5 rounded-lg flex-shrink-0">
+                            <i data-lucide="activity" class="w-5 h-5 text-purple-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wide">Blood Pressure</div>
+                            <div class="text-2xl font-bold text-gray-900 leading-none mt-0.5" id="val-bp">--/--</div>
+                            <div class="text-[10px] text-gray-400">mmHg</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow h-[60px] ml-4 relative">
+                        <canvas id="chart-bp"></canvas>
+                    </div>
+                </div>
+
+                <!-- Temperature -->
+                <div
+                    class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
+                    <div class="flex items-center gap-3 w-48">
+                        <div class="bg-orange-50 p-2.5 rounded-lg flex-shrink-0">
+                            <i data-lucide="thermometer" class="w-5 h-5 text-orange-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wide">Temperature</div>
+                            <div class="text-2xl font-bold text-gray-900 leading-none mt-0.5" id="val-temp">--</div>
+                            <div class="text-[10px] text-gray-400">F</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow h-[60px] ml-4 relative">
+                        <canvas id="chart-temp"></canvas>
+                    </div>
+                </div>
+
+                <!-- SpO2 -->
+                <div
+                    class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
+                    <div class="flex items-center gap-3 w-48">
+                        <div class="bg-blue-50 p-2.5 rounded-lg flex-shrink-0">
+                            <i data-lucide="droplet" class="w-5 h-5 text-blue-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wide">SpO2</div>
+                            <div class="text-2xl font-bold text-gray-900 leading-none mt-0.5" id="val-spo2">--</div>
+                            <div class="text-[10px] text-gray-400">%</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow h-[60px] ml-4 relative">
+                        <canvas id="chart-spo2"></canvas>
+                    </div>
+                </div>
+
+                <!-- Resp Rate -->
+                <div
+                    class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between transition-all hover:shadow-md">
+                    <div class="flex items-center gap-3 w-48">
+                        <div class="bg-teal-50 p-2.5 rounded-lg flex-shrink-0">
+                            <i data-lucide="wind" class="w-5 h-5 text-teal-600"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs text-gray-500 font-medium uppercase tracking-wide">Resp. Rate</div>
+                            <div class="text-2xl font-bold text-gray-900 leading-none mt-0.5" id="val-resp">--</div>
+                            <div class="text-[10px] text-gray-400">br/min</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow h-[60px] ml-4 relative">
+                        <canvas id="chart-resp"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div id="vitals-loading" class="hidden"></div>
+            <div id="vitals-chart-container" class="hidden"></div>
+
+            <!-- Mood Chart -->
+            <div class="health-card">
+                <h4 class="text-md font-semibold mb-3 text-gray-800">Mood Trend (Last 7 Entries)</h4>
+                <div id="mood-chart-container">
+                    <canvas id="moodChart"></canvas>
+                </div>
+                <div id="mood-loading" class="text-center py-4 text-gray-500">
+                    Loading mood data...
+                </div>
+            </div>
+        </div>
+
+        <!-- Health Report Summary Placeholder -->
+        <div class="health-card">
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="text-md font-semibold text-gray-800">Health Report Summary</h4>
+                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Coming Soon</span>
+            </div>
+            <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <i data-lucide="file-text" class="w-12 h-12 mx-auto mb-3 text-gray-400"></i>
+                <p class="text-gray-600 mb-2">AI-Generated Health Report</p>
+                <p class="text-sm text-gray-500">
+                    Comprehensive health analysis and recommendations will be available in the next update.
+                </p>
+            </div>
+        </div>
+
+        <!-- Consultation Notes -->
+        <div class="health-card mt-4">
+            <h4 class="text-md font-semibold mb-3 text-gray-800">Consultation Notes</h4>
+            <div class="relative">
+                <textarea id="consultation-notes"
+                    class="w-full p-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[120px] text-sm text-gray-700 resize-y shadow-sm"
+                    placeholder="Type your observations and notes for this session...">{{ appointment.notes or '' }}</textarea>
+                <div class="absolute bottom-3 right-3">
+                    <button onclick="saveNotes()" id="save-notes-btn"
+                        class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm">
+                        <i data-lucide="save" class="w-4 h-4"></i> Save
+                    </button>
+                </div>
+            </div>
+            <p id="save-status" class="text-xs text-gray-400 mt-2 ml-1 h-4 transition-all opacity-0"></p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Call Controls -->
+    <div class="call-controls" id="call-controls-bar">
+        <button class="call-btn btn-mute" id="mute-btn" onclick="toggleMute()">
+            <i data-lucide="mic" id="mic-icon"></i>
+            <span id="mute-text">Mute</span>
+        </button>
+
+        <!-- Camera toggle — OFF by default for anonymity -->
+        <button class="call-btn btn-camera" id="camera-btn" onclick="toggleCamera()" title="Camera is off by default. Turn on to start video.">
+            <i data-lucide="video-off" id="camera-icon"></i>
+            <span id="camera-text">Start Video</span>
+        </button>
+
+        {% if user.user_type == 'consultant' %}
+
+        <button class="call-btn" style="background: #8b5cf6; color: white;" onclick="openHistoryModal()">
+            <i data-lucide="history"></i>
+            <span>Patient History</span>
+        </button>
+        {% endif %}
+
+        <!-- Take a Break button (both roles) -->
+        <button class="call-btn" id="break-btn" style="background: #f59e0b; color: white;" onclick="takeBreak()">
+            <i data-lucide="pause-circle"></i>
+            <span>Take a Break</span>
+        </button>
+
+        <!-- Rejoin button — shown only when on break -->
+        <button class="call-btn hidden" id="rejoin-btn" style="background: #10b981; color: white;"
+            onclick="rejoinCall()">
+            <i data-lucide="phone-incoming"></i>
+            <span>Rejoin Call</span>
+        </button>
+
+        {% if user.user_type == 'consultant' %}
+        <button class="call-btn btn-end" onclick="endCall()">
+            <i data-lucide="check-circle"></i>
+            <span>Complete Session</span>
+        </button>
+        <button class="call-btn" id="red-flag-btn" onclick="openRedFlagModal()" style="background: #dc2626; color: white;">
+            <i data-lucide="flag"></i>
+            <span>Raise Red Flag</span>
+        </button>
+        {% else %}
+        <button class="call-btn btn-end" onclick="endCall()">
+            <i data-lucide="phone-off"></i>
+            <span>End Call</span>
+        </button>
+        {% endif %}
+    </div>
+</div>
+</div>
+
+<!-- Join Call Lobby Overlay -->
+<div id="lobby-overlay" class="modal-overlay">
+    <div class="modal-content">
+        <div class="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="phone" class="w-8 h-8 text-blue-600"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Ready to join?</h2>
+        <p class="text-gray-600 mb-4">
+            Please make sure you are in a quiet environment.
+        </p>
+        <!-- Recording status — reflects consent given at booking -->
+        {% if consent_to_record_allowed %}
+        <div class="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-2 mb-4 text-sm text-red-700">
+            <span style="display:inline-block;width:8px;height:8px;background:#ef4444;border-radius:50%;"></span>
+            This call will be <strong>recorded</strong> as per your consent given at booking.
+        </div>
+        {% else %}
+        <div class="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-2 mb-4 text-sm text-green-700">
+            <span style="display:inline-block;width:8px;height:8px;background:#10b981;border-radius:50%;"></span>
+            This call will <strong>not</strong> be recorded.
+        </div>
+        {% endif %}
+        <!-- Error message shown if join fails -->
+        <div id="join-error" class="hidden bg-red-50 border border-red-300 rounded-lg px-4 py-3 mb-4 text-sm text-red-800">
+            <strong id="join-error-title">Could not start call</strong>
+            <p id="join-error-detail" class="mt-1 text-red-700"></p>
+        </div>
+        <button id="join-btn" onclick="acceptAndJoin()"
+            class="btn btn-primary w-full py-3 text-lg flex items-center justify-center gap-2">
+            <i data-lucide="video"></i> <span id="join-btn-text">Join Call</span>
+        </button>
+    </div>
+</div>
+
+
+</div>
+</div>
+
+<!-- History Modal -->
+<div id="history-modal" class="modal-overlay hidden">
+    <div class="modal-content text-left max-w-2xl w-full max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">Patient History: <span id="hist-patient-name">Loading...</span>
+            </h2>
+            <button onclick="closeHistoryModal()" class="text-gray-500 hover:text-gray-700">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <div id="history-content" class="space-y-6">
+            <!-- Content will be loaded dynamically -->
+            <div class="text-center py-8">
+                <div class="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full mx-auto">
+                </div>
+                <p class="text-gray-500 mt-2">Loading history...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Exit Reason Modal -->
+<div id="exit-reason-modal" class="modal-overlay hidden" style="z-index: 9999;">
+    <div class="modal-content" style="max-width: 450px; text-align: left; padding: 2rem; border-radius: 16px; background: var(--bg-card, #ffffff); border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);">
+        <h3 style="font-size: 1.25rem; font-weight: 600; color: var(--text-main, #111827); margin-bottom: 0.5rem; text-align: center;">Why are you leaving the call?</h3>
+        <p style="font-size: 0.875rem; color: var(--text-muted, #4b5563); margin-bottom: 1.5rem; text-align: center;">This call is ending before the scheduled time. Please select a reason to exit.</p>
+        
+        <form id="exit-reason-form" onsubmit="submitExitReason(event)">
+            <div class="options-container" style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
+                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="exit-option-label">
+                    <input type="radio" name="exit_reason" value="Call got over earlier." required style="margin-top: 0.25rem;">
+                    <div>
+                        <span style="font-size: 0.95rem; font-weight: 500; display: block; color: var(--text-main, #1b2a47);">Call got over earlier.</span>
+                    </div>
+                </label>
+                
+                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="exit-option-label">
+                    <input type="radio" name="exit_reason" value="I wanted a break will join back again." style="margin-top: 0.25rem;">
+                    <div>
+                        <span style="font-size: 0.95rem; font-weight: 500; display: block; color: var(--text-main, #1b2a47);">I wanted a break will join back again.</span>
+                    </div>
+                </label>
+                
+                {% if user.user_type == 'consultant' %}
+                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="exit-option-label">
+                    <input type="radio" name="exit_reason" value="User didnt join" style="margin-top: 0.25rem;">
+                    <div>
+                        <span style="font-size: 0.95rem; font-weight: 500; display: block; color: var(--text-main, #1b2a47);">User didn't join</span>
+                    </div>
+                </label>
+                {% else %}
+                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="exit-option-label">
+                    <input type="radio" name="exit_reason" value="Consultant didnt join" style="margin-top: 0.25rem;">
+                    <div>
+                        <span style="font-size: 0.95rem; font-weight: 500; display: block; color: var(--text-main, #1b2a47);">Consultant didn't join</span>
+                    </div>
+                </label>
+                {% endif %}
+                
+                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="exit-option-label">
+                    <input type="radio" name="exit_reason" value="the call didnt get connected." style="margin-top: 0.25rem;">
+                    <div>
+                        <span style="font-size: 0.95rem; font-weight: 500; display: block; color: var(--text-main, #1b2a47);">The call didn't get connected.</span>
+                    </div>
+                </label>
+                
+                <label style="display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; cursor: pointer; transition: all 0.2s;" class="exit-option-label">
+                    <input type="radio" name="exit_reason" value="I joined early by mistake" style="margin-top: 0.25rem;">
+                    <div>
+                        <span style="font-size: 0.95rem; font-weight: 500; display: block; color: var(--text-main, #1b2a47);">I joined early by mistake</span>
+                    </div>
+                </label>
+            </div>
+            
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button type="button" class="btn" onclick="closeExitModal()" style="background: transparent; border: 1px solid var(--border-color, #e5e7eb); color: var(--text-main, #1b2a47); padding: 0.625rem 1.25rem; border-radius: 8px; cursor: pointer; font-weight: 500;">Cancel</button>
+                <button type="submit" class="btn" style="background: var(--primary-color, #0f172a); color: white; padding: 0.625rem 1.25rem; border-radius: 8px; cursor: pointer; font-weight: 500; border: none;">Submit & Exit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Red Flag Confirmation Modal -->
+<div id="red-flag-modal" class="modal-overlay hidden" style="z-index: 9999;">
+    <div class="modal-content" style="max-width: 450px; text-align: left; padding: 2rem; border-radius: 16px; background: var(--bg-card, #ffffff); border: 1px solid rgba(0,0,0,0.1); box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);">
+        <div style="text-align: center; margin-bottom: 1.25rem;">
+            <div style="width: 56px; height: 56px; border-radius: 50%; background: #fee2e2; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem;">
+                <i data-lucide="flag" style="color: #dc2626; width: 28px; height: 28px;"></i>
+            </div>
+            <h3 style="font-size: 1.25rem; font-weight: 700; color: #dc2626; margin-bottom: 0.5rem;">Raise Red Flag?</h3>
+            <p style="font-size: 0.875rem; color: #4b5563; line-height: 1.4;">
+                This will pause the call immediately so the other participant cannot hear or see you. Please enter the reason below to end the call and file a report with the admin.
+            </p>
+        </div>
+        
+        <form id="red-flag-form" onsubmit="submitRedFlag(event)">
+            <div style="margin-bottom: 1.5rem;">
+                <label for="red-flag-reason" style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">Reason for Flagging:</label>
+                <textarea id="red-flag-reason" required rows="4" placeholder="Describe the abusive behavior or uncomfortable conversation in detail..." style="width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 0.75rem; font-size: 0.875rem; resize: none; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#d1d5db'"></textarea>
+            </div>
+            
+            <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button type="button" onclick="closeRedFlagModal()" style="padding: 0.625rem 1.25rem; border-radius: 8px; border: 1px solid #d1d5db; background: #ffffff; color: #374151; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.2s;">
+                    No, it was a mistake (Resume)
+                </button>
+                <button type="submit" style="padding: 0.625rem 1.25rem; border-radius: 8px; border: none; background: #dc2626; color: #ffffff; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);">
+                    Confirm & Exit Call
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.exit-option-label:hover {
+    background: rgba(0,0,0,0.02);
+}
+.exit-option-label:has(input:checked) {
+    border-color: var(--primary-color, #0f172a) !important;
+    background: rgba(15, 23, 42, 0.04);
+}
+</style>
+
+<!-- 5-Minute Warning Banner -->
+<div id="warning-banner" role="alert" aria-live="assertive">
+    <span class="warn-pulse"></span>
+    <span id="warning-banner-text">⏰ 5 minutes remaining in this session</span>
+    <button class="dismiss-btn" onclick="dismissWarning()">Dismiss</button>
+</div>
+
+<!-- WebRTC & Socket.IO Logic -->
+<script>
+
+    const ROOM_ID = '{{ call_session.room_id }}';
+    const USER_TYPE = '{{ user.user_type }}';
+    const USER_NAME = {{ user.name | tojson }};
+    const APPOINTMENT_ID = {{ appointment.id }};
+    const DURATION_MINUTES = {{ appointment.duration_minutes }};
+    const CONSENT_TO_RECORD = {{ 'true' if consent_to_record_allowed else 'false' }};
+    let bypassRating = false;
+
+    // Scheduled end time for 5-min warning
+    const SCHEDULED_START_MS = new Date('{{ appointment.appointment_date.strftime("%Y-%m-%dT%H:%M:%SZ") }}').getTime();
+    const SCHEDULED_END_MS = SCHEDULED_START_MS + (DURATION_MINUTES * 60 * 1000);
+
+    const APPOINTMENT = {
+        id: {{ appointment.id }},
+    user_id: {{ appointment.user_id }}
+    };
+
+
+    // WebRTC ICE configuration — fetched from backend (supports Metered.ca API keys)
+    // Fallback hardcoded in case the fetch fails
+    let ICE_SERVERS = {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+        ],
+        iceCandidatePoolSize: 10
+    };
+
+    async function fetchIceServers() {
+        try {
+            const resp = await fetch('/api/call/ice-servers');
+            const data = await resp.json();
+            if (data.iceServers && data.iceServers.length > 0) {
+                ICE_SERVERS = { iceServers: data.iceServers, iceCandidatePoolSize: 10 };
+                console.log('[ICE] Fetched', data.iceServers.length, 'servers from backend');
+            }
+        } catch(e) {
+            console.warn('[ICE] Could not fetch ICE config, using fallback:', e);
+        }
+    }
+
+    // Global variables
+    let socket;
+    let peerConnection;
+    let localStream;
+    let videoTrack = null;    // local camera track (null = camera off)
+    let videoSender = null;   // RTCRtpSender for the video track
+    let cameraEnabled = false;
+    let pendingCandidates = []; // ICE candidates buffered until remoteDescription is set
+    let isMuted = false;
+    let callStartTime;
+    let timerInterval;
+    let vitalsChart = null;
+    let moodChart = null;
+    let endWatcherTimeout = null;    // handle for the 5-min warning timer
+    let warningDismissed = false;    // prevent re-showing after dismiss
+    let iceRestartAttempts = 0;      // track ICE restart retries (max 3)
+
+    // ── 5-Minute End-Time Warning ─────────────────────────────────────────
+    function startEndTimeWatcher() {
+        if (endWatcherTimeout) return; // already running
+
+        const now = Date.now();
+        const FIVE_MIN_MS = 5 * 60 * 1000;
+        const warnAt = SCHEDULED_END_MS - FIVE_MIN_MS; // fire at T-5 min
+
+        if (now >= SCHEDULED_END_MS) return; // session already over
+
+        const delay = Math.max(0, warnAt - now);
+
+        endWatcherTimeout = setTimeout(function () {
+            // Only show if call is still active (not on break / ended)
+            if (!warningDismissed) {
+                showWarningBanner();
+            }
+        }, delay);
+
+        // Also set up a countdown refresh every 30 s once visible
+        if (now >= warnAt) {
+            // Already inside the 5-min window when page was loaded
+            showWarningBanner();
+        }
+    }
+
+    function showWarningBanner() {
+        const banner = document.getElementById('warning-banner');
+        if (!banner || warningDismissed) return;
+
+        banner.classList.add('visible');
+
+        // Live countdown text
+        function updateCountdown() {
+            const remaining = Math.max(0, SCHEDULED_END_MS - Date.now());
+            const mins = Math.floor(remaining / 60000);
+            const secs = Math.floor((remaining % 60000) / 1000);
+            const text = document.getElementById('warning-banner-text');
+            if (text) {
+                if (remaining <= 0) {
+                    text.textContent = '⏰ Scheduled session time has ended';
+                } else {
+                    text.textContent = `⏰ ${mins}:${secs.toString().padStart(2, '0')} remaining in this session`;
+                }
+            }
+        }
+
+        updateCountdown();
+        const cdInterval = setInterval(function () {
+            if (warningDismissed) { clearInterval(cdInterval); return; }
+            updateCountdown();
+            if (Date.now() >= SCHEDULED_END_MS) clearInterval(cdInterval);
+        }, 1000);
+
+        // Play a subtle beep if the browser supports it
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 880;
+            osc.type = 'sine';
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.0);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 1.0);
+        } catch (_) { } // audio not available — silent fallback
+    }
+
+    function dismissWarning() {
+        warningDismissed = true;
+        const banner = document.getElementById('warning-banner');
+        if (banner) banner.classList.remove('visible');
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', async function () {
+        // Load patient health data if consultant
+        if (USER_TYPE === 'consultant') {
+            loadPatientHealthData();
+        }
+
+        // Show lobby overlay (ensure it's visible)
+        const lobbyOverlay = document.getElementById('lobby-overlay');
+        if (lobbyOverlay) {
+            lobbyOverlay.classList.remove('hidden');
+        }
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+
+    // Lobby Logic — consent is captured at booking, no in-call popup needed
+    function showConsentModal() {
+        // No-op: kept for compatibility; Join Call goes directly to acceptAndJoin()
+        acceptAndJoin();
+    }
+
+    function hideConsentModal() {
+        // No-op: consent modal removed
+    }
+
+    async function acceptAndJoin() {
+        const lobby  = document.getElementById('lobby-overlay');
+        const errBox = document.getElementById('join-error');
+        const errTtl = document.getElementById('join-error-title');
+        const errDtl = document.getElementById('join-error-detail');
+        const joinBtn = document.getElementById('join-btn');
+        const joinTxt = document.getElementById('join-btn-text');
+
+        // Hide any previous error, show loading state
+        if (errBox) errBox.classList.add('hidden');
+        if (joinBtn) joinBtn.disabled = true;
+        if (joinTxt) joinTxt.textContent = 'Connecting...';
+
+        // Hide the lobby and start the call
+        if (lobby) lobby.classList.add('hidden');
+        updateStatus('connecting', 'Initializing call...');
+
+        try {
+            await initializeCall();
+        } catch (error) {
+            console.error('[Call] initializeCall failed:', error);
+
+            // Restore lobby so they can retry
+            if (lobby) lobby.classList.remove('hidden');
+            if (joinBtn) joinBtn.disabled = false;
+            if (joinTxt) joinTxt.textContent = 'Try Again';
+            updateStatus('disconnected', 'Failed to connect');
+
+            // Show friendly in-UI error (no blocking alert)
+            if (errBox && errTtl && errDtl) {
+                errBox.classList.remove('hidden');
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    errTtl.textContent = 'Microphone permission denied';
+                    errDtl.textContent = 'Please allow microphone access in your browser settings and click Try Again.';
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                    errTtl.textContent = 'No microphone found';
+                    errDtl.textContent = 'Please connect a microphone and click Try Again.';
+                } else if (error.name === 'NotReadableError') {
+                    errTtl.textContent = 'Microphone in use';
+                    errDtl.textContent = 'Your microphone is being used by another app. Close it and click Try Again.';
+                } else {
+                    errTtl.textContent = 'Could not start call';
+                    errDtl.textContent = error.message || 'Please check your connection and microphone, then click Try Again.';
+                }
+            }
+        }
+    }
+
+    // Load patient health data
+    async function loadPatientHealthData() {
+        console.log("Loading patient data...");
+        const patientId = APPOINTMENT.user_id;  // use already-defined constant, avoids Jinja2 in JS
+
+        try {
+            const response = await fetch(`/api/patient/${patientId}/health-data`);
+            const data = await response.json();
+
+            if (data.success) {
+                // Render vitals
+                if (data.vitals && data.vitals.length > 0) {
+                    renderIndividualCharts(data.vitals);
+
+                } else {
+                    document.getElementById('vitals-loading').textContent = 'No vitals data';
+                }
+
+                // Render mood chart
+                if (data.moods && data.moods.length > 0) {
+                    renderMoodChart(data.moods);
+                } else {
+                    document.getElementById('mood-loading').textContent = 'No mood data available';
+                }
+            } else {
+                console.error('Error loading health data:', data.error);
+                document.getElementById('vitals-loading').textContent = 'Error loading data';
+                document.getElementById('mood-loading').textContent = 'Error loading data';
+            }
+        } catch (error) {
+            console.error('Error fetching health data:', error);
+            document.getElementById('vitals-loading').textContent = 'Error loading data';
+            document.getElementById('mood-loading').textContent = 'Error loading data';
+        }
+    }
+
+    // Render Individual Vitals Charts (Row Layout)
+    let vitalCharts = {};
+
+    function renderIndividualCharts(vitals) {
+        // Fix: Hide loading indicator
+        const loader = document.getElementById('vitals-loading');
+        if (loader) loader.classList.add('hidden');
+
+        // Show dashboard container if hidden (though it shouldn't be)
+        const rows = document.getElementById('vitals-dashboard-rows');
+        if (rows) rows.classList.remove('hidden');
+
+        // Set Latest Values
+        const current = vitals[0] || {};
+        // Note: vitals array from API is sorted reversed(oldest first) in py, 
+        // wait... API Step 1254:
+        // for vital in reversed(vitals): vitals_data.append(...)
+        // API returns REVERSED of descending query. 
+        // Query: order_by(Timestamp.desc()).limit(7).
+        // vitals[0] is Oldest. vitals[vitals.length-1] is Newest.
+
+        const latest = vitals[vitals.length - 1] || {};
+
+        if (latest) {
+            const hrVal = document.getElementById('val-hr');
+            if (hrVal) hrVal.textContent = latest.heart_rate || '--';
+
+            const bpVal = document.getElementById('val-bp');
+            if (bpVal) bpVal.textContent = (latest.blood_pressure_systolic && latest.blood_pressure_diastolic) ?
+                `${latest.blood_pressure_systolic}/${latest.blood_pressure_diastolic}` : '--/--';
+
+            const tempVal = document.getElementById('val-temp');
+            if (tempVal && latest.temperature) {
+                tempVal.textContent = ((latest.temperature * 9.0 / 5.0) + 32).toFixed(1);
+            } else if (tempVal) {
+                tempVal.textContent = '--';
+            }
+
+            const spo2Val = document.getElementById('val-spo2');
+            if (spo2Val) spo2Val.textContent = latest.oxygen_saturation || '--';
+
+            const respVal = document.getElementById('val-resp');
+            if (respVal) respVal.textContent = latest.respiratory_rate || '--';
+        }
+
+        // Helper to create sparkline
+        const createSparkline = (id, label, data, color, min, max) => {
+            const ctx = document.getElementById(id);
+            if (!ctx) return;
+
+            if (vitalCharts[id]) {
+                vitalCharts[id].destroy();
+            }
+
+            vitalCharts[id] = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: vitals.map(v => v.date),
+                    datasets: [{
+                        label: label,
+                        data: data,
+                        borderColor: color,
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function (c) { return c.parsed.y + (id === 'chart-temp' ? ' F' : ''); }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            display: false,
+                            min: min,
+                            max: max
+                        }
+                    },
+                    layout: { padding: 0 }
+                }
+            });
+        };
+
+        // Render Charts
+        createSparkline('chart-hr', 'Heart Rate', vitals.map(v => v.heart_rate), '#ef4444', 40, 140);
+
+        // BP Dual Line
+        const ctxBP = document.getElementById('chart-bp');
+        if (ctxBP) {
+            if (vitalCharts['chart-bp']) vitalCharts['chart-bp'].destroy();
+            vitalCharts['chart-bp'] = new Chart(ctxBP.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: vitals.map(v => v.date),
+                    datasets: [
+                        { label: 'Sys', data: vitals.map(v => v.blood_pressure_systolic), borderColor: '#3b82f6', borderWidth: 2, tension: 0.4, pointRadius: 0 },
+                        { label: 'Dia', data: vitals.map(v => v.blood_pressure_diastolic), borderColor: '#8b5cf6', borderWidth: 2, tension: 0.4, pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, min: 50, max: 200 } } }
+            });
+        }
+
+        createSparkline('chart-temp', 'Temp', vitals.map(v => v.temperature ? (v.temperature * 9.0 / 5.0) + 32 : null), '#f97316', 96, 104);
+        createSparkline('chart-spo2', 'SpO2', vitals.map(v => v.oxygen_saturation), '#06b6d4', 85, 100);
+        createSparkline('chart-resp', 'Resp Rate', vitals.map(v => v.respiratory_rate), '#10b981', 10, 40);
+    }
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+
+    // Render mood chart (Emoji View)
+    function renderMoodChart(moods) {
+        const container = document.getElementById('mood-chart-container');
+        const loading = document.getElementById('mood-loading');
+        if (loading) loading.classList.add('hidden');
+
+        if (!moods || moods.length === 0) {
+            container.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">No mood entries available</div>';
+            return;
+        }
+
+        const e = String.fromCodePoint;
+        const moodEmojis = {
+            'happy': e(0x1F604), // 😄
+            'excited': e(0x1F929), // 🤩
+            'calm': e(0x1F60C), // 😌
+            'content': e(0x1F60A), // 😊
+            'good': e(0x1F642), // 🙂
+            'neutral': e(0x1F610), // 😐
+            'okay': e(0x1F611), // 😑
+            'tired': e(0x1F62A), // 😪
+            'sad': e(0x1F622), // 😢
+            'anxious': e(0x1F61F), // 😟
+            'stressed': e(0x1F625), // 😥
+            'angry': e(0x1F621), // 😡
+            'joy': e(0x1F602), // 😂
+            'grateful': e(0x1FA77)  // 🩷
+        };
+
+
+        const moodColors = {
+            'happy': 'text-green-600', 'excited': 'text-yellow-600', 'calm': 'text-blue-500',
+            'content': 'text-purple-500', 'good': 'text-green-500', 'neutral': 'text-gray-500',
+            'okay': 'text-gray-500', 'tired': 'text-orange-500', 'sad': 'text-red-400',
+            'anxious': 'text-red-600', 'stressed': 'text-red-700', 'angry': 'text-red-900'
+        };
+
+        let html = '<div class="flex gap-2 overflow-x-auto pb-4 pt-2 items-center justify-start lg:justify-center no-scrollbar" style="scrollbar-width: none; -ms-overflow-style: none;">';
+
+        moods.forEach(m => {
+            const moodKey = (m.mood || '').toLowerCase();
+            const emoji = moodEmojis[moodKey] || e(0x1F636); // 😶 neutral face
+            const colorClass = moodColors[moodKey] || 'text-gray-500';
+
+            // Format Date assumes "Jan 15, 14:30"
+            const dateParts = m.date.split(',');
+            const dateStr = dateParts[0].trim();
+            const timeStr = (dateParts[1] || '').trim();
+
+            html += `
+                <div class="flex flex-col items-center min-w-[50px] p-2 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all transform hover:-translate-y-1">
+                    <span class="text-[9px] text-gray-400 font-semibold uppercase tracking-wider">${dateStr}</span>
+                    <span class="text-[8px] text-gray-300 mb-1">${timeStr}</span>
+                    <div class="text-2xl my-1 transform transition-transform cursor-help scale-100 hover:scale-110" title="${m.notes || 'No notes'}">
+                        ${emoji}
+                    </div>
+                    <span class="text-[10px] font-bold capitalize mt-1 ${colorClass}">${m.mood || 'Unknown'}</span>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+
+        // Add style for hiding scrollbar if not present
+        if (!document.getElementById('scrollbar-style')) {
+            const style = document.createElement('style');
+            style.id = 'scrollbar-style';
+            style.innerHTML = '.no-scrollbar::-webkit-scrollbar { display: none; }';
+            document.head.appendChild(style);
+        }
+
+        container.innerHTML = html;
+        container.style.height = 'auto'; // Reset height if canvas had fixed height
+    }
+
+    // Recording variables
+    let mediaRecorder;
+    let recordedChunks = [];
+    let audioContext;
+    let audioDestination;
+    let remoteStreamForRecording; // To keep track
+    let recordingCanvas;
+    let recordingCtx;
+    let isDrawingCanvas = false;
+    let canvasStream;
+    let isRecordingVideo = false;
+
+    // ── Auto-start recording on audio mix destination ──────────────────
+    function startRecording() {
+        if (!CONSENT_TO_RECORD) {
+            console.log('[Recording] Bypassing call recording - user did not consent');
+            return;
+        }
+        if (!window.MediaRecorder || !audioDestination) {
+            console.warn('[Recording] MediaRecorder or audioDestination not available');
+            return;
+        }
+        try {
+            recordedChunks = []; // clear previous chunks
+            isRecordingVideo = false;
+            
+            // Create a canvas to combine video feeds programmatically
+            recordingCanvas = document.createElement('canvas');
+            recordingCanvas.width = 640;
+            recordingCanvas.height = 480;
+            recordingCtx = recordingCanvas.getContext('2d');
+            
+            // Draw placeholder background
+            recordingCtx.fillStyle = '#0f172a';
+            recordingCtx.fillRect(0, 0, 640, 480);
+            recordingCtx.fillStyle = '#ffffff';
+            recordingCtx.font = '16px sans-serif';
+            recordingCtx.textAlign = 'center';
+            recordingCtx.fillText('Consultation Session Active', 320, 240);
+            
+            isDrawingCanvas = true;
+            function drawLoop() {
+                if (!isDrawingCanvas) return;
+                
+                recordingCtx.fillStyle = '#0f172a';
+                recordingCtx.fillRect(0, 0, 640, 480);
+                
+                const remoteVideo = document.getElementById('remote-video');
+                const localVideo = document.getElementById('local-video');
+                
+                const remoteActive = remoteVideo && remoteVideo.srcObject && remoteVideo.srcObject.getVideoTracks().length > 0 && remoteVideo.srcObject.getVideoTracks()[0].readyState === 'live';
+                const localActive = localVideo && localVideo.srcObject && localVideo.srcObject.getVideoTracks().length > 0 && localVideo.srcObject.getVideoTracks()[0].readyState === 'live';
+                
+                if (remoteActive && localActive) {
+                    // Draw side-by-side
+                    recordingCtx.drawImage(remoteVideo, 0, 120, 320, 240);
+                    recordingCtx.drawImage(localVideo, 320, 120, 320, 240);
+                    isRecordingVideo = true;
+                } else if (remoteActive) {
+                    recordingCtx.drawImage(remoteVideo, 80, 60, 480, 360);
+                    isRecordingVideo = true;
+                } else if (localActive) {
+                    recordingCtx.drawImage(localVideo, 80, 60, 480, 360);
+                    isRecordingVideo = true;
+                } else {
+                    recordingCtx.fillStyle = '#ffffff';
+                    recordingCtx.font = '18px sans-serif';
+                    recordingCtx.textAlign = 'center';
+                    recordingCtx.fillText('Consultation Session (Audio Only)', 320, 240);
+                }
+                
+                requestAnimationFrame(drawLoop);
+            }
+            drawLoop();
+            
+            // Capture stream at 10 FPS
+            canvasStream = recordingCanvas.captureStream(10);
+            
+            // Mix canvas video track with mixed audio
+            const mixedTracks = [
+                ...audioDestination.stream.getAudioTracks(),
+                ...canvasStream.getVideoTracks()
+            ];
+            
+            const recordStream = new MediaStream(mixedTracks);
+            
+            // Use video mimeType if canvas returns a video track
+            const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+                ? 'video/webm;codecs=vp8,opus'
+                : (MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : 'audio/webm');
+                
+            mediaRecorder = new MediaRecorder(recordStream, { mimeType });
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+            };
+            mediaRecorder.start(10000); // collect chunks every 10s
+
+            // Show REC badge
+            const badge = document.getElementById('recording-badge');
+            if (badge) badge.classList.remove('hidden');
+            console.log('[Recording] Started — mimeType:', mimeType);
+        } catch (err) {
+            console.error('[Recording] Failed to start MediaRecorder:', err);
+        }
+    }
+
+    // Initialize call
+    async function initializeCall() {
+        try {
+            // Fetch ICE servers from backend (supports METERED_API_KEY for reliable TURN)
+            await fetchIceServers();
+
+            // Get user media — try ideal constraints first, fall back to relaxed
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 },
+                    video: false
+                });
+                console.log('[Mic] Acquired audio stream with full constraints');
+            } catch (micErr) {
+                console.warn('[Mic] Full constraints failed, trying relaxed:', micErr.name, micErr.message);
+                // Retry with minimal constraints — fixes OverconstrainedError & some NotFoundError on older devices
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    console.log('[Mic] Acquired audio stream with relaxed constraints');
+                } catch (micErr2) {
+                    // Both attempts failed — show specific, actionable error
+                    const errName = micErr2.name || micErr2.constructor.name || 'UnknownError';
+                    console.error('[Mic] getUserMedia failed:', errName, micErr2.message);
+                    updateStatus('disconnected', 'Microphone error — see message below');
+                    let msg = '';
+                    let detail = '';
+                    if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+                        msg = '🎙️ Microphone access was denied.';
+                        detail = 'Open your browser Site Settings for this page and set Microphone to <strong>Allow</strong>, then reload.';
+                    } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+                        msg = '🎙️ No microphone detected on this device.';
+                        detail = 'Please connect a microphone or use headphones with a built-in mic, then reload.';
+                    } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+                        msg = '🎙️ Microphone is already in use by another app.';
+                        detail = 'Close other apps using the mic (e.g. another call, voice recorder), then reload this page.';
+                    } else if (errName === 'OverconstrainedError' || errName === 'ConstraintNotSatisfiedError') {
+                        msg = '🎙️ Microphone settings not supported on this device.';
+                        detail = 'Your device microphone does not support the required audio settings. Try using Chrome or Firefox.';
+                    } else if (errName === 'AbortError') {
+                        msg = '🎙️ Microphone access was aborted by the device.';
+                        detail = 'This may be a hardware issue. Try closing other apps, restarting the browser, or using a different device.';
+                    } else {
+                        msg = '🎙️ Could not access microphone.';
+                        detail = `Error: ${errName} — ${micErr2.message}. Please try refreshing the page or use a different browser.`;
+                    }
+                    // Show in-page error banner (non-blocking, unlike alert)
+                    const callStatus = document.querySelector('.call-status');
+                    if (callStatus) {
+                        callStatus.insertAdjacentHTML('afterend', `
+                            <div id="mic-error-banner" style="background:#fee2e2;border:1px solid #fca5a5;border-radius:0.75rem;padding:1.25rem 1.5rem;margin-bottom:1.5rem;">
+                                <p style="font-weight:700;color:#991b1b;font-size:1rem;margin:0 0 0.5rem">${msg}</p>
+                                <p style="color:#7f1d1d;font-size:0.875rem;margin:0 0 1rem">${detail}</p>
+                                <button onclick="location.reload()" style="background:#dc2626;color:#fff;border:none;padding:0.5rem 1.25rem;border-radius:0.5rem;cursor:pointer;font-weight:600;">🔄 Reload &amp; Try Again</button>
+                            </div>`);
+                    }
+                    return; // Stop initialization — cannot proceed without mic
+                }
+            }
+
+            // Initialize AudioContext for recording mixing
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            audioDestination = audioContext.createMediaStreamDestination();
+
+            // Add local stream to mixer
+            const localSource = audioContext.createMediaStreamSource(localStream);
+            localSource.connect(audioDestination);
+
+            // Connect to Socket.IO
+            socket = io({
+                path: '/socket.io'
+            });
+
+            socket.on('connect', () => {
+                console.log('Connected to signaling server');
+                socket.emit('join_call', {
+                    room_id: ROOM_ID,
+                    user_type: USER_TYPE,
+                    user_name: USER_NAME
+                });
+            });
+
+            // Re-emit join_call whenever the socket reconnects with a NEW SID
+            // (Socket.IO auto-reconnects after network hiccups, generating a new SID)
+            socket.on('reconnect', () => {
+                console.log('[Socket] Reconnected — re-joining room with new SID');
+                socket.emit('join_call', {
+                    room_id: ROOM_ID,
+                    user_type: USER_TYPE,
+                    user_name: USER_NAME
+                });
+            });
+
+            socket.on('room_joined', (data) => {
+                console.log('Joined room:', data);
+                updateStatus('connected', 'Connected');
+                startEndTimeWatcher(); // start 5-min end-time warning
+
+                // Only show REC badge / signal recording if user consented at booking
+                if (CONSENT_TO_RECORD) {
+                    if (data.recording) {
+                        // Already recording (other peer started it) — show badge
+                        const badge = document.getElementById('recording-badge');
+                        if (badge) badge.classList.remove('hidden');
+                    } else {
+                        // Signal server to start recording for this room
+                        socket.emit('start_recording', { room_id: ROOM_ID });
+                    }
+                } else {
+                    // No consent — ensure badge stays hidden
+                    const badge = document.getElementById('recording-badge');
+                    if (badge) badge.classList.add('hidden');
+                    console.log('[Recording] No consent — recording skipped.');
+                }
+
+                // Start local MediaRecorder (gated internally by CONSENT_TO_RECORD)
+                startRecording();
+            });
+
+            socket.on('peer_joined', async (data) => {
+                console.log('Peer joined:', data);
+                updateStatus('connected', 'Peer connected');
+
+                // Start call timer
+                if (!callStartTime) {
+                    startCallTimer();
+                }
+
+                // Mark appointment as in_progress now that both parties have joined
+                try {
+                    await fetch(`/api/appointments/${APPOINTMENT_ID}/status`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'in_progress' })
+                    });
+                } catch (e) {
+                    console.warn('Could not update appointment status to in_progress:', e);
+                }
+
+                // Close existing connection if any before starting a new session
+                if (peerConnection) {
+                    try {
+                        peerConnection.close();
+                    } catch (e) {
+                        console.warn('[WebRTC] Error closing peer connection on peer_joined:', e);
+                    }
+                    peerConnection = null;
+                }
+
+                // Create peer connection and send offer (user initiates to consultant)
+                if (USER_TYPE === 'user') {
+                    await createPeerConnection();
+                    const offer = await peerConnection.createOffer();
+                    await peerConnection.setLocalDescription(offer);
+                    socket.emit('offer', {
+                        room_id: ROOM_ID,
+                        sdp: offer
+                    });
+                }
+            });
+
+            socket.on('offer', async (data) => {
+                // Renegotiation: if peer connection already exists and is alive,
+                // just update the remote description — do NOT create a new connection
+                // (creating a new one destroys the active audio stream).
+                if (!peerConnection || peerConnection.connectionState === 'closed') {
+                    console.log('[WebRTC] Initial offer — creating peer connection');
+                    await createPeerConnection();
+                } else {
+                    console.log('[WebRTC] Renegotiation offer — reusing existing peer connection');
+                }
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                await flushPendingCandidates(); // flush any candidates that arrived early
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('answer', {
+                    room_id: ROOM_ID,
+                    sdp: answer
+                });
+            });
+
+            socket.on('answer', async (data) => {
+                console.log('Received answer');
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                await flushPendingCandidates(); // flush any candidates that arrived early
+            });
+
+            // ICE candidate handler — buffer if remote description or peerConnection not yet set
+            socket.on('ice_candidate', async (data) => {
+                if (!data || !data.candidate) return;
+                if (peerConnection && peerConnection.remoteDescription && peerConnection.remoteDescription.type) {
+                    try {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                    } catch(e) {
+                        console.warn('[ICE] Failed to add candidate:', e);
+                    }
+                } else {
+                    // Buffer the candidate — will be flushed after setRemoteDescription
+                    console.log('[ICE] Buffering candidate (no remote desc or peer connection yet), total buffered:', pendingCandidates.length + 1);
+                    pendingCandidates.push(data.candidate);
+                }
+            });
+
+            socket.on('peer_left', () => {
+                console.log('Peer left the call');
+                updateStatus('disconnected', 'Other participant left');
+                if (peerConnection) {
+                    try {
+                        peerConnection.close();
+                    } catch (e) {
+                        console.warn('[WebRTC] Error closing peer connection on peer_left:', e);
+                    }
+                    peerConnection = null;
+                }
+            });
+
+            socket.on('peer_disconnected', () => {
+                console.log('Peer disconnected');
+                updateStatus('disconnected', 'Other participant disconnected — waiting for them to rejoin...');
+                if (peerConnection) {
+                    try {
+                        peerConnection.close();
+                    } catch (e) {
+                        console.warn('[WebRTC] Error closing peer connection on peer_disconnected:', e);
+                    }
+                    peerConnection = null;
+                }
+            });
+
+            // Peer went on a break — show informative status
+            socket.on('peer_on_break', (data) => {
+                console.log('[Call] Peer is on a break');
+                updateStatus('connecting', '⏸ Other participant is on a short break...');
+            });
+
+            // Peer returned from break
+            socket.on('peer_rejoined', (data) => {
+                console.log('[Call] Peer has returned from break');
+                updateStatus('connected', 'Connected');
+            });
+
+            // Remote party turned off their camera — clear the remote video panel
+            socket.on('video_stopped', () => {
+                console.log('[Call] Remote stopped video');
+                const remoteVideoEl = document.getElementById('remote-video');
+                if (remoteVideoEl) remoteVideoEl.srcObject = null;
+                // Hide video panels if local camera is also off
+                if (!cameraEnabled) {
+                    const panels = document.getElementById('video-panels');
+                    if (panels) panels.classList.remove('active');
+                }
+            });
+
+            socket.on('recording_started', (data) => {
+                console.log('Recording started');
+                const badge = document.getElementById('recording-badge');
+                if (badge) badge.classList.remove('hidden');
+            });
+
+        } catch (error) {
+            // Catch-all for non-mic errors (ICE fetch, AudioContext, socket failures)
+            console.error('[Call] Initialization error (non-mic):', error.name, error.message, error);
+            updateStatus('disconnected', 'Failed to connect — please reload');
+        }
+    }
+
+    // Flush ICE candidates that arrived before setRemoteDescription was called
+    async function flushPendingCandidates() {
+        while (pendingCandidates.length > 0) {
+            const c = pendingCandidates.shift();
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(c));
+                console.log('[ICE] Flushed buffered candidate');
+            } catch(e) {
+                console.warn('[ICE] Buffered candidate failed:', e);
+            }
+        }
+    }
+
+    // Create peer connection
+    async function createPeerConnection() {
+        if (peerConnection) {
+            try {
+                peerConnection.close();
+            } catch (e) {
+                console.warn('[WebRTC] Error closing existing peer connection in createPeerConnection:', e);
+            }
+        }
+        pendingCandidates = []; // clear any buffered candidates from previous connection
+        peerConnection = new RTCPeerConnection(ICE_SERVERS);
+
+        // Add local stream
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+
+        // Add video track if camera is enabled (so video works after rejoining)
+        if (cameraEnabled && videoTrack) {
+            const videoStream = new MediaStream([videoTrack]);
+            videoSender = peerConnection.addTrack(videoTrack, videoStream);
+            console.log('[WebRTC] Automatically added active video track to the new peer connection');
+        }
+
+        // Handle ICE candidates
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('ice_candidate', {
+                    room_id: ROOM_ID,
+                    candidate: event.candidate
+                });
+            } else {
+                console.log('[ICE] All candidates gathered');
+            }
+        };
+
+        // Monitor connection + ICE state — with automatic ICE restart on failure
+        peerConnection.onconnectionstatechange = () => {
+            const state = peerConnection.connectionState;
+            console.log('[WebRTC] connectionState:', state);
+            if (state === 'connected') {
+                updateStatus('connected', 'Connected');
+                iceRestartAttempts = 0; // reset counter on success
+            } else if (state === 'failed') {
+                // Attempt ICE restart up to 3 times before giving up
+                if (iceRestartAttempts < 3 && USER_TYPE === 'user') {
+                    iceRestartAttempts++;
+                    console.log(`[ICE] Restarting ICE (attempt ${iceRestartAttempts}/3)`);
+                    updateStatus('connecting', `Reconnecting... (attempt ${iceRestartAttempts}/3)`);
+                    peerConnection.restartIce();
+                    peerConnection.createOffer({ iceRestart: true }).then(offer => {
+                        return peerConnection.setLocalDescription(offer);
+                    }).then(() => {
+                        socket.emit('offer', { room_id: ROOM_ID, sdp: peerConnection.localDescription });
+                    }).catch(e => console.warn('[ICE] Restart offer failed:', e));
+                } else {
+                    updateStatus('disconnected', 'Connection lost. Please click "Rejoin Call" or reload.');
+                }
+            } else if (state === 'disconnected') {
+                updateStatus('connecting', 'Reconnecting...');
+            }
+        };
+
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log('[ICE] iceConnectionState:', peerConnection.iceConnectionState);
+        };
+
+        peerConnection.onicegatheringstatechange = () => {
+            console.log('[ICE] gatheringState:', peerConnection.iceGatheringState);
+        };
+
+        // Handle remote stream — supports both audio and video tracks
+        peerConnection.ontrack = (event) => {
+            const track = event.track;
+            const remoteStream = event.streams[0];
+
+            if (track.kind === 'video') {
+                console.log('[Call] Received remote video track');
+                const remoteVideoEl = document.getElementById('remote-video');
+                // Use the track directly — event.streams[0] may be the audio-only
+                // localStream from the sender, which has no video data to display.
+                remoteVideoEl.srcObject = new MediaStream([track]);
+                document.getElementById('video-panels').classList.add('active');
+                // When remote stops video, hide panel if local also off
+                track.onended = () => {
+                    remoteVideoEl.srcObject = null;
+                    if (!cameraEnabled) {
+                        document.getElementById('video-panels').classList.remove('active');
+                    }
+                };
+            } else {
+                // Audio track — attach to persistent DOM element to prevent GC killing playback
+                console.log('[Call] Received remote audio track, attaching to #remote-audio');
+                const remoteAudioEl = document.getElementById('remote-audio');
+                if (remoteAudioEl) {
+                    remoteAudioEl.srcObject = remoteStream;
+                    // Handle autoplay policy — play() may be blocked until a user gesture
+                    remoteAudioEl.play().catch(err => {
+                        console.warn('[Audio] Autoplay blocked, waiting for user gesture to resume:', err);
+                        const resumeAudio = () => {
+                            remoteAudioEl.play().catch(e => console.warn('[Audio] Resume play failed:', e));
+                            document.removeEventListener('click', resumeAudio);
+                            document.removeEventListener('touchstart', resumeAudio);
+                        };
+                        document.addEventListener('click', resumeAudio, { once: true });
+                        document.addEventListener('touchstart', resumeAudio, { once: true });
+                    });
+                } else {
+                    // Fallback: use a module-level variable so GC cannot collect it
+                    console.warn('[Audio] #remote-audio element not found, using window reference fallback');
+                    window._remoteAudioFallback = new Audio();
+                    window._remoteAudioFallback.srcObject = remoteStream;
+                    window._remoteAudioFallback.play().catch(e => console.warn('[Audio] Fallback play failed:', e));
+                }
+
+                // Add to mixer for recording
+                if (audioContext && audioDestination) {
+                    if (audioContext.state === 'suspended') audioContext.resume();
+                    const remoteSource = audioContext.createMediaStreamSource(remoteStream);
+                    remoteSource.connect(audioDestination);
+                }
+            }
+        };
+
+        return peerConnection;
+    }
+
+    // Toggle mute
+    function toggleMute() {
+        if (localStream) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                isMuted = !audioTrack.enabled;
+
+                const muteBtn = document.getElementById('mute-btn');
+                const muteText = document.getElementById('mute-text');
+                const micIcon = document.getElementById('mic-icon');
+
+                if (isMuted) {
+                    muteBtn.classList.add('muted');
+                    muteText.textContent = 'Unmute';
+                    micIcon.setAttribute('data-lucide', 'mic-off');
+                } else {
+                    muteBtn.classList.remove('muted');
+                    muteText.textContent = 'Mute';
+                    micIcon.setAttribute('data-lucide', 'mic');
+                }
+
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+        }
+    }
+
+    // ── Camera Toggle ─────────────────────────────────────────────────────────
+    async function toggleCamera() {
+        const cameraBtn  = document.getElementById('camera-btn');
+        const cameraIcon = document.getElementById('camera-icon');
+        const cameraText = document.getElementById('camera-text');
+        const localVideoEl  = document.getElementById('local-video');
+        const videoPanels   = document.getElementById('video-panels');
+
+        if (!cameraEnabled) {
+            try {
+                // Request camera permission
+                const camStream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+                videoTrack = camStream.getVideoTracks()[0];
+
+                // Show local self-view
+                localVideoEl.srcObject = new MediaStream([videoTrack]);
+                videoPanels.classList.add('active');
+
+                // Add video track to peer connection + renegotiate
+                // Use a dedicated video-only stream so the remote ontrack receives
+                // a video stream (not the audio localStream) via event.streams[0].
+                if (peerConnection) {
+                    const videoStream = new MediaStream([videoTrack]);
+                    videoSender = peerConnection.addTrack(videoTrack, videoStream);
+                    try {
+                        const offer = await peerConnection.createOffer();
+                        await peerConnection.setLocalDescription(offer);
+                        socket.emit('offer', { room_id: ROOM_ID, sdp: offer });
+                    } catch (e) {
+                        console.warn('[Video] Renegotiation offer failed:', e);
+                    }
+                }
+
+                // Handle remote ending their video call
+                videoTrack.onended = () => { if (cameraEnabled) toggleCamera(); };
+
+                cameraEnabled = true;
+                cameraBtn.classList.add('camera-on');
+                cameraIcon.setAttribute('data-lucide', 'video');
+                cameraText.textContent = 'Stop Video';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            } catch (err) {
+                console.error('[Video] Camera access denied:', err);
+                alert('Could not access camera. Please allow camera access in your browser settings.');
+            }
+        } else {
+            // Turn off camera
+            if (videoTrack) {
+                videoTrack.enabled = false; // instantly black on remote side
+                videoTrack.stop();
+                videoTrack = null;
+            }
+            if (videoSender && peerConnection) {
+                try { peerConnection.removeTrack(videoSender); } catch(e) {}
+                videoSender = null;
+            }
+            localVideoEl.srcObject = null;
+
+            // Notify remote party to clear their video panel
+            if (socket) socket.emit('video_stopped', { room_id: ROOM_ID });
+
+            // Hide video panel if remote also has no video
+            const remoteVideo = document.getElementById('remote-video');
+            if (!remoteVideo || !remoteVideo.srcObject) {
+                videoPanels.classList.remove('active');
+            }
+
+            cameraEnabled = false;
+            cameraBtn.classList.remove('camera-on');
+            cameraIcon.setAttribute('data-lucide', 'video-off');
+            cameraText.textContent = 'Start Video';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
+
+    // ── Take a Break ──────────────────────────────────────────────────────────
+    async function takeBreak() {
+        // Pause local audio
+        if (localStream) {
+            localStream.getAudioTracks().forEach(t => t.enabled = false);
+        }
+        // Notify peer
+        if (socket) socket.emit('on_break', { room_id: ROOM_ID });
+
+        // Update appointment status
+        try {
+            await fetch(`/api/appointments/${APPOINTMENT_ID}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'in_progress' })  // keep in_progress; peer sees badge
+            });
+        } catch (_) { }
+
+        // Show banner & swap buttons
+        updateStatus('connecting', '⏸ On a break — click Rejoin when ready');
+        document.getElementById('break-btn').classList.add('hidden');
+        document.getElementById('rejoin-btn').classList.remove('hidden');
+        document.getElementById('mute-btn').disabled = true;
+    }
+
+    // ── Rejoin after break ────────────────────────────────────────────────────
+    function rejoinCall() {
+        // Resume local audio
+        if (localStream) {
+            localStream.getAudioTracks().forEach(t => t.enabled = true);
+        }
+        isMuted = false;
+        const muteBtn = document.getElementById('mute-btn');
+        const muteText = document.getElementById('mute-text');
+        const micIcon = document.getElementById('mic-icon');
+        if (muteBtn) muteBtn.classList.remove('muted');
+        if (muteText) muteText.textContent = 'Mute';
+        if (micIcon) micIcon.setAttribute('data-lucide', 'mic');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        // Notify peer
+        if (socket) socket.emit('rejoin_call', { room_id: ROOM_ID });
+
+        updateStatus('connected', 'Connected');
+        document.getElementById('rejoin-btn').classList.add('hidden');
+        document.getElementById('break-btn').classList.remove('hidden');
+        document.getElementById('mute-btn').disabled = false;
+    }
+
+    // ── Red Flag Operations ───────────────────────────────────────────────────
+    let preFlagMuted = false;
+    let preFlagCamera = false;
+
+    function openRedFlagModal() {
+        // 1. Record pre-flag mic and camera states
+        preFlagMuted = isMuted;
+        preFlagCamera = cameraEnabled;
+
+        // 2. Pause local streams
+        if (localStream) {
+            localStream.getAudioTracks().forEach(t => t.enabled = false);
+            localStream.getVideoTracks().forEach(t => t.enabled = false);
+        }
+
+        // 3. Notify peer that we went on break (pauses call)
+        if (socket) socket.emit('on_break', { room_id: ROOM_ID });
+
+        // 4. Update status label
+        updateStatus('connecting', '⏸ Call is paused');
+
+        // 5. Show modal
+        document.getElementById('red-flag-modal').classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function closeRedFlagModal() {
+        // 1. Hide modal
+        document.getElementById('red-flag-modal').classList.add('hidden');
+
+        // 2. Restore mic state
+        if (localStream) {
+            localStream.getAudioTracks().forEach(t => t.enabled = !preFlagMuted);
+        }
+        
+        // 3. Restore camera state
+        if (localStream && preFlagCamera) {
+            localStream.getVideoTracks().forEach(t => t.enabled = true);
+        }
+
+        // 4. Notify peer that we rejoined
+        if (socket) socket.emit('rejoin_call', { room_id: ROOM_ID });
+
+        // 5. Restore status label
+        updateStatus('connected', 'Connected');
+    }
+
+    async function submitRedFlag(event) {
+        event.preventDefault();
+        const reason = document.getElementById('red-flag-reason').value;
+        if (!reason.trim()) return;
+
+        // Close modal
+        document.getElementById('red-flag-modal').classList.add('hidden');
+
+        // Submit red flag to backend
+        try {
+            await fetch(`/api/appointments/${APPOINTMENT_ID}/red-flag`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reason })
+            });
+        } catch (e) {
+            console.error('Failed to submit red flag:', e);
+        }
+
+        // Bypasses rating/feedback completely and redirects
+        bypassRating = true;
+
+        // End call and exit
+        await proceedWithEndCall(true);
+    }
+
+    // ── End Call ─────────────────────────────────────────────────────────────
+    // ── Exit Reason Modal Operations ──────────────────────────────────────────
+    function closeExitModal() {
+        document.getElementById('exit-reason-modal').classList.add('hidden');
+    }
+
+    async function submitExitReason(event) {
+        event.preventDefault();
+        const checkedInput = document.querySelector('input[name="exit_reason"]:checked');
+        if (!checkedInput) return;
+        const reason = checkedInput.value;
+
+        closeExitModal();
+
+        // If patient chose "I wanted a break...", don't prompt them for a rating when they exit
+        if (reason === 'I wanted a break will join back again.') {
+            bypassRating = true;
+        } else {
+            bypassRating = false;
+        }
+
+        // Call the backend exit-call API
+        try {
+            await fetch(`/api/appointments/${APPOINTMENT_ID}/exit-call`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reason })
+            });
+        } catch (e) {
+            console.error('Failed to report exit reason:', e);
+        }
+
+        // Now run the cleanup and redirect (bypassing the complete endpoint check, 
+        // since the exit-call endpoint has already handled it)
+        await proceedWithEndCall(true);
+    }
+
+    // ── End Call ─────────────────────────────────────────────────────────────
+    async function endCall() {
+        const isConsultant = USER_TYPE === 'consultant';
+        const confirmMsg = isConsultant
+            ? 'Complete this session? Make sure you have written your consultation notes before ending.'
+            : 'Are you sure you want to end the call?';
+
+        if (isConsultant) {
+            const notesVal = document.getElementById('consultation-notes').value.trim();
+            if (!notesVal) {
+                alert('Please write session notes before completing the consultation.');
+                return;
+            }
+        }
+
+        if (!confirm(confirmMsg)) return;
+
+        // Check if exiting before scheduled duration has completed
+        const nowMs = new Date().getTime();
+        if (nowMs < SCHEDULED_END_MS) {
+            // Show exit reason modal
+            document.getElementById('exit-reason-modal').classList.remove('hidden');
+            return;
+        }
+
+        await proceedWithEndCall(false);
+    }
+
+    async function proceedWithEndCall(bypassComplete = false) {
+        const isConsultant = USER_TYPE === 'consultant';
+        if (isConsultant) {
+            // Auto-save notes first
+            await saveNotes();
+
+            if (!bypassComplete) {
+                // Consultant completes the session via the /complete endpoint
+                // (enforces that both parties must have joined)
+                try {
+                    const resp = await fetch(`/api/appointments/${APPOINTMENT_ID}/complete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const result = await resp.json();
+                    if (!result.success) {
+                        alert('Cannot complete session: ' + result.error);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Could not call /complete endpoint:', e);
+                    // Fallback: mark via status endpoint
+                    try {
+                        await fetch(`/api/appointments/${APPOINTMENT_ID}/status`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: 'completed' })
+                        });
+                    } catch (_) { }
+                }
+            }
+        }
+
+        // Stop recorder and upload
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            isDrawingCanvas = false;
+            mediaRecorder.stop();
+            mediaRecorder.onstop = async () => {
+                const mimeType = isRecordingVideo ? 'video/webm' : 'audio/webm';
+                const blob = new Blob(recordedChunks, { type: mimeType });
+                await uploadRecording(blob);
+                cleanupAndRedirect();
+            };
+        } else {
+            isDrawingCanvas = false;
+            cleanupAndRedirect();
+        }
+    }
+
+    // Upload Recording — called automatically after endCall()
+    async function uploadRecording(blob) {
+        if (!blob || blob.size === 0) {
+            console.warn('[Recording] Empty blob — skipping upload');
+            return;
+        }
+        const formData = new FormData();
+        formData.append('file', blob, `recording-${APPOINTMENT_ID}.webm`);
+        formData.append('appointment_id', APPOINTMENT_ID);
+
+        // Show saving status on end button (safe — call already ended)
+        const btn = document.querySelector('.btn-end');
+        if (btn) btn.textContent = 'Saving recording...';
+
+        try {
+            // NOTE: Do NOT set Content-Type header — browser sets it with boundary for FormData
+            const resp = await fetch(`/api/calls/${ROOM_ID}/recording`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await resp.json();
+            if (result.success) {
+                console.log('[Recording] Uploaded successfully:', result.url);
+            } else {
+                console.warn('[Recording] Upload returned error:', result.error);
+            }
+        } catch (e) {
+            // Upload failure must never block the page redirect
+            console.error('[Recording] Failed to upload recording:', e);
+        }
+    }
+
+    function cleanupAndRedirect() {
+        // Stop all tracks
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Close peer connection
+        if (peerConnection) {
+            peerConnection.close();
+        }
+
+        // Disconnect socket
+        if (socket) {
+            socket.emit('leave_call', { room_id: ROOM_ID });
+            socket.disconnect();
+        }
+
+        // Stop timer
+        if (timerInterval) {
+            clearInterval(timerInterval);
+        }
+
+        if (audioContext) {
+            audioContext.close();
+        }
+
+        // Redirect based on user type
+        if (USER_TYPE === 'consultant') {
+            window.location.href = '/consultant';
+        } else {
+            if (bypassRating) {
+                window.location.href = '/app';
+            } else {
+                // Show rating popup for users before redirecting
+                showRatingPopup();
+            }
+        }
+    }
+
+    // Update status
+    function updateStatus(status, text) {
+        const indicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+
+        indicator.className = 'status-indicator';
+        indicator.classList.add(`status-${status}`);
+        statusText.textContent = text;
+    }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        if (socket) {
+            socket.disconnect();
+        }
+    });
+
+    // Save consultation notes
+    async function saveNotes() {
+        const notes = document.getElementById('consultation-notes').value;
+        const btn = document.getElementById('save-notes-btn');
+        const status = document.getElementById('save-status');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Saving...';
+
+        try {
+            const response = await fetch(`/api/appointments/${APPOINTMENT_ID}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notes: notes })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                status.textContent = 'Notes saved successfully';
+                status.classList.remove('opacity-0');
+                status.classList.add('text-green-600');
+                setTimeout(() => {
+                    status.classList.add('opacity-0');
+                }, 3000);
+            } else {
+                status.textContent = 'Error saving notes';
+                status.classList.remove('opacity-0');
+                status.classList.add('text-red-600');
+            }
+        } catch (error) {
+            console.error('Error saving notes:', error);
+            status.textContent = 'Error saving notes';
+            status.classList.remove('opacity-0');
+            status.classList.add('text-red-600');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Save';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+    }
+
+    // Start call timer
+    function startCallTimer() {
+        callStartTime = Date.now();
+        timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('timer').textContent =
+                `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }, 1000);
+    }
+
+    // --- Modal & History Logic ---
+
+    // History
+    function openHistoryModal() {
+        document.getElementById('history-modal').classList.remove('hidden');
+        loadPatientHistory();
+    }
+
+    function closeHistoryModal() {
+        document.getElementById('history-modal').classList.add('hidden');
+    }
+
+    async function loadPatientHistory() {
+        // Use global APPOINTMENT.user_id 
+        if (!APPOINTMENT || !APPOINTMENT.user_id) return;
+
+        try {
+            const res = await fetch(`/api/patients/${APPOINTMENT.user_id}/history`);
+            const data = await res.json();
+
+            if (data.success) {
+                document.getElementById('hist-patient-name').textContent = data.patient.name;
+
+                let html = '';
+
+                // Vitals
+                html += '<div class="mb-4"><h3 class="font-bold text-gray-800 border-b pb-1 mb-2">Recent Vitals</h3>';
+                if (data.vitals.length > 0) {
+                    html += '<div class="grid grid-cols-3 gap-2">';
+                    data.vitals.forEach(v => {
+                        html += `<div class="bg-blue-50 p-2 rounded text-xs">
+                            <div class="font-semibold">${v.date}</div>
+                            <div>HR: ${v.heart_rate || '--'} bpm</div>
+                        </div>`;
+                    });
+                    html += '</div>';
+                } else {
+                    html += '<p class="text-sm text-gray-500">No vitals recorded.</p>';
+                }
+                html += '</div>';
+
+                // Appointments
+                html += '<div class="mb-4"><h3 class="font-bold text-gray-800 border-b pb-1 mb-2">Past Interactions</h3>';
+                if (data.appointments.length > 0) {
+                    data.appointments.forEach(appt => {
+                        html += `<div class="mb-2 bg-gray-50 p-3 rounded-lg text-sm border border-gray-100">
+                            <div class="flex justify-between font-semibold mb-1">
+                                <span>${appt.date}</span>
+                                <span class="text-gray-600">${appt.consultant}</span>
+                            </div>
+                            <p class="text-gray-700">${appt.notes || 'No notes'}</p>
+                        </div>`;
+                    });
+                } else {
+                    html += '<p class="text-sm text-gray-500">No previous appointments.</p>';
+                }
+                html += '</div>';
+
+                // Wellness Summary Reports
+                html += '<div class="mb-4"><h3 class="font-bold text-gray-800 border-b pb-1 mb-2">Past Wellness Summary Reports</h3>';
+                if (data.prescriptions.length > 0) {
+                    data.prescriptions.forEach(rx => {
+                        html += `<div class="mb-2 bg-green-50 p-3 rounded-lg text-sm border border-green-100">
+                            <div class="font-semibold mb-1 text-green-800">${rx.date}</div>
+                            <div class="mb-1 text-gray-600"><span class="font-medium">Diagnosis:</span> ${rx.diagnosis || '--'}</div>
+                            <div class="text-gray-700"><span class="font-medium">Meds:</span> ${rx.medications.join(', ')}</div>
+                        </div>`;
+                    });
+                } else {
+                    html += '<p class="text-sm text-gray-500">No past prescriptions.</p>';
+                }
+                html += '</div>';
+
+                document.getElementById('history-content').innerHTML = html;
+            } else {
+                document.getElementById('history-content').innerHTML = `<p class="text-red-500">Error: ${data.error}</p>`;
+            }
+        } catch (e) {
+            console.error(e);
+            document.getElementById('history-content').innerHTML = '<p class="text-red-500">Failed to load history.</p>';
+        }
+    }
+
+
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     POST-CALL RATING POPUP
+═══════════════════════════════════════════════════════════ -->
+<div id="ratingOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
+    <div id="ratingCard" class="bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+        <div class="bg-gradient-to-br from-violet-600 via-purple-600 to-pink-500 p-6 text-white text-center">
+            <div class="text-4xl mb-2">⭐</div>
+            <h2 class="text-xl font-bold">How was your session?</h2>
+            <p class="text-purple-100 text-sm mt-1">Your feedback helps improve our consultants</p>
+        </div>
+        <div class="p-6">
+            <!-- Star Rating -->
+            <div class="flex justify-center gap-2 mb-4" id="starContainer">
+                <button class="star-btn text-4xl text-gray-300 hover:text-yellow-400 transition-colors" data-star="1"
+                    onclick="selectStar(1)">★</button>
+                <button class="star-btn text-4xl text-gray-300 hover:text-yellow-400 transition-colors" data-star="2"
+                    onclick="selectStar(2)">★</button>
+                <button class="star-btn text-4xl text-gray-300 hover:text-yellow-400 transition-colors" data-star="3"
+                    onclick="selectStar(3)">★</button>
+                <button class="star-btn text-4xl text-gray-300 hover:text-yellow-400 transition-colors" data-star="4"
+                    onclick="selectStar(4)">★</button>
+                <button class="star-btn text-4xl text-gray-300 hover:text-yellow-400 transition-colors" data-star="5"
+                    onclick="selectStar(5)">★</button>
+            </div>
+            <p class="text-center text-sm text-gray-500 mb-4" id="ratingLabel">Tap a star to rate</p>
+
+            <!-- Optional feedback -->
+            <textarea id="ratingFeedback" placeholder="Any comments? (optional)" rows="2"
+                class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm resize-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 mb-3"></textarea>
+
+            <!-- Anonymous / Named Toggle -->
+            <div class="mb-4">
+                <p class="text-xs text-gray-500 mb-2 text-center">Post feedback as:</p>
+                <div class="flex gap-2 justify-center">
+                    <button id="pill-named" onclick="toggleAnonymous(false)"
+                        class="px-4 py-1.5 rounded-full text-xs font-semibold transition-all bg-purple-600 text-white">
+                        Your Name
+                    </button>
+                    <button id="pill-anon" onclick="toggleAnonymous(true)"
+                        class="px-4 py-1.5 rounded-full text-xs font-semibold transition-all bg-gray-100 text-gray-600">
+                        Anonymous
+                    </button>
+                </div>
+                <p id="anonPreview" class="text-center text-xs text-gray-400 mt-1">Will post as: {{ user.name }}</p>
+            </div>
+
+            <button onclick="submitRating()" id="submitRatingBtn"
+                class="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity mb-2 disabled:opacity-50"
+                disabled>
+                Submit Rating
+            </button>
+            <button onclick="skipRating()" class="w-full text-sm text-gray-400 hover:text-gray-600 py-1">
+                Skip
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    var selectedRating = 0;
+    var ratingIsAnonymous = false;
+    var ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+    // USER_NAME is already declared above as a const from the template
+
+    function showRatingPopup() {
+        fetch('/api/appointments/' + APPOINTMENT_ID + '/rating-status')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.rated) {
+                    window.location.href = '/app';
+                } else {
+                    document.getElementById('ratingOverlay').classList.remove('hidden');
+                }
+            })
+            .catch(function () {
+                document.getElementById('ratingOverlay').classList.remove('hidden');
+            });
+    }
+
+    function selectStar(star) {
+        selectedRating = star;
+        document.querySelectorAll('.star-btn').forEach(function (btn) {
+            var s = parseInt(btn.getAttribute('data-star'));
+            btn.style.color = s <= star ? '#f59e0b' : '#d1d5db';
+        });
+        document.getElementById('ratingLabel').textContent = ratingLabels[star] + ' (' + star + '/5)';
+        document.getElementById('submitRatingBtn').disabled = false;
+    }
+
+    function toggleAnonymous(makeAnon) {
+        ratingIsAnonymous = makeAnon;
+        var namedPill = document.getElementById('pill-named');
+        var anonPill = document.getElementById('pill-anon');
+        if (makeAnon) {
+            anonPill.classList.remove('bg-gray-100', 'text-gray-600');
+            anonPill.classList.add('bg-purple-600', 'text-white');
+            namedPill.classList.remove('bg-purple-600', 'text-white');
+            namedPill.classList.add('bg-gray-100', 'text-gray-600');
+            document.getElementById('anonPreview').textContent = 'Will post as: Anonymous User';
+        } else {
+            namedPill.classList.remove('bg-gray-100', 'text-gray-600');
+            namedPill.classList.add('bg-purple-600', 'text-white');
+            anonPill.classList.remove('bg-purple-600', 'text-white');
+            anonPill.classList.add('bg-gray-100', 'text-gray-600');
+            document.getElementById('anonPreview').textContent = 'Will post as: ' + USER_NAME;
+        }
+    }
+
+    function submitRating() {
+        if (!selectedRating) return;
+        var btn = document.getElementById('submitRatingBtn');
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+
+        var feedback = document.getElementById('ratingFeedback').value.trim();
+        var displayName = ratingIsAnonymous ? 'Anonymous User' : USER_NAME;
+
+        fetch('/api/appointments/' + APPOINTMENT_ID + '/rate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                rating: selectedRating,
+                feedback: feedback,
+                is_anonymous: ratingIsAnonymous,
+                display_name: displayName
+            })
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    document.getElementById('ratingCard').innerHTML = '<div class="p-8 text-center"><div class="text-5xl mb-4">🙏</div><h2 class="text-xl font-bold text-gray-900 mb-2">Thank you!</h2><p class="text-gray-600 text-sm">Your feedback has been saved.</p></div>';
+                    setTimeout(function () { window.location.href = '/app'; }, 1800);
+                } else {
+                    window.location.href = '/app';
+                }
+            })
+            .catch(function () {
+                window.location.href = '/app';
+            });
+    }
+
+    function skipRating() {
+        window.location.href = '/app';
+    }
+</script>
+{% endblock %}

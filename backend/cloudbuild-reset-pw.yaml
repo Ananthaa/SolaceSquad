@@ -1,0 +1,58 @@
+steps:
+  - name: 'python:3.11-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install cloud-sql-python-connector==1.13.0 pg8000==1.30.5 sqlalchemy==2.0.25 bcrypt==4.0.1 passlib[bcrypt]==1.7.4 --quiet 2>&1
+        python3 -c "
+        import os
+        from google.cloud.sql.connector import Connector, IPTypes
+        from sqlalchemy import create_engine, text
+        from passlib.context import CryptContext
+
+        pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+
+        connector = Connector()
+        def getconn():
+            return connector.connect(os.environ['INSTANCE_CONNECTION_NAME'], 'pg8000', user=os.environ['DB_USER'], password=os.environ['DB_PASSWORD'], db=os.environ['DB_NAME'], ip_type=IPTypes.PUBLIC)
+        engine = create_engine('postgresql+pg8000://', creator=getconn)
+
+        # Set a known password for ananthaa@gmail.com
+        new_hash = pwd_context.hash('Test1234')
+        print(f'New hash generated: {new_hash[:30]}...')
+
+        with engine.connect() as conn:
+            # Check current hash
+            result = conn.execute(text(\"SELECT id, email, password_hash FROM users WHERE email='ananthaa@gmail.com'\"))
+            row = result.fetchone()
+            if row:
+                print(f'User found: id={row[0]}, email={row[1]}')
+                print(f'Current hash prefix: {row[2][:20] if row[2] else None}...')
+                # Verify test password
+                try:
+                    ok = pwd_context.verify('Test1234', row[2])
+                    print(f'Test1234 matches current hash: {ok}')
+                except Exception as e:
+                    print(f'Verify error: {e}')
+                # Update password to Test1234
+                conn.execute(text(\"UPDATE users SET password_hash=:h WHERE email='ananthaa@gmail.com'\"), {'h': new_hash})
+                conn.commit()
+                print('Password reset to Test1234 for ananthaa@gmail.com')
+            else:
+                print('User NOT found!')
+
+        connector.close()
+        "
+    env:
+      - 'DB_USER=solacesquad_user'
+      - 'DB_NAME=solacesquad_prod'
+      - 'INSTANCE_CONNECTION_NAME=abiding-idea-485817-k2:us-central1:solacesquad-login-data1'
+    secretEnv: ['DB_PASSWORD']
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/abiding-idea-485817-k2/secrets/db-password/versions/21
+      env: 'DB_PASSWORD'
+
+timeout: 120s

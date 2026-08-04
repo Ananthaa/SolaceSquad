@@ -1,0 +1,1893 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Canvas Editor — SolaceSquad Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        html,
+        body {
+            height: 100%;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            overflow: hidden
+        }
+
+        /* ── TOOLBAR ── */
+        #toolbar {
+            height: 50px;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 8px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 200;
+            flex-shrink: 0
+        }
+
+        .t-logo {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: .82rem;
+            font-weight: 700;
+            flex-shrink: 0
+        }
+
+        .t-logo-box {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #6e40c9, #a371f7);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+
+        .t-sep {
+            width: 1px;
+            height: 20px;
+            background: #30363d;
+            flex-shrink: 0
+        }
+
+        .t-spacer {
+            flex: 1
+        }
+
+        .tb {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: .75rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all .15s;
+            font-family: inherit;
+            white-space: nowrap
+        }
+
+        .tb-ghost {
+            background: #21262d;
+            color: #c9d1d9;
+            border-color: #30363d
+        }
+
+        .tb-ghost:hover {
+            background: #30363d;
+            color: #e6edf3;
+            border-color: #6e40c9
+        }
+
+        .tb-ghost:disabled {
+            opacity: .35;
+            cursor: not-allowed
+        }
+
+        .tb-purple {
+            background: #6e40c9;
+            color: #fff;
+            border-color: #6e40c9
+        }
+
+        .tb-purple:hover {
+            background: #8957e5
+        }
+
+        .tb-green {
+            background: #1a3a2a;
+            color: #3fb950;
+            border-color: #2ea043
+        }
+
+        .tb-green:hover {
+            background: #2ea043;
+            color: #fff
+        }
+
+        #save-status {
+            font-size: .7rem;
+            color: #3fb950;
+            transition: opacity .3s
+        }
+
+        /* device toggle */
+        .device-btn {
+            padding: 4px 8px;
+            border-radius: 5px;
+            border: 1px solid #30363d;
+            background: #21262d;
+            color: #7d8590;
+            font-size: .7rem;
+            cursor: pointer;
+            transition: all .15s;
+            font-family: inherit
+        }
+
+        .device-btn.active {
+            background: #6e40c9;
+            color: #fff;
+            border-color: #6e40c9
+        }
+
+        /* ── LAYOUT ── */
+        #layout {
+            display: flex;
+            height: calc(100vh - 50px);
+            margin-top: 50px;
+            overflow: hidden
+        }
+
+        /* ── LEFT PANEL ── */
+        #left-panel {
+            width: 220px;
+            flex-shrink: 0;
+            background: #161b22;
+            border-right: 1px solid #30363d;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden
+        }
+
+        .panel-hd {
+            padding: 10px 12px;
+            font-size: .65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: #7d8590;
+            border-bottom: 1px solid #30363d;
+            flex-shrink: 0
+        }
+
+        #sections-outline {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px
+        }
+
+        .outline-item {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 7px 9px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            margin-bottom: 2px;
+            font-size: .77rem;
+            color: #c9d1d9;
+            transition: all .15s;
+            user-select: none
+        }
+
+        .outline-item:hover {
+            background: #21262d;
+            border-color: #30363d
+        }
+
+        .outline-item.active {
+            background: #1c2128;
+            border-color: #6e40c9;
+            color: #a371f7
+        }
+
+        .outline-icon {
+            font-size: 1rem;
+            flex-shrink: 0
+        }
+
+        .outline-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap
+        }
+
+        .outline-eye {
+            font-size: .7rem;
+            color: #484f58;
+            flex-shrink: 0;
+            cursor: pointer
+        }
+
+        .outline-eye:hover {
+            color: #6e40c9
+        }
+
+        .panel-actions {
+            padding: 8px;
+            border-top: 1px solid #30363d;
+            flex-shrink: 0
+        }
+
+        .panel-actions button {
+            width: 100%;
+            padding: 7px 10px;
+            border-radius: 6px;
+            border: 1px dashed #30363d;
+            background: none;
+            color: #7d8590;
+            font-size: .77rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all .15s
+        }
+
+        .panel-actions button:hover {
+            background: #1c2128;
+            border-color: #6e40c9;
+            color: #a371f7
+        }
+
+        /* ── CANVAS AREA ── */
+        #canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #0d1117;
+            overflow-y: auto;
+            padding: 20px 0;
+            position: relative
+        }
+
+        #canvas-wrap {
+            background: #fff;
+            position: relative;
+            transition: width .3s ease;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .6);
+            border-radius: 4px;
+            /* NO overflow:hidden — would clip hover outlines */
+        }
+
+        #canvas-wrap.device-desktop {
+            width: 100%;
+            border-radius: 0
+        }
+
+        #canvas-wrap.device-tablet {
+            width: 768px
+        }
+
+        #canvas-wrap.device-mobile {
+            width: 375px
+        }
+
+        #canvas-frame {
+            width: 100%;
+            display: block;
+            border: none;
+            transition: height .3s ease;
+            min-height: 600px
+        }
+
+        /* Canvas height slider in toolbar */
+        #canvas-height-ctrl {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: .68rem;
+            color: #7d8590
+        }
+
+        #canvas-height-ctrl input[type=range] {
+            width: 72px;
+            accent-color: #6e40c9;
+            cursor: pointer
+        }
+
+        /* Loading overlay */
+        #canvas-loading {
+            position: absolute;
+            inset: 0;
+            background: rgba(13, 17, 23, .9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: #7d8590;
+            font-size: .85rem;
+            z-index: 10;
+            border-radius: 4px
+        }
+
+        #canvas-loading.hidden {
+            display: none
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #30363d;
+            border-top-color: #6e40c9;
+            border-radius: 50%;
+            animation: spin .7s linear infinite
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        /* Empty state */
+        #canvas-empty {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: #484f58;
+            text-align: center;
+            padding: 2rem
+        }
+
+        #canvas-empty.hidden {
+            display: none
+        }
+
+        #canvas-empty span {
+            font-size: 3rem
+        }
+
+        #canvas-empty p {
+            font-size: .85rem;
+            max-width: 260px;
+            line-height: 1.6
+        }
+
+        /* ── RIGHT PANEL ── */
+        #right-panel {
+            width: 272px;
+            flex-shrink: 0;
+            background: #161b22;
+            border-left: 1px solid #30363d;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden
+        }
+
+        .props-hd {
+            padding: 10px 12px;
+            font-size: .72rem;
+            font-weight: 700;
+            color: #7d8590;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            flex-shrink: 0
+        }
+
+        .props-hd .el-badge {
+            background: #6e40c9;
+            color: #fff;
+            font-size: .58rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: .05em
+        }
+
+        #props-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px
+        }
+
+        .props-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #484f58;
+            text-align: center;
+            padding: 2rem;
+            gap: 10px
+        }
+
+        .props-empty span {
+            font-size: 2.5rem
+        }
+
+        /* form fields */
+        .field {
+            margin-bottom: 10px
+        }
+
+        .field label {
+            display: block;
+            font-size: .65rem;
+            font-weight: 700;
+            color: #7d8590;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: 4px
+        }
+
+        .finput,
+        .fselect {
+            width: 100%;
+            padding: .35rem .6rem;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            background: #0d1117;
+            color: #e6edf3;
+            font-size: .78rem;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color .15s;
+            font-family: inherit
+        }
+
+        .finput:focus,
+        .fselect:focus {
+            border-color: #6e40c9
+        }
+
+        .fcolor {
+            width: 100%;
+            height: 30px;
+            padding: 2px;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            cursor: pointer;
+            box-sizing: border-box;
+            background: #0d1117
+        }
+
+        .sect-div {
+            margin: 12px 0 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #21262d;
+            font-size: .62rem;
+            font-weight: 700;
+            color: #484f58;
+            text-transform: uppercase;
+            letter-spacing: .07em
+        }
+
+        .range-row {
+            display: flex;
+            align-items: center;
+            gap: 7px
+        }
+
+        .range-row input[type=range] {
+            flex: 1;
+            accent-color: #6e40c9
+        }
+
+        .range-val {
+            font-size: .72rem;
+            color: #7d8590;
+            min-width: 30px;
+            text-align: right
+        }
+
+        /* align buttons */
+        .align-btns {
+            display: flex;
+            gap: 4px
+        }
+
+        .align-btn {
+            flex: 1;
+            padding: 5px;
+            border: 1px solid #30363d;
+            border-radius: 5px;
+            background: #21262d;
+            color: #7d8590;
+            font-size: .7rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all .15s;
+            text-align: center
+        }
+
+        .align-btn.on {
+            background: #6e40c9;
+            color: #fff;
+            border-color: #6e40c9
+        }
+
+        .align-btn:hover:not(.on) {
+            border-color: #6e40c9;
+            color: #a371f7
+        }
+
+        /* ── SELECTION BAR (fixed top-right panel) ── */
+        #selection-bar {
+            display: none;
+            position: fixed;
+            top: 60px;
+            right: 10px;
+            width: 190px;
+            z-index: 600;
+            background: #161b22;
+            border: 2px solid #6e40c9;
+            border-radius: 10px;
+            padding: 10px 12px;
+            gap: 5px;
+            flex-direction: column;
+            align-items: stretch;
+            box-shadow: 0 0 0 3px rgba(110, 64, 201, .2), 0 8px 24px rgba(0, 0, 0, .5);
+            animation: sbIn .15s ease;
+        }
+
+        @keyframes sbIn {
+            from {
+                opacity: 0;
+                transform: translateX(12px)
+            }
+
+            to {
+                opacity: 1;
+                transform: none
+            }
+        }
+
+        #selection-bar.visible {
+            display: flex;
+        }
+
+        #sel-tag {
+            font-size: .65rem;
+            font-weight: 800;
+            color: #a371f7;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #30363d;
+            margin-bottom: 2px;
+        }
+
+        .sb-sep {
+            height: 1px;
+            background: #30363d;
+            margin: 3px 0;
+        }
+
+        .sb-btn {
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            background: #0d1117;
+            color: #c9d1d9;
+            font-size: .78rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all .12s;
+            font-family: inherit;
+            width: 100%;
+            text-align: left;
+        }
+
+        .sb-btn:hover {
+            background: #21262d;
+            border-color: #6e40c9;
+            color: #fff;
+        }
+
+        .sb-btn.danger {
+            color: #f85149;
+        }
+
+        .sb-btn.danger:hover {
+            background: #3a1212;
+            border-color: #6e2020;
+        }
+
+        .sb-btn b {
+            font-weight: 900;
+            font-size: .85rem;
+        }
+
+        /* no layout shift needed for right-panel positioning */
+        #layout.bar-open {
+            margin-top: 50px;
+        }
+
+        #ft-tag {
+            font-size: .62rem;
+            font-weight: 700;
+            color: #7d8590;
+            padding: 0 4px;
+            text-transform: uppercase
+        }
+
+        /* ── IMPORT / ADD SECTION MODAL ── */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .75);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999
+        }
+
+        .overlay.open {
+            display: flex
+        }
+
+        .dialog {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 14px;
+            padding: 20px;
+            width: 90vw;
+            max-width: 680px;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, .5)
+        }
+
+        .dialog h2 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #e6edf3;
+            margin-bottom: 4px
+        }
+
+        .dialog p {
+            font-size: .78rem;
+            color: #7d8590;
+            margin-bottom: 12px
+        }
+
+        .dialog-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 12px
+        }
+
+        .import-ta {
+            flex: 1;
+            width: 100%;
+            padding: .65rem;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            font-size: .77rem;
+            font-family: 'Courier New', monospace;
+            color: #e6edf3;
+            resize: none;
+            min-height: 200px;
+            background: #0d1117;
+            outline: none;
+            box-sizing: border-box
+        }
+
+        .import-ta:focus {
+            border-color: #6e40c9
+        }
+
+        /* ── TOAST ── */
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            min-width: 220px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: .8rem;
+            font-weight: 600;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, .4);
+            transform: translateY(60px);
+            opacity: 0;
+            transition: all .3s cubic-bezier(.34, 1.56, .64, 1);
+            pointer-events: none
+        }
+
+        #toast.show {
+            transform: translateY(0);
+            opacity: 1
+        }
+
+        #toast.ok {
+            background: #1a3a2a;
+            border: 1px solid #2ea043;
+            color: #3fb950
+        }
+
+        #toast.err {
+            background: #3a1a1a;
+            border: 1px solid #6e2020;
+            color: #f85149
+        }
+
+        #toast.inf {
+            background: #1c2128;
+            border: 1px solid #1f6feb;
+            color: #79c0ff
+        }
+
+        /* scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── TOOLBAR ── -->
+    <div id="toolbar">
+        <div class="t-logo">
+            <div class="t-logo-box">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
+                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+            </div>
+            Canvas Editor
+        </div>
+        <div class="t-sep"></div>
+        <a href="/admin" class="tb tb-ghost">← Admin</a>
+        <div class="t-sep"></div>
+        <!-- undo / redo -->
+        <button id="btn-undo" class="tb tb-ghost" onclick="doUndo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+        <button id="btn-redo" class="tb tb-ghost" onclick="doRedo()" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
+        <div class="t-sep"></div>
+        <!-- FORMAT GROUP: shown when element selected -->
+        <div id="fmt-group" style="display:flex;align-items:center;gap:4px;opacity:.45"
+            title="Click an element on the canvas to activate">
+            <span id="fmt-tag"
+                style="font-size:.6rem;font-weight:700;color:#7d8590;letter-spacing:.06em;padding:0 4px;white-space:nowrap">←
+                click element</span>
+            <button class="tb tb-ghost" onclick="applyFormat('bold')" title="Bold"><b>B</b></button>
+            <button class="tb tb-ghost" onclick="applyFormat('italic')" title="Italic"><i>I</i></button>
+            <button class="tb tb-ghost" onclick="applyLink()" title="Link">&#128279;</button>
+            <div class="t-sep"></div>
+            <!-- Font Color -->
+            <label title="Font Color"
+                style="display:flex;align-items:center;gap:2px;cursor:pointer;font-size:.72rem;color:#7d8590;user-select:none">
+                🎨<input type="color" id="tb-fcolor" value="#000000"
+                    style="width:22px;height:22px;padding:1px;border:none;background:transparent;cursor:pointer"
+                    oninput="sendStyle('color',this.value)" title="Font color">
+            </label>
+            <!-- Fill/Background Color -->
+            <label title="Fill Color"
+                style="display:flex;align-items:center;gap:2px;cursor:pointer;font-size:.72rem;color:#7d8590;user-select:none">
+                🖌️<input type="color" id="tb-bgcolor" value="#ffffff"
+                    style="width:22px;height:22px;padding:1px;border:none;background:transparent;cursor:pointer"
+                    oninput="sendStyle('backgroundColor',this.value)" title="Fill/background color">
+            </label>
+            <!-- Font Size -->
+            <button class="tb tb-ghost" onclick="changeFontSize(-2)" title="Decrease font size"
+                style="font-size:.8rem;padding:2px 5px">A−</button>
+            <span id="tb-fsize-val" style="font-size:.7rem;color:#7d8590;min-width:28px;text-align:center">16px</span>
+            <button class="tb tb-ghost" onclick="changeFontSize(2)" title="Increase font size"
+                style="font-size:.8rem;padding:2px 5px">A+</button>
+            <div class="t-sep"></div>
+            <button class="tb tb-ghost" onclick="duplicateElement()" title="Duplicate">&#10697; Copy</button>
+            <button class="tb" style="border:1px solid #6e2020;background:#3a1212;color:#f85149"
+                onclick="deleteElement()" title="Delete">&#128465; Del</button>
+        </div>
+        <div class="t-sep"></div>
+        <!-- device toggle -->
+        <button class="device-btn" id="dev-desktop" onclick="setDevice('desktop')" title="Desktop view">🖥️
+            Full</button>
+        <button class="device-btn" id="dev-tablet" onclick="setDevice('tablet')" title="Tablet view — 768px">📱
+            768px</button>
+        <button class="device-btn" id="dev-mobile" onclick="setDevice('mobile')" title="Mobile view — 375px">📲
+            375px</button>
+        <div class="t-sep" style="width:1px;height:20px;background:#30363d;flex-shrink:0"></div>
+        <div id="canvas-height-ctrl" title="Canvas height">
+            ↕
+            <input type="range" min="400" max="1800" value="700" step="50" oninput="setCanvasHeight(this.value)">
+            <span id="canvas-h-val">700px</span>
+        </div>
+        <div class="t-spacer"></div>
+        <span id="save-status" style="opacity:0">✓ Saved</span>
+        <button class="tb tb-ghost" onclick="openImportModal()">&#128229; Import HTML</button>
+        <button class="tb tb-ghost" onclick="loadFromFile()">&#128260; Load from Home Page</button>
+        <button class="tb tb-ghost" onclick="resetCanvas()" title="Clear canvas and reset"
+            style="color:#e3b341">&#128465; Reset</button>
+        <button class="tb" style="background:#1a3a2a;border:1px solid #2ea043;color:#3fb950" onclick="previewCanvas()"
+            title="Preview before publishing">&#128065; Preview</button>
+        <button class="tb" style="background:#3a1212;border:1px solid #6e2020;color:#f85149" onclick="confirmPublish()"
+            title="Publish to live homepage">&#128640; Publish Live</button>
+    </div>
+
+    <!-- ── PREVIEW OVERLAY ── -->
+    <div id="preview-overlay"
+        style="display:none;position:fixed;inset:0;z-index:9999;background:#0d1117;flex-direction:column">
+        <div
+            style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:#161b22;border-bottom:1px solid #30363d;flex-shrink:0">
+            <span style="font-weight:700;color:#c9d1d9;font-size:.95rem">👁 Preview — <span
+                    style="color:#7d8590;font-size:.8rem;font-weight:400">This is how the page will look to
+                    visitors</span></span>
+            <div style="flex:1"></div>
+            <button onclick="closePreview()"
+                style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:.85rem">✕
+                Close Preview</button>
+            <button onclick="closePreview();confirmPublish()"
+                style="background:#3a1212;border:1px solid #da3633;color:#f85149;border-radius:6px;padding:6px 14px;cursor:pointer;font-weight:700;font-size:.85rem">🚀
+                Looks Good — Publish Live</button>
+        </div>
+        <iframe id="preview-frame" style="flex:1;border:none;width:100%;background:#fff"></iframe>
+    </div>
+
+    <!-- ── PUBLISH CONFIRM DIALOG ── -->
+    <div id="publish-confirm"
+        style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.7);align-items:center;justify-content:center">
+        <div
+            style="background:#161b22;border:1px solid #da3633;border-radius:12px;padding:28px 32px;max-width:440px;width:90%;text-align:center">
+            <div style="font-size:2rem;margin-bottom:8px">⚠️</div>
+            <div style="font-weight:700;color:#c9d1d9;font-size:1.05rem;margin-bottom:8px">Publish to Live Homepage?
+            </div>
+            <div style="color:#7d8590;font-size:.85rem;margin-bottom:24px;line-height:1.6">This will immediately replace
+                the <strong style="color:#c9d1d9">public homepage</strong> that all visitors see. Make sure you've
+                previewed it first.</div>
+            <div style="display:flex;gap:12px;justify-content:center">
+                <button onclick="document.getElementById('publish-confirm').style.display='none'"
+                    style="background:#21262d;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;padding:8px 20px;cursor:pointer;font-size:.9rem">Cancel</button>
+                <button onclick="document.getElementById('publish-confirm').style.display='none';saveCanvas()"
+                    style="background:#da3633;border:none;color:#fff;border-radius:6px;padding:8px 20px;cursor:pointer;font-weight:700;font-size:.9rem">🚀
+                    Yes, Publish Live</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── LAYOUT ── -->
+    <div id="layout">
+
+        <!-- LEFT: Sections outline -->
+        <div id="left-panel">
+            <div class="panel-hd">Page Sections</div>
+            <div id="sections-outline">
+                <div style="text-align:center;color:#484f58;font-size:.75rem;padding:20px 10px">
+                    Load the home page or import HTML to begin
+                </div>
+            </div>
+            <div class="panel-actions">
+                <button onclick="openImportModal()">＋ Add Section</button>
+            </div>
+        </div>
+
+        <!-- CENTER: Canvas -->
+        <div id="canvas-area">
+            <div id="canvas-wrap" class="device-desktop">
+                <div id="canvas-loading" class="hidden">
+                    <div class="spinner"></div>
+                    <span>Loading canvas…</span>
+                </div>
+                <div id="canvas-empty">
+                    <span>🎨</span>
+                    <p>Click <strong>Load from Home Page</strong> to bring in the existing page, or use <strong>Import
+                            HTML</strong> to paste custom HTML.</p>
+                </div>
+                <iframe id="canvas-frame" scrolling="no"></iframe>
+            </div>
+        </div>
+
+        <!-- RIGHT: Properties -->
+        <div id="right-panel">
+            <div class="props-hd" id="props-hd">⚙ Properties</div>
+
+            <!-- FORMAT BAR: shown when element selected -->
+            <div id="format-bar"
+                style="display:none;flex-direction:column;gap:4px;padding:8px;border-bottom:1px solid #30363d;background:#0d1117">
+                <div
+                    style="font-size:.6rem;font-weight:800;color:#a371f7;letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px">
+                    Format &amp; Actions &mdash; <span id="fmt-tag" style="color:#7d8590;font-weight:400"></span></div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px">
+                    <button onclick="applyFormat('bold')"
+                        style="flex:1;min-width:60px;padding:5px 8px;border-radius:5px;border:1px solid #30363d;background:#21262d;color:#c9d1d9;font-size:.75rem;cursor:pointer;font-family:inherit"
+                        title="Bold"><b>B</b> Bold</button>
+                    <button onclick="applyFormat('italic')"
+                        style="flex:1;min-width:60px;padding:5px 8px;border-radius:5px;border:1px solid #30363d;background:#21262d;color:#c9d1d9;font-size:.75rem;cursor:pointer;font-family:inherit"
+                        title="Italic"><i>I</i> Italic</button>
+                </div>
+                <button onclick="applyLink()"
+                    style="width:100%;padding:5px 8px;border-radius:5px;border:1px solid #30363d;background:#21262d;color:#c9d1d9;font-size:.75rem;cursor:pointer;font-family:inherit;text-align:left"
+                    title="Add Link">🔗 Add / Edit Link</button>
+                <div style="display:flex;gap:4px;margin-top:4px">
+                    <button onclick="duplicateElement()"
+                        style="flex:1;padding:5px 8px;border-radius:5px;border:1px solid #30363d;background:#21262d;color:#c9d1d9;font-size:.75rem;cursor:pointer;font-family:inherit"
+                        title="Duplicate">⧉ Duplicate</button>
+                    <button onclick="deleteElement()"
+                        style="flex:1;padding:5px 8px;border-radius:5px;border:1px solid #6e2020;background:#3a1212;color:#f85149;font-size:.75rem;cursor:pointer;font-family:inherit"
+                        title="Delete">🗑 Delete</button>
+                </div>
+                <p style="font-size:.65rem;color:#484f58;margin-top:2px">Dbl-click = edit text inline</p>
+            </div>
+
+            <div id="props-body">
+                <div class="props-empty">
+                    <span>👆</span>
+                    <p style="font-size:.78rem">Click any element on the canvas to edit its properties</p>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /layout -->
+
+    <!-- ── SECTION TEMPLATE PICKER ── -->
+    <div class="overlay" id="import-overlay">
+        <div class="dialog" style="max-width:780px;width:95vw">
+            <h2 style="margin-bottom:4px">➕ Add a Section</h2>
+            <p style="color:#7d8590;font-size:.82rem;margin-bottom:16px">Choose a pre-built section to add to your page,
+                or paste custom HTML below.</p>
+
+            <!-- PRE-BUILT SECTION TILES -->
+            <div id="section-tiles"
+                style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;max-height:360px;overflow-y:auto;margin-bottom:16px">
+            </div>
+
+            <!-- ADVANCED: custom HTML -->
+            <details style="margin-top:8px">
+                <summary style="cursor:pointer;color:#7d8590;font-size:.8rem;user-select:none">💻 Advanced: paste custom
+                    HTML</summary>
+                <textarea class="import-ta" id="import-ta" placeholder="&lt;section&gt;...&lt;/section&gt;"
+                    style="margin-top:8px"></textarea>
+            </details>
+
+            <div class="dialog-actions">
+                <button class="tb tb-ghost" onclick="closeImportModal()">Cancel</button>
+                <button class="tb tb-purple" onclick="doImportSection()">Add Custom HTML</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── TOAST ── -->
+    <div id="toast"></div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════════
+        // STATE
+        // ═══════════════════════════════════════════════════════════════════
+        let currentDevice = 'desktop';
+        let iframeDoc = null;
+        let selectedEl = null;      // currently selected DOM element inside iframe
+        let history = [];           // HTML snapshots for undo
+        let future = [];           // HTML snapshots for redo
+        let isDirty = false;
+        let toastTimer;
+
+        const frame = document.getElementById('canvas-frame');
+        const wrap = document.getElementById('canvas-wrap');
+        const ftBar = document.getElementById('float-toolbar');
+
+        // Use var (not let) for _loadTimer so it is hoisted with no TDZ
+        var _loadTimer = null;
+
+        // ─── Injected-into-iframe editor script ────────────────────────────
+        const EDITOR_SCRIPT = `
+(function(){
+  const HOVER_STYLE  = '2px solid #3b82f6';
+  const SELECT_STYLE = '2px solid #a371f7';
+  const SKIP_TAGS = new Set(['HTML','BODY','HEAD','SCRIPT','STYLE','META','LINK','NOSCRIPT']);
+  const EDITABLE  = new Set(['P','H1','H2','H3','H4','H5','H6','SPAN','A','BUTTON','LI','TD','TH','LABEL','FIGCAPTION','BLOCKQUOTE','STRONG','EM','DIV']);
+
+  let hovered = null, selected = null;
+
+  function markHover(el){
+    if(hovered && hovered !== selected) hovered.style.outline = hovered._prevOutline||'';
+    hovered = el;
+    if(el && el !== selected){ el._prevOutline = el.style.outline||''; el.style.outline = '${HOVER_STYLE}'; }
+  }
+  function markSelect(el){
+    if(selected){ selected.style.outline = selected._prevOutline||''; }
+    selected = el;
+    if(el){ el._prevOutline = el.style.outline||''; el.style.outline = '${SELECT_STYLE}'; }
+  }
+  function closestEditable(el){
+    while(el && el !== document.body){
+      if(!SKIP_TAGS.has(el.tagName)) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+  function elInfo(el){
+    if(!el) return null;
+    const cs = window.getComputedStyle(el);
+    return {
+      tag: el.tagName,
+      text: el.innerText||'',
+      innerHTML: el.innerHTML||'',
+      color: el.style.color || cs.color,
+      backgroundColor: el.style.backgroundColor || '',
+      fontSize: el.style.fontSize || parseInt(cs.fontSize)+'px',
+      fontWeight: el.style.fontWeight || cs.fontWeight,
+      textAlign: el.style.textAlign || cs.textAlign,
+      paddingTop: el.style.paddingTop || cs.paddingTop,
+      paddingBottom: el.style.paddingBottom || cs.paddingBottom,
+      href: el.getAttribute('href')||'',
+      isEditable: ${JSON.stringify([...EDITABLE])}.includes(el.tagName),
+      isLink: el.tagName==='A'
+    };
+  }
+
+  document.addEventListener('mousemove', e=>{
+    const t = closestEditable(e.target);
+    markHover(t);
+  }, true);
+
+  document.addEventListener('click', e=>{
+    if(e.target.closest && e.target.closest('[contenteditable=true]')) return;
+    const t = closestEditable(e.target);
+    if(!t) return;
+    e.preventDefault(); e.stopPropagation();
+    markSelect(t);
+    const rect = t.getBoundingClientRect();
+    window.parent.postMessage({type:'select', info:elInfo(t),
+      rect:{top:rect.top,left:rect.left,width:rect.width,height:rect.height,
+            scrollY:window.scrollY}}, '*');
+  }, true);
+
+  document.addEventListener('dblclick', e=>{
+    const t = closestEditable(e.target);
+    if(!t || !${JSON.stringify([...EDITABLE])}.includes(t.tagName)) return;
+    e.preventDefault(); e.stopPropagation();
+    t.contentEditable = 'true';
+    t.focus();
+    t.style.outline = '2px solid #f59e0b';
+    t.addEventListener('blur', ()=>{
+      t.contentEditable = 'false';
+      t.style.outline = selected===t ? '${SELECT_STYLE}' : '';
+      window.parent.postMessage({type:'textchange', html:t.innerHTML, text:t.innerText}, '*');
+    }, {once:true});
+    // Also listen for keyDown Escape
+    t.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){ t.blur(); }
+    });
+  }, true);
+
+  // Allow parent to apply style changes
+  window.addEventListener('message', e=>{
+    if(!e.data||!selected) return;
+    const d = e.data;
+    if(d.type==='setstyle'){
+      if(d.prop==='color')           selected.style.color          = d.val;
+      if(d.prop==='backgroundColor') selected.style.backgroundColor= d.val;
+      if(d.prop==='fontSize')        selected.style.fontSize       = d.val+'px';
+      if(d.prop==='fontWeight')      selected.style.fontWeight     = d.val;
+      if(d.prop==='textAlign')       selected.style.textAlign      = d.val;
+      if(d.prop==='paddingTop')      selected.style.paddingTop     = d.val+'px';
+      if(d.prop==='paddingBottom')   selected.style.paddingBottom  = d.val+'px';
+      if(d.prop==='href')            selected.setAttribute('href', d.val);
+      window.parent.postMessage({type:'dirty'}, '*');
+    }
+    if(d.type==='delete'){ selected.remove(); selected=null; window.parent.postMessage({type:'dirty'}, '*'); }
+    if(d.type==='duplicate'){
+      const cl = selected.cloneNode(true);
+      cl.style.outline = '';
+      selected.parentNode.insertBefore(cl, selected.nextSibling);
+      window.parent.postMessage({type:'dirty'}, '*');
+    }
+    if(d.type==='format'){
+      selected.focus();
+      document.execCommand(d.cmd, false, d.val||null);
+      window.parent.postMessage({type:'dirty'}, '*');
+    }
+    if(d.type==='appendHTML'){
+      document.body.insertAdjacentHTML('beforeend', d.html);
+      window.parent.postMessage({type:'dirty'}, '*');
+    }
+    if(d.type==='scrollTo'){
+      const el = document.getElementById(d.id) || document.querySelector('[data-section="'+d.id+'"]');
+      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+    if(d.type==='deselect'){
+      if(selected){ selected.style.outline=''; selected=null; }
+    }
+  });
+
+  // Resize observer → keep iframe height in sync
+  const ro = new ResizeObserver(()=>{
+    window.parent.postMessage({type:'resize', h: document.body.scrollHeight}, '*');
+  });
+  ro.observe(document.body);
+
+  // Suppress link navigation inside iframe
+  document.addEventListener('click', e=>{
+    if(e.target.tagName==='A' && !e.target.closest('[contenteditable=true]')){
+      e.preventDefault();
+    }
+  });
+
+  console.log('[CE] Editor injected');
+})();
+`;
+
+        // ═══════════════════════════════════════════════════════════════════
+        // CANVAS LOAD  (_loadTimer declared at top of STATE section as var)
+        // ═══════════════════════════════════════════════════════════════════
+
+        function onFrameReady() {
+            if (_loadTimer) { clearTimeout(_loadTimer); _loadTimer = null; }
+            try {
+                iframeDoc = frame.contentDocument;
+                const sc = iframeDoc.createElement('script');
+                sc.textContent = EDITOR_SCRIPT;
+                iframeDoc.body.appendChild(sc);
+                const st = iframeDoc.createElement('style');
+                st.textContent = '*{box-sizing:border-box}';
+                iframeDoc.head.appendChild(st);
+            } catch (e) { console.warn('[CE] inject error:', e); }
+            showLoading(false);
+            hideEmpty(true);
+            buildOutline();
+            pushHistory();
+            isDirty = false;
+            updateUndoRedo();
+        }
+
+        function setFrameSrc(url) {
+            showLoading(true);
+            hideEmpty(true);
+            frame.removeEventListener('load', onFrameReady);
+            if (_loadTimer) { clearTimeout(_loadTimer); _loadTimer = null; }
+            // Safety net: if onload hasn't fired in 20s, force-proceed
+            // (some external CDN resources in the page may delay onload)
+            _loadTimer = setTimeout(() => {
+                console.warn('[CE] 20s timeout — forcing onFrameReady');
+                if (frame.contentDocument && frame.contentDocument.body) {
+                    onFrameReady();
+                } else {
+                    showLoading(false);
+                    toast('Canvas timed out. Try clicking Load from Home Page again.', 'err');
+                }
+            }, 20000);
+            frame.addEventListener('load', onFrameReady, { once: true });
+            frame.src = url;
+        }
+
+        function setFrameSrcdoc(html) {
+            // Strip external <script src> that block onload — but PRESERVE
+            // essential CSS framework CDNs (Tailwind, Lucide) so the page
+            // keeps its responsive styling after undo/redo snapshots.
+            const KEEP_DOMAINS = ['cdn.tailwindcss.com', 'unpkg.com/lucide', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+            const stripped = html.replace(/<script[^>]+src=["']([^"']+)["'][^>]*><\/script>/gi, function (match, src) {
+                if (KEEP_DOMAINS.some(d => src.includes(d))) return match; // keep framework scripts
+                return ''; // strip other external scripts
+            }).replace(/<script[^>]+src=[^>"']+[^>]*><\/script>/gi, '');
+            showLoading(true);
+            hideEmpty(true);
+            frame.removeEventListener('load', onFrameReady);
+            if (_loadTimer) { clearTimeout(_loadTimer); _loadTimer = null; }
+            _loadTimer = setTimeout(() => {
+                console.warn('[CE] srcdoc 10s timeout — forcing onFrameReady');
+                if (frame.contentDocument && frame.contentDocument.body) {
+                    onFrameReady();
+                } else { showLoading(false); }
+            }, 10000);
+            frame.addEventListener('load', onFrameReady, { once: true });
+            frame.srcdoc = stripped;
+        }
+
+        // Load via /canvas-preview — dedicated route that renders the homepage
+        // with CANVAS_EDITOR_SCRIPT already embedded in the HTML.
+        // No post-load injection needed; editor activates as part of page load.
+        function loadFromFile() {
+            clearSelection();
+            setFrameSrc('/canvas-preview');
+            toast('Loading homepage\u2026', 'inf');
+        }
+
+        // loadHTML is used for undo/redo (restoring saved HTML snapshots).
+        function loadHTML(html) {
+            setFrameSrcdoc(html);
+        }
+
+        // Canvas height slider — lets user manually resize the canvas pane
+        function setCanvasHeight(h) {
+            frame.style.height = h + 'px';
+            frame.style.minHeight = h + 'px';
+            const lbl = document.getElementById('canvas-h-val');
+            if (lbl) lbl.textContent = h + 'px';
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // IFRAME MESSAGE LISTENER
+        // ═══════════════════════════════════════════════════════════════════
+        window.addEventListener('message', e => {
+            const d = e.data;
+            if (!d) return;
+            if (d.type === 'select') {
+                selectedEl = getSelectedFromIframe();
+                showFloat(d.info);    // pass info (has .tag) not rect
+                renderProps(d.info);
+            }
+            if (d.type === 'textchange') {
+                pushHistory();
+                updateUndoRedo();
+            }
+            if (d.type === 'dirty') {
+                pushHistory();
+                updateUndoRedo();
+                buildOutline();
+            }
+            if (d.type === 'resize') {
+                frame.style.height = d.h + 'px';
+            }
+            if (d.type === 'deselect') {
+                hideFloat();
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════════
+        // SELECTION HELPERS
+        // ═══════════════════════════════════════════════════════════════════
+        function getSelectedFromIframe() {
+            if (!iframeDoc) return null;
+            // The iframe tracks selected internally; we can't grab the JS ref directly,
+            // but we don't need it — all mutations are via postMessage
+            return true;
+        }
+
+        function clearSelection() {
+            selectedEl = null;
+            hideFloat();
+            document.getElementById('props-body').innerHTML = `
+      <div class="props-empty"><span>👆</span>
+        <p style="font-size:.78rem">Click any element on the canvas to edit its properties</p></div>`;
+            document.getElementById('props-hd').innerHTML = '⚙ Properties';
+            if (iframeDoc) frame.contentWindow.postMessage({ type: 'deselect' }, '*');
+        }
+
+        function showFloat(info) {
+            const fg = document.getElementById('fmt-group');
+            const ftag = document.getElementById('fmt-tag');
+            if (ftag && info && info.tag) {
+                ftag.textContent = info.tag;
+                ftag.style.color = '#a371f7';
+                ftag.style.fontWeight = '800';
+            }
+            if (fg) fg.style.opacity = '1';
+            // Sync toolbar color pickers and font-size to selected element's style
+            if (info) {
+                const fc = document.getElementById('tb-fcolor');
+                const bg = document.getElementById('tb-bgcolor');
+                const fsv = document.getElementById('tb-fsize-val');
+                if (fc && info.color) { try { fc.value = cssToHex(info.color) || fc.value; } catch (e) { } }
+                if (bg && info.backgroundColor) { try { bg.value = cssToHex(info.backgroundColor) || bg.value; } catch (e) { } }
+                if (fsv && info.fontSize) fsv.textContent = (parseInt(info.fontSize) || 16) + 'px';
+            }
+            // also show format section in right panel
+            const fb = document.getElementById('format-bar');
+            if (fb) fb.style.display = 'flex';
+        }
+        function hideFloat() {
+            const fg = document.getElementById('fmt-group');
+            const ftag = document.getElementById('fmt-tag');
+            if (ftag) { ftag.textContent = '\u2190 click element'; ftag.style.color = '#7d8590'; ftag.style.fontWeight = '700'; }
+            if (fg) fg.style.opacity = '.45';
+            const fb = document.getElementById('format-bar');
+            if (fb) fb.style.display = 'none';
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // PROPERTIES PANEL
+        // ═══════════════════════════════════════════════════════════════════
+        function renderProps(info) {
+            const hd = document.getElementById('props-hd');
+            hd.innerHTML = `⚙ Properties <span class="el-badge">${info.tag}</span>`;
+            const pb = document.getElementById('props-body');
+
+            const fs = parseInt(info.fontSize) || 16;
+            const fw = info.fontWeight;
+            const ta = info.textAlign || 'left';
+            const ptop = parseInt(info.paddingTop) || 0;
+            const pbot = parseInt(info.paddingBottom) || 0;
+
+            pb.innerHTML = `
+      ${info.isEditable ? `
+      <div class="sect-div">Text</div>
+      <div class="field"><label>Color</label>
+        <input type="color" class="fcolor" id="p-color" value="${cssToHex(info.color) || '#000000'}">
+      </div>
+      <div class="field"><label>Font Size (px)</label>
+        <div class="range-row">
+          <input type="range" id="p-fsize" min="10" max="80" value="${fs}" oninput="this.nextElementSibling.textContent=this.value+'px';sendStyle('fontSize',this.value)">
+          <span class="range-val">${fs}px</span>
+        </div>
+      </div>
+      <div class="field"><label>Font Weight</label>
+        <select class="fselect" id="p-fweight" onchange="sendStyle('fontWeight',this.value)">
+          ${['300', '400', '500', '600', '700', '800'].map(w => `<option${fw == w ? ' selected' : ''}>${w}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Alignment</label>
+        <div class="align-btns">
+          ${['left', 'center', 'right', 'justify'].map(al => `
+          <button class="align-btn${ta === al ? ' on' : ''}" onclick="setAlign('${al}');this.parentElement.querySelectorAll('.align-btn').forEach(b=>b.classList.toggle('on',b===this))">${al === 'left' ? '⫷' : al === 'center' ? '≡' : al === 'right' ? '⫸' : '⊞'}</button>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
+
+      <div class="sect-div">Background</div>
+      <div class="field"><label>BG Color</label>
+        <input type="color" class="fcolor" id="p-bg" value="${cssToHex(info.backgroundColor) || '#ffffff'}">
+      </div>
+
+      <div class="sect-div">Spacing</div>
+      <div class="field"><label>Padding Top (px)</label>
+        <div class="range-row">
+          <input type="range" id="p-ptop" min="0" max="120" value="${ptop}" oninput="this.nextElementSibling.textContent=this.value+'px';sendStyle('paddingTop',this.value)">
+          <span class="range-val">${ptop}px</span>
+        </div>
+      </div>
+      <div class="field"><label>Padding Bottom (px)</label>
+        <div class="range-row">
+          <input type="range" id="p-pbot" min="0" max="120" value="${pbot}" oninput="this.nextElementSibling.textContent=this.value+'px';sendStyle('paddingBottom',this.value)">
+          <span class="range-val">${pbot}px</span>
+        </div>
+      </div>
+
+      ${info.isLink ? `
+      <div class="sect-div">Link</div>
+      <div class="field"><label>HREF</label>
+        <input class="finput" id="p-href" value="${esc(info.href)}" placeholder="https://...">
+      </div>
+      ` : ''}
+    `;
+
+            // Attach delayed color change listeners
+            const pColor = document.getElementById('p-color');
+            const pBg = document.getElementById('p-bg');
+            const pHref = document.getElementById('p-href');
+            if (pColor) pColor.addEventListener('input', () => sendStyle('color', pColor.value));
+            if (pBg) pBg.addEventListener('input', () => sendStyle('backgroundColor', pBg.value));
+            if (pHref) pHref.addEventListener('change', () => sendStyle('href', pHref.value));
+        }
+
+        function sendStyle(prop, val) {
+            if (!iframeDoc) return;
+            frame.contentWindow.postMessage({ type: 'setstyle', prop, val }, '*');
+        }
+        function setAlign(val) { sendStyle('textAlign', val); }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // FLOATING TOOLBAR ACTIONS
+        // ═══════════════════════════════════════════════════════════════════
+        function applyFormat(cmd) {
+            if (!iframeDoc) return;
+            frame.contentWindow.postMessage({ type: 'format', cmd }, '*');
+        }
+
+        function changeFontSize(delta) {
+            const fsv = document.getElementById('tb-fsize-val');
+            const current = fsv ? parseInt(fsv.textContent) || 16 : 16;
+            const next = Math.max(8, Math.min(120, current + delta));
+            if (fsv) fsv.textContent = next + 'px';
+            sendStyle('fontSize', next);
+        }
+        function applyLink() {
+            const url = prompt('Enter URL (leave blank to remove link):');
+            if (url === null) return;
+            frame.contentWindow.postMessage({ type: 'format', cmd: 'createLink', val: url || '' }, '*');
+            if (!url) frame.contentWindow.postMessage({ type: 'format', cmd: 'unlink' }, '*');
+        }
+        function duplicateElement() {
+            if (!iframeDoc) return;
+            frame.contentWindow.postMessage({ type: 'duplicate' }, '*');
+        }
+        function deleteElement() {
+            if (!iframeDoc) return;
+            if (!confirm('Delete this element?')) return;
+            frame.contentWindow.postMessage({ type: 'delete' }, '*');
+            clearSelection();
+            buildOutline();
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // SECTIONS OUTLINE
+        // ═══════════════════════════════════════════════════════════════════
+        function buildOutline() {
+            if (!iframeDoc) return;
+            const outline = document.getElementById('sections-outline');
+            const sections = [...iframeDoc.querySelectorAll('section, header, footer, [data-section]')];
+            if (!sections.length) {
+                outline.innerHTML = '<div style="text-align:center;color:#484f58;font-size:.74rem;padding:12px 8px">No sections detected</div>';
+                return;
+            }
+            // Assign IDs if missing
+            sections.forEach((s, i) => { if (!s.id) s.id = `_s${i}`; });
+            outline.innerHTML = sections.map(s => {
+                const tag = s.tagName.toLowerCase();
+                const icon = tag === 'header' ? '🔝' : tag === 'footer' ? '🔻' : '▦';
+                const name = s.id && !s.id.startsWith('_s') ? s.id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) :
+                    (s.querySelector('h1,h2,h3')?.innerText?.trim().slice(0, 30) || `Section`);
+                return `<div class="outline-item" onclick="scrollToSection('${s.id}')" id="oi-${s.id}">
+        <span class="outline-icon">${icon}</span>
+        <span class="outline-name">${name}</span>
+      </div>`;
+            }).join('');
+        }
+
+        function scrollToSection(id) {
+            if (!iframeDoc) return;
+            document.querySelectorAll('.outline-item').forEach(x => x.classList.remove('active'));
+            const oi = document.getElementById('oi-' + id);
+            if (oi) oi.classList.add('active');
+            frame.contentWindow.postMessage({ type: 'scrollTo', id }, '*');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // DEVICE TOGGLE
+        // ═══════════════════════════════════════════════════════════════════
+        function setDevice(d) {
+            currentDevice = d;
+            wrap.className = `device-${d}`;
+            ['desktop', 'tablet', 'mobile'].forEach(x => {
+                document.getElementById('dev-' + x).classList.toggle('active', x === d);
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // UNDO / REDO
+        // ═══════════════════════════════════════════════════════════════════
+        function getCanvasHTML() {
+            if (!iframeDoc) return '';
+            return iframeDoc.documentElement.outerHTML;
+        }
+
+        function pushHistory() {
+            const snap = getCanvasHTML();
+            if (history.length && history[history.length - 1] === snap) return;
+            history.push(snap);
+            if (history.length > 60) history.shift();
+            future = [];
+            updateUndoRedo();
+            isDirty = true;
+        }
+
+        function doUndo() {
+            if (history.length < 2) return;
+            future.push(history.pop());
+            const prev = history[history.length - 1];
+            restoreSnapshot(prev);
+            updateUndoRedo();
+        }
+
+        function doRedo() {
+            if (!future.length) return;
+            const next = future.pop();
+            history.push(next);
+            restoreSnapshot(next);
+            updateUndoRedo();
+        }
+
+        function restoreSnapshot(html) {
+            clearSelection();
+            frame.srcdoc = html;
+            frame.onload = () => {
+                iframeDoc = frame.contentDocument;
+                const sc = iframeDoc.createElement('script');
+                sc.textContent = EDITOR_SCRIPT;
+                iframeDoc.body.appendChild(sc);
+                buildOutline();
+            };
+        }
+
+        function updateUndoRedo() {
+            document.getElementById('btn-undo').disabled = history.length < 2;
+            document.getElementById('btn-redo').disabled = future.length === 0;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // IMPORT SECTION MODAL + SECTION TEMPLATE PICKER
+        // ═══════════════════════════════════════════════════════════════════
+        var SECTION_TEMPLATES = [
+            {
+                name: 'Hero Banner', emoji: '🏠', desc: 'Big headline with CTA button',
+                html: `<section style="background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;text-align:center;padding:80px 20px">
+  <h1 style="font-size:3rem;font-weight:800;margin-bottom:16px">Welcome to Our Platform</h1>
+  <p style="font-size:1.2rem;margin-bottom:32px;opacity:.9">The best solution for your wellness journey</p>
+  <a href="#" style="background:#fff;color:#7c3aed;padding:14px 36px;border-radius:50px;font-weight:700;text-decoration:none;font-size:1rem">Get Started</a>
+</section>`},
+            {
+                name: 'Features Grid', emoji: '✨', desc: '3-column features with icons',
+                html: `<section style="padding:60px 20px;background:#fff">
+  <h2 style="text-align:center;font-size:2rem;font-weight:700;margin-bottom:40px;color:#1f2937">Why Choose Us</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:24px;max-width:900px;margin:0 auto">
+    <div style="text-align:center;padding:24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">💪</div>
+      <h3 style="font-weight:700;color:#1f2937;margin-bottom:8px">Strength</h3>
+      <p style="color:#6b7280">Build resilience with expert-guided sessions.</p>
+    </div>
+    <div style="text-align:center;padding:24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">🧠</div>
+      <h3 style="font-weight:700;color:#1f2937;margin-bottom:8px">Mindfulness</h3>
+      <p style="color:#6b7280">Cultivate calm with daily mindfulness practices.</p>
+    </div>
+    <div style="text-align:center;padding:24px">
+      <div style="font-size:2.5rem;margin-bottom:12px">❤️</div>
+      <h3 style="font-weight:700;color:#1f2937;margin-bottom:8px">Community</h3>
+      <p style="color:#6b7280">Connect with like-minded people on your journey.</p>
+    </div>
+  </div>
+</section>`},
+            {
+                name: 'Stats Banner', emoji: '📊', desc: 'Key numbers and metrics',
+                html: `<section style="background:#f3f4f6;padding:48px 20px">
+  <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:40px;max-width:800px;margin:0 auto">
+    <div style="text-align:center">
+      <div style="font-size:2.5rem;font-weight:800;color:#7c3aed">2,500+</div>
+      <div style="color:#6b7280;font-size:.9rem">Happy Clients</div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:2.5rem;font-weight:800;color:#7c3aed">98%</div>
+      <div style="color:#6b7280;font-size:.9rem">Satisfaction Rate</div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:2.5rem;font-weight:800;color:#7c3aed">50+</div>
+      <div style="color:#6b7280;font-size:.9rem">Expert Consultants</div>
+    </div>
+    <div style="text-align:center">
+      <div style="font-size:2.5rem;font-weight:800;color:#7c3aed">24/7</div>
+      <div style="color:#6b7280;font-size:.9rem">Support Available</div>
+    </div>
+  </div>
+</section>`},
+            {
+                name: 'Testimonials', emoji: '⭐', desc: 'Customer reviews carousel',
+                html: `<section style="padding:60px 20px;background:#faf5ff">
+  <h2 style="text-align:center;font-size:2rem;font-weight:700;margin-bottom:40px;color:#1f2937">What Our Clients Say</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;max-width:900px;margin:0 auto">
+    <div style="background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+      <p style="color:#4b5563;font-style:italic;margin-bottom:16px">"This platform completely changed how I manage my wellbeing. Highly recommend!"</p>
+      <strong style="color:#1f2937">Sarah M.</strong>
+    </div>
+    <div style="background:#fff;border-radius:12px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+      <p style="color:#4b5563;font-style:italic;margin-bottom:16px">"The consultants are world-class. I felt supported every step of the way."</p>
+      <strong style="color:#1f2937">James K.</strong>
+    </div>
+  </div>
+</section>`},
+            {
+                name: 'Services List', emoji: '📦', desc: 'Services with descriptions',
+                html: `<section style="padding:60px 20px;background:#fff">
+  <h2 style="text-align:center;font-size:2rem;font-weight:700;margin-bottom:40px;color:#1f2937">Our Services</h2>
+  <div style="max-width:700px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
+    <div style="display:flex;align-items:center;gap:16px;padding:20px;border:1px solid #e5e7eb;border-radius:10px">
+      <span style="font-size:2rem">🌿</span>
+      <div><h3 style="font-weight:700;color:#1f2937;margin-bottom:4px">Wellness Coaching</h3><p style="color:#6b7280;font-size:.9rem">One-on-one sessions tailored to your goals.</p></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;padding:20px;border:1px solid #e5e7eb;border-radius:10px">
+      <span style="font-size:2rem">🧘</span>
+      <div><h3 style="font-weight:700;color:#1f2937;margin-bottom:4px">Mindfulness Sessions</h3><p style="color:#6b7280;font-size:.9rem">Guided meditation and breathing exercises.</p></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;padding:20px;border:1px solid #e5e7eb;border-radius:10px">
+      <span style="font-size:2rem">💬</span>
+      <div><h3 style="font-weight:700;color:#1f2937;margin-bottom:4px">Group Therapy</h3><p style="color:#6b7280;font-size:.9rem">Connect with peers in moderated group sessions.</p></div>
+    </div>
+  </div>
+</section>`},
+            {
+                name: 'Call to Action', emoji: '🚀', desc: 'CTA banner with button',
+                html: `<section style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;text-align:center;padding:64px 20px">
+  <h2 style="font-size:2.2rem;font-weight:800;margin-bottom:16px">Ready to Start Your Journey?</h2>
+  <p style="font-size:1.1rem;margin-bottom:32px;opacity:.9">Join thousands who have already transformed their lives.</p>
+  <a href="/register" style="background:#fff;color:#7c3aed;padding:14px 36px;border-radius:50px;font-weight:700;text-decoration:none;font-size:1rem;display:inline-block">Sign Up Free</a>
+</section>`},
+            {
+                name: 'Team Section', emoji: '👥', desc: 'Team member cards',
+                html: `<section style="padding:60px 20px;background:#f9fafb">
+  <h2 style="text-align:center;font-size:2rem;font-weight:700;margin-bottom:40px;color:#1f2937">Meet Our Team</h2>
+  <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:24px;max-width:900px;margin:0 auto">
+    <div style="text-align:center;width:160px">
+      <div style="width:80px;height:80px;background:linear-gradient(135deg,#7c3aed,#db2777);border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:2rem">👩</div>
+      <div style="font-weight:700;color:#1f2937">Dr. Jane Smith</div>
+      <div style="font-size:.8rem;color:#7c3aed">Lead Consultant</div>
+    </div>
+    <div style="text-align:center;width:160px">
+      <div style="width:80px;height:80px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:2rem">👨</div>
+      <div style="font-weight:700;color:#1f2937">Dr. John Lee</div>
+      <div style="font-size:.8rem;color:#7c3aed">Wellness Expert</div>
+    </div>
+  </div>
+</section>`},
+            {
+                name: 'FAQ Section', emoji: '❓', desc: 'Frequently asked questions',
+                html: `<section style="padding:60px 20px;background:#fff">
+  <h2 style="text-align:center;font-size:2rem;font-weight:700;margin-bottom:40px;color:#1f2937">Frequently Asked Questions</h2>
+  <div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:12px">
+    <details style="border:1px solid #e5e7eb;border-radius:8px;padding:16px">
+      <summary style="font-weight:600;color:#1f2937;cursor:pointer">How do I get started?</summary>
+      <p style="color:#6b7280;margin-top:8px">Simply sign up and book your first consultation. We'll match you with the right expert.</p>
+    </details>
+    <details style="border:1px solid #e5e7eb;border-radius:8px;padding:16px">
+      <summary style="font-weight:600;color:#1f2937;cursor:pointer">What is the cost?</summary>
+      <p style="color:#6b7280;margin-top:8px">Plans start from just $29/month. No hidden fees.</p>
+    </details>
+    <details style="border:1px solid #e5e7eb;border-radius:8px;padding:16px">
+      <summary style="font-weight:600;color:#1f2937;cursor:pointer">Can I cancel anytime?</summary>
+      <p style="color:#6b7280;margin-top:8px">Yes, absolutely. No long-term contracts.</p>
+    </details>
+  </div>
+</section>`},
+            {
+                name: 'Simple Footer', emoji: '🔗', desc: 'Footer with links and copyright',
+                html: `<footer style="background:#111827;color:#9ca3af;text-align:center;padding:40px 20px">
+  <div style="margin-bottom:16px;display:flex;justify-content:center;gap:24px;flex-wrap:wrap">
+    <a href="#" style="color:#9ca3af;text-decoration:none">Home</a>
+    <a href="#" style="color:#9ca3af;text-decoration:none">About</a>
+    <a href="#" style="color:#9ca3af;text-decoration:none">Services</a>
+    <a href="#" style="color:#9ca3af;text-decoration:none">Contact</a>
+  </div>
+  <p style="font-size:.85rem">&copy; 2025 SolaceSquad. All rights reserved.</p>
+</footer>`},
+            {
+                name: 'Announcement Ticker', emoji: '📢', desc: 'Scrolling text banner with link',
+                html: '<div style="background:linear-gradient(90deg,#7c3aed,#2563eb);overflow:hidden;height:42px;display:flex;align-items:center"><div style="white-space:nowrap;display:inline-block;animation:ticker-scroll 18s linear infinite" onmouseover="this.style.animationPlayState=\'paused\'" onmouseout="this.style.animationPlayState=\'running\'"><style>@keyframes ticker-scroll{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}</style><a href="#" style="color:#fff;text-decoration:none;font-size:.9rem;font-weight:600;padding:0 40px">&#x1F4E3 New Announcement: Your wellness journey starts here — Book a free discovery call today!&#160;&#160;&#160;&#11088;&#160;&#160;&#160;Limited slots available — sign up now!</a></div></div>'
+            },
+            {
+                name: 'Alert Banner', emoji: '🔔', desc: 'Pulsing urgent announcement with link',
+                html: '<div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><style>@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.3)}}.pulse-dot{width:10px;height:10px;background:#f59e0b;border-radius:50%;display:inline-block;margin-right:10px;animation:pulse-dot 1.4s ease infinite}</style><span style="display:flex;align-items:center;font-size:.92rem;color:#92400e;font-weight:600"><span class="pulse-dot"></span>Important Announcement: We are offering <strong>free consultations</strong> this weekend only!</span><a href="#" style="background:#f59e0b;color:#fff;padding:6px 18px;border-radius:20px;font-weight:700;text-decoration:none;font-size:.82rem">Learn More &rarr;</a></div>'
+            }
+        ];
+
+        function openImportModal() {
+            // Build section tiles
+            const grid = document.getElementById('section-tiles');
+            if (grid) {
+                try {
+                    grid.innerHTML = SECTION_TEMPLATES.map((t, i) => '<div onclick="addSectionTemplate(' + i + ')" style="cursor:pointer;background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:16px;text-align:center;transition:all .15s;user-select:none" onmouseover="this.style.borderColor=\'#6e40c9\'" onmouseout="this.style.borderColor=\'#30363d\'"><div style="font-size:1.8rem;margin-bottom:8px">' + t.emoji + '</div><div style="font-weight:700;color:#c9d1d9;font-size:.85rem;margin-bottom:4px">' + t.name + '</div><div style="font-size:.72rem;color:#484f58">' + t.desc + '</div></div>').join('');
+                } catch (e) {
+                    grid.innerHTML = '<p style="color:#f85149;padding:12px">Could not load templates: ' + (e.message || e) + '</p>';
+                }
+            }
+            const ov = document.getElementById('import-overlay');
+            if (ov) ov.classList.add('open');
+        }
+
+        function closeImportModal() {
+            const ov = document.getElementById('import-overlay');
+            if (ov) ov.classList.remove('open');
+        }
+
+        async function resetCanvas() {
+            if (!confirm('Reset canvas?\n\nThis will:\n• Clear your edits from the canvas\n• Remove the saved homepage snapshot from the database\n• Reload the original homepage into the canvas\n\nProceed?')) return;
+            // 1. Clear the canvas iframe state
+            iframeDoc = null;
+            selectedEl = null;
+            history.length = 0;
+            future.length = 0;
+            isDirty = false;
+            updateUndoRedo();
+            clearSelection();
+            // 2. Clear DB snapshot so live site reverts to static home.html
+            try {
+                const r = await fetch('/api/homepage/reset', { method: 'POST' });
+                const d = await r.json();
+                if (d.success) toast('Snapshot cleared — reloading original homepage\u2026', 'ok');
+                else toast('Reloading original homepage\u2026', 'inf');
+            } catch (e) {
+                toast('Reloading original homepage\u2026', 'inf');
+            }
+            // 3. Reload original homepage into canvas automatically
+            loadFromFile();
+        }
+        function previewCanvas() {
+            // Always use fresh document reference so edits are captured
+            const liveDoc = frame && (frame.contentDocument || (frame.contentWindow && frame.contentWindow.document));
+            if (!liveDoc || !liveDoc.body) { toast('Nothing to preview — load or build a page first', 'err'); return; }
+
+            // ── Clean up editor visual artifacts directly in the live DOM ──────
+            // (faster and more reliable than post-hoc regex on the HTML string)
+            liveDoc.querySelectorAll('*').forEach(function (el) {
+                // Clear outline the editor adds on hover/select
+                if (el.style.outline) el.style.outline = '';
+                // Clear move cursor on selected element
+                if (el.style.cursor === 'move') el.style.cursor = '';
+                // Clear drag-drop border indicator
+                if (el.style.borderTop && el.style.borderTop.includes('dashed')) el.style.borderTop = '';
+                // Clear opacity set during drag
+                if (el.style.opacity === '0.4') el.style.opacity = '';
+                // Remove editor attributes
+                el.removeAttribute('data-ce-selected');
+                el.removeAttribute('draggable');
+                el.removeAttribute('contenteditable');
+            });
+            // ────────────────────────────────────────────────────────────────────
+
+            let html = liveDoc.documentElement.outerHTML;
+            // Strip the injected editor script so preview is read-only
+            html = html.replace(/<script\s+id="canvas-editor-injected"[^>]*>[\s\S]*?<\/script>/gi, '');
+            // Inject <base href> so relative CSS/JS/image paths resolve to the server when srcdoc is used
+            if (!html.includes('<base ')) {
+                html = html.replace(/(<head[^>]*>)/i, '$1<base href="' + window.location.origin + '/">');
+            }
+            const overlay = document.getElementById('preview-overlay');
+            const pf = document.getElementById('preview-frame');
+            if (!overlay || !pf) return;
+            pf.removeAttribute('src');
+            pf.srcdoc = html;
+            overlay.style.display = 'flex';
+        }
+
+        function closePreview() {
+            const overlay = document.getElementById('preview-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
+        function confirmPublish() {
+            if (!iframeDoc) { toast('Nothing to publish — load or build a page first', 'err'); return; }
+            const dlg = document.getElementById('publish-confirm');
+            if (dlg) dlg.style.display = 'flex';
+        }
+
+        function addSectionTemplate(idx) {
+            const t = SECTION_TEMPLATES[idx];
+            if (!t) return;
+            if (!iframeDoc) {
+                // No canvas yet — wrap in a full page
+                const fullPage = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif}</style></head><body>${t.html}</body></html>`;
+                loadHTML(fullPage);
+            } else {
+                frame.contentWindow.postMessage({ type: 'appendHTML', html: t.html }, '*');
+            }
+            closeImportModal();
+            toast(`'${t.name}' added to canvas`, 'ok');
+            setTimeout(buildOutline, 500);
+        }
+
+        function doImportSection() {
+            const html = document.getElementById('import-ta').value.trim();
+            if (!html) { toast('Paste some HTML first', 'err'); return; }
+            if (!iframeDoc) {
+                // No canvas loaded yet — create a fresh page
+                const fullPage = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;line-height:1.6}</style></head><body>${html}</body></html>`;
+                loadHTML(fullPage);
+            } else {
+                frame.contentWindow.postMessage({ type: 'appendHTML', html }, '*');
+            }
+            closeImportModal();
+            document.getElementById('import-ta').value = '';
+            toast('Section added', 'ok');
+            setTimeout(buildOutline, 400);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // SAVE
+        // ═══════════════════════════════════════════════════════════════════
+        async function saveCanvas() {
+            if (!iframeDoc) { toast('Nothing to save', 'err'); return; }
+            const html = iframeDoc.documentElement.outerHTML;
+            showSaveStatus('Saving…');
+            try {
+                const r = await fetch('/api/homepage/save-full', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ html })
+                });
+                const d = await r.json();
+                if (!d.success) throw new Error(d.error || 'Save failed');
+                isDirty = false;
+                showSaveStatus('✓ Saved');
+                toast('Page saved successfully!', 'ok');
+            } catch (e) {
+                showSaveStatus('');
+                toast('Save failed: ' + e.message, 'err');
+            }
+        }
+
+        function showSaveStatus(msg) {
+            const el = document.getElementById('save-status');
+            el.textContent = msg;
+            el.style.opacity = '1';
+            if (msg.startsWith('✓')) setTimeout(() => { el.style.opacity = '0'; }, 2200);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // UI HELPERS
+        // ═══════════════════════════════════════════════════════════════════
+        function showLoading(v) { document.getElementById('canvas-loading').classList.toggle('hidden', !v); }
+        function hideEmpty(v) { document.getElementById('canvas-empty').classList.toggle('hidden', v); }
+
+        function toast(msg, type = 'inf') {
+            const el = document.getElementById('toast');
+            el.textContent = msg; el.className = `show ${type}`;
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+        }
+
+        function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        function cssToHex(col) {
+            if (!col) return '#000000';
+            if (col.startsWith('#')) return col;
+            const m = col.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+            if (!m) return '#000000';
+            return '#' + [m[1], m[2], m[3]].map(x => ('0' + parseInt(x).toString(16)).slice(-2)).join('');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // KEYBOARD SHORTCUTS
+        // ═══════════════════════════════════════════════════════════════════
+        document.addEventListener('keydown', e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); doUndo(); }
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); doRedo(); }
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveCanvas(); }
+            if (e.key === 'Escape') { clearSelection(); }
+        });
+
+        // ═══════════════════════════════════════════════════════════════════
+        // HIDE FLOAT when clicking outside canvas
+        // ═══════════════════════════════════════════════════════════════════
+        document.addEventListener('click', e => {
+            const ov = document.getElementById('import-overlay');
+            const modalOpen = ov && ov.classList.contains('open');
+            if (!modalOpen && !e.target.closest('#canvas-frame') && !e.target.closest('#toolbar') && !e.target.closest('#right-panel')) {
+                clearSelection();
+            }
+        });
+
+        // Auto-load when the script finishes executing.
+        // We do NOT use DOMContentLoaded because when this script is inline at
+        // the bottom of <body>, DOMContentLoaded may have already fired, and
+        // addEventListener would silently miss it.
+        showLoading(false);
+        hideEmpty(false);
+        // Small delay so the page renders before we trigger the load
+        setTimeout(loadFromFile, 300);
+    </script>
+</body>
+
+</html>

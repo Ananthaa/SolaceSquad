@@ -1,0 +1,203 @@
+{% extends parent_template %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+
+  {% if pdf_mode %}
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:#fff; color:#111827; }
+  {% else %}
+  .invoice-page { max-width:780px; margin:2rem auto; padding:0 1rem 3rem; }
+  .invoice-actions { display:flex; gap:.75rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+  .btn-back { padding:.45rem 1rem; border:1.5px solid #e5e7eb; border-radius:.5rem; background:#fff; color:#374151; text-decoration:none; font-size:.82rem; font-weight:600; }
+  .btn-print { padding:.45rem 1.2rem; background:#0d9488; color:#fff; border:none; border-radius:.5rem; cursor:pointer; font-size:.82rem; font-weight:700; text-decoration:none; }
+  {% endif %}
+
+  .invoice-card {
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:1rem;
+    overflow:hidden;
+    {% if pdf_mode %}max-width:780px;margin:0 auto;{% endif %}
+  }
+
+  .inv-header {
+    background:linear-gradient(135deg,#0d9488,#0f766e);
+    padding:2rem 2.5rem;
+    color:#fff;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    gap:1rem;
+  }
+  .inv-header h1 { font-size:1.8rem; font-weight:900; margin:0; letter-spacing:-.01em; }
+  .inv-header .brand-sub { font-size:.8rem; opacity:.8; margin-top:.2rem; }
+  .inv-header .inv-meta { text-align:right; }
+  .inv-header .inv-meta .inv-num { font-size:1.1rem; font-weight:800; font-family:monospace; background:rgba(255,255,255,.15); padding:.3rem .8rem; border-radius:.4rem; }
+  .inv-header .inv-meta .inv-date { font-size:.8rem; opacity:.8; margin-top:.4rem; }
+
+  .inv-status-bar { padding:.65rem 2.5rem; font-size:.82rem; font-weight:700; display:flex; align-items:center; gap:.5rem; }
+  .status-completed { background:#d1fae5; color:#065f46; }
+  .status-pending    { background:#fef3c7; color:#92400e; }
+  .status-refunded   { background:#e0e7ff; color:#3730a3; }
+  .status-failed     { background:#fee2e2; color:#991b1b; }
+
+  .inv-body { padding:2rem 2.5rem; }
+
+  .inv-addresses { display:grid; grid-template-columns:1fr 1fr; gap:2rem; margin-bottom:2rem; }
+  @media(max-width:500px){ .inv-addresses{grid-template-columns:1fr;gap:1rem;} }
+  .inv-addr-label { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:#9ca3af; margin-bottom:.35rem; }
+  .inv-addr-name  { font-size:.95rem; font-weight:700; color:#111827; }
+  .inv-addr-email { font-size:.82rem; color:#6b7280; }
+
+  .inv-divider { border:none; border-top:1px solid #f3f4f6; margin:1.5rem 0; }
+
+  .inv-items { width:100%; border-collapse:collapse; margin-bottom:1.5rem; }
+  .inv-items th { font-size:.7rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:#9ca3af; border-bottom:2px solid #f3f4f6; padding:.5rem 0; text-align:left; }
+  .inv-items th:last-child { text-align:right; }
+  .inv-items td { padding:.75rem 0; border-bottom:1px solid #f9fafb; vertical-align:top; }
+  .inv-items td:last-child { text-align:right; font-weight:700; color:#111827; }
+  .inv-item-name { font-weight:600; color:#111827; }
+  .inv-item-sub  { font-size:.78rem; color:#6b7280; margin-top:.15rem; }
+
+  .inv-total-block { display:flex; justify-content:flex-end; }
+  .inv-totals { min-width:260px; }
+  .inv-totals-row { display:flex; justify-content:space-between; padding:.4rem 0; font-size:.875rem; color:#6b7280; }
+  .inv-totals-row.total { border-top:2px solid #0d9488; margin-top:.5rem; padding-top:.6rem; font-size:1.1rem; font-weight:900; color:#111827; }
+
+  .inv-footer { background:#f9fafb; padding:1.2rem 2.5rem; border-top:1px solid #f3f4f6; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; }
+  .inv-footer p { font-size:.75rem; color:#9ca3af; margin:0; }
+  .inv-footer .rzp-ref { font-family:monospace; font-size:.72rem; color:#6b7280; }
+
+  .status-dot { width:8px; height:8px; border-radius:50%; background:currentColor; display:inline-block; }
+
+  @media print {
+    body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .invoice-actions { display:none !important; }
+    .invoice-card { border:none; border-radius:0; }
+    .inv-header { print-color-adjust:exact; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if not pdf_mode %}
+<div class="invoice-page">
+  <div class="invoice-actions">
+    <a href="/app/billing" class="btn-back">← Back to Billing</a>
+    <a href="/app/billing/invoice/{{ txn.id }}/pdf" class="btn-print" target="_blank">⬇ Download PDF</a>
+  </div>
+{% endif %}
+
+<div class="invoice-card">
+  <!-- Header -->
+  <div class="inv-header">
+    <div>
+      <h1>SolaceSquad®</h1>
+      <div class="brand-sub">Wellness & Mental Health Platform</div>
+    </div>
+    <div class="inv-meta">
+      <div class="inv-num">{{ txn.invoice_number or '—' }}</div>
+      <div class="inv-date">{{ txn.created_at | format_local('%d %B %Y') }}</div>
+      <div class="inv-date" style="margin-top:.15rem;opacity:.7;">INVOICE</div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="inv-status-bar status-{{ txn.status }}">
+    <span class="status-dot"></span>
+    {{ txn.status | title }}
+    {% if txn.status == 'refunded' and txn.refunded_at %}
+      — Refunded on {{ txn.refunded_at | format_local('%d %b %Y') }}
+    {% endif %}
+  </div>
+
+  <div class="inv-body">
+    <!-- Addresses -->
+    <div class="inv-addresses">
+      <div>
+        <div class="inv-addr-label">Billed To</div>
+        <div class="inv-addr-name">{{ user.name }}</div>
+        <div class="inv-addr-email">{{ user.email }}</div>
+      </div>
+      <div>
+        <div class="inv-addr-label">From</div>
+        <div class="inv-addr-name">SolaceSquad Technologies</div>
+        <div class="inv-addr-email">GSTIN: 29AFXFS1215D1ZS</div>
+        <div class="inv-addr-email">admin@solacesquad.com</div>
+        <div class="inv-addr-email">https://www.solacesquad.com</div>
+      </div>
+    </div>
+
+    <hr class="inv-divider">
+
+    <!-- Line items -->
+    <table class="inv-items">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th>Type</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <div class="inv-item-name">{{ txn.description or 'Payment' }}</div>
+            <div class="inv-item-sub">Date: {{ txn.created_at | format_local('%d %B %Y, %H:%M') }}</div>
+          </td>
+          <td>
+            <span style="background:#f3f4f6;color:#374151;padding:.15rem .55rem;border-radius:.35rem;font-size:.75rem;font-weight:600;">
+              {{ txn.transaction_type.replace('_',' ').title() }}
+            </span>
+          </td>
+          <td>₹{{ '%.2f' | format(txn.amount) }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="inv-total-block">
+      <div class="inv-totals">
+        {% set base_amount = txn.amount / 1.18 %}
+        {% set gst_amount = txn.amount - base_amount %}
+        <div class="inv-totals-row"><span>Subtotal</span><span>₹{{ '%.2f' | format(base_amount) }}</span></div>
+        <div class="inv-totals-row"><span>GST (18%)</span><span>₹{{ '%.2f' | format(gst_amount) }}</span></div>
+        <div class="inv-totals-row total"><span>Total</span><span>₹{{ '%.2f' | format(txn.amount) }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="inv-footer">
+    <div>
+      <p>Thank you for choosing SolaceSquad!</p>
+      <p style="margin-top:.2rem;">For support: admin@solacesquad.com</p>
+    </div>
+    <div style="text-align:right;">
+      {% if txn.razorpay_payment_id %}
+      <div class="rzp-ref">Razorpay ID: {{ txn.razorpay_payment_id }}</div>
+      {% endif %}
+      {% if txn.razorpay_order_id %}
+      <div class="rzp-ref">Order ID: {{ txn.razorpay_order_id }}</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% if not pdf_mode %}
+</div>
+{% endif %}
+
+{% if pdf_mode %}
+<script>
+  window.addEventListener('load', () => {
+    setTimeout(() => window.print(), 500);
+  });
+</script>
+{% endif %}
+{% endblock %}

@@ -89,9 +89,9 @@ def generate_prescription_pdf(prescription_data):
     elements.append(line_table)
     elements.append(Spacer(1, 0.2*inch))
     
-    # Prescription header info
+    # Report header info
     header_data = [
-        ['Prescription Number:', f"Rx #{prescription_data['id']}", 
+        ['Report Number:', f"Report #{prescription_data['id']}", 
          'Date:', prescription_data['created_at'].strftime('%B %d, %Y')]
     ]
     header_table = Table(header_data, colWidths=[1.5*inch, 1.75*inch, 0.75*inch, 1.5*inch])
@@ -106,7 +106,7 @@ def generate_prescription_pdf(prescription_data):
     elements.append(Spacer(1, 0.3*inch))
     
     # Consultant information
-    elements.append(Paragraph("Prescribed By", heading_style))
+    elements.append(Paragraph("Consultant", heading_style))
     consultant_info = f"""
     <b>Dr. {prescription_data['consultant_name']}</b><br/>
     {prescription_data['consultant_specialization']}<br/>
@@ -119,67 +119,68 @@ def generate_prescription_pdf(prescription_data):
     elements.append(Paragraph(prescription_data['patient_name'], normal_style))
     elements.append(Spacer(1, 0.2*inch))
     
-    # Diagnosis
-    if prescription_data.get('diagnosis'):
-        elements.append(Paragraph("Diagnosis", heading_style))
+    # Diagnosis / Subject
+    if prescription_data.get('diagnosis') and prescription_data['diagnosis'] != 'Consultation Summary':
+        elements.append(Paragraph("Subject / Diagnosis", heading_style))
         elements.append(Paragraph(prescription_data['diagnosis'], normal_style))
         elements.append(Spacer(1, 0.2*inch))
     
-    # Medications
-    elements.append(Paragraph("Medications", heading_style))
-    elements.append(Spacer(1, 0.1*inch))
-    
-    # Create medications table
-    med_data = [['#', 'Medication', 'Dosage', 'Frequency', 'Duration']]
-    
-    for idx, item in enumerate(prescription_data['items'], 1):
-        med_data.append([
-            str(idx),
-            item['medication_name'],
-            item.get('dosage', '-'),
-            item.get('frequency', '-'),
-            item.get('duration', '-')
-        ])
-    
-    med_table = Table(med_data, colWidths=[0.4*inch, 2.2*inch, 1.2*inch, 1.2*inch, 1.0*inch])
-    med_table.setStyle(TableStyle([
-        # Header row
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0284c7')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('TOPPADDING', (0, 0), (-1, 0), 12),
+    # Medications (Optional, only if present)
+    if prescription_data.get('items') and len(prescription_data['items']) > 0:
+        elements.append(Paragraph("Medications", heading_style))
+        elements.append(Spacer(1, 0.1*inch))
         
-        # Data rows
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 9),
-        ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#374151')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 1), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+        # Create medications table
+        med_data = [['#', 'Medication', 'Dosage', 'Frequency', 'Duration']]
         
-        # Grid
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+        for idx, item in enumerate(prescription_data['items'], 1):
+            med_data.append([
+                str(idx),
+                item['medication_name'],
+                item.get('dosage', '-'),
+                item.get('frequency', '-'),
+                item.get('duration', '-')
+            ])
         
-        # Alternating row colors
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
-    ]))
-    elements.append(med_table)
-    elements.append(Spacer(1, 0.2*inch))
-    
-    # Instructions for each medication
-    for idx, item in enumerate(prescription_data['items'], 1):
-        if item.get('instructions'):
-            instr_text = f"<b>{idx}. {item['medication_name']}:</b> {item['instructions']}"
-            elements.append(Paragraph(instr_text, normal_style))
-    
-    if any(item.get('instructions') for item in prescription_data['items']):
+        med_table = Table(med_data, colWidths=[0.4*inch, 2.2*inch, 1.2*inch, 1.2*inch, 1.0*inch])
+        med_table.setStyle(TableStyle([
+            # Header row
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0284c7')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('TOPPADDING', (0, 0), (-1, 0), 12),
+            
+            # Data rows
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.HexColor('#374151')),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+            
+            # Grid
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+            
+            # Alternating row colors
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9fafb')]),
+        ]))
+        elements.append(med_table)
         elements.append(Spacer(1, 0.2*inch))
+        
+        # Instructions for each medication
+        for idx, item in enumerate(prescription_data['items'], 1):
+            if item.get('instructions'):
+                instr_text = f"<b>{idx}. {item['medication_name']}:</b> {item['instructions']}"
+                elements.append(Paragraph(instr_text, normal_style))
+        
+        if any(item.get('instructions') for item in prescription_data['items']):
+            elements.append(Spacer(1, 0.2*inch))
     
-    # Additional notes
+    # Consultation Notes
     if prescription_data.get('notes'):
-        elements.append(Paragraph("Additional Notes", heading_style))
+        elements.append(Paragraph("Consultation Notes", heading_style))
         elements.append(Paragraph(prescription_data['notes'], normal_style))
         elements.append(Spacer(1, 0.3*inch))
     
@@ -194,11 +195,11 @@ def generate_prescription_pdf(prescription_data):
     )
     
     elements.append(Paragraph(
-        "<b>Note:</b> This is a digital prescription. Please follow the prescribed medication as directed.",
+        "<b>Note:</b> This is a digital consultation report. Please follow the consultant's advice as directed.",
         footer_style
     ))
     elements.append(Paragraph(
-        "For any queries, please contact your healthcare provider.",
+        "For any queries, please contact your wellness team.",
         footer_style
     ))
     

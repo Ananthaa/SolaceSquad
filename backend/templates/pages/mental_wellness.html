@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Mental Wellness Counselling Online – SolaceSquad{% endblock %}
+{% block meta_desc %}Talk to a certified mental wellness consultant from home. Online sessions, confidential & affordable. Real stories, real healing — SolaceSquad.{% endblock %}
+{% block og_title %}Mental Wellness Counselling Online — SolaceSquad{% endblock %}
+{% block og_desc %}Book a confidential mental wellness session with a certified consultant. Online, affordable, and available across India.{% endblock %}
+{% block tw_title %}Mental Wellness Counselling Online — SolaceSquad{% endblock %}
+{% block tw_desc %}Talk to a certified mental wellness consultant from home. Confidential, affordable online sessions across India. Book today on SolaceSquad.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Service","name":"Online Mental Wellness Counselling","serviceType":"Mental Wellness Counselling","description":"Certified online mental wellness counselling for anxiety, stress, depression, and emotional wellbeing. Confidential sessions available across India.","provider":{"@type":"Organization","name":"SolaceSquad","url":"https://www.solacesquad.com"},"areaServed":"IN","url":"https://www.solacesquad.com/mental-wellness","breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.solacesquad.com"},{"@type":"ListItem","position":2,"name":"Mental Wellness","item":"https://www.solacesquad.com/mental-wellness"}]}}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is online mental wellness counselling?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Online mental wellness counselling is a confidential service where you speak with a certified mental health consultant via video or chat from the comfort of your home. SolaceSquad offers affordable online mental wellness counselling sessions across India."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How does SolaceSquad's mental wellness counselling work?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "SolaceSquad connects you with certified mental wellness consultants for private, personalised sessions. You can book online, choose a time that suits you, and attend the session from anywhere in India."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is online mental wellness counselling effective?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Research shows online mental wellness counselling is as effective as in-person sessions for anxiety, stress, depression, and emotional wellbeing. SolaceSquad's certified consultants provide evidence-based support tailored to your needs."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is SolaceSquad's mental wellness counselling confidential?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. All sessions on SolaceSquad are completely private and confidential. Your information is never shared without your consent."
+      }
+    }
+  ]
+}
+</script>
+{% endblock %}
+
+
+{% block content %}
+{% include "components/header.html" %}
+
+<style>
+    .ss-page-section {
+        padding-top: 9rem;
+        padding-bottom: 4rem;
+        background: #f8faf9;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    .ss-page-inner {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+        box-sizing: border-box;
+    }
+
+    .ss-page-eyebrow {
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #2d6a5a;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+    }
+
+    .ss-page-title {
+        text-align: center;
+        font-size: clamp(1.4rem, 5vw, 1.75rem);
+        font-weight: 800;
+        color: #2d6a5a;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.5rem;
+    }
+
+    .ss-page-divider {
+        width: 3rem;
+        height: 3px;
+        background: linear-gradient(90deg, #2d6a5a, #1e4d40);
+        border-radius: 2px;
+        margin: 0 auto 1.75rem;
+    }
+
+    .ss-story-body {
+        font-size: 0.9rem;
+        color: #374151;
+        line-height: 1.9;
+    }
+
+    .ss-story-body p {
+        margin-bottom: 1.1rem;
+    }
+
+    .ss-story-card {
+        background: #fff;
+        border-radius: 0.75rem;
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(45, 106, 90, .08);
+        border-left: 3px solid #2d6a5a;
+        box-sizing: border-box;
+    }
+
+    .ss-story-title {
+        font-size: clamp(1.15rem, 4vw, 1.4rem);
+        font-weight: 700;
+        color: #2d6a5a;
+        margin-bottom: 1.25rem;
+    }
+
+    .ss-back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: #2d6a5a;
+        font-size: 0.82rem;
+        font-weight: 600;
+        text-decoration: none;
+        margin-bottom: 1.5rem;
+        transition: opacity 0.15s;
+    }
+    .ss-back-link:hover { opacity: 0.75; }
+</style>
+
+<section class="ss-page-section">
+    <div class="ss-page-inner">
+        <p class="ss-page-eyebrow">Mental Wellness</p>
+        <h1 class="ss-page-title">Online Mental Wellness Counselling</h1>
+        <div class="ss-page-divider"></div>
+
+        <a href="/" class="ss-back-link">
+            ← Back to Home
+        </a>
+
+        <p style="font-size:0.92rem;color:#4b5563;line-height:1.8;margin-bottom:1.5rem;text-align:center;max-width:640px;margin-left:auto;margin-right:auto;">
+            At SolaceSquad, our certified consultants provide <strong>online mental wellness counselling</strong> tailored to your unique needs — confidential, affordable, and available across India. Here's a story that reflects the transformative power of mental wellness support.
+        </p>
+
+        <div class="ss-story-card">
+            <div class="ss-story-body">
+                <p>In a quiet, picturesque town nestled between rolling hills and a tranquil river, there lived a young woman named Nisha. She was known throughout the town for her enchanting voice and her ability to make the world around her come alive with her music. But behind her radiant smile and the notes that seemed to dance in the air, Nisha harboured a secret – a struggle with her own mental wellbeing.</p>
+
+                <p>Nisha's passion for music was both her greatest strength and her deepest vulnerability. It was her refuge, a safe haven where she could pour her heart and soul into each note, momentarily escaping the shadows that haunted her mind. Yet, it was also a constant reminder of the pressure she placed on herself to be perfect, to live up to the expectations of those who admired her talents.</p>
+
+                <p>One sunny afternoon, as Nisha sat on the porch of her cozy cottage, strumming her guitar, she couldn't shake the feeling of emptiness that had taken hold of her. She had always been the one to bring joy to others, but who would bring joy to her soul when it felt like it was drowning in darkness?</p>
+
+                <p>One day, a traveling musician named Arijit arrived in town. His rugged appearance and soulful eyes intrigued Nisha, and they soon struck up a conversation. Arijit had a unique perspective on life. He believed that music was not just a means of escape but a bridge to connect with one's inner self. He shared his own journey of grappling with mental wellbeing and how music had been his lifeline.</p>
+
+                <p>As Nisha and Arijit spent more time together, they found solace in each other's company. Arijit encouraged Nisha to embrace her music as a source of healing rather than perfection. He introduced her to the concept of "mindful music," where the act of creating and playing music became a form of meditation. They would sit by the river, strumming their guitars, allowing the soothing sounds of nature to merge with their melodies.</p>
+
+                <p>Gradually, Nisha began to let go of the constant need for perfection that had plagued her. She started to sing from the depths of her heart, embracing the flaws and imperfections that made her music uniquely hers. As she did, something remarkable happened. The townspeople noticed the transformation in her music; it was no longer just notes but an expression of her soul.</p>
+
+                <p>One evening, Nisha decided to share her newfound approach to music with the town. She invited everyone to a gathering by the river, where she and Arijit would play together. As they began to play, the music resonated with the hearts of those who listened. It was raw, authentic, and filled with the healing power of vulnerability.</p>
+
+                <p>Tears welled up in the eyes of many as they felt the emotional depth in Nisha's music. The town's people realized that Nisha, their musical muse, was also a human being with her own struggles. In that moment of shared vulnerability, the town came together to support her, just as she had supported them through her music all these years.</p>
+
+                <p>From that day on, Nisha continued to sing and play her music, not to chase perfection but to embrace her own journey. She had learned that mental wellness was a lifelong pursuit, and sometimes, the most beautiful melodies were born from the deepest wounds.</p>
+
+                <p>As for Arijit, he left the town, knowing that he had helped Nisha find her way back to the path of self-discovery and healing. He carried with him the memory of the healing melody that had united a town and had helped one young woman rediscover the beauty within herself.</p>
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem; text-align: center;">
+            <a href="#" onclick="openBookModal(); return false;" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                Talk to a Wellness Consultant →
+            </a>
+        </div>
+    </div>
+</section>
+
+{% include "components/cta_section.html" %}
+{% include "components/footer.html" %}
+{% endblock %}

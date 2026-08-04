@@ -3,9 +3,24 @@
 {% block dashboard_content %}
 <div class="profile-container">
     <div class="profile-header">
-        <h1>My Profile</h1>
-        <p class="profile-subtitle">Manage your personal information and preferences</p>
+        <div>
+            <h1>My Profile</h1>
+            <p class="profile-subtitle">Manage your personal information and preferences</p>
+        </div>
+        {% if request.query_params.get('onboarding') != 'true' %}
+        <a href="/settings" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; font-size: 0.875rem; font-weight: 600; text-decoration: none; padding: 0.5rem 1rem; border: 1.5px solid #d1d5db; border-radius: 8px; color: #374151; background: #fff; transition: background 0.2s;">
+            <i data-lucide="settings" style="width: 16px; height: 16px;"></i>
+            Account & Privacy Settings
+        </a>
+        {% endif %}
     </div>
+
+    {% if request.query_params.get('onboarding') == 'true' %}
+    <div style="background-color: #f5f3ff; border-left: 4px solid #7c3aed; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+        <h2 style="font-size: 0.95rem; font-weight: 700; color: #5b21b6; margin: 0;">Welcome to SolaceSquad! ✨</h2>
+        <p style="font-size: 0.825rem; color: #6d28d9; margin: 4px 0 0 0; line-height: 1.4;">Please take a moment to complete your profile details below to access your wellness dashboard.</p>
+    </div>
+    {% endif %}
 
     <form id="profileForm" class="profile-form">
         <div class="profile-sections">
@@ -18,8 +33,12 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="fullName">Full Name</label>
-                        <input type="text" id="fullName" name="full_name" value="{{ profile.full_name or '' }}"
-                            placeholder="Enter your full name">
+                        <input type="text" id="fullName" name="full_name"
+                            value="{{ profile.full_name or account_name }}" placeholder="Enter your full name">
+                        {% if not profile.full_name %}
+                        <span class="field-hint" style="color:#8b5cf6;">✨ Pre-filled from your account name — update if
+                            needed</span>
+                        {% endif %}
                     </div>
                     <div class="form-group">
                         <label for="preferredName">Preferred Name</label>
@@ -89,6 +108,36 @@
                         <input type="email" id="contactEmail" name="alt_email" value="{{ profile.contact_email or '' }}"
                             placeholder="alternative@example.com">
                     </div>
+                    <div class="form-group">
+                        <label for="phoneNumber">Phone Number</label>
+                        <div style="display: flex; gap: 8px; width: 100%;">
+                            <div style="position: relative; flex-grow: 1;">
+                                <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #6b7280; font-size: 0.875rem;">+91</span>
+                                <input type="tel" id="phoneNumber" name="phone_number" value="{{ user_phone or '' }}"
+                                    style="padding-left: 45px; width: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding-top: 10px; padding-bottom: 10px; font-size: 0.875rem;"
+                                    placeholder="9876543210" pattern="[0-9]{10}" oninput="checkPhoneChanged()">
+                            </div>
+                            <button type="button" id="sendOtpBtn" onclick="sendProfileOtp()" 
+                                style="display: none; padding: 0 16px; border: 1px solid #d1d5db; background: #fff; color: #374151; font-size: 0.875rem; font-weight: 600; border-radius: 8px; cursor: pointer; white-space: nowrap;">
+                                Send OTP
+                            </button>
+                        </div>
+                        
+                        <!-- Inline Profile OTP verification container -->
+                        <div id="otpContainer" style="display: none; margin-top: 12px; padding: 16px; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; width: 100%;">
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                <label for="otpCode" style="font-size: 0.75rem; font-weight: 600; color: #4b5563; text-transform: uppercase;">Enter Verification Code</label>
+                                <div style="display: flex; gap: 8px;">
+                                    <input type="text" id="otpCode" placeholder="123456" maxlength="6"
+                                        style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.875rem; text-align: center; font-weight: bold; tracking-widest: 0.1em;">
+                                    <button type="button" onclick="verifyProfileOtp()" 
+                                        style="padding: 8px 16px; background: #6d28d9; color: #fff; border: none; font-size: 0.875rem; font-weight: 600; border-radius: 8px; cursor: pointer; white-space: nowrap;">
+                                        Verify Code
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -156,6 +205,54 @@
                             </label>
                         </div>
                     </div>
+
+                    <!-- Wellness Time Commitment -->
+                    <div class="form-group full-width">
+                        <label>Wellness Time Commitment</label>
+                        <div class="wellness-time-grid">
+
+                            <!-- Frequency per week -->
+                            <div class="wellness-time-card">
+                                <div class="wellness-time-label">
+                                    <i data-lucide="calendar" style="width:16px;height:16px;color:#8b5cf6;"></i>
+                                    Days per week
+                                </div>
+                                <div class="day-picker" id="dayPicker">
+                                    {% for d in range(1, 8) %}
+                                    <button type="button"
+                                        class="day-btn {% if profile.wellness_frequency_per_week == d %}day-btn-active{% endif %}"
+                                        data-days="{{ d }}" onclick="selectDays(this, {{ d }})">{{ d }}</button>
+                                    {% endfor %}
+                                </div>
+                                <input type="hidden" id="wellnessFrequency" name="wellness_frequency_per_week"
+                                    value="{{ profile.wellness_frequency_per_week or '' }}">
+                                <span class="field-hint">How many days per week do you do wellness activities?</span>
+                            </div>
+
+                            <!-- Minutes per day -->
+                            <div class="wellness-time-card">
+                                <div class="wellness-time-label">
+                                    <i data-lucide="clock" style="width:16px;height:16px;color:#8b5cf6;"></i>
+                                    Avg. minutes per day
+                                </div>
+                                <div class="minutes-quick-select">
+                                    {% for mins in [15, 30, 45, 60, 90, 120] %}
+                                    <button type="button"
+                                        class="mins-btn {% if profile.wellness_minutes_per_day == mins %}mins-btn-active{% endif %}"
+                                        data-mins="{{ mins }}" onclick="selectMins(this, {{ mins }})">{{ mins
+                                        }}m</button>
+                                    {% endfor %}
+                                </div>
+                                <input type="number" id="wellnessMinutes" name="wellness_minutes_per_day" min="1"
+                                    max="600" placeholder="or type custom..."
+                                    value="{{ profile.wellness_minutes_per_day or '' }}"
+                                    oninput="syncMinsButtons(this.value)" style="margin-top:0.6rem;">
+                                <span class="field-hint">Average minutes spent on wellness activities per day</span>
+                            </div>
+
+                        </div>
+                    </div>
+
                     <div class="form-group full-width">
                         <label for="aboutMe">About Me <span class="optional-tag">(Optional)</span></label>
                         <textarea id="aboutMe" name="about_me" rows="4"
@@ -172,6 +269,12 @@
                 </h2>
                 <div class="form-grid">
                     <div class="form-group">
+                        <label>SolaceSquad ID</label>
+                        <input type="text" value="SS-{{ '%06d' % user_id }}" readonly
+                            style="font-family: monospace; letter-spacing: 0.05em; background: #f0fdf4; border-color: #bbf7d0; color: #166534; font-weight: 600;">
+                        <span class="field-hint">Your unique SolaceSquad identifier</span>
+                    </div>
+                    <div class="form-group">
                         <label>Active Since</label>
                         <input type="text" value="{{ active_since or 'N/A' }}" readonly>
                     </div>
@@ -185,13 +288,41 @@
                     These fields are automatically managed and cannot be edited
                 </p>
             </div>
+
+            <!-- Connected Services → Sync-X Hub -->
+            <div class="profile-section" style="border-bottom:none; padding-bottom:0;">
+                <h2 class="section-title">
+                    <i data-lucide="plug" class="section-icon"></i>
+                    Connected Services
+                </h2>
+
+                <a href="/app/sync-x" class="syncx-redirect-card" id="syncx-card">
+                    <div class="syncx-left">
+                        <div class="syncx-icon">⚡</div>
+                        <div>
+                            <div class="syncx-title">Sync-X — Fitness Data Hub</div>
+                            <div class="syncx-desc">Manage all your fitness integrations in one place — Google Health, Apple Health &amp; more</div>
+                            <div id="syncx-status-line" class="syncx-pills">
+                                <span class="syncx-pill loading">Loading status…</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="syncx-arrow">→</div>
+                </a>
+            </div><!-- /profile-section -->
         </div>
 
         <div class="form-actions">
+            {% if request.query_params.get('onboarding') != 'true' %}
             <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+            {% endif %}
             <button type="submit" class="btn btn-primary" id="saveBtn">
                 <i data-lucide="save" style="width: 18px; height: 18px;"></i>
+                {% if request.query_params.get('onboarding') == 'true' %}
+                Complete Profile &amp; Continue
+                {% else %}
                 Save Changes
+                {% endif %}
             </button>
         </div>
     </form>
@@ -206,6 +337,11 @@
 
     .profile-header {
         margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
     }
 
     .profile-header h1 {
@@ -431,6 +567,100 @@
         }
     }
 
+    /* Wellness Time Commitment */
+    .wellness-time-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .wellness-time-card {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+
+    .wellness-time-label {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .day-picker {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+
+    .day-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 2px solid #d1d5db;
+        background: white;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .day-btn:hover {
+        border-color: #8b5cf6;
+        color: #8b5cf6;
+    }
+
+    .day-btn-active {
+        background: #8b5cf6 !important;
+        border-color: #8b5cf6 !important;
+        color: white !important;
+    }
+
+    .minutes-quick-select {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+    }
+
+    .mins-btn {
+        padding: 0.3rem 0.7rem;
+        border-radius: 20px;
+        border: 2px solid #d1d5db;
+        background: white;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .mins-btn:hover {
+        border-color: #8b5cf6;
+        color: #8b5cf6;
+    }
+
+    .mins-btn-active {
+        background: #8b5cf6 !important;
+        border-color: #8b5cf6 !important;
+        color: white !important;
+    }
+
+    @media (max-width: 600px) {
+        .wellness-time-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
     /* Success/Error Messages */
     .message {
         padding: 1rem;
@@ -452,9 +682,190 @@
         border: 1px solid #fecaca;
         color: #991b1b;
     }
+
+    /* Sync-X Redirect Card */
+    .syncx-redirect-card {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 1rem; padding: 1.1rem 1.25rem;
+        border: 1px solid #e0e7ff; border-radius: 12px;
+        background: linear-gradient(135deg, #f5f3ff 0%, #eef2ff 100%);
+        text-decoration: none; color: inherit;
+        transition: all .2s; cursor: pointer;
+    }
+    .syncx-redirect-card:hover {
+        border-color: #8b5cf6; box-shadow: 0 4px 16px rgba(139,92,246,.15);
+        transform: translateY(-1px);
+    }
+    .syncx-left { display: flex; align-items: center; gap: .9rem; flex: 1; }
+    .syncx-icon {
+        width: 44px; height: 44px; border-radius: .65rem; flex-shrink: 0;
+        background: linear-gradient(135deg,#6366f1,#4f46e5); color: #fff;
+        display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
+        box-shadow: 0 4px 12px rgba(99,102,241,.3);
+    }
+    .syncx-title { font-weight: 700; font-size: .95rem; color: #1e1b4b; margin-bottom: .15rem; }
+    .syncx-desc  { font-size: .8rem; color: #6b7280; line-height: 1.4; }
+    .syncx-pills { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .35rem; }
+    .syncx-pill {
+        font-size: .7rem; font-weight: 600; padding: .15rem .55rem;
+        border-radius: 999px;
+    }
+    .syncx-pill.connected    { background: #dcfce7; color: #166534; }
+    .syncx-pill.disconnected { background: #f3f4f6; color: #6b7280; }
+    .syncx-pill.loading      { background: #f1f5f9; color: #94a3b8; font-style: italic; }
+    .syncx-arrow { font-size: 1.25rem; color: #8b5cf6; font-weight: 700; flex-shrink: 0; }
+
+    @media (max-width: 640px) {
+        .profile-container {
+            padding: 1rem;
+        }
+        .profile-form {
+            padding: 1.25rem;
+        }
+        .form-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        .wellness-checkboxes {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .syncx-redirect-card { flex-direction: column; align-items: flex-start; }
+        .cs-actions { width: 100%; }
+    }
 </style>
 
 <script>
+    // Phone changed and OTP verification tracking
+    let originalPhone = "{{ user_phone or '' }}".replace(/[^0-9]/g, '').slice(-10);
+    let phoneVerified = false;
+    let otpTimer = null;
+    let otpCountdown = 0;
+
+    function checkPhoneChanged() {
+        const phoneInput = document.getElementById('phoneNumber');
+        const sendOtpBtn = document.getElementById('sendOtpBtn');
+        const otpContainer = document.getElementById('otpContainer');
+        const saveBtn = document.getElementById('saveBtn');
+        
+        // Strip out non-digits for validation
+        const currentVal = phoneInput.value.replace(/[^0-9]/g, '');
+        
+        if (currentVal.slice(-10) === originalPhone) {
+            sendOtpBtn.style.display = 'none';
+            otpContainer.style.display = 'none';
+            saveBtn.disabled = false;
+            phoneVerified = false;
+        } else {
+            if (!phoneVerified && currentVal !== '') {
+                sendOtpBtn.style.display = 'block';
+                saveBtn.disabled = true;
+            } else {
+                sendOtpBtn.style.display = 'none';
+                saveBtn.disabled = false;
+            }
+        }
+    }
+
+    async function sendProfileOtp() {
+        const phoneInput = document.getElementById('phoneNumber');
+        const sendOtpBtn = document.getElementById('sendOtpBtn');
+        const otpContainer = document.getElementById('otpContainer');
+        
+        const phone = phoneInput.value.trim();
+        if (phone.length !== 10) {
+            alert('Please enter a valid 10-digit mobile number.');
+            return;
+        }
+        
+        sendOtpBtn.disabled = true;
+        sendOtpBtn.textContent = 'Sending...';
+
+        try {
+            const res = await fetch('/api/auth/phone-otp/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: phone })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                alert('Verification OTP sent successfully to +91 ' + phone);
+                otpContainer.style.display = 'block';
+                
+                // Countdown timer
+                otpCountdown = 60;
+                if (otpTimer) clearInterval(otpTimer);
+                otpTimer = setInterval(() => {
+                    otpCountdown--;
+                    if (otpCountdown <= 0) {
+                        clearInterval(otpTimer);
+                        sendOtpBtn.textContent = 'Resend OTP';
+                        sendOtpBtn.disabled = false;
+                    } else {
+                        sendOtpBtn.textContent = `Resend (${otpCountdown}s)`;
+                    }
+                }, 1000);
+
+            } else {
+                alert(data.error || 'Failed to send OTP.');
+                sendOtpBtn.disabled = false;
+                sendOtpBtn.textContent = 'Send OTP';
+            }
+        } catch (e) {
+            alert('Network error sending OTP.');
+            sendOtpBtn.disabled = false;
+            sendOtpBtn.textContent = 'Send OTP';
+        }
+    }
+
+    async function verifyProfileOtp() {
+        const phoneInput = document.getElementById('phoneNumber');
+        const otpInput = document.getElementById('otpCode');
+        const otpContainer = document.getElementById('otpContainer');
+        const sendOtpBtn = document.getElementById('sendOtpBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        
+        const phone = phoneInput.value.trim();
+        const otp = otpInput.value.trim();
+        
+        if (!otp || otp.length !== 6) {
+            alert('Please enter a valid 6-digit code.');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/auth/phone-otp/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: phone, otp: otp })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                alert('Phone number verified successfully!');
+                phoneVerified = true;
+                otpContainer.style.display = 'none';
+                sendOtpBtn.style.display = 'none';
+                saveBtn.disabled = false;
+                
+                phoneInput.style.borderColor = '#10b981';
+                phoneInput.style.boxShadow = '0 0 0 2px #d1fae5';
+            } else {
+                alert(data.error || 'Incorrect OTP code.');
+            }
+        } catch (e) {
+            alert('Network error verifying OTP.');
+        }
+    }
+
+    // Expose to window for inline onclick handlers
+    window.checkPhoneChanged = checkPhoneChanged;
+    window.sendProfileOtp = sendProfileOtp;
+    window.verifyProfileOtp = verifyProfileOtp;
+
     document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
 
@@ -465,6 +876,14 @@
         // Handle form submission
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            // Validate that phone is verified if changed
+            const phoneInput = document.getElementById('phoneNumber');
+            const currentVal = phoneInput.value.replace(/[^0-9]/g, '').slice(0, 10);
+            if (currentVal !== originalPhone && !phoneVerified && currentVal !== '') {
+                alert('Please verify your new mobile number first.');
+                return;
+            }
 
             // Disable button during submission
             saveBtn.disabled = true;
@@ -501,11 +920,18 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    showMessage('Profile updated successfully!', 'success');
-                    // Optionally reload after a delay
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('onboarding') === 'true') {
+                        showMessage('Profile completed successfully! Redirecting to dashboard...', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/app';
+                        }, 1500);
+                    } else {
+                        showMessage('Profile updated successfully!', 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    }
                 } else {
                     showMessage(result.error || 'Failed to update profile', 'error');
                 }
@@ -519,11 +945,9 @@
             }
         });
 
-        // Cancel button
+        // Cancel button — go back to dashboard
         cancelBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to discard your changes?')) {
-                window.location.reload();
-            }
+            window.location.href = '/app/dashboard';
         });
 
         // Show message
@@ -548,6 +972,175 @@
                 messageDiv.remove();
             }, 5000);
         }
+    });
+
+    // ── Wellness Day Picker ──────────────────────────────────────────────────
+    function selectDays(btn, days) {
+        document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('day-btn-active'));
+        btn.classList.add('day-btn-active');
+        document.getElementById('wellnessFrequency').value = days;
+    }
+
+    // ── Wellness Minutes Quick-Select ────────────────────────────────────────
+    function selectMins(btn, mins) {
+        document.querySelectorAll('.mins-btn').forEach(b => b.classList.remove('mins-btn-active'));
+        btn.classList.add('mins-btn-active');
+        document.getElementById('wellnessMinutes').value = mins;
+    }
+
+    function syncMinsButtons(val) {
+        const num = parseInt(val);
+        document.querySelectorAll('.mins-btn').forEach(b => {
+            if (parseInt(b.dataset.mins) === num) {
+                b.classList.add('mins-btn-active');
+            } else {
+                b.classList.remove('mins-btn-active');
+            }
+        });
+    }
+
+    // ── Google Fit Sync ──────────────────────────────────────────────────────
+    async function syncGoogleFit() {
+        const btn = document.getElementById('fit-sync-btn');
+        const res = document.getElementById('fit-sync-result');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Syncing…'; lucide.createIcons(); }
+        try {
+            const r = await fetch('/api/google-fit/sync');
+            const d = await r.json();
+            if (d.success) {
+                const s = d.synced;
+                res.innerHTML = `<div style="padding:.6rem 1rem;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;font-size:.85rem;color:#065f46;">
+                    ✅ Synced for today — <b>${s.steps?.toLocaleString() || 0}</b> steps · <b>${s.calories || 0}</b> kcal · <b>${s.active_min || 0}</b> active min
+                    ${s.heart_rate ? ' · ❤️ ' + s.heart_rate + ' bpm' : ''}
+                </div>`;
+            } else if (d.need_reconnect) {
+                res.innerHTML = `<div style="padding:.6rem 1rem;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:.85rem;color:#9a3412;">
+                    ⚠ ${d.error} <br><small style="opacity:.75">Refreshing page…</small>
+                </div>`;
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                res.innerHTML = `<div style="padding:.6rem 1rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:.85rem;color:#991b1b;">⚠ ${d.error || 'Sync failed'}</div>`;
+            }
+            res.style.display = 'block';
+        } catch(e) {
+            res.innerHTML = `<div style="padding:.6rem 1rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:.85rem;color:#991b1b;">⚠ Network error</div>`;
+            res.style.display = 'block';
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="refresh-cw" style="width:15px;height:15px;"></i> Sync Today'; lucide.createIcons(); }
+        }
+    }
+    // ── Fitbit Sync ──────────────────────────────────────────────────────────
+    async function syncFitbit() {
+        const btn = document.getElementById('fitbit-sync-btn');
+        const res = document.getElementById('fitbit-sync-result');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Syncing…'; lucide.createIcons(); }
+        try {
+            const r = await fetch('/api/fitbit/sync');
+            const d = await r.json();
+            if (d.success) {
+                const s = d.synced;
+                res.innerHTML = `<div style="padding:.6rem 1rem;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;font-size:.85rem;color:#065f46;">
+                    ✅ Fitbit synced — <b>${s.steps?.toLocaleString() || 0}</b> steps · <b>${s.calories || 0}</b> kcal · <b>${s.active_min || 0}</b> active min
+                    ${s.heart_rate ? ' · ❤️ ' + s.heart_rate + ' bpm' : ''}
+                </div>`;
+            } else if (d.need_reconnect) {
+                res.innerHTML = `<div style="padding:.6rem 1rem;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:.85rem;color:#9a3412;">
+                    ⚠ ${d.error} <br><small style="opacity:.75">Refreshing page…</small>
+                </div>`;
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                res.innerHTML = `<div style="padding:.6rem 1rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:.85rem;color:#991b1b;">⚠ ${d.error || 'Sync failed'}</div>`;
+            }
+            res.style.display = 'block';
+        } catch(e) {
+            if (res) { res.innerHTML = `<div style="padding:.6rem 1rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:.85rem;color:#991b1b;">⚠ Network error</div>`; res.style.display = 'block'; }
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="refresh-cw" style="width:15px;height:15px;"></i> Sync Today'; lucide.createIcons(); }
+        }
+    }
+
+    // ── Strava Sync ──────────────────────────────────────────────────────────
+    async function syncStrava() {
+        const btn = document.getElementById('strava-sync-btn');
+        const res = document.getElementById('strava-sync-result');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Syncing…'; lucide.createIcons(); }
+        try {
+            const r = await fetch('/api/strava/sync');
+            const d = await r.json();
+            if (d.success) {
+                res.innerHTML = `<div style="padding:.6rem 1rem;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;font-size:.85rem;color:#065f46;">
+                    ✅ Strava synced — <b>${d.synced_count}</b> new ${d.synced_count === 1 ? 'activity' : 'activities'} imported (${d.total_fetched} fetched from last 7 days)
+                </div>`;
+            } else if (d.need_reconnect) {
+                res.innerHTML = `<div style="padding:.6rem 1rem;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:.85rem;color:#9a3412;">
+                    ⚠ ${d.error} <br><small style="opacity:.75">Refreshing page…</small>
+                </div>`;
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                res.innerHTML = `<div style="padding:.6rem 1rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:.85rem;color:#991b1b;">⚠ ${d.error || 'Sync failed'}</div>`;
+            }
+            res.style.display = 'block';
+        } catch(e) {
+            if (res) { res.innerHTML = `<div style="padding:.6rem 1rem;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:.85rem;color:#991b1b;">⚠ Network error</div>`; res.style.display = 'block'; }
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="refresh-cw" style="width:15px;height:15px;"></i> Sync Activities'; lucide.createIcons(); }
+        }
+    }
+
+    window.showPlanLockMessage = function(service) {
+        const form = document.getElementById('profileForm');
+        if (!form) return;
+        const existingMessage = document.querySelector('.message');
+        if (existingMessage) {
+            existingMessage.remove();
+        }
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message error`;
+        messageDiv.innerHTML = `
+            <i data-lucide="alert-circle"></i>
+            <span>⚠️ ${service} integration is only available on the White plan and above. Upgrade your plan to unlock.</span>
+        `;
+
+        form.insertBefore(messageDiv, form.firstChild);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        lucide.createIcons();
+
+        // Auto-remove after 6 seconds
+        setTimeout(() => {
+            messageDiv.remove();
+        }, 6000);
+    };
+
+    // Check query params for redirected error
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const errParam = urlParams.get('error');
+        if (errParam && errParam.includes('requires a paid plan')) {
+            window.showPlanLockMessage('Google Fit');
+        }
+
+        // Load Sync-X live connection status
+        fetch('/api/sync-x/providers')
+            .then(r => r.json())
+            .then(data => {
+                const pills = document.getElementById('syncx-status-line');
+                if (!pills) return;
+                const providers = (data.providers || []).filter(p => p.is_configured);
+                if (!providers.length) {
+                    pills.innerHTML = '<span class="syncx-pill disconnected">No integrations connected</span>';
+                    return;
+                }
+                pills.innerHTML = providers.map(p =>
+                    `<span class="syncx-pill ${p.is_connected ? 'connected' : 'disconnected'}">
+                        ${p.is_connected ? '✓' : '○'} ${p.display_name}
+                    </span>`
+                ).join('');
+            })
+            .catch(() => {
+                const pills = document.getElementById('syncx-status-line');
+                if (pills) pills.innerHTML = '<span class="syncx-pill disconnected">Tap to manage</span>';
+            });
     });
 </script>
 {% endblock %}

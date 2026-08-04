@@ -1,0 +1,26 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Cloud Build — Clear all subscription plans from PRODUCTION DB
+# No source upload needed. Uses inline SQL via psql + Cloud SQL Auth Proxy.
+# Usage: gcloud builds submit --config cloudbuild-clear-plans-prod.yaml
+#        --project abiding-idea-485817-k2 --no-source
+# ─────────────────────────────────────────────────────────────────────────────
+steps:
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    env:
+      - 'PGPASSWORD=SoulSquad2024x'
+      - 'DB_INSTANCE=abiding-idea-485817-k2:us-central1:solacesquad-login-data1'
+    args:
+      - '-c'
+      - |
+        apt-get update -qq
+        apt-get install -y postgresql-client wget
+        wget -q https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.2/cloud-sql-proxy.linux.amd64 -O /usr/local/bin/cloud-sql-proxy
+        chmod +x /usr/local/bin/cloud-sql-proxy
+        /usr/local/bin/cloud-sql-proxy abiding-idea-485817-k2:us-central1:solacesquad-login-data1 --port=5432 &
+        sleep 8
+        psql -h 127.0.0.1 -p 5432 -U Admin -d solacesquad_prod -c "DELETE FROM feature_usage_top_ups; DELETE FROM feature_usage_logs; DELETE FROM user_subscriptions; DELETE FROM plan_feature_caps; DELETE FROM usage_plans; SELECT 'Done - all plans cleared on production' AS result;"
+        echo "Production plans cleared. All users now have unlimited access."
+
+logsBucket: 'gs://abiding-idea-485817-k2-build-logs'
+timeout: 300s

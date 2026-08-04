@@ -1,0 +1,1289 @@
+﻿diff --git "a/c:\\Anantha\\Projects\\Soul Squad\\backend\\main.py.bak" "b/c:\\Anantha\\Projects\\Soul Squad\\backend\\main.py"
+index 3a88a01..8768022 100644
+--- "a/c:\\Anantha\\Projects\\Soul Squad\\backend\\main.py.bak"	
++++ "b/c:\\Anantha\\Projects\\Soul Squad\\backend\\main.py"	
+@@ -1,3 +1,11 @@
++import os
++import sys
++import uuid
++import time
++import asyncio
++import logging
++from datetime import datetime, date, timedelta
++from typing import List, Optional, Dict, Any
+ from fastapi import FastAPI, Request, Depends, HTTPException, Form, File, UploadFile
+ from fastapi.templating import Jinja2Templates
+ from fastapi.staticfiles import StaticFiles
+@@ -11,10 +19,7 @@ from sqlalchemy import func
+ from slowapi import Limiter, _rate_limit_exceeded_handler
+ from slowapi.util import get_remote_address
+ from slowapi.errors import RateLimitExceeded
+-import os
+ import secrets
+-import uuid
+-from datetime import datetime, timedelta, date
+ from dotenv import load_dotenv
+ 
+ # Load environment variables
+@@ -22,7 +27,7 @@ load_dotenv()
+ 
+ # Import database and models
+ from database import init_db, get_db, get_db_session
+-from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, ScheduleBreak, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile, VideoFolder, Video, UserExerciseLog, HomePageSection, ConsultantRating, WorkoutLog, DailyWellnessScore, UsagePlan, PlanFeatureCap, UserSubscription, FeatureUsageLog, FeatureUsageTopUp
++from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, ScheduleBreak, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile, VideoFolder, Video, UserExerciseLog, HomePageSection, ConsultantRating, WorkoutLog, DailyWellnessScore, UsagePlan, PlanFeatureCap, UserSubscription, FeatureUsageLog, FeatureUsageTopUp, DiagnosisReport
+ # Version 2.2 - Homepage Builder Feature - Fresh Deploy
+ 
+ 
+@@ -46,12 +51,12 @@ app = FastAPI(
+     openapi_url=None if _is_prod else "/openapi.json",
+ )
+ 
+-# ├óΓÇ¥Γé¼├óΓÇ¥Γé¼ Rate limiter (slowapi) ├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼
++# ΓöÇΓöÇ Rate limiter (slowapi) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+ limiter = Limiter(key_func=get_remote_address)
+ app.state.limiter = limiter
+ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+ 
+-# ├óΓÇ¥Γé¼├óΓÇ¥Γé¼ CORS ├óΓé¼ΓÇ¥ locked to solacesquad.in ├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼
++# ΓöÇΓöÇ CORS ΓÇö locked to solacesquad.in ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+ app.add_middleware(
+     CORSMiddleware,
+     allow_origins=[
+@@ -90,7 +95,7 @@ class DomainRedirectMiddleware(BaseHTTPMiddleware):
+ app.add_middleware(DomainRedirectMiddleware)
+ app.add_middleware(GZipMiddleware, minimum_size=500)  # GZip compress responses > 500 bytes
+ 
+-# ├óΓÇ¥Γé¼├óΓÇ¥Γé¼ Security + Cache-Control headers ├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼
++# ΓöÇΓöÇ Security + Cache-Control headers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+ class NoCacheMiddleware(BaseHTTPMiddleware):
+     async def dispatch(self, request: Request, call_next):
+         response = await call_next(request)
+@@ -99,7 +104,7 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
+             response.headers["Pragma"] = "no-cache"
+             response.headers["Expires"] = "0"
+             response.headers["Permissions-Policy"] = "camera=*, microphone=*"
+-            # ├óΓÇ¥Γé¼├óΓÇ¥Γé¼ Security headers ├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼
++            # ΓöÇΓöÇ Security headers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+             response.headers["X-Frame-Options"] = "DENY"
+             response.headers["X-Content-Type-Options"] = "nosniff"
+             response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+@@ -125,9 +130,7 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
+ 
+ app.add_middleware(NoCacheMiddleware)
+ 
+-# ├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É
+-# SEO ├óΓé¼ΓÇ¥ sitemap.xml + robots.txt
+-# ├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É├óΓÇó┬É
++# ΓöÇΓöÇ SEO ΓÇö sitemap.xml + robots.txt ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+ from fastapi.responses import Response as _Response
+ import datetime as _dt
+ 
+@@ -185,7 +188,7 @@ async def sitemap(db_gen=Depends(get_db)):
+ 
+ @app.get("/robots.txt", include_in_schema=False)
+ async def robots():
+-    """robots.txt ├óΓé¼ΓÇ¥ tells search engines what to crawl."""
++    """robots.txt ΓÇö tells search engines what to crawl."""
+     content = (
+         "User-agent: *\n"
+         "Allow: /\n"
+@@ -236,11 +239,6 @@ async def startup_event():
+         print(f"[WARN] startup init_db failed (tables may already exist): {e}")
+ 
+     # ΓöÇΓöÇ Run startup DDL migrations via a DIRECT psycopg2 connection ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-    # CRITICAL: Never use SQLAlchemy ORM sessions or engine.raw_connection() for
+-    # DDL migrations. Both interact with the connection pool. A failed DDL inside
+-    # the pool leaves connections in InFailedSqlTransaction state, breaking ALL
+-    # subsequent requests. Instead, open a brand-new psycopg2 connection here,
+-    # set autocommit=True, run all DDL, then close it. Pool is never touched.
+     try:
+         import psycopg2 as _pg2
+         _instance = os.getenv("INSTANCE_CONNECTION_NAME", "")
+@@ -249,12 +247,32 @@ async def startup_event():
+         _db_pass  = os.getenv("DB_PASSWORD", "")
+         _db_name  = os.getenv("DB_NAME", "solacesquad_prod")
+ 
+-        if _instance or _db_host:
+-            # Build connection host: Cloud SQL socket or TCP
+-            _host = f"/cloudsql/{_instance}" if _instance else _db_host
++        def _get_direct_conn(user, password, dbname, host, instance_name):
++            import os
++            if os.name == "nt" and instance_name and not os.getenv("DB_HOST"):
++                from google.cloud.sql.connector import Connector
++                _connector = Connector()
++                conn = _connector.connect(
++                    instance_name,
++                    "pg8000",
++                    user=user,
++                    password=password,
++                    db=dbname
++                )
++                conn.autocommit = True
++                return conn
++            else:
++                conn = _pg2.connect(
++                    user=user,
++                    password=password,
++                    dbname=dbname,
++                    host=host
++                )
++                conn.autocommit = True
++                return conn
+ 
+-            # All migrations in one list - IF NOT EXISTS / CREATE IF NOT EXISTS
+-            # means every statement is safe to re-run on every startup.
++        if _instance or _db_host:
++            _host = _db_host if _db_host else f"/cloudsql/{_instance}"
+             _migrations = [
+                 ("consultation_fee on consultant_profiles",
+                  "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS consultation_fee FLOAT DEFAULT 0.0"),
+@@ -499,11 +517,36 @@ async def startup_event():
+                  "ALTER TABLE feature_usage_logs ALTER COLUMN month_key TYPE VARCHAR(25)"),
+                 ("widen month_key on feature_usage_top_ups",
+                  "ALTER TABLE feature_usage_top_ups ALTER COLUMN month_key TYPE VARCHAR(25)"),
+-                ("wellness_category on consultant_profiles",
+-                 "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS wellness_category VARCHAR(20) DEFAULT NULL"),
++                ("vouchers table",
++                 """CREATE TABLE IF NOT EXISTS vouchers (
++                     id SERIAL PRIMARY KEY,
++                     code VARCHAR(50) UNIQUE NOT NULL,
++                     discount_type VARCHAR(20) NOT NULL DEFAULT 'percentage',
++                     discount_value FLOAT NOT NULL DEFAULT 0.0,
++                     applies_to VARCHAR(20) NOT NULL DEFAULT 'all',
++                     applies_to_id VARCHAR(50),
++                     assigned_user_emails TEXT,
++                     valid_until TIMESTAMP,
++                     is_active BOOLEAN NOT NULL DEFAULT TRUE,
++                     created_at TIMESTAMP DEFAULT NOW(),
++                     updated_at TIMESTAMP DEFAULT NOW()
++                 )"""),
++                ("voucher_code on user_subscriptions",
++                 "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS voucher_code VARCHAR(50)"),
++                ("voucher_code on feature_usage_top_ups",
++                 "ALTER TABLE feature_usage_top_ups ADD COLUMN IF NOT EXISTS voucher_code VARCHAR(50)"),
++                ("voucher_code on payment_transactions",
++                 "ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS voucher_code VARCHAR(50)"),
++                ("is_test on user_subscriptions",
++                 "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS is_test BOOLEAN NOT NULL DEFAULT FALSE"),
++                ("is_test on feature_usage_top_ups",
++                 "ALTER TABLE feature_usage_top_ups ADD COLUMN IF NOT EXISTS is_test BOOLEAN NOT NULL DEFAULT FALSE"),
++                ("backfill is_test on user_subscriptions",
++                 "UPDATE user_subscriptions SET is_test = TRUE FROM payment_transactions pt WHERE pt.related_entity_type = 'subscription' AND pt.related_entity_id = user_subscriptions.id AND pt.is_test = TRUE"),
++                ("backfill is_test on feature_usage_top_ups",
++                 "UPDATE feature_usage_top_ups SET is_test = TRUE FROM payment_transactions pt WHERE pt.related_entity_type = 'feature_top_up' AND pt.related_entity_id = feature_usage_top_ups.id AND pt.is_test = TRUE"),
+             ]
+ 
+-            # Migrations that require superuser (postgres) - run separately
+             _pg_migrations = [
+                 ("grant Admin on consultant_profiles",
+                  'GRANT ALL PRIVILEGES ON TABLE consultant_profiles TO "Admin"'),
+@@ -521,74 +564,46 @@ async def startup_event():
+                  "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS upi_id VARCHAR(100)"),
+             ]
+ 
+-            # Open a direct psycopg2 connection - NOT from SQLAlchemy pool
+-            _direct = _pg2.connect(
+-                user=_db_user, password=_db_pass, dbname=_db_name, host=_host
+-            )
+-            _direct.autocommit = True  # Each statement is fully independent
++            _direct = _get_direct_conn(_db_user, _db_pass, _db_name, _host, _instance)
+             _dcur = _direct.cursor()
+ 
+-            # Also open a postgres superuser connection for tables not owned by Admin
+             try:
+-                _direct_pg = _pg2.connect(
+-                    user="postgres", password=_db_pass, dbname=_db_name, host=_host
+-                )
+-                _direct_pg.autocommit = True
++                _direct_pg = _get_direct_conn("postgres", _db_pass, _db_name, _host, _instance)
+                 _dcur_pg = _direct_pg.cursor()
+             except Exception as _pge:
+                 _direct_pg = None
+                 _dcur_pg = None
+-                print(f"[DDL-WARN] postgres fallback connection failed: {_pge}")
+ 
+             for _label, _sql in _migrations:
+                 try:
+                     _dcur.execute(_sql)
+-                    print(f"[DDL-OK] {_label}")
+                 except Exception as _e:
+                     if "must be owner" in str(_e) and _dcur_pg:
+                         try:
+                             _dcur_pg.execute(_sql)
+-                            print(f"[DDL-OK-PG] {_label}")
+-                        except Exception as _e2:
+-                            print(f"[DDL-SKIP] {_label}: {_e2}")
+-                    else:
+-                        print(f"[DDL-SKIP] {_label}: {_e}")
+-
+-            # Run pg-only migrations (require superuser)
++                        except: pass
+             if _dcur_pg:
+                 for _label, _sql in _pg_migrations:
+                     try:
+                         _dcur_pg.execute(_sql)
+-                        print(f"[DDL-OK-PG] {_label}")
+-                    except Exception as _e:
+-                        print(f"[DDL-SKIP-PG] {_label}: {_e}")
+-            else:
+-                print("[DDL-WARN] postgres connection unavailable - skipping pg_migrations")
++                    except: pass
+             _dcur.close()
+-            _direct.close()  # Truly closed, not returned to pool
++            _direct.close()
+             if _dcur_pg:
+                 _dcur_pg.close()
+                 _direct_pg.close()
+-            print("[OK] Startup DDL migrations complete")
+ 
+-            # Auto-classify consultants from onboarding data
+             try:
+                 from consultant_classifier import bulk_classify
+                 _cdb = next(get_db())
+-                _n = bulk_classify(_cdb)
++                bulk_classify(_cdb)
+                 _cdb.close()
+-                print(f"[OK] Auto-classified {_n} consultant(s)" if _n else "[OK] All consultants already classified")
+-            except Exception as _ce:
+-                print(f"[WARN] Auto-classify skipped: {_ce}")
++            except: pass
+ 
+-            # Consolidate week1 usage keys so the Emora message counter never resets
+-            # across sessions.  This is idempotent ΓÇö safe to run on every startup.
+             try:
+                 import fix_week1_keys as _fwk
+                 _fwk.run()
+-                print("[OK] Week1 usage key consolidation complete")
+-            except Exception as _we:
+-                print(f"[WARN] Week1 key consolidation skipped: {_we}")
++            except: pass
+ 
+     except Exception as e:
+         print(f"[WARN] Startup DDL migration error: {e}")
+@@ -597,11 +612,12 @@ async def startup_event():
+ # Add session middleware for user data storage
+ # In production, use a secure secret key from environment variables
+ SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
++_https_only = os.getenv("HTTPS_ONLY", "true").lower() == "true"
+ app.add_middleware(
+     SessionMiddleware,
+     secret_key=SECRET_KEY,
+-    https_only=True,       # cookie only sent over HTTPS (required for SameSite=None)
+-    same_site="none",      # none: cookie sent for all requests incl. POST from PWA/mobile
++    https_only=_https_only,       # cookie only sent over HTTPS (required for SameSite=None)
++    same_site="none" if _https_only else "lax",      # none: cookie sent for all requests incl. POST from PWA/mobile
+     max_age=86400,         # 24-hour session expiry
+ )
+ 
+@@ -666,11 +682,19 @@ register_blog_routes(app, templates, get_db)
+ # PWA Routes
+ @app.get("/sw.js", include_in_schema=False)
+ async def get_service_worker():
+-    return FileResponse(os.path.join(BASE_DIR, "static", "sw.js"), media_type="application/javascript")
++    return FileResponse(
++        os.path.join(BASE_DIR, "static", "sw.js"),
++        media_type="application/javascript",
++        headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
++    )
+ 
+ @app.get("/manifest.json", include_in_schema=False)
+ async def get_manifest():
+-    return FileResponse(os.path.join(BASE_DIR, "static", "manifest.json"), media_type="application/json")
++    return FileResponse(
++        os.path.join(BASE_DIR, "static", "manifest.json"),
++        media_type="application/json",
++        headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
++    )
+ 
+ # ============================================================================
+ # HELPER FUNCTIONS
+@@ -723,6 +747,7 @@ def get_nav_items(user_type: str) -> list:
+             {'icon': 'dumbbell', 'label': 'Exercise', 'href': '/exercises', 'key': 'exercise'},
+             {'icon': 'clipboard-list', 'label': 'Workout Log', 'href': '/app/workout-log', 'key': 'workout-log'},
+             {'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
++            {'icon': 'folder-heart', 'label': 'My Reports', 'href': '/app/reports', 'key': 'reports'},
+             {'icon': 'mic', 'label': 'Consultation Sessions', 'href': '/recordings', 'key': 'recordings'},
+             {'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'},
+             {'icon': 'credit-card', 'label': 'Billing & Plan', 'href': '/app/billing', 'key': 'billing'},
+@@ -1004,13 +1029,13 @@ async def home(request: Request, db: Session = Depends(get_db)):
+                 html, count=1, flags=_re2.IGNORECASE
+             )
+ 
+-            # Add ├é┬« to every SolaceSquad mention in visible text nodes
++            # Add ┬« to every SolaceSquad mention in visible text nodes
+             # (replace between > and < but not inside URLs, emails, or attributes)
+             html = _re.sub(
+                 r'>([^<]+)<',
+                 lambda m: '>' + _re.sub(
+-                    r'SolaceSquad(?!├é┬«|&reg;|\.com|\.co|@|/)',
+-                    'SolaceSquad├é┬«',
++                    r'SolaceSquad(?!\u00ae|&reg;|\.com|\.co|@|/)',
++                    'SolaceSquad\u00ae',
+                     m.group(1)
+                 ) + '<',
+                 html
+@@ -1708,7 +1733,7 @@ async def canvas_preview_page(request: Request, db: Session = Depends(get_db)):
+                 "pages/home_published.html",
+                 {
+                     "request": request,
+-                    "page_title": "SolaceSquad├é┬« ├óΓé¼ΓÇ¥ With You Always",
++                    "page_title": "SolaceSquad\u00ae \u2014 With You Always",
+                     "active_page": "home",
+                     "sections_css": "\n".join(s.css_content or "" for s in published),
+                     "sections_html": "\n".join(s.html_content for s in published),
+@@ -1717,7 +1742,7 @@ async def canvas_preview_page(request: Request, db: Session = Depends(get_db)):
+         else:
+             resp = templates.TemplateResponse(
+                 "pages/home.html",
+-                {"request": request, "page_title": "SolaceSquad├é┬« ├óΓé¼ΓÇ¥ With You Always", "active_page": "home"}
++                {"request": request, "page_title": "SolaceSquad\u00ae \u2014 With You Always", "active_page": "home"}
+             )
+ 
+         # Inject the editor script before </body>
+@@ -1783,6 +1808,11 @@ async def user_dashboard(request: Request, db: Session = Depends(get_db)):
+         elif user_profile.full_name:
+             user_name = user_profile.full_name
+             
++    # Sync database User.name if out of sync
++    if current_user and user_name and current_user.name != user_name:
++        current_user.name = user_name
++        db.commit()
++
+     # Sync session with latest name
+     request.session["user_name"] = user_name
+             
+@@ -3120,11 +3150,6 @@ async def user_profile(request: Request, db: Session = Depends(get_db)):
+     if not user_id:
+         return RedirectResponse(url="/login", status_code=303)
+     
+-    user_name = request.session.get("user_name", "User")
+-    
+-    # Generate initials
+-    initials = get_initials(user_name)
+-    
+     # Get or create user profile
+     profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+     if not profile:
+@@ -3132,6 +3157,21 @@ async def user_profile(request: Request, db: Session = Depends(get_db)):
+         db.add(profile)
+         db.commit()
+         db.refresh(profile)
++        
++    # Sync name to users table and session from profile
++    user = db.query(User).filter(User.id == user_id).first()
++    user_name = user.name if user else request.session.get("user_name", "User")
++    if user and profile:
++        profile_name = profile.preferred_name if profile.preferred_name else profile.full_name
++        if profile_name:
++            if user.name != profile_name:
++                user.name = profile_name
++                db.commit()
++            user_name = profile_name
++    request.session["user_name"] = user_name
++    
++    # Generate initials
++    initials = get_initials(user_name)
+     
+     # Get user for email & phone
+     user = db.query(User).filter(User.id == user_id).first()
+@@ -3220,8 +3260,17 @@ async def save_user_profile(request: Request, db: Session = Depends(get_db)):
+             user.phone_number = None
+         
+         # Update profile fields
+-        profile.full_name = data.get("full_name")
+-        profile.preferred_name = data.get("preferred_name")
++        full_name = data.get("full_name")
++        preferred_name = data.get("preferred_name")
++        
++        profile.full_name = full_name
++        profile.preferred_name = preferred_name
++        
++        # Sync name to users table
++        display_name = preferred_name if preferred_name else full_name
++        if display_name:
++            user.name = display_name
++            
+         profile.age = int(data.get("age")) if data.get("age") else None
+         profile.gender = data.get("gender")
+         profile.height = float(data.get("height")) if data.get("height") else None
+@@ -3237,9 +3286,10 @@ async def save_user_profile(request: Request, db: Session = Depends(get_db)):
+         
+         db.commit()
+         
+-        # Update session name if preferred name is set
+-        if profile.preferred_name:
+-            request.session["user_name"] = profile.preferred_name
++        # Update session name
++        display_name = profile.preferred_name if profile.preferred_name else profile.full_name
++        if display_name:
++            request.session["user_name"] = display_name
+         
+         return {"success": True}
+     except Exception as e:
+@@ -3255,47 +3305,6 @@ async def save_user_profile(request: Request, db: Session = Depends(get_db)):
+ # ADMIN ROUTES
+ # ============================================================================
+ 
+-@app.get("/admin", response_class=HTMLResponse)
+-async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+-    """Admin dashboard for approvals"""
+-    user_id = request.session.get("user_id")
+-    if not user_id:
+-        return RedirectResponse(url="/login", status_code=303)
+-    
+-    user = db.query(User).filter(User.id == user_id).first()
+-    if not user or user.user_type != "admin":
+-        return RedirectResponse(url="/app", status_code=303)
+-    
+-    # Get pending consultants (is_approved=False)
+-    # We join User to get names
+-    pending = db.query(ConsultantProfile).join(User).filter(
+-        ConsultantProfile.is_approved == False
+-    ).all()
+-
+-    # Calculate user stats
+-    total_users = db.query(User).count()
+-    total_scans = db.query(VitalsRecord).count()
+-    total_appointments = db.query(Appointment).count()
+-
+-    user_stats = {
+-        "total_users": total_users,
+-        "total_scans": total_scans,
+-        "total_appointments": total_appointments,
+-        "total_engagement_minutes": 0,
+-    }
+-
+-    # ├óΓÇ¥Γé¼├óΓÇ¥Γé¼ Active (approved) consultant list with profile_id for admin View Profile ├óΓÇ¥Γé¼
+-    try:
+-        approved_profiles = (
+-            db.query(ConsultantProfile)
+-            .join(User)
+-            .filter(
+-                ConsultantProfile.is_approved == True,
+-                User.is_active == True
+-            )
+-            .all()
+-        )
+-        consultant_stats = []
+         for cp in approved_profiles:
+             u = cp.user
+             if not u:
+@@ -3311,7 +3320,7 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+             consultant_stats.append({
+                 "id": u.id,
+                 "profile_id": cp.id,
+-                "name": u.name or cp.full_name or "├óΓé¼ΓÇ¥",
++                "name": u.name or cp.full_name or "\u2014",
+                 "phone": u.phone_number or "",
+                 "specialization": cp.specialization or "",
+                 "completed_appointments": completed,
+@@ -3592,7 +3601,7 @@ async def admin_consultant_detail(profile_id: int, request: Request, db: Session
+         "pages/admin_consultant_detail.html",
+         {
+             "request": request,
+-            "page_title": f"Application ├óΓé¼ΓÇ¥ {profile.user.name} | Admin",
++            "page_title": f"Application \u2014 {profile.user.name} | Admin",
+             "profile": profile,
+             "admin": admin,
+             "viewer_type": admin.user_type,
+@@ -3781,7 +3790,19 @@ async def consultant_dashboard(request: Request, db: Session = Depends(get_db)):
+     if not consultant_profile.is_approved:
+         return RedirectResponse(url="/consultant/pending", status_code=303)
+ 
+-    consultant_name = request.session.get("user_name", "Consultant")
++    # Fetch user details from database to sync name
++    user = db.query(User).filter(User.id == user_id).first()
++    if user:
++        if consultant_profile and consultant_profile.full_name:
++            if user.name != consultant_profile.full_name:
++                user.name = consultant_profile.full_name
++                db.commit()
++            consultant_name = consultant_profile.full_name
++        else:
++            consultant_name = user.name
++        request.session["user_name"] = consultant_name
++    else:
++        consultant_name = request.session.get("user_name", "Consultant")
+     
+     # Generate initials from name
+     name_parts = consultant_name.split()
+@@ -3805,18 +3826,24 @@ async def consultant_dashboard(request: Request, db: Session = Depends(get_db)):
+         rating_count = 0
+ 
+     # Real stats from DB
++    from finance_routes import _is_test_mode
++    is_test_mode = _is_test_mode()
++
+     active_clients = db.query(Appointment.user_id).filter(
+-        Appointment.consultant_id == consultant_profile.id
++        Appointment.consultant_id == consultant_profile.id,
++        Appointment.is_test == is_test_mode
+     ).distinct().count()
+ 
+-    # Live counts from Appointment table ├óΓé¼ΓÇ¥ prevents counter drift (completed > scheduled)
++    # Live counts from Appointment table ΓÇö prevents counter drift (completed > scheduled)
+     calls_scheduled = db.query(Appointment).filter(
+-        Appointment.consultant_id == consultant_profile.id
++        Appointment.consultant_id == consultant_profile.id,
++        Appointment.is_test == is_test_mode
+     ).count()
+ 
+     calls_completed = db.query(Appointment).filter(
+         Appointment.consultant_id == consultant_profile.id,
+-        Appointment.status == "completed"
++        Appointment.status == "completed",
++        Appointment.is_test == is_test_mode
+     ).count()
+ 
+     payout_per_session = float(consultant_profile.consultant_payout or 0.0)
+@@ -3825,9 +3852,9 @@ async def consultant_dashboard(request: Request, db: Session = Depends(get_db)):
+     # Format earnings as Indian currency string
+     def format_inr(amount):
+         if amount == 0:
+-            return "├óΓÇÜ┬╣0"
++            return "\u20b90"
+         s = f"{int(amount):,}"
+-        return f"├óΓÇÜ┬╣{s}"
++        return f"\u20b9{s}"
+ 
+     consultant_data = {
+         "name": consultant_name,
+@@ -3990,16 +4017,25 @@ async def consultant_messages(request: Request):
+ @app.get("/consultant/profile", response_class=HTMLResponse)
+ async def consultant_profile_page(request: Request, db: Session = Depends(get_db)):
+     """Consultant profile page"""
+-    consultant_name = request.session.get("user_name", "Consultant")
+     user_id = request.session.get("user_id")
+     
+-    # Generate initials
+-    initials = get_initials(consultant_name)
+-    
+     # Get consultant profile
+     consultant_profile = db.query(ConsultantProfile).filter(
+         ConsultantProfile.user_id == user_id
+     ).first()
++    
++    # Sync name to users table and session from profile
++    user = db.query(User).filter(User.id == user_id).first()
++    consultant_name = user.name if user else request.session.get("user_name", "Consultant")
++    if user and consultant_profile and consultant_profile.full_name:
++        if user.name != consultant_profile.full_name:
++            user.name = consultant_profile.full_name
++            db.commit()
++        consultant_name = consultant_profile.full_name
++    request.session["user_name"] = consultant_name
++    
++    # Generate initials
++    initials = get_initials(consultant_name)
+ 
+     # If no profile exists OR onboarding not completed (no full_name filled),
+     # redirect to the onboarding form ├óΓé¼ΓÇ¥ do NOT show edit profile to new consultants
+@@ -4053,7 +4089,15 @@ async def save_consultant_profile(request: Request, db: Session = Depends(get_db
+             db.add(consultant_profile)
+         
+         # Update profile fields
+-        consultant_profile.full_name = data.get("full_name")
++        full_name = data.get("full_name")
++        consultant_profile.full_name = full_name
++        
++        # Sync name to users table and session
++        user = db.query(User).filter(User.id == user_id).first()
++        if user and full_name:
++            user.name = full_name
++            request.session["user_name"] = full_name
++            
+         consultant_profile.age = int(data.get("age")) if data.get("age") else None
+         consultant_profile.gender = data.get("gender")
+         consultant_profile.height = float(data.get("height")) if data.get("height") else None
+@@ -4247,6 +4291,84 @@ async def login_post(request: Request, db: Session = Depends(get_db)):
+         )
+ 
+ 
++@app.get("/auth/update-phone", response_class=HTMLResponse)
++async def update_phone_page(request: Request):
++    """Page to collect phone number for Google users"""
++    user_id = request.session.get("user_id")
++    if not user_id:
++        return RedirectResponse(url="/login", status_code=303)
++        
++    return templates.TemplateResponse(
++        "pages/auth/update_phone.html",
++        {
++            "request": request,
++            "page_title": "Verify Phone Number - SolaceSquad"
++        }
++    )
++
++@app.post("/auth/update-phone")
++async def update_phone_post(request: Request, db: Session = Depends(get_db)):
++    """Update phone number in DB and redirect to next destination"""
++    user_id = request.session.get("user_id")
++    if not user_id:
++        return RedirectResponse(url="/login", status_code=303)
++        
++    form_data = await request.form()
++    phone_number = form_data.get("phone_number", "").strip()
++    
++    if not phone_number:
++        return templates.TemplateResponse(
++            "pages/auth/update_phone.html",
++            {
++                "request": request,
++                "page_title": "Verify Phone Number - SolaceSquad",
++                "error": "Phone number is required."
++            }
++        )
++        
++    # Basic phone format validation
++    import re
++    if not re.match(r'^\+?[0-9\s\-()]{7,20}$', phone_number):
++        return templates.TemplateResponse(
++            "pages/auth/update_phone.html",
++            {
++                "request": request,
++                "page_title": "Verify Phone Number - SolaceSquad",
++                "error": "Invalid phone number format. Please check the number and try again.",
++                "phone_number": phone_number
++            }
++        )
++        
++    # Check if this phone is already registered to another account
++    existing_user = db.query(User).filter(User.phone_number == phone_number, User.id != user_id).first()
++    if existing_user:
++        return templates.TemplateResponse(
++            "pages/auth/update_phone.html",
++            {
++                "request": request,
++                "page_title": "Verify Phone Number - SolaceSquad",
++                "error": "This phone number is already registered to another account.",
++                "phone_number": phone_number
++            }
++        )
++        
++    user = db.query(User).filter(User.id == user_id).first()
++    if user:
++        user.phone_number = phone_number
++        db.commit()
++        
++    next_url = request.session.pop("google_signup_next_url", None)
++    if not next_url:
++        if user and user.user_type == "consultant":
++            # Check if profile is completed
++            cp = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user_id).first()
++            next_url = "/consultant/onboarding" if not cp or not cp.is_profile_completed else "/consultant"
++        else:
++            next_url = "/app"
++            
++    return RedirectResponse(url=next_url, status_code=303)
++
++
+ # ==========================================
+ # FORGOT PASSWORD & RESET PASSWORD ROUTES
+ # ==========================================
+@@ -5368,6 +5490,9 @@ async def consultant_onboarding_post(request: Request, db: Session = Depends(get
+         # Update user name if changed
+         if full_name and full_name != user.name:
+             user.name = full_name
++            
++        if full_name:
++            request.session["user_name"] = full_name
+ 
+         db.commit()
+         print(f"[ONBOARDING] Full application saved for user {user_id} (city={city}, methods={counselling_methods[:40]}├óΓé¼┬ª)")
+@@ -5700,7 +5825,7 @@ async def consultant_my_summary(request: Request, db: Session = Depends(get_db))
+ 
+     return templates.TemplateResponse("pages/consultant_summary.html", {
+         "request": request,
+-        "page_title": f"{profile.full_name or consultant_name} ├óΓé¼ΓÇ¥ Professional Summary",
++        "page_title": f"{profile.full_name or consultant_name} \u2014 Professional Summary",
+         "user_name": consultant_name,
+         "user_initials": initials,
+         "user_type": "consultant",
+@@ -6631,12 +6756,14 @@ async def book_appointment(request: Request, db: Session = Depends(get_db)):
+                 }
+ 
+         # -- Create appointment -----------------------------------------------
++        from finance_routes import _is_test_mode
+         appointment = Appointment(
+             user_id=user_id,
+             consultant_id=data["consultant_id"],
+             appointment_date=appointment_date,
+             duration_minutes=duration_minutes,
+             notes=data.get("notes", ""),
++            is_test=_is_test_mode(),
+         )
+         db.add(appointment)
+         db.commit()
+@@ -6788,8 +6915,10 @@ async def get_consultant_appointments(request: Request, db: Session = Depends(ge
+         if not consultant_profile:
+             return {"success": False, "error": "Consultant profile not found", "appointments": []}
+         
++        from finance_routes import _is_test_mode
+         appointments = db.query(Appointment).filter(
+-            Appointment.consultant_id == consultant_profile.id
++            Appointment.consultant_id == consultant_profile.id,
++            Appointment.is_test == _is_test_mode()
+         ).order_by(Appointment.appointment_date.desc()).all()
+         now = datetime.utcnow()
+         changed = False
+@@ -6806,6 +6935,7 @@ async def get_consultant_appointments(request: Request, db: Session = Depends(ge
+ 
+             appointment_list.append({
+                 "id":                appt.id,
++                "client_id":         appt.user_id,
+                 "client_name":       appt.user.name,
+                 "client_email":      appt.user.email,
+                 "appointment_date":  appt.appointment_date.isoformat(),
+@@ -8020,8 +8150,10 @@ async def consultant_reports(request: Request, db: Session = Depends(get_db)):
+     initials = (name_parts[0][0] + (name_parts[1][0] if len(name_parts) > 1 else name_parts[0][1])).upper()
+ 
+     # All appointments for this consultant
++    from finance_routes import _is_test_mode
+     appointments = db.query(Appointment).filter(
+-        Appointment.consultant_id == consultant_profile.id
++        Appointment.consultant_id == consultant_profile.id,
++        Appointment.is_test == _is_test_mode()
+     ).order_by(Appointment.appointment_date.desc()).all()
+ 
+     completed = [a for a in appointments if a.status == "completed"]
+@@ -8070,7 +8202,7 @@ async def consultant_reports(request: Request, db: Session = Depends(get_db)):
+             c["last"] = c["last"].strftime("%d %b %Y")
+ 
+     def format_inr(amount):
+-        return f"├óΓÇÜ┬╣{int(amount):,}" if amount > 0 else "├óΓÇÜ┬╣0"
++        return f"\u20b9{int(amount):,}" if amount > 0 else "\u20b90"
+ 
+     return templates.TemplateResponse(
+         "pages/consultant_reports.html",
+@@ -8558,7 +8690,7 @@ async def stream_recording(session_id: int, request: Request, db: Session = Depe
+                         permitted = True
+ 
+     if not permitted:
+-        raise HTTPException(status_code=403, detail="Access denied ├óΓé¼ΓÇ¥ you are not a participant in this session")
++        raise HTTPException(status_code=403, detail="Access denied - you are not a participant in this session")
+ 
+     if not call_session.recording_url:
+         raise HTTPException(status_code=404, detail="No recording available")
+@@ -9546,8 +9678,10 @@ async def get_consultant_appointments(request: Request, db: Session = Depends(ge
+             return {"success": False, "error": "Consultant profile not found"}
+         
+         # Get all appointments for this consultant
++        from finance_routes import _is_test_mode
+         appointments = db.query(Appointment).filter(
+-            Appointment.consultant_id == consultant_profile.id
++            Appointment.consultant_id == consultant_profile.id,
++            Appointment.is_test == _is_test_mode()
+         ).all()
+         
+         # Format appointments
+@@ -9559,6 +9693,7 @@ async def get_consultant_appointments(request: Request, db: Session = Depends(ge
+             
+             appointments_data.append({
+                 "id": appt.id,
++                "client_id": appt.user_id,
+                 "client_name": client_name,
+                 "appointment_date": appt.appointment_date.isoformat(),
+                 "duration_minutes": appt.duration_minutes,
+@@ -9997,13 +10132,15 @@ async def admin_users(request: Request, db: Session = Depends(get_db)):
+     if not user or user.user_type != "admin":
+         return RedirectResponse(url="/app", status_code=303)
+     
+-    # Get all regular users (not consultants or admins)
++    # Get only regular users for this tab
+     users = db.query(User).filter(User.user_type == "user").order_by(User.created_at.desc()).all()
+     
+-    # Get all consultants with their profiles (only active users)
++    # Get staff members (Admins and Assistants) separately
++    staff = db.query(User).filter(User.user_type.in_(["admin", "assistant"])).order_by(User.created_at.desc()).all()
++    
++    # Get all consultants with their profiles
+     consultants = db.query(ConsultantProfile).join(User).filter(
+-        ConsultantProfile.is_approved == True,
+-        User.is_active == True
++        ConsultantProfile.is_approved == True
+     ).order_by(User.created_at.desc()).all()
+     
+     # Add stats for each user
+@@ -10208,15 +10345,17 @@ async def bulk_users_import(request: Request, db: Session = Depends(get_db)):
+ 
+ @app.get("/api/admin/users/incomplete-consultants")
+ async def get_incomplete_consultants(request: Request, db: Session = Depends(get_db)):
+-    """List consultants whose profile is not yet complete."""
++    """List consultants whose profile is not yet approved or complete."""
+     admin_id = request.session.get("user_id")
+     admin = db.query(User).filter(User.id == admin_id).first()
+     if not admin or admin.user_type != "admin":
+         return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+-    # 1. Consultants with an incomplete profile record
++    
++    # 1. Consultants with an existing profile record that is not approved
+     profiles = db.query(ConsultantProfile).join(User).filter(
+-        ConsultantProfile.is_profile_completed == False
++        ConsultantProfile.is_approved == False
+     ).all()
++    
+     result = []
+     seen_user_ids = set()
+     for p in profiles:
+@@ -10229,15 +10368,16 @@ async def get_incomplete_consultants(request: Request, db: Session = Depends(get
+             "name":       p.user.name, "email": p.user.email,
+             "phone":      p.user.phone_number or "",
+             "joined":     p.user.created_at.strftime("%b %d, %Y") if p.user.created_at else "ΓÇö",
+-            "filled_pct": round(filled / len(fields) * 100),
++            "filled_pct": round(filled / len(fields) * 100) if fields else 0,
+             "is_active":  p.user.is_active,
++            "is_approved": p.is_approved,
++            "is_completed": p.is_profile_completed,
+         })
+ 
+-    # 2. Consultant users with NO profile row at all (stuck after email signup)
++    # 2. Consultant users with NO profile row at all
+     from sqlalchemy import exists
+     no_profile_users = db.query(User).filter(
+         User.user_type == "consultant",
+-        User.is_active == True,
+         ~db.query(ConsultantProfile).filter(
+             ConsultantProfile.user_id == User.id
+         ).exists()
+@@ -10251,6 +10391,8 @@ async def get_incomplete_consultants(request: Request, db: Session = Depends(get
+                 "joined":     u.created_at.strftime("%b %d, %Y") if u.created_at else "ΓÇö",
+                 "filled_pct": 0,
+                 "is_active":  u.is_active,
++                "is_approved": False,
++                "is_completed": False,
+             })
+ 
+     return JSONResponse({"success": True, "consultants": result})
+@@ -10509,7 +10651,7 @@ async def bulk_update_consultant_fees(
+ 
+     return JSONResponse({
+         "success": True,
+-        "message": f"Updated {updated_count} consultants with fee ├óΓÇÜ┬╣{default_fee}" + (f" and payout ├óΓÇÜ┬╣{default_payout}" if default_payout is not None else ""),
++        "message": f"Updated {updated_count} consultants with fee \u20b9{default_fee}" + (f" and payout \u20b9{default_payout}" if default_payout is not None else ""),
+         "updated_count": updated_count
+     })
+ 
+@@ -11029,35 +11171,7 @@ async def delete_user_route(user_id: int, request: Request, db: Session = Depend
+         print(f"Error deleting user {user_id}: {error_detail}")
+         return JSONResponse({"success": False, "error": f"Error deleting user: {str(e)}"}, status_code=500)
+ 
+-# ============================================================================
+-# ADMIN VIDEO LIBRARY ROUTES
+-# ============================================================================
+-
+-@app.get("/admin/videos", response_class=HTMLResponse)
+-async def admin_videos_page(request: Request, db: Session = Depends(get_db)):
+-    """Admin video library management page"""
+-    user_id = request.session.get("user_id")
+-    if not user_id:
+-        return RedirectResponse(url="/login", status_code=303)
+-    
+-    user = db.query(User).filter(User.id == user_id).first()
+-    if not user or user.user_type != "admin":
+-        return RedirectResponse(url="/app", status_code=303)
+-    
+-    # Get all folders with video count
+-    folders = db.query(VideoFolder).all()
+-    for folder in folders:
+-        folder.video_count = len(folder.videos)
+-    
+-    return templates.TemplateResponse(
+-        "pages/admin_videos_list.html",
+-        {
+-            "request": request,
+-            "page_title": "Video Library - Admin",
+-            "user": user,
+-            "folders": folders
+-        }
+-    )
++# (Duplicate route removed: /admin/videos)
+ 
+ 
+ @app.get("/admin/videos/folder/{folder_id}", response_class=HTMLResponse)
+@@ -11979,7 +12093,7 @@ async def get_homepage_full_html(request: Request, db: Session = Depends(get_db)
+ <head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width,initial-scale=1">
+-  <title>SolaceSquad├é┬« ├óΓé¼ΓÇ¥ With You Always</title>
++  <title>SolaceSquad\u00ae \u2014 With You Always</title>
+   {tailwind}
+   <style>
+     *, *::before, *::after {{ box-sizing: border-box }}
+@@ -12267,7 +12381,7 @@ async def canvas_render(request: Request):
+ <head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width,initial-scale=1">
+-  <title>SolaceSquad├é┬« ├óΓé¼ΓÇ¥ With You Always</title>
++  <title>SolaceSquad\u00ae \u2014 With You Always</title>
+   <style>{inline_css}</style>
+ </head>
+ <body>
+@@ -12277,7 +12391,7 @@ async def canvas_render(request: Request):
+ 
+ 
+ # ============================================================================
+-# CALL COMPLETION FLOW ├óΓé¼ΓÇ¥ RATINGS, FEEDBACK, STATS (all in Cloud SQL)
++# CALL COMPLETION FLOW ΓÇö RATINGS, FEEDBACK, STATS (all in Cloud SQL)
+ # ============================================================================
+ 
+ @app.post("/api/appointments/{appointment_id}/complete")
+@@ -12534,25 +12648,31 @@ async def get_consultant_stats(
+         if not profile:
+             return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
+ 
+-        # ├óΓÇ¥Γé¼├óΓÇ¥Γé¼ Live counts from Appointment table (prevents counter drift) ├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼├óΓÇ¥Γé¼
++        # ΓöÇΓöÇ Live counts from Appointment table (prevents counter drift) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        from finance_routes import _is_test_mode
++        is_test_mode = _is_test_mode()
++
+         calls_scheduled = db.query(Appointment).filter(
+-            Appointment.consultant_id == profile.id
++            Appointment.consultant_id == profile.id,
++            Appointment.is_test == is_test_mode
+         ).count()
+ 
+         calls_completed = db.query(Appointment).filter(
+             Appointment.consultant_id == profile.id,
+-            Appointment.status == "completed"
++            Appointment.status == "completed",
++            Appointment.is_test == is_test_mode
+         ).count()
+ 
+         completion_rate = round((calls_completed / calls_scheduled * 100), 1) if calls_scheduled > 0 else 0.0
+ 
+         # Active clients = distinct users who have scheduled at least one appointment with this consultant
+         active_clients_result = db.query(Appointment.user_id).filter(
+-            Appointment.consultant_id == profile.id
++            Appointment.consultant_id == profile.id,
++            Appointment.is_test == is_test_mode
+         ).distinct().count()
+         active_clients = active_clients_result or 0
+ 
+-        # Total earnings = completed calls ├âΓÇö consultant payout per session (set by admin)
++        # Total earnings = completed calls * consultant payout per session (set by admin)
+         payout_per_session = float(profile.consultant_payout or 0.0)
+         total_earnings = round(calls_completed * payout_per_session, 2)
+ 
+@@ -13541,3 +13661,322 @@ async def admin_fix_assistant_password(request: Request, db: Session = Depends(g
+     db.commit()
+     return JSONResponse({"success": True, "message": f"Password updated for {user.name} ({user.email})"})
+ 
++
++# ΓöÇΓöÇ Diagnosis Reports Feature ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++
++from pydantic import BaseModel
++
++class ShareToggleRequest(BaseModel):
++    is_shared: bool
++
++@app.get("/app/reports", response_class=HTMLResponse)
++async def user_reports(request: Request, db: Session = Depends(get_db)):
++    """User diagnosis reports dashboard"""
++    user_id = request.session.get("user_id")
++    if not user_id or request.session.get("user_type") != "user":
++        return RedirectResponse(url="/login")
++        
++    user_name = request.session.get("user_name", "User")
++    name_parts = user_name.split()
++    if len(name_parts) >= 2:
++        initials = name_parts[0][0].upper() + name_parts[1][0].upper()
++    elif len(name_parts) == 1:
++        initials = name_parts[0][:2].upper()
++    else:
++        initials = "U"
++        
++    user_plan = "Free"
++    try:
++        from subscription_routes import get_active_subscription
++        active_sub = get_active_subscription(user_id, db)
++        if active_sub and active_sub.plan:
++            user_plan = active_sub.plan.name
++    except Exception:
++        pass
++        
++    return templates.TemplateResponse(
++        "pages/user_reports.html",
++        {
++            "request": request,
++            "page_title": "My Reports - SolaceSquad",
++            "user_name": user_name,
++            "user_initials": initials,
++            "user_type": "user",
++            "active_page": "reports",
++            "nav_items": get_nav_items("user"),
++            "user_plan": user_plan
++        }
++    )
++
++@app.post("/api/reports/upload")
++async def upload_report(
++    request: Request,
++    file: UploadFile = File(...),
++    test_date: str = Form(...),
++    description: Optional[str] = Form(None),
++    tag: Optional[str] = Form(None),
++    is_shared: bool = Form(False),
++    db: Session = Depends(get_db)
++):
++    """Upload a new diagnosis report and save to GCS and DB"""
++    user_id = request.session.get("user_id")
++    user_type = request.session.get("user_type")
++    if not user_id or user_type != "user":
++        raise HTTPException(status_code=401, detail="Unauthorized")
++        
++    try:
++        parsed_date = datetime.strptime(test_date, "%Y-%m-%d").date()
++    except ValueError:
++        raise HTTPException(status_code=400, detail="Invalid date format. Expected YYYY-MM-DD.")
++        
++    allowed_extensions = {"pdf", "png", "jpg", "jpeg", "webp"}
++    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
++    if ext not in allowed_extensions:
++        raise HTTPException(status_code=400, detail="Only PDF and image files are allowed.")
++        
++    file_bytes = await file.read()
++    if not file_bytes:
++        raise HTTPException(status_code=400, detail="Empty file uploaded.")
++        
++    from gcs_uploads import upload_to_gcs
++    gcs_url = upload_to_gcs(file_bytes, file.filename, file.content_type, "reports")
++    if not gcs_url:
++        raise HTTPException(status_code=500, detail="Failed to upload file to storage.")
++        
++    report = DiagnosisReport(
++        user_id=user_id,
++        file_path=gcs_url,
++        file_name=file.filename,
++        description=description,
++        test_date=parsed_date,
++        tag=tag,
++        is_shared=is_shared
++    )
++    db.add(report)
++    db.commit()
++    db.refresh(report)
++    
++    return JSONResponse({
++        "success": True,
++        "message": "Report uploaded successfully",
++        "report": {
++            "id": report.id,
++            "file_name": report.file_name,
++            "test_date": report.test_date.isoformat(),
++            "tag": report.tag,
++            "description": report.description,
++            "is_shared": report.is_shared
++        }
++    })
++
++@app.get("/api/reports")
++async def get_user_reports(request: Request, db: Session = Depends(get_db)):
++    """Get all reports uploaded by the logged-in user"""
++    user_id = request.session.get("user_id")
++    user_type = request.session.get("user_type")
++    if not user_id or user_type != "user":
++        raise HTTPException(status_code=401, detail="Unauthorized")
++        
++    reports = db.query(DiagnosisReport).filter(
++        DiagnosisReport.user_id == user_id
++    ).order_by(
++        DiagnosisReport.test_date.desc(),
++        DiagnosisReport.created_at.desc()
++    ).all()
++    
++    return [
++        {
++            "id": r.id,
++            "file_name": r.file_name,
++            "description": r.description,
++            "test_date": r.test_date.isoformat(),
++            "tag": r.tag,
++            "is_shared": r.is_shared,
++            "created_at": r.created_at.isoformat()
++        }
++        for r in reports
++    ]
++
++@app.post("/api/reports/{report_id}/share")
++async def toggle_report_share(
++    report_id: int,
++    payload: ShareToggleRequest,
++    request: Request,
++    db: Session = Depends(get_db)
++):
++    """Toggle the share status of a report"""
++    user_id = request.session.get("user_id")
++    user_type = request.session.get("user_type")
++    if not user_id or user_type != "user":
++        raise HTTPException(status_code=401, detail="Unauthorized")
++        
++    report = db.query(DiagnosisReport).filter(
++        DiagnosisReport.id == report_id,
++        DiagnosisReport.user_id == user_id
++    ).first()
++    if not report:
++        raise HTTPException(status_code=404, detail="Report not found")
++        
++    report.is_shared = payload.is_shared
++    db.commit()
++    
++    return JSONResponse({
++        "success": True,
++        "is_shared": report.is_shared
++    })
++
++@app.delete("/api/reports/{report_id}")
++async def delete_report(
++    report_id: int,
++    request: Request,
++    db: Session = Depends(get_db)
++):
++    """Delete a report record from database"""
++    user_id = request.session.get("user_id")
++    user_type = request.session.get("user_type")
++    if not user_id or user_type != "user":
++        raise HTTPException(status_code=401, detail="Unauthorized")
++        
++    report = db.query(DiagnosisReport).filter(
++        DiagnosisReport.id == report_id,
++        DiagnosisReport.user_id == user_id
++    ).first()
++    if not report:
++        raise HTTPException(status_code=404, detail="Report not found")
++        
++    db.delete(report)
++    db.commit()
++    
++    return JSONResponse({
++        "success": True,
++        "message": "Report deleted successfully"
++    })
++
++@app.get("/api/reports/{report_id}/file")
++async def get_report_file(
++    report_id: int,
++    request: Request,
++    download: Optional[str] = None,
++    db: Session = Depends(get_db)
++):
++    """Proxy: stream diagnosis report from GCS with access control and inline constraints"""
++    user_id = request.session.get("user_id")
++    user_type = request.session.get("user_type")
++    if not user_id:
++        raise HTTPException(status_code=401, detail="Unauthorized")
++        
++    report = db.query(DiagnosisReport).filter(DiagnosisReport.id == report_id).first()
++    if not report:
++        raise HTTPException(status_code=404, detail="Report not found")
++        
++    # Access Control Check
++    is_authorized = False
++    if user_type == "user" and report.user_id == user_id:
++        is_authorized = True
++    elif user_type == "admin":
++        is_authorized = True
++    elif user_type == "consultant":
++        consultant_profile = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user_id).first()
++        if consultant_profile:
++            appointment = db.query(Appointment).filter(
++                Appointment.user_id == report.user_id,
++                Appointment.consultant_id == consultant_profile.id,
++                Appointment.status == "scheduled",
++                Appointment.consent_to_share_data == True
++            ).first()
++            if appointment:
++                is_authorized = True
++                    
++    if not is_authorized:
++        raise HTTPException(status_code=403, detail="Forbidden")
++        
++    # Fetch from GCS
++    file_url = report.file_path
++    if "storage.googleapis.com/" not in file_url:
++        raise HTTPException(status_code=404, detail="Invalid file URL")
++        
++    try:
++        import asyncio
++        from google.cloud import storage as gcs_storage
++        from fastapi.responses import Response as BinaryResponse
++        
++        after = file_url.split("storage.googleapis.com/", 1)[1]
++        bucket_name, blob_path = after.split("/", 1)
++        
++        def _download():
++            client = gcs_storage.Client()
++            blob = client.bucket(bucket_name).blob(blob_path)
++            data = blob.download_as_bytes()
++            ct = blob.content_type or "application/pdf"
++            return data, ct
++            
++        file_bytes, content_type = await asyncio.get_event_loop().run_in_executor(None, _download)
++        
++        escaped_filename = report.file_name.replace('"', '\\"')
++        if user_type == "consultant":
++            # Consultant flow: ONLY inline allowed (no direct download)
++            disposition = f'inline; filename="{escaped_filename}"'
++        else:
++            # User flow: respect download param
++            if download == "true":
++                disposition = f'attachment; filename="{escaped_filename}"'
++            else:
++                disposition = f'inline; filename="{escaped_filename}"'
++                
++        return BinaryResponse(
++            content=file_bytes,
++            media_type=content_type,
++            headers={
++                "Content-Disposition": disposition,
++                "Cache-Control": "private, max-age=300",
++            }
++        )
++    except Exception as e:
++        print(f"[Reports] Error serving file for report {report_id}: {e}")
++        raise HTTPException(status_code=404, detail="File not available")
++
++@app.get("/api/consultant/patient/{patient_id}/reports")
++async def get_consultant_patient_reports(
++    patient_id: int,
++    request: Request,
++    db: Session = Depends(get_db)
++):
++    """Get all reports shared by a patient with the scheduled consultant"""
++    user_id = request.session.get("user_id")
++    user_type = request.session.get("user_type")
++    if not user_id or user_type != "consultant":
++        raise HTTPException(status_code=403, detail="Forbidden")
++        
++    consultant_profile = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user_id).first()
++    if not consultant_profile:
++        raise HTTPException(status_code=403, detail="Consultant profile not found")
++        
++    # Verify scheduled appointment exists and consent was given
++    appointment = db.query(Appointment).filter(
++        Appointment.user_id == patient_id,
++        Appointment.consultant_id == consultant_profile.id,
++        Appointment.status == "scheduled",
++        Appointment.consent_to_share_data == True
++    ).first()
++    if not appointment:
++        raise HTTPException(status_code=403, detail="No scheduled appointment with consent to share data")
++        
++    reports = db.query(DiagnosisReport).filter(
++        DiagnosisReport.user_id == patient_id
++    ).order_by(
++        DiagnosisReport.test_date.desc(),
++        DiagnosisReport.created_at.desc()
++    ).all()
++    
++    return [
++        {
++            "id": r.id,
++            "file_name": r.file_name,
++            "description": r.description,
++            "test_date": r.test_date.isoformat(),
++            "tag": r.tag,
++            "created_at": r.created_at.isoformat()
++        }
++        for r in reports
++    ]
++

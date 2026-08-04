@@ -1,0 +1,41 @@
+
+# User consultants listing page
+@app.get("/app/consultants", response_class=HTMLResponse)
+async def user_consultants_page(request: Request, db: Session = Depends(get_db)):
+    """Show list of consultants to users"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    # Get all approved and active consultants
+    consultant_profiles = db.query(ConsultantProfile).join(User).filter(
+        ConsultantProfile.is_approved == True,
+        User.is_active == True
+    ).all()
+    
+    # Prepare consultant data for template
+    consultants = []
+    for profile in consultant_profiles:
+        consultants.append({
+            'id': profile.user_id,
+            'name': profile.user.name,
+            'specialization': profile.specialization or 'General Wellbeing',
+            'bio': profile.bio or 'Experienced wellbeing consultant dedicated to helping you achieve your wellness goals.',
+            'experience_years': profile.experience_years or 0,
+            'rating': profile.rating or 4.5,
+            'hourly_rate': profile.consultation_fee or profile.hourly_rate or 500
+        })
+    
+    return templates.TemplateResponse(
+        "pages/consultants.html",
+        {
+            "request": request,
+            "page_title": "Find Consultants - SolaceSquad",
+            "user": user,
+            "consultants": consultants
+        }
+    )

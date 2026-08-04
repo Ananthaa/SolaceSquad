@@ -1,0 +1,13 @@
+# Targeted production patch: home.html + footer.html + Emora name fix
+# Uses the existing stable production image as base so NO other code changes
+FROM us-central1-docker.pkg.dev/abiding-idea-485817-k2/solacesquad/app:razorpay-v143
+
+# Homepage + footer (social icons)
+COPY templates/pages/home.html /app/templates/pages/home.html
+COPY templates/components/footer.html /app/templates/components/footer.html
+
+# Emora name fix: replaces [User's Name] placeholder with actual preferred name
+COPY main.py /app/main.py
+
+# Updated system prompt: tells AI to use [CONTEXT] name, never invent placeholders
+COPY prompts/system_prompt.md /app/prompts/system_prompt.md

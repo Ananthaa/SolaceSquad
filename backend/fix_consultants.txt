@@ -1,0 +1,48 @@
+
+# Fix consultant profiles endpoint
+@app.post("/api/admin/consultants/fix-profiles")
+async def fix_consultant_profiles(request: Request, db: Session = Depends(get_db)):
+    """Create missing consultant profiles and approve them"""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    # Get all users with consultant type
+    consultant_users = db.query(User).filter(User.user_type == "consultant").all()
+    
+    fixed_count = 0
+    created_count = 0
+    
+    for user in consultant_users:
+        # Check if they have a consultant profile
+        profile = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user.id).first()
+        
+        if not profile:
+            # Create a new consultant profile
+            profile = ConsultantProfile(
+                user_id=user.id,
+                specialization="General",
+                bio="Experienced wellbeing consultant",
+                experience_years=0,
+                rating=4.5,
+                consultation_fee=500.0,
+                is_available=True,
+                is_approved=True,
+                is_profile_completed=True
+            )
+            db.add(profile)
+            created_count += 1
+        elif not profile.is_approved:
+            # Approve existing profile
+            profile.is_approved = True
+            fixed_count += 1
+    
+    db.commit()
+    
+    return JSONResponse({
+        "success": True,
+        "message": f"Created {created_count} profiles, approved {fixed_count} profiles",
+        "created": created_count,
+        "fixed": fixed_count
+    })

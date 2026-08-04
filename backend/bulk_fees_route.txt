@@ -1,0 +1,21 @@
+
+# Admin bulk fee update page
+@app.get("/admin/bulk-fees", response_class=HTMLResponse)
+async def admin_bulk_fees_page(request: Request, db: Session = Depends(get_db)):
+    """Admin page for bulk updating consultant fees"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+    
+    return templates.TemplateResponse(
+        "pages/admin_bulk_fees.html",
+        {
+            "request": request,
+            "page_title": "Bulk Update Fees - Admin",
+            "user": user
+        }
+    )

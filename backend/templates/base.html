@@ -1,78 +1,112 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-IN">
 
 <head>
+    <!-- ═══ Google Analytics 4 ═══ -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-2HQ2GLNQ4W"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-2HQ2GLNQ4W');
+    </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}{{ page_title | default('SolaceSquad - Your Wellbeing Partner') }}{% endblock %}</title>
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ═══ Favicon ═══ -->
+    <link rel="icon" type="image/png" href="/static/images/logo.png">
+    <link rel="shortcut icon" href="/static/images/logo.png">
+    <link rel="apple-touch-icon" href="/static/images/logo.png">
+    <meta name="theme-color" content="#2d6a5a">
 
-    <!-- Google Fonts -->
+    <!-- ═══ SEO Meta Tags ═══ -->
+    <meta name="description" content="{% block meta_desc %}SolaceSquad connects you with certified wellness consultants for mental, physical and professional wellbeing. Book a confidential online session today.{% endblock %}">
+    <meta name="robots" content="{% block meta_robots %}index, follow{% endblock %}">
+    <meta property="og:locale" content="en_IN">
+    <link rel="canonical" href="https://www.solacesquad.com{{ request.url.path }}">
+
+    <!-- ═══ Open Graph (Facebook, WhatsApp, LinkedIn) ═══ -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="SolaceSquad">
+    <meta property="og:title" content="{% block og_title %}SolaceSquad — Online Wellness Consultations in India{% endblock %}">
+    <meta property="og:description" content="{% block og_desc %}Book certified wellness consultants for mental, physical & professional wellbeing. Trusted, confidential & affordable sessions across India.{% endblock %}">
+    <meta property="og:image" content="https://www.solacesquad.com/static/images/og-cover.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="{% block og_image_alt %}SolaceSquad — Online Wellness Consultations in India{% endblock %}">
+    <meta property="og:url" content="https://www.solacesquad.com{{ request.url.path }}">
+
+    <!-- ═══ Twitter Card ═══ -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@solacesquad">
+    <meta name="twitter:title" content="{% block tw_title %}SolaceSquad — Online Wellness Consultations{% endblock %}">
+    <meta name="twitter:description" content="{% block tw_desc %}Certified wellness consultants for mental, physical & professional wellbeing. Book online — confidential & affordable.{% endblock %}">
+    <meta name="twitter:image" content="https://www.solacesquad.com/static/images/og-cover.jpg">
+    <meta name="twitter:image:alt" content="{% block tw_image_alt %}SolaceSquad — Online Wellness Consultations in India{% endblock %}">
+
+    <!-- ═══ Critical inline styles — applied before any external CSS loads ═══ -->
+    <style>
+      /* Font stack — prevents FOUT while Google Fonts loads */
+      html, body, * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      h1, h2, h3, h4, h5, h6, .font-display { font-family: 'Outfit', 'Inter', -apple-system, sans-serif; }
+
+      /* Image constraints — max-width prevents overflow; NO height:auto to avoid fighting explicit CSS heights */
+      img { max-width: 100%; display: block; }
+
+      /* Layout protection — prevents horizontal overflow flash */
+      html, body { overflow-x: hidden; box-sizing: border-box; }
+      *, *::before, *::after { box-sizing: inherit; }
+    </style>
+
+    <!-- ═══ Tailwind CSS: compiled static file — preloaded for earliest possible paint ═══ -->
+    <!-- Built at Docker build-time via Tailwind CLI — covers all static classes + safelisted dynamic classes -->
+    <link rel="preload" href="/static/css/tailwind.min.css" as="style">
+    <link rel="stylesheet" href="/static/css/tailwind.min.css">
+
+    <!-- ═══ Tailwind CDN: deferred fallback — loads AFTER basic page layout ═══ -->
+    <script>
+      window.addEventListener('DOMContentLoaded', function() {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.tailwindcss.com';
+        s.onload = function() {
+          if (window.tailwind) {
+            tailwind.config = {
+              theme: { extend: {
+                colors: {
+                  primary:   { 50:'#fff1f2',100:'#ffe4e6',200:'#fecdd3',300:'#fda4af',400:'#fb7185',500:'#f43f5e',600:'#e11d48',700:'#be123c',800:'#9f1239',900:'#881337' },
+                  secondary: { 50:'#f0fdfa',100:'#ccfbf1',200:'#99f6e4',300:'#5eead4',400:'#2dd4bf',500:'#14b8a6',600:'#0d9488',700:'#0f766e',800:'#115e59',900:'#134e4a' },
+                  accent:    { 50:'#fefce8',100:'#fef9c3',200:'#fef08a',300:'#fde047',400:'#facc15',500:'#eab308',600:'#ca8a04',700:'#a16207',800:'#854d0e',900:'#713f12' }
+                },
+                fontFamily: { sans:['Inter','system-ui','sans-serif'], display:['Outfit','Inter','sans-serif'] }
+              }}
+            };
+          }
+        };
+        document.head.appendChild(s);
+      });
+    </script>
+
+
+    <!-- ═══ Google Fonts — preconnect + async load (swap font-face, no render-block) ═══ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <link rel="preconnect" href="https://images.unsplash.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    </noscript>
 
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- Custom Tailwind Config -->
+    <!-- ═══ Lucide Icons (CDN with local fallback) ═══ -->
+    <script src="https://unpkg.com/lucide@0.475.0/dist/umd/lucide.min.js"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#fff1f2',
-                            100: '#ffe4e6',
-                            200: '#fecdd3',
-                            300: '#fda4af',
-                            400: '#fb7185',
-                            500: '#f43f5e',
-                            600: '#e11d48',
-                            700: '#be123c',
-                            800: '#9f1239',
-                            900: '#881337',
-                        },
-                        secondary: {
-                            50: '#f0fdfa',
-                            100: '#ccfbf1',
-                            200: '#99f6e4',
-                            300: '#5eead4',
-                            400: '#2dd4bf',
-                            500: '#14b8a6',
-                            600: '#0d9488',
-                            700: '#0f766e',
-                            800: '#115e59',
-                            900: '#134e4a',
-                        },
-                        accent: {
-                            50: '#fefce8',
-                            100: '#fef9c3',
-                            200: '#fef08a',
-                            300: '#fde047',
-                            400: '#facc15',
-                            500: '#eab308',
-                            600: '#ca8a04',
-                            700: '#a16207',
-                            800: '#854d0e',
-                            900: '#713f12',
-                        },
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                        display: ['Outfit', 'Inter', 'sans-serif'],
-                    },
-                }
-            }
+        if (typeof lucide === 'undefined') {
+            document.write('<script src="/static/js/lucide.min.js"><\/script>');
         }
     </script>
 
     <!-- Custom Styles -->
-    <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+    <link rel="stylesheet" href="/static/css/styles.css?v=18">
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
@@ -86,6 +120,13 @@
                         console.log("Unregistered stale SW");
                     }
                 }).then(() => {
+                    // Clear all Cache Storage to remove stale cached HTML pages
+                    if (window.caches) {
+                        return caches.keys().then(keys => {
+                            return Promise.all(keys.map(key => caches.delete(key)));
+                        });
+                    }
+                }).then(() => {
                     return navigator.serviceWorker.register('/sw.js');
                 }).then(reg => {
                     console.log('SW registered');
@@ -96,14 +137,159 @@
     </script>
 
     {% block extra_head %}{% endblock %}
+
+    <!-- ═══ Organization JSON-LD (brand Knowledge Panel + LLM signal) ═══ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "SolaceSquad",
+      "url": "https://www.solacesquad.com",
+      "logo": "https://www.solacesquad.com/static/images/logo.png",
+      "description": "SolaceSquad is an Indian online wellness platform connecting people with certified consultants for mental, physical, and professional wellbeing through confidential, affordable online sessions.",
+      "foundingLocation": { "@type": "Place", "addressCountry": "IN" },
+      "areaServed": "IN",
+      "knowsAbout": ["mental wellness", "physical wellness", "professional wellness", "burnout coaching", "online counselling", "wellbeing"],
+      "address": { "@type": "PostalAddress", "addressCountry": "IN" },
+      "contactPoint": { "@type": "ContactPoint", "contactType": "customer support", "email": "support@solacesquad.com" },
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Wellness Services",
+        "itemListElement": [
+          { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Online Mental Wellness Counselling", "url": "https://www.solacesquad.com/mental-wellness" } },
+          { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Online Physical Wellness Coaching", "url": "https://www.solacesquad.com/physical-wellness" } },
+          { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Online Professional Wellness & Burnout Coaching", "url": "https://www.solacesquad.com/professional-wellness" } }
+        ]
+      },
+      "sameAs": [
+        "https://www.instagram.com/solacesquad",
+        "https://www.linkedin.com/company/solacesquad"
+      ]
+    }
+    </script>
+
+    <!-- ═══ Speakable Schema (AI voice assistants + LLM citation signal) ═══ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "{% block speakable_name %}SolaceSquad — Online Wellness Consultations{% endblock %}",
+      "speakable": {
+        "@type": "SpeakableSpecification",
+        "cssSelector": ["h1", "h2", ".ss-page-title", ".h-hero-sub", "meta[name='description']"]
+      },
+      "url": "https://www.solacesquad.com{{ request.url.path }}"
+    }
+    </script>
+
+    <!-- ═══ Per-page structured data override ═══ -->
+    {% block jsonld %}{% endblock %}
+
+
+    <!-- Global: remove all dotted/dashed editor artefacts and browser focus boxes -->
+    <style>
+        *,
+        *::before,
+        *::after {
+            outline: none !important;
+        }
+
+        /* Re-enable subtle focus for keyboard accessibility */
+        a:focus-visible,
+        button:focus-visible,
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible {
+            outline: 2px solid rgba(99, 102, 241, .5) !important;
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        /* Kill any dashed/dotted border that canvas editors inject */
+        [style*="dashed"],
+        [style*="dotted"] {
+            border-style: none !important;
+            outline-style: none !important;
+        }
+    </style>
+    <!-- Global Timezone Detection -->
+    <script>
+        (function() {
+            try {
+                const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const sessionTz  = '{{ request.session.get("timezone", "") }}';
+                if (detectedTz && detectedTz !== sessionTz) {
+                    fetch('/api/user/sync-timezone', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ timezone: detectedTz })
+                    });
+                }
+            } catch (e) { console.error('TZ Sync failed', e); }
+        })();
+    </script>
 </head>
 
-<body class="bg-white text-gray-900 font-sans antialiased">
+<body class="bg-white text-gray-900 font-sans antialiased{% if environment == 'mirror' %} mirror-env{% endif %}">
+
+
+    {% if environment == 'mirror' %}
+    <!-- ═══ Mirror Environment Banner ═══ -->
+    <div id="mirror-banner" style="
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 99999;
+        background: linear-gradient(90deg, #d97706, #b45309);
+        color: #fff;
+        font-family: system-ui, sans-serif;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-align: center;
+        padding: 6px 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    ">
+        <span style="font-size:1rem;">⚠</span>
+        MIRROR ENVIRONMENT — Not the live app &nbsp;|&nbsp; Changes here do NOT affect production
+        <span style="font-size:1rem;">⚠</span>
+    </div>
+    <!-- Push all page content below the banner -->
+    <style>
+        body.mirror-env { padding-top: 34px !important; }
+        /* Only push the TOP header down — NOT the bottom nav */
+        body.mirror-env > header { top: 34px !important; }
+        /* Sidebar must clear both the banner AND the header (34+64=98px) */
+        body.mirror-env > aside  { top: 98px !important; }
+    </style>
+    {% endif %}
+
     {% block content %}{% endblock %}
 
     <!-- Initialize Lucide Icons -->
     <script>
-        lucide.createIcons();
+        function initializeLucide() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+        initializeLucide();
+        document.addEventListener('DOMContentLoaded', initializeLucide);
+        window.addEventListener('load', initializeLucide);
+        // Fallback polling for up to 3 seconds in case of slow loads
+        let _lucideAttempts = 0;
+        const _lucideInterval = setInterval(() => {
+            _lucideAttempts++;
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+                clearInterval(_lucideInterval);
+            } else if (_lucideAttempts > 30) {
+                clearInterval(_lucideInterval);
+            }
+        }, 100);
     </script>
 
     {% block extra_scripts %}{% endblock %}

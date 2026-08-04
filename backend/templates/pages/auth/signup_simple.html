@@ -1,0 +1,1159 @@
+{% extends "base.html" %}
+{% block title %}Sign Up - SolaceSquad{% endblock %}
+
+{% block content %}
+{% if recaptcha_site_key %}
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+{% endif %}
+
+<style>
+  /* ── Contact Support Modal ─────────────────────────────────────── */
+  #support-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 10, 40, 0.55);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  #support-overlay.open { display: flex; }
+  #support-modal {
+    background: #fff;
+    border-radius: 1.25rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,.22);
+    width: 100%;
+    max-width: 460px;
+    overflow: hidden;
+    animation: modalIn .25s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(.94) translateY(12px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  #support-modal .modal-header {
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    padding: 1.5rem 1.75rem 1.25rem;
+    color: #fff;
+    position: relative;
+  }
+  #support-modal .modal-header h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0 0 .2rem;
+  }
+  #support-modal .modal-header p {
+    font-size: .82rem;
+    opacity: .85;
+    margin: 0;
+  }
+  #support-modal .modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255,255,255,.18);
+    border: none;
+    color: #fff;
+    border-radius: 50%;
+    width: 2rem;
+    height: 2rem;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s;
+  }
+  #support-modal .modal-close:hover { background: rgba(255,255,255,.32); }
+  #support-modal .modal-body {
+    padding: 1.5rem 1.75rem;
+  }
+  .sup-field { margin-bottom: 1rem; }
+  .sup-field label {
+    display: block;
+    font-size: .82rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: .35rem;
+  }
+  .sup-field label .req { color: #dc2626; margin-left: 2px; }
+  .sup-input {
+    width: 100%;
+    padding: .65rem .85rem;
+    border: 1.5px solid #d1d5db;
+    border-radius: .6rem;
+    font-size: .88rem;
+    color: #111827;
+    transition: border-color .18s, box-shadow .18s;
+    box-sizing: border-box;
+    background: #fafaff;
+  }
+  .sup-input:focus {
+    outline: none;
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124,58,237,.12);
+    background: #fff;
+  }
+  .sup-input.error { border-color: #dc2626; }
+  textarea.sup-input { resize: vertical; min-height: 90px; }
+  .consent-row {
+    display: flex;
+    gap: .65rem;
+    align-items: flex-start;
+    padding: .9rem 1rem;
+    background: #f5f3ff;
+    border: 1.5px solid #ede9fe;
+    border-radius: .65rem;
+    margin-bottom: 1.1rem;
+    cursor: pointer;
+  }
+  .consent-row input[type=checkbox] {
+    width: 1.1rem;
+    height: 1.1rem;
+    flex-shrink: 0;
+    margin-top: .1rem;
+    accent-color: #7c3aed;
+    cursor: pointer;
+  }
+  .consent-row span {
+    font-size: .8rem;
+    color: #4b5563;
+    line-height: 1.5;
+    user-select: none;
+  }
+  .consent-row span strong { color: #374151; }
+  #support-submit-btn {
+    width: 100%;
+    padding: .8rem 1rem;
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+    color: #fff;
+    font-weight: 700;
+    font-size: .95rem;
+    border: none;
+    border-radius: .75rem;
+    cursor: pointer;
+    transition: opacity .18s, transform .12s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+  }
+  #support-submit-btn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+  #support-submit-btn:disabled { opacity: .55; cursor: not-allowed; }
+  #support-success {
+    display: none;
+    padding: 2rem 1.75rem;
+    text-align: center;
+  }
+  #support-success .success-icon {
+    font-size: 3rem;
+    margin-bottom: .75rem;
+  }
+  #support-success h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 .4rem;
+  }
+  #support-success p {
+    font-size: .85rem;
+    color: #6b7280;
+    margin: 0;
+  }
+  #support-err {
+    display: none;
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #b91c1c;
+    font-size: .8rem;
+    border-radius: .5rem;
+    padding: .6rem .85rem;
+    margin-bottom: .75rem;
+  }
+
+  .role-card {
+    border: 2px solid #e5e7eb;
+    border-radius: 1rem;
+    padding: 1.25rem 1rem;
+    cursor: pointer;
+    transition: all .2s;
+    text-align: center;
+    background: #fff;
+    user-select: none;
+  }
+  .role-card:hover { border-color: #8b5cf6; background: #f5f3ff; }
+  .role-card.selected { border-color: #7c3aed; background: #ede9fe; box-shadow: 0 0 0 3px rgba(124,58,237,.15); }
+  .role-card .icon { font-size: 2rem; margin-bottom: .4rem; }
+  .role-card .label { font-weight: 700; font-size: .95rem; color: #1f2937; }
+  .role-card .sub { font-size: .75rem; color: #6b7280; margin-top: .15rem; }
+
+  .method-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .65rem;
+    padding: .8rem 1rem;
+    border-radius: .75rem;
+    font-weight: 600;
+    font-size: .92rem;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .method-btn.disabled { opacity: .4; pointer-events: none; cursor: not-allowed; }
+  .method-google { background: #fff; border-color: #d1d5db; color: #374151; }
+  .method-google:hover { border-color: #4285F4; background: #f0f4ff; }
+  .method-email  { background: linear-gradient(135deg,#7c3aed,#6d28d9); color: #fff; }
+  .method-email:hover { opacity: .92; }
+
+  .email-form-wrapper {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height .45s cubic-bezier(.4,0,.2,1), opacity .35s;
+    opacity: 0;
+  }
+  .email-form-wrapper.open { max-height: 900px; opacity: 1; }
+
+  .step-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem; height: 1.5rem;
+    border-radius: 50%;
+    font-size: .75rem;
+    font-weight: 700;
+    background: #7c3aed;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .step-label { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; }
+</style>
+
+<div class="min-h-screen bg-gradient-to-br from-violet-50 via-white to-purple-50 flex items-center justify-center py-12 px-4">
+  <div class="max-w-md w-full">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <a href="/" class="inline-block mb-3">
+        <img src="/static/images/logo.png" alt="SolaceSquad" class="h-14 w-auto mx-auto">
+      </a>
+      <h1 class="text-3xl font-display font-bold text-gray-900">Create Your Account</h1>
+      <p class="mt-2 text-sm text-gray-600">
+        Already have an account?
+        <a href="/login" class="font-medium text-violet-600 hover:text-violet-500">Sign in</a>
+      </p>
+    </div>
+
+    <div class="bg-white py-8 px-6 shadow-xl rounded-2xl space-y-6">
+
+      <!-- Server-side error -->
+      {% if error %}
+      <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+        <p class="text-sm text-red-700">{{ error }}</p>
+      </div>
+      {% endif %}
+
+      <!-- Role-mismatch warning (from Google OAuth or URL param) -->
+      <div id="role-mismatch-banner" class="hidden bg-amber-50 border-l-4 border-amber-400 p-4 rounded">
+        <p class="text-sm font-semibold text-amber-800" id="role-mismatch-title">Account already exists</p>
+        <p class="text-sm text-amber-700 mt-1" id="role-mismatch-msg"></p>
+        <a href="/login" class="inline-block mt-2 text-sm font-medium text-violet-600 hover:underline">Sign in instead &rarr;</a>
+      </div>
+
+      <!-- DPDP Act, 2023 Consent & Privacy Notice -->
+      <div class="border border-violet-100 rounded-xl bg-violet-50/40 p-4 mb-4">
+          <button type="button" onclick="toggleDpdpaNotice()" class="w-full flex items-center justify-between text-xs font-semibold text-violet-800 focus:outline-none">
+              <span class="flex items-center gap-1.5">
+                  🛡️ <span id="dpdpa-header-title">Privacy & Consent Notice (DPDPA 2023)</span>
+              </span>
+              <span id="dpdpa-chevron" class="transition-transform duration-200">▼</span>
+          </button>
+          
+          <div id="dpdpa-content" class="mt-3 text-xs text-gray-600 space-y-2.5">
+              <div class="flex items-center justify-between border-t border-violet-100/60 pt-2.5">
+                  <span class="text-[10px] text-gray-500 font-medium">Language / भाषा / ಭಾಷೆ / மொழி</span>
+                  <select id="dpdpa-lang" onchange="translateDpdpaNotice(this.value)" class="text-xs border border-violet-200 rounded px-1.5 py-0.5 bg-white text-violet-700 focus:outline-none">
+                      <option value="en">English</option>
+                      <option value="hi">हिंदी (Hindi)</option>
+                      <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                      <option value="ta">தமிழ் (Tamil)</option>
+                  </select>
+              </div>
+              <p id="dpdpa-desc" class="text-[11px] leading-normal font-medium text-gray-700"></p>
+              <div class="space-y-1.5 text-[11px] leading-relaxed">
+                  <div><strong id="dpdpa-lbl-cats"></strong> <span id="dpdpa-val-cats"></span></div>
+                  <div><strong id="dpdpa-lbl-purp"></strong> <span id="dpdpa-val-purp"></span></div>
+                  <div><strong id="dpdpa-lbl-rights"></strong> <span id="dpdpa-val-rights"></span></div>
+                  <div><strong id="dpdpa-lbl-griev"></strong> <span id="dpdpa-val-griev"></span></div>
+              </div>
+
+              <!-- Consent Checkbox -->
+              <div class="border-t border-violet-100/60 pt-2.5 flex items-start gap-2.5">
+                  <input type="checkbox" id="dpdp-agree-chk" onchange="enableSubmit()" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500 cursor-pointer">
+                  <label for="dpdp-agree-chk" id="dpdpa-consent-label" class="text-[11px] leading-normal font-medium text-gray-700 cursor-pointer select-none">
+                      I declare that I am at least 18 years of age, and I consent to the processing of my personal data according to this Privacy Notice.
+                  </label>
+              </div>
+          </div>
+      </div>
+
+      <!-- ── STEP 1: Role selection ───────────────────────────────── -->
+      <div>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="step-badge">1</span>
+          <span class="step-label">I am…</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3" id="role-cards">
+          <div class="role-card" id="card-user" onclick="selectRole('user')">
+            <div class="icon">🙋</div>
+            <div class="label">Seeking Support</div>
+            <div class="sub">User looking for wellness help</div>
+          </div>
+          <div class="role-card" id="card-consultant" onclick="selectRole('consultant')">
+            <div class="icon">🩺</div>
+            <div class="label">Wellbeing Consultant</div>
+            <div class="sub">I provide wellness services</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── STEP 2: Signup method ───────────────────────────────── -->
+      <div>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="step-badge">2</span>
+          <span class="step-label">Sign up with…</span>
+        </div>
+
+        <div class="flex justify-center gap-4 mt-2">
+          <!-- Google button -->
+          <a id="google-btn" href="#" onclick="return handleGoogleSignup()" title="Signup with google"
+             class="flex items-center justify-center w-12 h-12 rounded-full border border-gray-300 bg-white hover:border-violet-600 hover:bg-violet-50 transition cursor-pointer" style="text-decoration:none;">
+            <svg class="w-6 h-6" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+          </a>
+
+          <!-- Email Tab -->
+          <button id="email-btn" type="button" onclick="selectSignupMethod('email')" title="Email signup"
+                  class="flex items-center justify-center w-12 h-12 rounded-full border border-gray-300 bg-white hover:border-violet-600 hover:bg-violet-50 text-gray-600 transition cursor-pointer">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            </svg>
+          </button>
+
+          <!-- Mobile Tab -->
+          <button id="phone-btn" type="button" onclick="selectSignupMethod('phone')" title="Mobile signup"
+                  class="flex items-center justify-center w-12 h-12 rounded-full border border-gray-300 bg-white hover:border-violet-600 hover:bg-violet-50 text-gray-600 transition cursor-pointer">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+            <!-- ── STEP 3: Email form (hidden until method chosen) ────── -->
+      <div class="email-form-wrapper" id="email-form-wrapper">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="step-badge">3</span>
+          <span class="step-label">Fill in your details</span>
+        </div>
+
+        <form id="signup-form" method="POST" action="/signup" class="space-y-4">
+          <!-- Hidden role field -->
+          <input type="hidden" id="user_type" name="user_type" value="">
+          <!-- Hidden signup method field -->
+          <input type="hidden" id="signup_method" name="signup_method" value="">
+          <!-- Hidden OTP verified field (set by JS) -->
+          <input type="hidden" id="otp_verified_flag" name="otp" value="">
+
+          <!-- Full Name -->
+          <div>
+            <label for="name" class="block text-sm font-medium text-gray-700">Full Name</label>
+            <input type="text" id="name" name="name" autocomplete="name"
+                class="mt-1 w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                placeholder="Jane Doe">
+          </div>
+
+          <!-- Email + OTP -->
+          <div id="email-input-container" class="hidden">
+            <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+            <div class="mt-1 flex gap-2">
+              <input type="email" id="email" name="email" autocomplete="email"
+                  class="flex-1 px-3 py-3 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  placeholder="you@example.com">
+              <button type="button" id="send-otp-btn" onclick="sendEmailOTP()"
+                  class="flex-shrink-0 px-3 py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 transition whitespace-nowrap">
+                Send OTP
+              </button>
+            </div>
+            <!-- OTP input -->
+            <div id="otp-section" class="hidden mt-2">
+              <div class="flex gap-2 items-center">
+                <input type="text" id="otp-input" maxlength="6"
+                    class="w-36 px-3 py-2 border border-gray-300 rounded-lg text-sm text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    placeholder="● ● ● ● ● ●">
+                <button type="button" onclick="verifyOTP()"
+                    class="px-4 py-2 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 transition">
+                  Verify
+                </button>
+                <span id="otp-status" class="text-sm font-medium"></span>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">Check your inbox (and <span class="font-medium text-amber-600">spam/junk folder</span> if not found). Resend in <span id="countdown">60</span>s.</p>
+            </div>
+          </div>
+
+          <!-- Mobile -->
+          <div id="phone-input-container" class="hidden">
+            <label for="phone_number" class="block text-sm font-medium text-gray-700">Mobile Number</label>
+            <div class="mt-1 flex gap-2">
+              <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span class="text-gray-500 text-sm">🇮🇳 +91</span>
+                </div>
+                <input type="tel" id="phone_number" name="phone_number" pattern="[0-9]{10}"
+                    class="w-full pl-16 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    placeholder="98765 43210">
+              </div>
+              <button type="button" id="send-phone-otp-btn" onclick="sendPhoneOTP()"
+                  class="flex-shrink-0 px-3 py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 transition whitespace-nowrap">
+                Send OTP
+              </button>
+            </div>
+            <!-- Phone OTP input -->
+            <div id="phone-otp-section" class="hidden mt-2">
+              <div class="flex gap-2 items-center">
+                <input type="text" id="phone-otp-input" maxlength="6"
+                    class="w-36 px-3 py-2 border border-gray-300 rounded-lg text-sm text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    placeholder="● ● ● ● ● ●">
+                <button type="button" onclick="verifyPhoneOTP()"
+                    class="px-4 py-2 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 transition">
+                  Verify
+                </button>
+                <span id="phone-otp-status" class="text-sm font-medium"></span>
+              </div>
+              <p class="text-xs text-gray-500 mt-1">Resend in <span id="phone-countdown">60</span>s.</p>
+            </div>
+            <p class="mt-1 text-xs text-gray-500">10-digit mobile number</p>
+          </div>
+
+          <!-- Password -->
+          <div>
+            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+            <input type="password" id="password" name="password" autocomplete="new-password"
+                class="mt-1 w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                placeholder="Minimum 8 characters">
+            <p class="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
+          </div>
+
+          <!-- Confirm Password -->
+          <div>
+            <label for="confirm_password" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password"
+                class="mt-1 w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                placeholder="Confirm your password">
+          </div>
+
+          <!-- reCAPTCHA -->
+          {% if recaptcha_site_key %}
+          <div class="flex justify-center">
+            <div class="g-recaptcha" data-sitekey="{{ recaptcha_site_key }}"></div>
+          </div>
+          {% endif %}
+
+          <!-- Submit -->
+          <div>
+            <button type="submit" id="submit-btn" disabled
+                class="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-400 cursor-not-allowed transition">
+              Create Account
+            </button>
+            <p class="mt-2 text-center text-xs text-gray-500" id="submit-hint">
+              Verify your email and mobile with OTP to continue
+            </p>
+          </div>
+        </form>
+      </div>
+
+      <!-- Footer links -->
+      <div class="text-center text-xs text-gray-500">
+        By signing up you agree to our
+        <a href="/terms" class="text-violet-600">Terms</a> &amp;
+        <a href="/privacy" class="text-violet-600">Privacy Policy</a>
+      </div>
+    </div>
+
+    <div class="mt-4 text-center text-sm text-gray-600">
+      Need help?
+      <button type="button" onclick="openSupportModal()"
+              class="text-violet-600 hover:text-violet-500 font-medium underline-offset-2 hover:underline bg-transparent border-none cursor-pointer text-sm p-0">
+        Contact Support
+      </button>
+    </div>
+
+  <!-- ── Contact Support Modal ─────────────────────────────────────── -->
+  <div id="support-overlay" role="dialog" aria-modal="true" aria-labelledby="support-modal-title"
+       onclick="if(event.target===this)closeSupportModal()">
+    <div id="support-modal">
+
+      <!-- Header -->
+      <div class="modal-header">
+        <h2 id="support-modal-title">🛟 Contact Support</h2>
+        <p>Our team will get back to you as soon as possible.</p>
+        <button class="modal-close" onclick="closeSupportModal()" aria-label="Close">✕</button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body">
+        <!-- Error msg -->
+        <div id="support-err"></div>
+
+        <!-- Form -->
+        <div id="support-form-wrap">
+          <div class="sup-field">
+            <label for="sup-email">Email Address <span class="req">*</span></label>
+            <input type="email" id="sup-email" class="sup-input" placeholder="you@example.com" autocomplete="email">
+          </div>
+
+          <div class="sup-field">
+            <label for="sup-phone">Phone Number <span class="req">*</span></label>
+            <div style="display:flex;align-items:center;gap:.5rem;">
+              <span style="font-size:.85rem;color:#6b7280;white-space:nowrap;">🇮🇳 +91</span>
+              <input type="tel" id="sup-phone" class="sup-input" placeholder="98765 43210"
+                     maxlength="10" style="flex:1;">
+            </div>
+          </div>
+
+          <div class="sup-field">
+            <label for="sup-desc">Describe your issue <span class="req">*</span></label>
+            <textarea id="sup-desc" class="sup-input" placeholder="Tell us what's going wrong so we can help you faster…"></textarea>
+          </div>
+
+          <!-- Consent -->
+          <label class="consent-row" for="sup-consent">
+            <input type="checkbox" id="sup-consent">
+            <span>I consent to <strong>SolaceSquad</strong> contacting me on the phone number provided above to help resolve my issue.</span>
+          </label>
+
+          <button id="support-submit-btn" type="button" onclick="submitSupportRequest()">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+            </svg>
+            Send Message
+          </button>
+        </div>
+
+        <!-- Success state -->
+        <div id="support-success">
+          <div class="success-icon">✅</div>
+          <h3>Message Sent!</h3>
+          <p>We've received your request and will reach out to you shortly.<br>Thanks for contacting SolaceSquad support.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<script>
+  /* ── Contact Support Modal ───────────────────────────────────────── */
+  function openSupportModal() {
+    document.getElementById('support-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('sup-email').focus(), 150);
+  }
+  function closeSupportModal() {
+    document.getElementById('support-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  // Close on Escape key
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSupportModal(); });
+
+  // Phone-number filter for support form
+  document.addEventListener('DOMContentLoaded', () => {
+    const ph = document.getElementById('sup-phone');
+    if (ph) ph.addEventListener('input', function() {
+      this.value = this.value.replace(/[^0-9]/g,'').slice(0,10);
+    });
+  });
+
+  async function submitSupportRequest() {
+    const email   = (document.getElementById('sup-email').value   || '').trim();
+    const phone   = (document.getElementById('sup-phone').value   || '').trim();
+    const desc    = (document.getElementById('sup-desc').value    || '').trim();
+    const consent = document.getElementById('sup-consent').checked;
+    const errEl   = document.getElementById('support-err');
+
+    // Validate
+    errEl.style.display = 'none';
+    const showErr = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; };
+
+    if (!email || !email.includes('@')) return showErr('Please enter a valid email address.');
+    if (!phone || phone.length !== 10)  return showErr('Please enter a valid 10-digit phone number.');
+    if (!desc)                          return showErr('Please describe your issue.');
+    if (!consent)                       return showErr('Please check the consent box to allow us to contact you.');
+
+    const btn = document.getElementById('support-submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Sending…';
+
+    try {
+      const res  = await fetch('/api/support/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, phone: '+91' + phone, description: desc, consent })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('support-form-wrap').style.display = 'none';
+        document.getElementById('support-success').style.display = 'block';
+        setTimeout(closeSupportModal, 4000);
+      } else {
+        showErr(data.error || 'Failed to send message. Please try again.');
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg> Send Message';
+      }
+    } catch(e) {
+      showErr('Network error. Please check your connection and try again.');
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg> Send Message';
+    }
+  }
+  /* ── End Contact Support Modal ──────────────────────────────────── */
+
+</script>
+<style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
+
+<script>
+  let selectedRole = null;  // "user" | "consultant"
+  let emailVerified = false;
+  let phoneVerified = false;
+  let signupMethod = '';    // "email" | "phone"
+  let countdownTimer = null;
+  let phoneCountdownTimer = null;
+
+  // ── Role selection ────────────────────────────────────────────────
+  function selectRole(role) {
+    selectedRole = role;
+    document.getElementById('card-user').classList.toggle('selected', role === 'user');
+    document.getElementById('card-consultant').classList.toggle('selected', role === 'consultant');
+    
+    // Buttons are already enabled on load to show tooltips
+    
+    // Update hidden input if form already open
+    document.getElementById('user_type').value = role;
+    // Update submit button label
+    const submitBtn = document.getElementById('submit-btn');
+    if (submitBtn) {
+      submitBtn.textContent = role === 'consultant'
+        ? 'Next Step \u2014 Fill Onboarding form \u2192'
+        : 'Create Account';
+    }
+  }
+
+  // ── Google signup ─────────────────────────────────────────────────
+  function handleGoogleSignup() {
+    if (!selectedRole) {
+      showFlash('Please select your role (User or Consultant) first.', 'red');
+      return false;
+    }
+    window.location.href = '/auth/google/login?role=' + selectedRole;
+    return false;
+  }
+
+  // ── Select Signup Method ──────────────────────────────────────────
+  function selectSignupMethod(method) {
+    if (!selectedRole) {
+      showFlash('Please select your role (User or Consultant) first.', 'red');
+      return;
+    }
+    
+    signupMethod = method;
+    document.getElementById('signup_method').value = method;
+
+    const emailBtn = document.getElementById('email-btn');
+    const phoneBtn = document.getElementById('phone-btn');
+    const wrapper = document.getElementById('email-form-wrapper');
+
+    // Reset active styles on tabs
+    [emailBtn, phoneBtn].forEach(btn => {
+      btn.className = "flex items-center justify-center w-12 h-12 rounded-full border border-gray-300 bg-white hover:border-violet-600 hover:bg-violet-50 text-gray-600 transition";
+      const svg = btn.querySelector('svg');
+      if (svg) svg.setAttribute('class', 'w-6 h-6 text-gray-600');
+    });
+
+    if (method === 'email') {
+      emailBtn.className = "flex items-center justify-center w-12 h-12 rounded-full border border-violet-600 bg-violet-600 text-white transition";
+      const svg = emailBtn.querySelector('svg');
+      if (svg) svg.setAttribute('class', 'w-6 h-6 text-white');
+
+      document.getElementById('email-input-container').classList.remove('hidden');
+      document.getElementById('phone-input-container').classList.add('hidden');
+      
+      // Clear values of the hidden method
+      document.getElementById('phone_number').value = '';
+      phoneVerified = false;
+      const phoneStatus = document.getElementById('phone-otp-status');
+      if (phoneStatus) { phoneStatus.textContent = ''; phoneStatus.className = ''; }
+      document.getElementById('phone-otp-section').classList.add('hidden');
+    } else if (method === 'phone') {
+      phoneBtn.className = "flex items-center justify-center w-12 h-12 rounded-full border border-violet-600 bg-violet-600 text-white transition";
+      const svg = phoneBtn.querySelector('svg');
+      if (svg) svg.setAttribute('class', 'w-6 h-6 text-white');
+
+      document.getElementById('email-input-container').classList.add('hidden');
+      document.getElementById('phone-input-container').classList.remove('hidden');
+
+      // Clear values of the hidden method
+      document.getElementById('email').value = '';
+      emailVerified = false;
+      const emailStatus = document.getElementById('otp-status');
+      if (emailStatus) { emailStatus.textContent = ''; emailStatus.className = ''; }
+      document.getElementById('otp-section').classList.add('hidden');
+    }
+
+    wrapper.classList.add('open');
+    setTimeout(() => wrapper.scrollIntoView({behavior:'smooth', block:'start'}), 100);
+    enableSubmit();
+  }
+
+  // ── Input change & verification reset listeners ───────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('name').addEventListener('input', enableSubmit);
+    document.getElementById('email').addEventListener('input', function () {
+      emailVerified = false;
+      const status = document.getElementById('otp-status');
+      if (status) { status.textContent = ''; status.className = ''; }
+      enableSubmit();
+    });
+    document.getElementById('phone_number').addEventListener('input', function () {
+      this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+      phoneVerified = false;
+      const status = document.getElementById('phone-otp-status');
+      if (status) { status.textContent = ''; status.className = ''; }
+      enableSubmit();
+    });
+    document.getElementById('password').addEventListener('input', function () {
+      this.setCustomValidity(this.value.length > 0 && this.value.length < 8 ? 'Minimum 8 characters' : '');
+      enableSubmit();
+    });
+    document.getElementById('confirm_password').addEventListener('input', enableSubmit);
+  });
+
+  // ── Role mismatch helper ──
+  function showRoleMismatch(role, msg) {
+    const banner = document.getElementById('role-mismatch-banner');
+    if (!banner) return;
+    const title = document.getElementById('mismatch-title');
+    const msgEl = document.getElementById('mismatch-msg');
+    const label = role === 'consultant' ? 'Wellbeing Consultant' : 'User';
+    title.textContent = `This email is already a ${label} account`;
+    msgEl.textContent  = msg || `Please sign in to your ${label} account instead.`;
+    banner.classList.remove('hidden');
+    banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // Read parameters from URL on page load
+  (function checkUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('role_mismatch') === '1') {
+      showRoleMismatch(params.get('existing_role') || '', params.get('msg') || '');
+    }
+    const roleParam = params.get('role');
+    if (roleParam === 'user' || roleParam === 'consultant') {
+      selectRole(roleParam);
+    }
+  })();
+
+  // ── Verify OTP ────────────────────────────────────────────────────
+  async function verifyOTP() {
+    const email = document.getElementById('email').value.trim();
+    const otp   = document.getElementById('otp-input').value.trim();
+    if (!otp || otp.length !== 6) { showFlash('Enter the 6-digit code.', 'red'); return; }
+
+    try {
+      const res  = await fetch('/api/auth/email-otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp })
+      });
+      const data = await res.json();
+      const status = document.getElementById('otp-status');
+      if (data.success) {
+        emailVerified = true;
+        status.textContent = '✅ Verified';
+        status.className = 'text-sm font-medium text-green-600';
+        document.getElementById('otp_verified_flag').value = otp;
+        enableSubmit();
+      } else {
+        status.textContent = '❌ ' + (data.error || 'Invalid OTP');
+        status.className = 'text-sm font-medium text-red-600';
+      }
+    } catch (e) {
+      showFlash('Network error. Please try again.', 'red');
+    }
+  }
+
+  // ── Send Phone OTP ────────────────────────────────────────────────
+  async function sendPhoneOTP() {
+    const phoneInput = document.getElementById('phone_number');
+    const phone = phoneInput.value.replace(/[^0-9]/g, '').slice(-10);
+    if (!phone || phone.length !== 10) { showFlash('Please enter a valid 10-digit mobile number.', 'red'); return; }
+
+    const btn = document.getElementById('send-phone-otp-btn');
+    btn.disabled = true; btn.textContent = 'Sending…';
+
+    try {
+      const res  = await fetch('/api/auth/phone-otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('phone-otp-section').classList.remove('hidden');
+        startPhoneCountdown();
+        btn.textContent = 'Resend';
+        btn.disabled = false;
+        showFlash('Mobile OTP sent successfully!', 'green');
+      } else {
+        showFlash(data.error || 'Failed to send OTP.', 'red');
+        btn.textContent = 'Send OTP';
+        btn.disabled = false;
+      }
+    } catch (e) {
+      showFlash('Network error. Please try again.', 'red');
+      btn.textContent = 'Send OTP';
+      btn.disabled = false;
+    }
+  }
+
+  // ── Verify Phone OTP ──────────────────────────────────────────────
+  async function verifyPhoneOTP() {
+    const phoneInput = document.getElementById('phone_number');
+    const phone = phoneInput.value.replace(/[^0-9]/g, '').slice(-10);
+    const otp = document.getElementById('phone-otp-input').value.trim();
+    if (!otp || otp.length !== 6) { showFlash('Enter the 6-digit code.', 'red'); return; }
+
+    try {
+      const res  = await fetch('/api/auth/phone-otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp })
+      });
+      const data = await res.json();
+      const status = document.getElementById('phone-otp-status');
+      if (data.success) {
+        phoneVerified = true;
+        status.textContent = '✅ Verified';
+        status.className = 'text-sm font-medium text-green-600';
+        enableSubmit();
+      } else {
+        status.textContent = '❌ ' + (data.error || 'Invalid OTP');
+        status.className = 'text-sm font-medium text-red-600';
+      }
+    } catch (e) {
+      showFlash('Network error. Please try again.', 'red');
+    }
+  }
+
+  function startPhoneCountdown() {
+    clearInterval(phoneCountdownTimer);
+    let secs = 60;
+    const el = document.getElementById('phone-countdown');
+    el.textContent = secs;
+    phoneCountdownTimer = setInterval(() => {
+      secs--;
+      el.textContent = secs;
+      if (secs <= 0) clearInterval(phoneCountdownTimer);
+    }, 1000);
+  }
+
+  // ── Enable submit ─────────────────────────────────────────────────
+  function enableSubmit() {
+    const btn = document.getElementById('submit-btn');
+    const agreeChk = document.getElementById('dpdp-agree-chk');
+    const isAgreed = agreeChk ? agreeChk.checked : false;
+
+    const nameVal = document.getElementById('name').value.trim();
+    const passVal = document.getElementById('password').value;
+    const confirmVal = document.getElementById('confirm_password').value;
+
+    if (!selectedRole) {
+      btn.disabled = true;
+      btn.className = 'w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-400 cursor-not-allowed transition';
+      document.getElementById('submit-hint').textContent = 'Please select your role first.';
+      document.getElementById('submit-hint').className = 'mt-2 text-center text-xs text-gray-500';
+      return;
+    }
+
+    if (!signupMethod) {
+      btn.disabled = true;
+      btn.className = 'w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-400 cursor-not-allowed transition';
+      document.getElementById('submit-hint').textContent = 'Please select a signup method (Email or Mobile OTP) to continue.';
+      document.getElementById('submit-hint').className = 'mt-2 text-center text-xs text-gray-500';
+      return;
+    }
+
+    if (!nameVal) {
+      btn.disabled = true;
+      btn.className = 'w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-400 cursor-not-allowed transition';
+      document.getElementById('submit-hint').textContent = 'Full Name is required.';
+      document.getElementById('submit-hint').className = 'mt-2 text-center text-xs text-gray-500';
+      return;
+    }
+
+    if (signupMethod === 'email') {
+      const emailVal = document.getElementById('email').value.trim();
+      if (!emailVal) {
+        btn.disabled = true;
+        btn.className = 'w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-400 cursor-not-allowed transition';
+        document.getElementById('submit-hint').textContent = 'Please enter your email address.';
+        document.getElementById('submit-hint').className = 'mt-2 text-center text-xs text-gray-500';
+        return;
+      }
+      if (!emailVerified) {
+        btn.disabled = true;
+        btn.className = 'w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-400 cursor-not-allowed transition';
+        document.getElementById('submit-hint').textContent = 'Verify your email with OTP to continue.';
+        document.getElementById('submit-hint').className = 'mt-2 text-center text-xs text-gray-500';
+        return;
+      }
+    } else if (signupMethod === 'phone') {
+      const phoneVal = document.getElementById('phone_number').value.trim();
+      if (!phoneVal) {
+        btn.disabled = true;
+        btn.className = 'w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-400 cursor-not-allowed transition';
+        document.getElementById('submit-hint').textContent = 'Please enter your mobile number.';
+        document.getElementById('submit-hint').className = 'mt-2 text-center text-xs text-gray-500';
+        return;
+      }
+      if (!phoneVerified) {
+        btn.disabled = true;
+        btn.className = 'w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-400 cursor-not-allowed transition';
+        document.getElementById('submit-hint').textContent = 'Verify your mobile with OTP to continue.';
+        document.getElementById('submit-hint').className = 'mt-2 text-center text-xs text-gray-500';
+        return;
+      }
+    }
+
+    if (passVal.length < 8) {
+      btn.disabled = true;
+      btn.className = 'w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-400 cursor-not-allowed transition';
+      document.getElementById('submit-hint').textContent = 'Password must be at least 8 characters.';
+      document.getElementById('submit-hint').className = 'mt-2 text-center text-xs text-gray-500';
+      return;
+    }
+
+    if (passVal !== confirmVal) {
+      btn.disabled = true;
+      btn.className = 'w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-400 cursor-not-allowed transition';
+      document.getElementById('submit-hint').textContent = 'Passwords do not match.';
+      document.getElementById('submit-hint').className = 'mt-2 text-center text-xs text-gray-500';
+      return;
+    }
+
+    // Must agree to terms
+    if (!isAgreed) {
+      btn.disabled = true;
+      btn.className = 'w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-gray-400 cursor-not-allowed transition';
+      document.getElementById('submit-hint').textContent = 'Please declare your age & agree to terms to continue.';
+      document.getElementById('submit-hint').className = 'mt-2 text-center text-xs text-gray-500';
+      return;
+    }
+
+    const label = selectedRole === 'consultant'
+      ? 'Next Step — Fill Onboarding form →'
+      : 'Create Account';
+    btn.disabled = false;
+    btn.textContent = label;
+    btn.className = 'w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 cursor-pointer transition';
+    document.getElementById('submit-hint').textContent = '✅ Credentials & Declarations verified — you\'re ready to go!';
+    document.getElementById('submit-hint').className = 'mt-2 text-center text-xs text-green-600 font-medium';
+  }
+
+  // ── Countdown ─────────────────────────────────────────────────────
+  function startCountdown() {
+    clearInterval(countdownTimer);
+    let secs = 60;
+    const el = document.getElementById('countdown');
+    el.textContent = secs;
+    countdownTimer = setInterval(() => {
+      secs--;
+      el.textContent = secs;
+      if (secs <= 0) clearInterval(countdownTimer);
+    }, 1000);
+  }
+
+  // ── Flash message ─────────────────────────────────────────────────
+  function showFlash(msg, color) {
+    const existing = document.getElementById('flash-msg');
+    if (existing) existing.remove();
+    const div = document.createElement('div');
+    div.id = 'flash-msg';
+    div.className = `fixed top-4 right-4 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-medium text-white ${color === 'green' ? 'bg-green-600' : 'bg-red-600'}`;
+    div.textContent = msg;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 4000);
+  }
+
+  // ── Form submit guard ─────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('signup-form').addEventListener('submit', function (e) {
+      const nameVal = document.getElementById('name').value.trim();
+      const passVal = document.getElementById('password').value;
+      const confirmVal = document.getElementById('confirm_password').value;
+
+      if (!selectedRole) {
+        e.preventDefault();
+        showFlash('Please select your role first.', 'red');
+        return;
+      }
+      document.getElementById('user_type').value = selectedRole;
+
+      if (!signupMethod) {
+        e.preventDefault();
+        showFlash('Please select a signup method (Email or Mobile OTP).', 'red');
+        return;
+      }
+
+      if (!nameVal) {
+        e.preventDefault();
+        showFlash('Full Name is required.', 'red');
+        return;
+      }
+
+      if (signupMethod === 'email') {
+        const emailVal = document.getElementById('email').value.trim();
+        if (!emailVal) {
+          e.preventDefault();
+          showFlash('Email address is required.', 'red');
+          return;
+        }
+        if (!emailVerified) {
+          e.preventDefault();
+          showFlash('Please verify your email with the OTP first.', 'red');
+          return;
+        }
+      } else if (signupMethod === 'phone') {
+        const phoneVal = document.getElementById('phone_number').value.trim();
+        if (!phoneVal) {
+          e.preventDefault();
+          showFlash('Mobile number is required.', 'red');
+          return;
+        }
+        if (!phoneVerified) {
+          e.preventDefault();
+          showFlash('Please verify your mobile number with the OTP first.', 'red');
+          return;
+        }
+      }
+
+      if (passVal.length < 8) {
+        e.preventDefault();
+        showFlash('Password must be at least 8 characters.', 'red');
+        return;
+      }
+
+      if (passVal !== confirmVal) {
+        e.preventDefault();
+        showFlash('Passwords do not match.', 'red');
+        return;
+      }
+    });
+  });
+
+  // // DPDP Act Compliance Notice Logic
+  const dpdpaNoticeTranslations = {
+      en: {
+          header: "Privacy & Consent Notice (DPDPA 2023)",
+          desc: "SolaceSquad (Data Fiduciary) collects your data in compliance with India's DPDP Act, 2023.",
+          lbl_cats: "1. Data Collected:",
+          val_cats: "Name, email, mobile number, and consultation notes.",
+          lbl_purp: "2. Purpose:",
+          val_purp: "To schedule, verify, and conduct online wellbeing consultations.",
+          lbl_rights: "3. Your Rights:",
+          val_rights: "Right to access, correction, consent withdrawal, and erasure via your Settings dashboard.",
+          lbl_griev: "4. Grievances:",
+          val_griev: "Contact us at grievance@solacesquad.com for any data concerns.",
+          consent: "I declare that I am at least 18 years of age, and I consent to the processing of my personal data according to this Privacy Notice."
+      },
+      hi: {
+          header: "गोपनीयता और सहमति सूचना (DPDPA 2023)",
+          desc: "SolaceSquad (डेटा फिद्यूशियरी) भारत के DPDP अधिनियम, 2023 के अनुपालन में आपका डेटा एकत्र करता है।",
+          lbl_cats: "1. एकत्र किया गया डेटा:",
+          val_cats: "नाम, ईमेल, मोबाइल नंबर, और परामर्श नोट।",
+          lbl_purp: "2. उद्देश्य:",
+          val_purp: "ऑनलाइन कल्याण परामर्शों को शेड्यूल, सत्यापित और संचालित करने के लिए।",
+          lbl_rights: "3. आपके अधिकार:",
+          val_rights: "सेटिंग्स डैशबोर्ड के माध्यम से डेटा एक्सेस करने, सुधारने, सहमति वापस लेने और हटाने का अधिकार।",
+          lbl_griev: "4. शिकायत निवारण:",
+          val_griev: "किसी भी डेटा समस्या के लिए grievance@solacesquad.com पर संपर्क करें।",
+          consent: "मैं घोषित करता हूँ कि मेरी आयु कम से कम 18 वर्ष है, और मैं इस गोपनीयता सूचना के अनुसार अपने व्यक्तिगत डेटा के प्रसंस्करण के लिए सहमति देता हूँ।"
+      },
+      kn: {
+          header: "ಗೌಪ್ಯತೆ ಮತ್ತು ಒಪ್ಪಿಗೆ ಸೂಚನೆ (DPDPA 2023)",
+          desc: "ಭಾರತದ DPDP ಕಾಯ್ದೆ 2023 ಕ್ಕೆ ಬದ್ಧವಾಗಿ SolaceSquad (ಡೇಟಾ ಫಿಡ್ಯೂಷಿಯರಿ) ನಿಮ್ಮ ಡೇಟಾವನ್ನು ಸಂಗ್ರಹಿಸುತ್ತದೆ.",
+          lbl_cats: "1. ಸಂಗ್ರಹಿಸಿದ ಡೇಟಾ:",
+          val_cats: "ಹೆಸರು, ಇಮೇಲ್, ಮೊಬೈಲ್ ಸಂಖ್ಯೆ, ಮತ್ತು ಸಮಾಲೋಚನೆ ಟಿಪ್ಪಣಿಗಳು.",
+          lbl_purp: "2. ಉದ್ದೇಶ:",
+          val_purp: "ಆನ್‌ಲೈನ್ ಸಮಾಲೋಚನೆಗಳನ್ನು ನಿಗದಿಪಡಿಸಲು, ಪರಿಶೀಲಿಸಲು ಮತ್ತು ನಡೆಸಲು.",
+          lbl_rights: "3. ನಿಮ್ಮ ಹಕ್ಕುಗಳು:",
+          val_rights: "ನಿಮ್ಮ ಸೆಟ್ಟಿಂಗ್‌ಗಳ ಮೂಲಕ ಡೇಟಾ ಪ್ರವೇಶಿಸಲು, ತಿದ್ದಲು, ಒಪ್ಪಿಗೆ ಹಿಂಪಡೆಯಲು ಮತ್ತು ಅಳಿಸಲು ಹಕ್ಕಿದೆ.",
+          lbl_griev: "4. ಕುಂದುಕೊರತೆಗಳು:",
+          val_griev: "ಯಾವುದೇ ಡೇಟಾ ಕಾಳಜಿಗಳಿಗಾಗಿ grievance@solacesquad.com ಅನ್ನು ಸಂಪರ್ಕಿಸಿ.",
+          consent: "ನನಗೆ ಕನಿಷ್ಠ 18 ವರ್ಷ ವಯಸ್ಸಾಗಿದೆ ಎಂದು ನಾನು ಘೋಷಿಸುತ್ತೇನೆ, ಮತ್ತು ಈ ಗೌಪ್ಯತೆ ಸೂಚನೆಗೆ ಬದ್ಧವಾಗಿ ನನ್ನ ವೈಯಕ್ತಿಕ ಡೇಟಾವನ್ನು ಪ್ರಕ್ರಿಯೆಗೊಳಿಸಲು ಒಪ್ಪಿಗೆ ನೀಡುತ್ತೇನೆ."
+      },
+      ta: {
+          header: "தனியுரிமை மற்றும் ஒப்புதல் அறிவிப்பு (DPDPA 2023)",
+          desc: "இந்தியாவின் DPDP சட்டம் 2023-ன் படி SolaceSquad (தரவு எஜமானர்) உங்கள் தரவைச் சேகரிக்கிறது.",
+          lbl_cats: "1. சேகரிக்கப்பட்ட தரவு:",
+          val_cats: "பெயர், மின்னஞ்சல், மொபைல் எண் மற்றும் ஆலோசனை குறிப்புகள்.",
+          lbl_purp: "2. நோக்கம்:",
+          val_purp: "ஆன்லைன் ஆலோசனை அமர்வுகளை திட்டமிட, சரிபார்க்க மற்றும் நடத்த.",
+          lbl_rights: "3. உங்கள் உரிமைகள்:",
+          val_rights: "உங்கள் அமைப்புகள் பக்கம் வழியாக தரவை அணுக, திருத்த, ஒப்புதலைத் திரும்பப் பெற மற்றும் அழிக்க உரிமை உண்டு.",
+          lbl_griev: "4. குறைதீர்க்கும் அதிகாரி:",
+          val_griev: "தரவு தொடர்பான புகார்களுக்கு grievance@solacesquad.com ஐத் தொடர்பு கொள்ளவும்.",
+          consent: "எனக்கு குறைந்தது 18 வயது நிரம்பியுள்ளது என்று நான் அறிவிக்கிறேன், மேலும் இந்த தனியுரிமை அறிவிப்பின்படி எனது தனிப்பட்ட தரவை செயலாக்க ஒப்புக்கொள்கிறேன்."
+      }
+  };
+
+  let dpdpaNoticeOpen = true;
+  function toggleDpdpaNotice() {
+      const content = document.getElementById('dpdpa-content');
+      const chevron = document.getElementById('dpdpa-chevron');
+      dpdpaNoticeOpen = !dpdpaNoticeOpen;
+      content.style.display = dpdpaNoticeOpen ? 'block' : 'none';
+      chevron.style.transform = dpdpaNoticeOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+  }
+
+  function translateDpdpaNotice(lang) {
+      const trans = dpdpaNoticeTranslations[lang] || dpdpaNoticeTranslations.en;
+      document.getElementById('dpdpa-header-title').textContent = trans.header;
+      document.getElementById('dpdpa-desc').textContent = trans.desc;
+      document.getElementById('dpdpa-lbl-cats').textContent = trans.lbl_cats;
+      document.getElementById('dpdpa-val-cats').textContent = trans.val_cats;
+      document.getElementById('dpdpa-lbl-purp').textContent = trans.lbl_purp;
+      document.getElementById('dpdpa-val-purp').textContent = trans.val_purp;
+      document.getElementById('dpdpa-lbl-rights').textContent = trans.lbl_rights;
+      document.getElementById('dpdpa-val-rights').textContent = trans.val_rights;
+      document.getElementById('dpdpa-lbl-griev').textContent = trans.lbl_griev;
+      document.getElementById('dpdpa-val-griev').textContent = trans.val_griev;
+      const consentLabel = document.getElementById('dpdpa-consent-label');
+      if (consentLabel) {
+          consentLabel.textContent = trans.consent || dpdpaNoticeTranslations.en.consent;
+      }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+      translateDpdpaNotice('en');
+  });
+</script>
+{% endblock %}

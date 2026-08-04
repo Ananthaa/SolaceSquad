@@ -1,0 +1,125 @@
+{
+  "apiVersion": "serving.knative.dev/v1",
+  "kind": "Service",
+  "metadata": {
+    "annotations": {
+      "run.googleapis.com/build-enable-automatic-updates": "false",
+      "run.googleapis.com/build-id": "8776fe31-1613-4fc2-a401-dc74c2924c71",
+      "run.googleapis.com/build-image-uri": "us-central1-docker.pkg.dev/abiding-idea-485817-k2/cloud-run-source-deploy/solacesquad",
+      "run.googleapis.com/build-name": "projects/312011725712/locations/us-central1/builds/8776fe31-1613-4fc2-a401-dc74c2924c71",
+      "run.googleapis.com/build-source-location": "gs://run-sources-abiding-idea-485817-k2-us-central1/services/solacesquad/1770112734.062315-23eff1ac8b7046c9a67795a9b8015a39.zip#1770112736522610",
+      "run.googleapis.com/client-name": "gcloud",
+      "run.googleapis.com/client-version": "554.0.0",
+      "run.googleapis.com/ingress": "all",
+      "run.googleapis.com/ingress-status": "all",
+      "run.googleapis.com/maxScale": "3",
+      "run.googleapis.com/operation-id": "33508bbb-c6fe-4bed-98b4-f42cd2ef9798",
+      "run.googleapis.com/urls": "[\"https://solacesquad-312011725712.us-central1.run.app\",\"https://solacesquad-sf52cc6tnq-uc.a.run.app\"]",
+      "serving.knative.dev/creator": "312011725712-compute@developer.gserviceaccount.com",
+      "serving.knative.dev/lastModifier": "sg@solacesquad.com"
+    },
+    "creationTimestamp": "2026-01-30T15:16:07.924205Z",
+    "generation": 37,
+    "labels": {
+      "cloud.googleapis.com/location": "us-central1"
+    },
+    "name": "solacesquad",
+    "namespace": "312011725712",
+    "resourceVersion": "AAZJ6IYYJe4",
+    "selfLink": "/apis/serving.knative.dev/v1/namespaces/312011725712/services/solacesquad",
+    "uid": "32fa4656-648f-49ba-aa7a-a02262ee1add"
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "annotations": {
+          "autoscaling.knative.dev/maxScale": "3",
+          "run.googleapis.com/client-name": "gcloud",
+          "run.googleapis.com/client-version": "554.0.0",
+          "run.googleapis.com/cloudsql-instances": "abiding-idea-485817-k2:us-central1:solacesquad-login-data1",
+          "run.googleapis.com/startup-cpu-boost": "true"
+        },
+        "labels": {
+          "client.knative.dev/nonce": "vldivetzrf",
+          "run.googleapis.com/startupProbeType": "Default"
+        }
+      },
+      "spec": {
+        "containerConcurrency": 80,
+        "containers": [
+          {
+            "env": [
+              {
+                "name": "BYPASS_OTP_VERIFICATION",
+                "value": "true GCP_PROJECT_ID=abiding-idea-485817-k2 GCP_REGION=us-central1"
+              }
+            ],
+            "image": "us-central1-docker.pkg.dev/abiding-idea-485817-k2/cloud-run-source-deploy/solacesquad@sha256:ac5a45f02278bb9f95103d3c4a449547d2ff67ff9db7723533d544b9313bbf7b",
+            "name": "server-1",
+            "ports": [
+              {
+                "containerPort": 8080,
+                "name": "http1"
+              }
+            ],
+            "resources": {
+              "limits": {
+                "cpu": "1000m",
+                "memory": "512Mi"
+              }
+            },
+            "startupProbe": {
+              "failureThreshold": 1,
+              "periodSeconds": 240,
+              "tcpSocket": {
+                "port": 8080
+              },
+              "timeoutSeconds": 240
+            }
+          }
+        ],
+        "serviceAccountName": "312011725712-compute@developer.gserviceaccount.com",
+        "timeoutSeconds": 300
+      }
+    },
+    "traffic": [
+      {
+        "latestRevision": true,
+        "percent": 100
+      }
+    ]
+  },
+  "status": {
+    "address": {
+      "url": "https://solacesquad-sf52cc6tnq-uc.a.run.app"
+    },
+    "conditions": [
+      {
+        "lastTransitionTime": "2026-02-03T10:01:31.233774Z",
+        "status": "True",
+        "type": "Ready"
+      },
+      {
+        "lastTransitionTime": "2026-02-03T10:01:15.851393Z",
+        "status": "True",
+        "type": "ConfigurationsReady"
+      },
+      {
+        "lastTransitionTime": "2026-02-03T10:01:31.207186Z",
+        "status": "True",
+        "type": "RoutesReady"
+      }
+    ],
+    "latestCreatedRevisionName": "solacesquad-00037-7ct",
+    "latestReadyRevisionName": "solacesquad-00037-7ct",
+    "observedGeneration": 37,
+    "traffic": [
+      {
+        "latestRevision": true,
+        "percent": 100,
+        "revisionName": "solacesquad-00037-7ct"
+      }
+    ],
+    "url": "https://solacesquad-sf52cc6tnq-uc.a.run.app"
+  }
+}

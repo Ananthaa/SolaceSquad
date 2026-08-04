@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "312011725712",
+    "project_id": "abiding-idea-485817-k2",
+    "storage_bucket": "abiding-idea-485817-k2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:312011725712:android:b368e8a47c2cb620c43115",
+        "android_client_info": {
+          "package_name": "com.ssq2_and.solacesquad"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "312011725712-b0jklorh936kp9b8qimf017idspnhvcf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4dMHKLq-LW3DFl55RlLSwpCgcz97lmmc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "312011725712-b0jklorh936kp9b8qimf017idspnhvcf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

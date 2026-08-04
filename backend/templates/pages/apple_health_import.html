@@ -1,0 +1,167 @@
+{% extends "layouts/protected.html" %}
+{% block title %}Import Apple Health — SolaceSquad{% endblock %}
+
+{% block extra_head %}
+<style>
+    .ah-page { background:#0f1117; min-height:100vh; padding:1.5rem 1rem 4rem; }
+    .ah-card {
+        max-width:640px; margin:0 auto;
+        background:#1a1d27; border:1px solid rgba(255,255,255,.07);
+        border-radius:1rem; padding:2rem;
+    }
+    .ah-hero {
+        background:linear-gradient(135deg,#2a0a10 0%,#1a0a25 50%,#031a14 100%);
+        border-radius:.75rem; padding:1.5rem 2rem; margin-bottom:1.5rem;
+        border:1px solid rgba(255,255,255,.08); text-align:center;
+    }
+    .ah-hero h1 { font-size:1.6rem; margin:0 0 .5rem; color:#f1f5f9; }
+    .ah-hero p  { color:#94a3b8; margin:0; font-size:.9rem; }
+    .ah-steps  { list-style:none; padding:0; margin:0 0 1.5rem; }
+    .ah-steps li { display:flex; gap:.75rem; align-items:flex-start; padding:.6rem 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:.88rem; color:#cbd5e1; }
+    .ah-steps li:last-child { border:none; }
+    .ah-step-num { width:24px; height:24px; min-width:24px; border-radius:50%; background:#FF3B30; color:#fff; display:flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:700; margin-top:.05rem; }
+    .ah-upload-area {
+        border:2px dashed rgba(255,255,255,.15); border-radius:.75rem;
+        padding:2rem; text-align:center; cursor:pointer; transition:border-color .2s;
+        margin-bottom:1rem;
+    }
+    .ah-upload-area:hover, .ah-upload-area.drag-over { border-color:#FF3B30; }
+    .ah-upload-area input[type=file] { display:none; }
+    .ah-upload-icon { font-size:2.5rem; margin-bottom:.5rem; }
+    .ah-upload-label { color:#94a3b8; font-size:.9rem; }
+    .ah-upload-label b { color:#f1f5f9; }
+    .ah-btn {
+        width:100%; padding:.9rem; border:none; border-radius:.65rem; cursor:pointer;
+        background:linear-gradient(135deg,#FF3B30,#cc2a20); color:#fff;
+        font-size:1rem; font-weight:600; transition:opacity .2s;
+    }
+    .ah-btn:hover { opacity:.9; }
+    .ah-btn:disabled { opacity:.5; cursor:not-allowed; }
+    .ah-result { margin-top:1rem; padding:1rem 1.25rem; border-radius:.65rem; font-size:.88rem; display:none; }
+    .ah-result.success { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; }
+    .ah-result.error   { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; }
+    .ah-back { display:inline-flex; align-items:center; gap:.5rem; color:#94a3b8; text-decoration:none; font-size:.85rem; margin-bottom:1rem; }
+    .ah-back:hover { color:#f1f5f9; }
+</style>
+{% endblock %}
+
+{% block dashboard_content %}
+<div class="ah-page">
+    <div style="max-width:640px;margin:0 auto;">
+        <a href="/app/workout-log" class="ah-back">← Back to Workout Log</a>
+
+        <div class="ah-hero">
+            <div style="font-size:3rem;margin-bottom:.5rem;">🍎</div>
+            <h1>Import Apple Health</h1>
+            <p>Upload your iPhone's Apple Health export to import all your workouts and steps into SolaceSquad.</p>
+        </div>
+
+        <div class="ah-card">
+            <div style="font-size:.95rem;font-weight:600;color:#f1f5f9;margin-bottom:.75rem;">How to export from your iPhone</div>
+            <ol class="ah-steps">
+                <li>
+                    <span class="ah-step-num">1</span>
+                    <span>Open the <b>Health</b> app on your iPhone</span>
+                </li>
+                <li>
+                    <span class="ah-step-num">2</span>
+                    <span>Tap your <b>profile picture</b> (top right) → scroll down → <b>"Export All Health Data"</b></span>
+                </li>
+                <li>
+                    <span class="ah-step-num">3</span>
+                    <span>Wait for the export to complete, then tap <b>Share</b> and save/send the <b>apple_health_export.zip</b> file to this device</span>
+                </li>
+                <li>
+                    <span class="ah-step-num">4</span>
+                    <span>Upload the <b>.zip</b> file below — or if you have extracted it, the <b>Export.xml</b> file</span>
+                </li>
+            </ol>
+
+            <div class="ah-upload-area" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <div class="ah-upload-icon">📁</div>
+                <div class="ah-upload-label">
+                    <b>Click to choose file</b> or drag &amp; drop<br>
+                    <span style="font-size:.8rem;opacity:.7;">Accepts: apple_health_export.zip or Export.xml</span>
+                </div>
+                <input type="file" id="file-input" accept=".zip,.xml" onchange="onFileSelected(this)">
+            </div>
+
+            <div id="selected-file" style="display:none;font-size:.85rem;color:#94a3b8;margin-bottom:1rem;text-align:center;"></div>
+
+            <button class="ah-btn" id="import-btn" onclick="doImport()" disabled>
+                🍎 Import Workouts
+            </button>
+
+            <div class="ah-result" id="import-result"></div>
+
+            <div style="margin-top:1.25rem;padding:.75rem 1rem;background:rgba(255,255,255,.04);border-radius:.5rem;font-size:.78rem;color:#64748b;">
+                ℹ️ Only workouts not already in your log will be imported (no duplicates). Heart rate and nutrition data from Apple Health are not imported in this version.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    let selectedFile = null;
+
+    // Drag & drop
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const f = e.dataTransfer.files[0];
+        if (f) setFile(f);
+    });
+
+    function onFileSelected(input) {
+        if (input.files[0]) setFile(input.files[0]);
+    }
+
+    function setFile(f) {
+        selectedFile = f;
+        const info = document.getElementById('selected-file');
+        info.textContent = `📎 ${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`;
+        info.style.display = 'block';
+        document.getElementById('import-btn').disabled = false;
+    }
+
+    async function doImport() {
+        if (!selectedFile) return;
+        const btn = document.getElementById('import-btn');
+        const res = document.getElementById('import-result');
+        btn.disabled = true;
+        btn.textContent = 'Importing…';
+        res.style.display = 'none';
+
+        const form = new FormData();
+        form.append('file', selectedFile);
+
+        try {
+            const r = await fetch('/api/import/apple-health', { method: 'POST', body: form });
+            const d = await r.json();
+            if (d.success) {
+                res.className = 'ah-result success';
+                res.innerHTML = `✅ ${d.message || 'Import complete!'}<br><small style="opacity:.75">${d.imported} of ${d.total} records imported (rest were already in your log).</small>`;
+                res.style.display = 'block';
+                btn.textContent = '✅ Import Complete';
+            } else {
+                res.className = 'ah-result error';
+                res.textContent = '⚠ ' + (d.error || 'Import failed');
+                res.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = '🍎 Import Workouts';
+            }
+        } catch(e) {
+            res.className = 'ah-result error';
+            res.textContent = '⚠ Network error — please try again';
+            res.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = '🍎 Import Workouts';
+        }
+    }
+</script>
+{% endblock %}

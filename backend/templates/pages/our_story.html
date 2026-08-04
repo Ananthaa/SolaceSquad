@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}About SolaceSquad — Our Wellbeing Mission{% endblock %}
+{% block meta_desc %}Learn about SolaceSquad's mission to make professional wellness support accessible to everyone in India. Certified consultants for mental, physical & professional wellbeing.{% endblock %}
+{% block og_title %}About SolaceSquad — Our Wellbeing Mission{% endblock %}
+{% block og_desc %}SolaceSquad believes a healthy mind is the greatest treasure. Read our story and mission to bring wellness support to every Indian.{% endblock %}
+{% block tw_title %}About SolaceSquad — Our Wellbeing Mission{% endblock %}
+{% block tw_desc %}Meet the team behind India's trusted wellness platform. Certified consultants for mental, physical & professional wellbeing. Read our story.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"AboutPage","name":"About SolaceSquad","description":"SolaceSquad's mission to make professional wellness support accessible to everyone in India.","url":"https://www.solacesquad.com/our-story","breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.solacesquad.com"},{"@type":"ListItem","position":2,"name":"About Us","item":"https://www.solacesquad.com/our-story"}]}}
+</script>
+{% endblock %}
+
+
+{% block content %}
+{% include "components/header.html" %}
+
+<style>
+    /* ── Our Story — mobile-first, SolaceSquad brand ── */
+    .ss-page-section {
+        padding-top: 9rem;
+        padding-bottom: 4rem;
+        background: #fff;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    .ss-page-inner {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+        box-sizing: border-box;
+    }
+
+    .ss-page-eyebrow {
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #2d6a5a;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+    }
+
+    .ss-page-title {
+        text-align: center;
+        font-size: clamp(1.5rem, 5vw, 2rem);
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.75rem;
+    }
+
+    .ss-page-divider {
+        width: 3rem;
+        height: 3px;
+        background: linear-gradient(90deg, #2d6a5a, #1e4d40);
+        border-radius: 2px;
+        margin: 0 auto 1.5rem;
+    }
+
+    .ss-page-quote {
+        text-align: center;
+        font-style: italic;
+        color: #64748b;
+        font-size: 0.85rem;
+        line-height: 1.6;
+        margin-bottom: 1.75rem;
+        padding: 0.75rem 1rem;
+        border-left: 3px solid #2d6a5a;
+        border-radius: 0 0.25rem 0.25rem 0;
+        background: #f0faf7;
+        text-align: left;
+    }
+
+    .ss-story-img {
+        width: 100%;
+        height: 220px;
+        object-fit: cover;
+        border-radius: 1rem;
+        margin-bottom: 1.75rem;
+        display: block;
+        box-shadow: 0 4px 20px rgba(45, 106, 90, .15);
+    }
+
+    .ss-story-body p {
+        font-size: 0.875rem;
+        color: #374151;
+        line-height: 1.8;
+        margin-bottom: 1.1rem;
+    }
+
+    .ss-story-body strong {
+        color: #2d6a5a;
+    }
+
+    /* Desktop: side-by-side */
+    @media (min-width: 768px) {
+        .ss-story-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: start;
+        }
+
+        .ss-story-img {
+            height: 520px;
+            margin-bottom: 0;
+            position: sticky;
+            top: 8rem;
+        }
+    }
+</style>
+
+<section class="ss-page-section">
+    <div class="ss-page-inner">
+        <p class="ss-page-eyebrow">About Us</p>
+        <h1 class="ss-page-title">OUR STORY</h1>
+        <div class="ss-page-divider"></div>
+
+        <div class="ss-story-layout">
+            <!-- Text column -->
+            <div class="ss-story-body">
+                <!-- Quote shown above image on mobile; image injected after quote via CSS order -->
+                <blockquote class="ss-page-quote">
+                    "Nothing can dim the light that shines from within"<br>
+                    <strong>— Maya Angelou</strong>
+                </blockquote>
+
+                <!-- Mobile image (hidden on desktop via CSS) -->
+                <img class="ss-story-img"
+                    src="https://static.wixstatic.com/media/11062b_a383b4a21f5a44e390ff58cb07599423~mv2.jpg"
+                    alt="SolaceSquad counseling session"
+                    onerror="this.src='/static/images/logo.png'; this.style.height='180px'; this.style.objectFit='contain'; this.style.padding='2rem'; this.style.background='#f0faf7';">
+
+                <p>We at SolaceSquad&reg; believe that <strong>a healthy mind is the greatest treasure</strong>. We promise
+                    to be your best partner during your tough times. Take a step today with us and give us an
+                    opportunity to help you lead a better tomorrow.</p>
+
+                <p>Mental illnesses affect 19% of the adult population, 46% of teenagers and 13% of children each year.
+                    People struggling with their mental health may be in your family, live next door, teach your
+                    children, work in the next cubicle or sit in the same pew. However, only half of those affected
+                    receive treatment, often because of the stigma attached to mental health.</p>
+
+                <p>Mental wellbeing is crucial for overall health and quality of life. It encompasses emotional,
+                    psychological, and social aspects of well-being. Prioritizing mental health reduces stress, improves
+                    resilience, enhances relationships, and boosts productivity.</p>
+
+                <p>Personal well-being is essential for a fulfilling life. It encompasses physical, emotional, social,
+                    and mental health. Prioritizing personal well-being fosters resilience, happiness, and a balanced
+                    life.</p>
+
+                <p>We at SolaceSquad&reg; try to address these concerns to the best of our ability, partnering with you and
+                    the best experts so that <strong>YOU</strong> have a <strong>BETTER Life</strong>.</p>
+            </div>
+
+            <!-- Desktop image column -->
+            <div class="ss-desktop-img-col">
+                <img style="width:100%; height:520px; object-fit:cover; border-radius:1rem; display:block; box-shadow:0 4px 20px rgba(45,106,90,.15); position:sticky; top:8rem;"
+                    src="https://static.wixstatic.com/media/11062b_a383b4a21f5a44e390ff58cb07599423~mv2.jpg"
+                    alt="SolaceSquad counseling session"
+                    onerror="this.src='/static/images/logo.png'; this.style.height='200px'; this.style.objectFit='contain'; this.style.padding='2rem'; this.style.background='#f0faf7';">
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    /* Mobile: hide desktop image col; show inline image */
+    .ss-desktop-img-col {
+        display: none;
+    }
+
+    @media (min-width: 768px) {
+        .ss-story-img {
+            display: none;
+        }
+
+        /* hide inline image on desktop */
+        .ss-desktop-img-col {
+            display: block;
+        }
+    }
+</style>
+
+{% include "components/cta_section.html" %}
+{% include "components/footer.html" %}
+{% endblock %}

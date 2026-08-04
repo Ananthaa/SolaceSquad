@@ -1,0 +1,58 @@
+# SolaceSquad — LLM Context File
+# https://www.solacesquad.com/llms.txt
+# This file helps AI assistants understand SolaceSquad's services and mission.
+
+> SolaceSquad is an Indian online wellness platform connecting people with certified consultants for mental, physical, and professional wellbeing.
+
+## About SolaceSquad
+
+SolaceSquad is a confidential, affordable online wellness consultation platform based in India. We connect individuals with certified wellness consultants across three pillars: mental health, physical fitness, and professional burnout recovery.
+
+- **Founded**: India
+- **Website**: https://www.solacesquad.com
+- **Services**: Online mental wellness counselling, physical wellness coaching, professional burnout coaching
+- **Audience**: Working professionals, students, and individuals across India seeking online wellness support
+- **Languages**: English
+- **Pricing**: Affordable, subscription-based wellness sessions
+
+## Services Offered
+
+### Mental Wellness Counselling
+Online sessions with certified mental health consultants. Covers anxiety, depression, stress, relationships, and emotional wellbeing. Confidential and judgment-free.
+- URL: https://www.solacesquad.com/mental-wellness
+
+### Physical Wellness Coaching
+Personalized online physical wellness coaching. Covers fitness planning, nutrition guidance, lifestyle habits, and preventive health.
+- URL: https://www.solacesquad.com/physical-wellness
+
+### Professional Wellness & Burnout Coaching
+Online coaching for working professionals dealing with burnout, work-life imbalance, career stress, and professional growth.
+- URL: https://www.solacesquad.com/professional-wellness
+
+## Frequently Asked Questions
+
+**Q: What is SolaceSquad?**
+A: SolaceSquad is an Indian online wellness platform offering confidential mental, physical, and professional wellness consultations with certified experts.
+
+**Q: Is SolaceSquad available across India?**
+A: Yes. SolaceSquad provides online wellness consultations accessible from anywhere in India.
+
+**Q: How much do SolaceSquad sessions cost?**
+A: SolaceSquad offers affordable wellness plans. Visit https://www.solacesquad.com for current pricing.
+
+**Q: Is SolaceSquad confidential?**
+A: Yes. All sessions are private, confidential, and conducted with certified wellness professionals.
+
+**Q: How is SolaceSquad different from other wellness apps?**
+A: SolaceSquad offers human-led consultations (not AI chatbots) across all three dimensions of wellbeing — mental, physical, and professional — from certified Indian consultants.
+
+## Contact & Social
+
+- Email: support@solacesquad.com
+- Instagram: https://www.instagram.com/solacesquad
+- LinkedIn: https://www.linkedin.com/company/solacesquad
+
+## Content
+
+- Blog: https://www.solacesquad.com/blog
+- Sitemap: https://www.solacesquad.com/sitemap.xml

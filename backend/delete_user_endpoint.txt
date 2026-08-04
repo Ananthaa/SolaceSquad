@@ -1,0 +1,49 @@
+
+# Delete user/consultant endpoint
+@app.delete("/api/admin/users/{user_id}")
+async def delete_user_route(user_id: int, request: Request, db: Session = Depends(get_db)):
+    """Delete a user or consultant"""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    # Prevent deleting yourself
+    if user_id == admin_id:
+        return JSONResponse({"success": False, "error": "Cannot delete your own account"}, status_code=400)
+    
+    # Get the user
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+    
+    try:
+        # Delete related records first (to avoid foreign key constraints)
+        # Delete consultant profile if exists
+        db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user_id).delete()
+        
+        # Delete user profile if exists
+        db.query(UserProfile).filter(UserProfile.user_id == user_id).delete()
+        
+        # Delete appointments
+        db.query(Appointment).filter(
+            (Appointment.user_id == user_id) | (Appointment.consultant_id == user_id)
+        ).delete()
+        
+        # Delete vitals records
+        db.query(VitalsRecord).filter(VitalsRecord.user_id == user_id).delete()
+        
+        # Delete AI chat history
+        db.query(AIChatHistory).filter(AIChatHistory.user_id == user_id).delete()
+        
+        # Delete consultant schedules
+        db.query(ConsultantSchedule).filter(ConsultantSchedule.consultant_id == user_id).delete()
+        
+        # Finally delete the user
+        db.delete(user)
+        db.commit()
+        
+        return JSONResponse({"success": True, "message": "User deleted successfully"})
+    except Exception as e:
+        db.rollback()
+        return JSONResponse({"success": False, "error": f"Error deleting user: {str(e)}"}, status_code=500)

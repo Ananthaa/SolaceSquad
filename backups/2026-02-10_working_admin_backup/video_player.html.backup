@@ -1,0 +1,127 @@
+{% extends "layouts/protected.html" %}
+
+{% block title %}{{ video.title }} - SolaceSquad{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Back Button -->
+    <div class="mb-6">
+        <a href="/exercises/folder/{{ video.folder_id }}"
+            class="text-primary-600 hover:text-primary-700 flex items-center gap-2">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            Back to folder
+        </a>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-8">
+        <!-- Main Video Area -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Video Player -->
+            <div class="bg-black rounded-2xl overflow-hidden shadow-lg aspect-video relative group">
+                {% if video.is_youtube and youtube_video_id %}
+                <iframe src="https://www.youtube-nocookie.com/embed/{{ youtube_video_id }}?rel=0&modestbranding=1"
+                    class="w-full h-full" frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+                </iframe>
+                {% elif video.is_youtube %}
+                <!-- Fallback: Extract YouTube ID from URL if youtube_video_id not provided -->
+                {% if 'youtube.com/watch?v=' in video.video_url %}
+                {% set video_id = video.video_url.split('watch?v=')[1].split('&')[0] %}
+                {% elif 'youtu.be/' in video.video_url %}
+                {% set video_id = video.video_url.split('youtu.be/')[1].split('?')[0] %}
+                {% elif 'youtube.com/embed/' in video.video_url %}
+                {% set video_id = video.video_url.split('embed/')[1].split('?')[0] %}
+                {% else %}
+                {% set video_id = video.video_url %}
+                {% endif %}
+                <iframe src="https://www.youtube-nocookie.com/embed/{{ video_id }}?rel=0&modestbranding=1"
+                    class="w-full h-full" frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen>
+                </iframe>
+                {% else %}
+                <video id="mainVideo" src="{{ video.video_url }}" class="w-full h-full" controls
+                    poster="{{ video.thumbnail_url }}">
+                </video>
+                {% endif %}
+            </div>
+
+            <!-- Video Info -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm">
+                <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ video.title }}</h1>
+                {% if video.description %}
+                <p class="text-gray-600 mb-4">{{ video.description }}</p>
+                {% endif %}
+
+                <div class="flex items-center gap-4 text-sm text-gray-500">
+                    <span class="flex items-center gap-1">
+                        <i data-lucide="clock" class="w-4 h-4"></i>
+                        {{ video.duration_formatted }}
+                    </span>
+                    <span class="flex items-center gap-1">
+                        <i data-lucide="calendar" class="w-4 h-4"></i>
+                        {{ video.created_at.strftime('%b %d, %Y') }}
+                    </span>
+                </div>
+
+                <!-- Completion Toggle -->
+                <div class="mt-6 pt-6 border-t">
+                    <button id="complete-btn"
+                        class="px-6 py-3 rounded-xl font-medium transition-all {% if is_completed %}bg-green-600 text-white{% else %}bg-primary-600 text-white hover:bg-primary-700{% endif %}"
+                        onclick="toggleComplete()">
+                        <i data-lucide="{% if is_completed %}check-circle{% else %}circle{% endif %}"
+                            class="w-5 h-5 inline mr-2"></i>
+                        {% if is_completed %}Completed{% else %}Mark as Complete{% endif %}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="lg:col-span-1">
+            {% if related_videos %}
+            <div class="bg-white rounded-2xl p-6 shadow-sm">
+                <h3 class="font-semibold text-lg mb-4">More Videos</h3>
+                <div class="space-y-3">
+                    {% for related in related_videos %}
+                    <a href="/exercises/watch/{{ related.id }}"
+                        class="flex gap-3 hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                        <img src="{{ related.thumbnail_url }}" alt="{{ related.title }}"
+                            class="w-24 h-16 object-cover rounded">
+                        <div class="flex-1 min-w-0">
+                            <p class="font-medium text-sm text-gray-900 line-clamp-2">{{ related.title }}</p>
+                            <p class="text-xs text-gray-500">{{ related.duration_formatted }}</p>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleComplete() {
+        fetch('/api/exercises/{{ video.id }}/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const btn = document.getElementById('complete-btn');
+                    if (data.is_completed) {
+                        btn.className = 'px-6 py-3 rounded-xl font-medium transition-all bg-green-600 text-white';
+                        btn.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5 inline mr-2"></i> Completed';
+                    } else {
+                        btn.className = 'px-6 py-3 rounded-xl font-medium transition-all bg-primary-600 text-white hover:bg-primary-700';
+                        btn.innerHTML = '<i data-lucide="circle" class="w-5 h-5 inline mr-2"></i> Mark as Complete';
+                    }
+                    lucide.createIcons();
+                }
+            });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+/* ═══════════════════════════════════════════════════
+   Tailwind CSS Input — SolaceSquad
+   
+   This file is compiled by Tailwind CLI during Docker build.
+   The output is served as /static/css/tailwind.min.css
+   
+   The Tailwind CDN remains as a deferred fallback in base.html
+   to cover any dynamic runtime classes (chat colors, status badges)
+   that cannot be statically detected by the compiler.
+═══════════════════════════════════════════════════ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

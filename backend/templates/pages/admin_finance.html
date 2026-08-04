@@ -1,0 +1,881 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<style>
+  :root { --teal:#0d9488; --teal-light:#f0fdfa; --border:#e5e7eb; }
+  body { background:#f4f6fb; font-family:'Inter',sans-serif; }
+
+  .fin-wrap { max-width:1400px; margin:0 auto; padding:1.5rem 1rem; }
+
+  /* ── Summary cards ── */
+  .summary-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem; }
+  @media(max-width:900px){ .summary-grid{grid-template-columns:repeat(2,1fr)} }
+  @media(max-width:500px){ .summary-grid{grid-template-columns:1fr} }
+
+  .s-card { background:#fff; border-radius:1rem; padding:1.1rem 1.2rem; border:1px solid var(--border); box-shadow:0 1px 4px rgba(0,0,0,.05); }
+  .s-card-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#6b7280; }
+  .s-card-value { font-size:1.8rem; font-weight:900; color:#111827; margin:.25rem 0 0; line-height:1; }
+  .s-card-sub   { font-size:.72rem; color:#9ca3af; margin-top:.25rem; }
+  .s-card-icon  { float:right; font-size:1.6rem; }
+
+  /* ── Tabs ── */
+  .tab-bar { display:flex; gap:.5rem; margin-bottom:1rem; flex-wrap:wrap; }
+  .tab-btn { padding:.45rem 1.1rem; border-radius:.6rem; font-size:.82rem; font-weight:600; border:1.5px solid var(--border); background:#fff; cursor:pointer; color:#6b7280; transition:all .15s; }
+  .tab-btn.active { background:var(--teal); color:#fff; border-color:var(--teal); }
+
+  /* ── Filters ── */
+  .filter-bar { display:flex; gap:.6rem; flex-wrap:wrap; background:#fff; border:1px solid var(--border); border-radius:.85rem; padding:.75rem 1rem; margin-bottom:1rem; }
+  .filter-bar input, .filter-bar select { border:1px solid var(--border); border-radius:.5rem; padding:.4rem .7rem; font-size:.82rem; font-family:inherit; color:#374151; }
+  .filter-bar input { flex:1; min-width:140px; }
+  .btn-filter { background:var(--teal); color:#fff; border:none; border-radius:.5rem; padding:.4rem 1.1rem; font-size:.82rem; font-weight:700; cursor:pointer; }
+  .btn-export { background:#fff; color:var(--teal); border:1.5px solid var(--teal); border-radius:.5rem; padding:.4rem 1.1rem; font-size:.82rem; font-weight:700; cursor:pointer; text-decoration:none; margin-left:auto; }
+
+  /* ── Table ── */
+  .fin-table-wrap { background:#fff; border-radius:1rem; border:1px solid var(--border); overflow:hidden; }
+  .fin-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+  .fin-table th { background:#f9fafb; border-bottom:1px solid var(--border); padding:.6rem .85rem; text-align:left; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#6b7280; white-space:nowrap; }
+  .fin-table td { padding:.65rem .85rem; border-bottom:1px solid #f3f4f6; color:#374151; vertical-align:middle; }
+  .fin-table tr:last-child td { border-bottom:none; }
+  .fin-table tr:hover td { background:#fafafa; }
+
+  .badge { display:inline-block; padding:.18rem .6rem; border-radius:999px; font-size:.7rem; font-weight:700; }
+  .badge-live      { background:#d1fae5; color:#065f46; border:1px solid #6ee7b7; }
+  .badge-test      { background:#fef3c7; color:#92400e; border:1px solid #fcd34d; }
+  .badge-completed { background:#d1fae5; color:#065f46; }
+  .badge-upcoming  { background:#dbeafe; color:#1e40af; }
+  .badge-pending    { background:#fef3c7; color:#92400e; }
+  .badge-scheduled  { background:#dbeafe; color:#1e40af; }
+  .badge-failed     { background:#fee2e2; color:#991b1b; }
+  .badge-refunded   { background:#e0e7ff; color:#3730a3; }
+  .badge-paid       { background:#d1fae5; color:#065f46; }
+  .badge-on_hold    { background:#fef3c7; color:#92400e; }
+  .badge-processing { background:#dbeafe; color:#1e40af; }
+  .badge-no_show   { background:#fee2e2; color:#991b1b; }
+  .badge-cancelled  { background:#f3f4f6; color:#6b7280; border:1px solid #e5e7eb; }
+
+  /* Appointment sessions tab */
+  .as-filters { display:flex; gap:.6rem; flex-wrap:wrap; background:#fff; border:1px solid var(--border); border-radius:.85rem; padding:.75rem 1rem; margin-bottom:1rem; align-items:center; }
+  .as-filters select, .as-filters input { border:1px solid var(--border); border-radius:.5rem; padding:.4rem .7rem; font-size:.82rem; font-family:inherit; color:#374151; }
+  .as-filters select { min-width:160px; }
+  .user-avatar { width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,#0d9488,#0891b2); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:.65rem; font-weight:800; flex-shrink:0; }
+  .name-cell { display:flex; align-items:center; gap:.5rem; }
+  .name-cell .nm { font-weight:600; color:#111827; font-size:.82rem; }
+  .name-cell .em { font-size:.7rem; color:#9ca3af; }
+
+  .type-pill { display:inline-block; padding:.15rem .55rem; border-radius:.35rem; font-size:.7rem; font-weight:700; }
+  .type-subscription { background:#ccfbf1; color:#0f766e; }
+  .type-top_up       { background:#ede9fe; color:#6d28d9; }
+  .type-consultation { background:#dbeafe; color:#1e40af; }
+  .type-refund       { background:#fee2e2; color:#991b1b; }
+
+  .btn-sm { font-size:.72rem; padding:.2rem .6rem; border-radius:.4rem; border:none; cursor:pointer; font-weight:600; }
+  .btn-refund { background:#fee2e2; color:#991b1b; }
+  .btn-view   { background:#f0fdfa; color:var(--teal); }
+
+  /* Consultant earnings */
+  .consultant-search { display:flex; gap:.6rem; align-items:center; margin-bottom:1rem; }
+  .consultant-search input { border:1px solid var(--border); border-radius:.5rem; padding:.45rem .9rem; font-size:.85rem; flex:1; font-family:inherit; }
+
+  .earn-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin-bottom:1rem; }
+  @media(max-width:700px){ .earn-summary{grid-template-columns:repeat(2,1fr)} }
+
+  .earn-card { background:#fff; border:1px solid var(--border); border-radius:.85rem; padding:.9rem 1rem; }
+  .earn-card-label { font-size:.7rem; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.04em; }
+  .earn-card-value { font-size:1.4rem; font-weight:900; color:#111827; margin-top:.2rem; }
+
+  .pagi { display:flex; align-items:center; gap:.5rem; padding:.75rem 1rem; justify-content:flex-end; font-size:.82rem; color:#6b7280; }
+  .pagi button { padding:.3rem .8rem; border:1px solid var(--border); border-radius:.4rem; background:#fff; cursor:pointer; font-size:.8rem; }
+  .pagi button:disabled { opacity:.4; cursor:not-allowed; }
+
+  .empty-state { text-align:center; padding:3rem 1rem; color:#9ca3af; font-size:.9rem; }
+
+  /* Consultant list panel */
+  .consultant-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:.75rem; margin-bottom:1.5rem; }
+  .consultant-card { background:#fff; border:1px solid var(--border); border-radius:.85rem; padding:.9rem 1rem; cursor:pointer; transition:all .15s; }
+  .consultant-card:hover { border-color:var(--teal); box-shadow:0 2px 8px rgba(13,148,136,.12); }
+  .consultant-card.selected { border-color:var(--teal); background:var(--teal-light); }
+  .consultant-card h4 { font-size:.9rem; font-weight:700; color:#111827; margin:0 0 .15rem; }
+  .consultant-card p  { font-size:.75rem; color:#6b7280; margin:0; }
+  .consultant-card .fee-badge { display:inline-block; font-size:.72rem; font-weight:700; color:var(--teal); background:var(--teal-light); border-radius:999px; padding:.1rem .5rem; margin-top:.3rem; }
+
+  .back-btn { font-size:.82rem; color:var(--teal); font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:.3rem; margin-bottom:.75rem; background:none; border:none; padding:0; }
+  .back-btn:hover { text-decoration:underline; }
+</style>
+
+<div class="fin-wrap">
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:.5rem;">
+    <div>
+      <h1 style="font-size:1.35rem;font-weight:900;color:#111827;margin:0;">Finance & Payments</h1>
+      <p style="font-size:.82rem;color:#6b7280;margin:.2rem 0 0;">Platform-wide payment ledger and consultant earnings</p>
+    </div>
+    <div style="display:flex;gap:.5rem;">
+      <a href="/admin" style="font-size:.8rem;padding:.4rem 1rem;border:1.5px solid var(--border);border-radius:.5rem;color:#6b7280;text-decoration:none;font-weight:600;">← Back to Admin</a>
+    </div>
+  </div>
+
+  <!-- Summary cards -->
+  <div class="summary-grid" id="summaryGrid">
+    <div class="s-card" style="border-color:#6ee7b7;">
+      <span class="s-card-icon">&#x1F7E2;</span>
+      <div class="s-card-label">Live Revenue</div>
+      <div class="s-card-value" id="s-live" style="color:#059669;">—</div>
+      <div class="s-card-sub">Real payments only</div>
+    </div>
+    {% if not is_live_mode %}
+    <div class="s-card" style="border-color:#fcd34d;">
+      <span class="s-card-icon">&#x1F9EA;</span>
+      <div class="s-card-label">Test Revenue</div>
+      <div class="s-card-value" id="s-test" style="color:#d97706;">—</div>
+      <div class="s-card-sub">Test mode transactions</div>
+    </div>
+    {% endif %}
+    <div class="s-card">
+      <span class="s-card-icon">&#x1F4C5;</span>
+      <div class="s-card-label">Live MTD</div>
+      <div class="s-card-value" id="s-mtd">—</div>
+      <div class="s-card-sub">Live payments this month</div>
+    </div>
+    <div class="s-card">
+      <span class="s-card-icon">&#x1F522;</span>
+      <div class="s-card-label">Transactions</div>
+      <div class="s-card-value" id="s-txns">—</div>
+      <div class="s-card-sub" id="s-txns-sub">Completed</div>
+    </div>
+    <div class="s-card">
+      <span class="s-card-icon">&#x1F3F7;&#xFE0F;</span>
+      <div class="s-card-label">Subscriptions</div>
+      <div class="s-card-value" id="s-subs">—</div>
+      <div class="s-card-sub">Total revenue</div>
+    </div>
+    <div class="s-card" style="border-color:#fde68a;">
+      <span class="s-card-icon">&#x23F3;</span>
+      <div class="s-card-label">Pending Payouts</div>
+      <div class="s-card-value" id="s-payouts" style="color:#d97706;">—</div>
+      <div class="s-card-sub">To consultants</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('all')" id="tab-all">All Transactions</button>
+    <button class="tab-btn" onclick="switchTab('consultants')" id="tab-consultants">Consultant Earnings</button>
+    <button class="tab-btn" onclick="switchTab('sessions')" id="tab-sessions">📋 Appointment Sessions</button>
+  </div>
+
+  <!-- ═══════ ALL TRANSACTIONS TAB ═══════ -->
+  <div id="panel-all">
+    <div class="filter-bar">
+      <input type="text" id="f-search" placeholder="Search name, email, invoice, Razorpay ID…">
+      <select id="f-type">
+        <option value="">All Types</option>
+        <option value="subscription">Subscription</option>
+        <option value="consultation">Consultation</option>
+        <option value="top_up">Top-Up</option>
+        <option value="refund">Refund</option>
+      </select>
+      <select id="f-status">
+        <option value="">All Statuses</option>
+        <option value="completed">Completed</option>
+        <option value="pending">Pending</option>
+        <option value="failed">Failed</option>
+        <option value="refunded">Refunded</option>
+      </select>
+      {% if not is_live_mode %}
+      <select id="f-mode">
+        <option value="">&#x1F500; All (Live + Test)</option>
+        <option value="live">&#x1F7E2; Live Only</option>
+        <option value="test">&#x1F9EA; Test Only</option>
+      </select>
+      {% else %}
+      <select id="f-mode" style="display:none;">
+        <option value="live" selected>Live</option>
+      </select>
+      {% endif %}
+      <input type="date" id="f-from" title="From date">
+      <input type="date" id="f-to" title="To date">
+      <button class="btn-filter" onclick="loadTransactions(1)">Filter</button>
+      <a href="#" class="btn-export" onclick="exportCSV();return false;">⬇ Export CSV</a>
+    </div>
+
+    <div class="fin-table-wrap">
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>Invoice</th>
+            <th>Date</th>
+            <th>User</th>
+            <th>Type</th>
+            {% if not is_live_mode %}<th>Mode</th>{% endif %}
+            <th>Description</th>
+            <th style="text-align:right;">Amount</th>
+            <th>Status</th>
+            <th>Razorpay ID</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="txnBody">
+          <tr><td colspan="10" class="empty-state">Loading…</td></tr>
+        </tbody>
+      </table>
+      <div class="pagi">
+        <span id="pagiInfo">—</span>
+        <button id="btnPrev" onclick="goPrev()" disabled>← Prev</button>
+        <button id="btnNext" onclick="goNext()">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ CONSULTANT EARNINGS TAB ═══════ -->
+  <div id="panel-consultants" style="display:none;">
+    <div id="consultantListView">
+      <p style="font-size:.84rem;color:#6b7280;margin-bottom:.75rem;">Select a consultant to see their sessions and earnings:</p>
+      <div class="consultant-list" id="consultantList">
+        <div class="empty-state">Loading consultants…</div>
+      </div>
+    </div>
+
+    <div id="consultantEarningsView" style="display:none;">
+      <button class="back-btn" onclick="backToConsultants()">← All Consultants</button>
+      <div class="earn-summary" id="earnSummary"></div>
+
+      <!-- Date filter for consultant -->
+      <div class="filter-bar" style="margin-bottom:.75rem;">
+        <input type="date" id="ced-from" title="From date">
+        <input type="date" id="ced-to" title="To date">
+        <select id="ced-status">
+          <option value="">All Payout Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="paid">Paid</option>
+          <option value="on_hold">On Hold</option>
+        </select>
+        <button class="btn-filter" onclick="loadConsultantEarnings()">Filter</button>
+      </div>
+
+      <div class="fin-table-wrap">
+        <table class="fin-table">
+          <thead>
+            <tr>
+              <th>Session Date</th>
+              <th>Client</th>
+              <th style="text-align:right;">Gross</th>
+              <th style="text-align:right;">Platform Fee</th>
+              <th style="text-align:right;">Consultant Payout</th>
+              <th>Invoice</th>
+              <th>Payout Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="earningBody">
+            <tr><td colspan="8" class="empty-state">Select a consultant above</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ APPOINTMENT SESSIONS TAB ═══════ -->
+  <div id="panel-sessions" style="display:none;">
+
+    <!-- Filters Row -->
+    <div class="as-filters">
+      <select id="as-consultant" onchange="loadSessions(1)">
+        <option value="">All Consultants</option>
+      </select>
+      <select id="as-user" onchange="loadSessions(1)">
+        <option value="">All Users</option>
+      </select>
+      <select id="as-status" onchange="loadSessions(1)">
+        <option value="">All Statuses</option>
+        <option value="upcoming">🕐 Upcoming</option>
+        <option value="completed">✅ Completed</option>
+        <option value="cancelled">❌ Cancelled</option>
+        <option value="no_show_both">👻 No One Joined</option>
+      </select>
+      <input type="date" id="as-from" title="From date" onchange="loadSessions(1)">
+      <input type="date" id="as-to" title="To date" onchange="loadSessions(1)">
+      <button class="btn-filter" onclick="loadSessions(1)">Filter</button>
+      <button class="btn-export" onclick="exportSessionsCSV()">⬇ Export CSV</button>
+    </div>
+
+    <!-- Table -->
+    <div class="fin-table-wrap">
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Consultant</th>
+            <th>User</th>
+            <th>Date &amp; Time</th>
+            <th>Status</th>
+            <th style="text-align:right;">Amt Paid by User</th>
+            <th style="text-align:right;">Amt Due to Consultant</th>
+            <th>Payout</th>
+          </tr>
+        </thead>
+        <tbody id="sessionsBody">
+          <tr><td colspan="8" class="empty-state">Loading sessions…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagi">
+      <span id="asPageInfo">—</span>
+      <button id="asBtnPrev" onclick="asGoPrev()" disabled>← Prev</button>
+      <button id="asBtnNext" onclick="asGoNext()">Next →</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Mark Paid Modal -->
+<div id="paidModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:1rem;max-width:460px;width:90%;padding:1.5rem;">
+    <h3 style="font-size:1rem;font-weight:800;margin:0 0 .5rem;">✅ Mark Payout as Paid</h3>
+    <p style="font-size:.78rem;color:#6b7280;margin:0 0 1rem;">Transfer the amount to the consultant first, then enter the reference here.</p>
+    <input type="hidden" id="modalEarningId">
+
+    <!-- Bank details banner -->
+    <div id="bankDetailsBanner" style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:.65rem;padding:.7rem .9rem;margin-bottom:.85rem;font-size:.78rem;display:none;">
+      <div style="font-weight:700;color:#0f766e;margin-bottom:.35rem;">📋 Consultant Payout Details</div>
+      <div id="bankDetailsContent" style="color:#374151;line-height:1.6;"></div>
+    </div>
+    <div id="noBankDetails" style="background:#fffbeb;border:1px solid #fde68a;border-radius:.65rem;padding:.65rem .9rem;margin-bottom:.85rem;font-size:.78rem;color:#92400e;display:none;">
+      ⚠️ This consultant has not saved bank/UPI details yet. Contact them directly for transfer info.
+    </div>
+
+    <label style="font-size:.82rem;font-weight:600;color:#374151;">Transfer Reference (UTR / Transaction ID) <span style="color:#dc2626;">*</span></label>
+    <input type="text" id="modalRef" placeholder="e.g. UTR123456789" style="width:100%;border:1px solid #e5e7eb;border-radius:.5rem;padding:.5rem .75rem;font-size:.85rem;margin:.4rem 0 .75rem;box-sizing:border-box;font-family:inherit;">
+    <label style="font-size:.82rem;font-weight:600;color:#374151;">Admin Notes (optional)</label>
+    <textarea id="modalNotes" placeholder="Notes…" style="width:100%;border:1px solid #e5e7eb;border-radius:.5rem;padding:.5rem .75rem;font-size:.85rem;margin:.4rem 0 1rem;box-sizing:border-box;font-family:inherit;resize:vertical;height:60px;"></textarea>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+      <button onclick="document.getElementById('paidModal').style.display='none'" style="padding:.45rem 1rem;border:1.5px solid #e5e7eb;border-radius:.5rem;background:#fff;cursor:pointer;font-size:.82rem;font-weight:600;">Cancel</button>
+      <button id="confirmPaidBtn" onclick="confirmMarkPaid()" style="padding:.45rem 1.2rem;background:#0d9488;color:#fff;border:none;border-radius:.5rem;cursor:pointer;font-size:.82rem;font-weight:700;">Confirm Paid</button>
+    </div>
+  </div>
+</div>
+
+<!-- Refund Modal -->
+<div id="refundModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:1rem;max-width:400px;width:90%;padding:1.5rem;">
+    <h3 style="font-size:1rem;font-weight:800;margin:0 0 1rem;">Mark as Refunded</h3>
+    <input type="hidden" id="refundTxnId">
+    <label style="font-size:.82rem;font-weight:600;color:#374151;">Refund Reason</label>
+    <textarea id="refundReason" placeholder="Reason for refund…" style="width:100%;border:1px solid #e5e7eb;border-radius:.5rem;padding:.5rem .75rem;font-size:.85rem;margin:.4rem 0 1rem;box-sizing:border-box;font-family:inherit;resize:vertical;height:70px;"></textarea>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+      <button onclick="document.getElementById('refundModal').style.display='none'" style="padding:.45rem 1rem;border:1.5px solid #e5e7eb;border-radius:.5rem;background:#fff;cursor:pointer;font-size:.82rem;font-weight:600;">Cancel</button>
+      <button onclick="confirmRefund()" style="padding:.45rem 1.2rem;background:#dc2626;color:#fff;border:none;border-radius:.5rem;cursor:pointer;font-size:.82rem;font-weight:700;">Confirm Refund</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ───────────────────────────────────────────────────────────────────
+const IS_LIVE_MODE = {{ 'true' if is_live_mode else 'false' }};  // injected by Jinja2
+let currentPage = 1;
+let totalTxns   = 0;
+const PER_PAGE  = 50;
+let selectedConsultantId = null;
+
+window.addEventListener('DOMContentLoaded', () => {
+  loadSummary();
+  loadTransactions(1);
+  loadConsultantList();
+});
+
+function fmt(n) {
+  return '₹' + (n || 0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+}
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) +
+    ' ' + d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+}
+
+// ── Summary ─────────────────────────────────────────────────────────────────
+function loadSummary() {
+  fetch('/api/admin/finance/summary').then(r => r.json()).then(d => {
+    const el = id => document.getElementById(id);
+    if (el('s-live'))     el('s-live').textContent     = fmt(d.live_revenue);
+    if (el('s-test'))     el('s-test').textContent     = fmt(d.test_revenue);
+    if (el('s-mtd'))      el('s-mtd').textContent      = fmt(d.mtd_live_revenue);
+    if (el('s-txns'))     el('s-txns').textContent     = d.live_transactions;
+    if (el('s-txns-sub')) el('s-txns-sub').textContent = IS_LIVE_MODE ? 'Live payments' : `Live · ${d.test_transactions} test`;
+    if (el('s-subs'))     el('s-subs').textContent     = fmt(d.subscription_revenue);
+    if (el('s-payouts'))  el('s-payouts').textContent  = fmt(d.pending_payouts);
+  }).catch(console.error);
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('panel-all').style.display = tab === 'all' ? '' : 'none';
+  document.getElementById('panel-consultants').style.display = tab === 'consultants' ? '' : 'none';
+  document.getElementById('panel-sessions').style.display = tab === 'sessions' ? '' : 'none';
+  if (tab === 'sessions' && !asLoaded) {
+    asLoaded = true;
+    populateSessionFilters();
+    loadSessions(1);
+  }
+}
+
+// ── Transactions ─────────────────────────────────────────────────────────────
+function loadTransactions(page) {
+  currentPage = page;
+  const search = encodeURIComponent(document.getElementById('f-search').value);
+  const type   = document.getElementById('f-type').value;
+  const status = document.getElementById('f-status').value;
+  const mode   = document.getElementById('f-mode').value;
+  const from   = document.getElementById('f-from').value;
+  const to     = document.getElementById('f-to').value;
+  const COLS   = IS_LIVE_MODE ? 9 : 10;
+
+  const url = `/api/admin/finance/transactions?page=${page}&per_page=${PER_PAGE}` +
+    `&search=${search}&txn_type=${type}&status=${status}&mode=${mode}` +
+    (from ? `&date_from=${from}` : '') + (to ? `&date_to=${to}` : '');
+
+  document.getElementById('txnBody').innerHTML = `<tr><td colspan="${COLS}" class="empty-state">Loading…</td></tr>`;
+  fetch(url).then(r => r.json()).then(data => {
+    totalTxns = data.total || 0;
+    const rows = data.transactions || [];
+    if (!rows.length) {
+      document.getElementById('txnBody').innerHTML = `<tr><td colspan="${COLS}" class="empty-state">No transactions found.</td></tr>`;
+      document.getElementById('pagiInfo').textContent = '0 results';
+      return;
+    }
+    document.getElementById('txnBody').innerHTML = rows.map(t => {
+      const isTest = t.is_test;
+      const modeBadge = isTest
+        ? `<span class="badge badge-test">&#x1F9EA; Test</span>`
+        : `<span class="badge badge-live">&#x1F7E2; Live</span>`;
+      return `
+      <tr>
+        <td><span style="font-family:monospace;font-size:.78rem;color:#0d9488;">${t.invoice_number || '—'}</span></td>
+        <td style="white-space:nowrap;">${fmtDateTime(t.created_at)}</td>
+        <td>
+          <div style="font-weight:600;color:#111827;">${t.user_name}</div>
+          <div style="font-size:.72rem;color:#9ca3af;">${t.user_email}</div>
+        </td>
+        <td><span class="type-pill type-${t.transaction_type}">${t.transaction_type.replace('_',' ')}</span></td>
+        ${IS_LIVE_MODE ? '' : `<td>${modeBadge}</td>`}
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${t.description || ''}">${t.description || '—'}</td>
+        <td style="text-align:right;font-weight:700;color:#111827;">${fmt(t.amount)}</td>
+        <td>
+          <span class="badge badge-${t.status}">${t.status}</span>
+          ${t.status === 'refunded' ? `
+            <div style="font-size:.7rem;color:#3730a3;margin-top:.25rem;">
+              &#x1F504; Refunded ${t.refunded_at ? fmtDate(t.refunded_at) : ''}
+            </div>
+            ${t.refund_reason ? `<div style="font-size:.68rem;color:#6b7280;margin-top:.1rem;font-style:italic;" title="${t.refund_reason}">${t.refund_reason.slice(0,60)}${t.refund_reason.length>60?'…':''}</div>` : ''}
+          ` : ''}
+        </td>
+        <td style="font-family:monospace;font-size:.72rem;color:#6b7280;">${t.razorpay_payment_id ? t.razorpay_payment_id.slice(0,16)+'…' : '—'}</td>
+        <td style="white-space:nowrap;">
+          ${t.status !== 'refunded' ? `<button class="btn-sm btn-refund" onclick="openRefund(${t.id})">Refund</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+    const start = (page - 1) * PER_PAGE + 1;
+    const end   = Math.min(start + rows.length - 1, totalTxns);
+    document.getElementById('pagiInfo').textContent = `${start}–${end} of ${totalTxns}`;
+    document.getElementById('btnPrev').disabled = page <= 1;
+    document.getElementById('btnNext').disabled = end >= totalTxns;
+  }).catch(e => { document.getElementById('txnBody').innerHTML = `<tr><td colspan="${COLS}" class="empty-state">Error: ${e.message}</td></tr>`; });
+}
+
+function goPrev() { if (currentPage > 1) loadTransactions(currentPage - 1); }
+function goNext()  { loadTransactions(currentPage + 1); }
+
+// ── CSV Export ───────────────────────────────────────────────────────────────
+function exportCSV() {
+  const type   = document.getElementById('f-type').value;
+  const status = document.getElementById('f-status').value;
+  const from   = document.getElementById('f-from').value;
+  const to     = document.getElementById('f-to').value;
+  const url = `/api/admin/finance/transactions?page=1&per_page=10000&txn_type=${type}&status=${status}${from?'&date_from='+from:''}${to?'&date_to='+to:''}`;
+  fetch(url).then(r=>r.json()).then(data => {
+    const rows = data.transactions || [];
+    const headers = ['Invoice','Date','User Name','User Email','Type','Description','Amount (INR)','Status','Razorpay Payment ID'];
+    const csvRows = [headers.join(','), ...rows.map(t => [
+      t.invoice_number||'',
+      (t.created_at||'').replace('T',' ').slice(0,19),
+      `"${(t.user_name||'').replace(/"/g,'""')}"`,
+      t.user_email||'',
+      t.transaction_type,
+      `"${(t.description||'').replace(/"/g,'""')}"`,
+      t.amount,
+      t.status,
+      t.razorpay_payment_id||'',
+    ].join(','))];
+    const blob = new Blob([csvRows.join('\n')], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `solace-transactions-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  });
+}
+
+// ── Refund ───────────────────────────────────────────────────────────────────
+function openRefund(txnId) {
+  document.getElementById('refundTxnId').value = txnId;
+  document.getElementById('refundReason').value = '';
+  document.getElementById('refundModal').style.display = 'flex';
+}
+function confirmRefund() {
+  const id     = document.getElementById('refundTxnId').value;
+  const reason = document.getElementById('refundReason').value;
+  const btn    = document.querySelector('#refundModal button[onclick="confirmRefund()"]');
+  btn.disabled    = true;
+  btn.textContent = 'Processing…';
+
+  const fd = new FormData();
+  fd.append('refund_reason', reason);
+
+  fetch(`/api/admin/finance/transactions/${id}/refund`, { method:'POST', body:fd })
+    .then(r => r.json())
+    .then(d => {
+      btn.disabled    = false;
+      btn.textContent = 'Confirm Refund';
+      if (d.success) {
+        document.getElementById('refundModal').style.display = 'none';
+        loadTransactions(currentPage);
+        loadSummary();
+        alert(`✅ Refund processed successfully!\nRazorpay Refund ID: ${d.razorpay_refund_id || 'N/A'}\nInvoice: ${d.invoice_number || '—'}`);
+      } else {
+        alert(`❌ Refund failed:\n\n${d.error}\n\nPlease check the Razorpay dashboard and process manually if needed.`);
+      }
+    })
+    .catch(err => {
+      btn.disabled    = false;
+      btn.textContent = 'Confirm Refund';
+      alert(`❌ Network error: ${err.message}`);
+    });
+}
+
+// ── Appointment Sessions ─────────────────────────────────────────────────────
+let asPage = 1;
+let asTotal = 0;
+let asLoaded = false;
+const AS_PER_PAGE = 50;
+
+function populateSessionFilters() {
+  // Load consultant dropdown
+  fetch('/api/admin/consultants?page=1&per_page=200').then(r => r.json()).then(data => {
+    const opts = (data.consultants || []).map(c => {
+      const uid = c.user_id || c.id;
+      const name = c.name || c.full_name || 'Consultant';
+      return `<option value="${uid}">${name}</option>`;
+    }).join('');
+    document.getElementById('as-consultant').innerHTML = '<option value="">All Consultants</option>' + opts;
+  }).catch(() => {});
+
+  // Load user dropdown — use existing transactions endpoint to get unique users
+  fetch('/api/admin/finance/appointment-sessions?per_page=1000').then(r => r.json()).then(data => {
+    const seen = new Set();
+    const opts = [];
+    (data.sessions || []).forEach(s => {
+      if (!seen.has(s.user_id)) {
+        seen.add(s.user_id);
+        opts.push(`<option value="${s.user_id}">${s.user_name} (${s.user_email})</option>`);
+      }
+    });
+    document.getElementById('as-user').innerHTML = '<option value="">All Users</option>' + opts.join('');
+  }).catch(() => {});
+}
+
+function loadSessions(page) {
+  asPage = page;
+  const consultantId = document.getElementById('as-consultant').value;
+  const userId       = document.getElementById('as-user').value;
+  const status       = document.getElementById('as-status').value;
+  const from         = document.getElementById('as-from').value;
+  const to           = document.getElementById('as-to').value;
+
+  let url = `/api/admin/finance/appointment-sessions?page=${page}&per_page=${AS_PER_PAGE}`;
+  if (consultantId) url += `&consultant_user_id=${consultantId}`;
+  if (userId)       url += `&user_id=${userId}`;
+  if (status)       url += `&appt_status=${status}`;
+  if (from)         url += `&date_from=${from}`;
+  if (to)           url += `&date_to=${to}`;
+
+  document.getElementById('sessionsBody').innerHTML = '<tr><td colspan="8" class="empty-state">Loading…</td></tr>';
+
+  fetch(url).then(r => r.json()).then(data => {
+    asTotal = data.total || 0;
+    const rows = data.sessions || [];
+    if (!rows.length) {
+      document.getElementById('sessionsBody').innerHTML = '<tr><td colspan="8" class="empty-state">No appointment sessions found.</td></tr>';
+      document.getElementById('asPageInfo').textContent = '0 results';
+      document.getElementById('asBtnPrev').disabled = true;
+      document.getElementById('asBtnNext').disabled = true;
+      return;
+    }
+    document.getElementById('sessionsBody').innerHTML = rows.map(s => {
+      // Derived status badge
+      const statusMap = {
+        upcoming:         ['badge-upcoming',   '🕐 Upcoming'],
+        completed:        ['badge-completed',  '✅ Completed'],
+        cancelled:        ['badge-cancelled',  '❌ Cancelled'],
+        no_show_both:     ['badge-no_show',    '👻 No One Joined'],
+        no_show_consultant:['badge-no_show',   '👻 Consultant No-Show'],
+        no_show_user:     ['badge-no_show',    '👻 User No-Show'],
+        scheduled:        ['badge-scheduled',  '📅 Scheduled'],
+      };
+      const [badgeClass, badgeLabel] = statusMap[s.derived_status] || ['badge-pending', s.derived_status];
+
+      // Amount paid by user
+      let amtPaid = s.is_free ? '<span style="color:#0d9488;font-weight:700;">Free</span>' : `<strong>${fmt(s.gross_amount)}</strong>`;
+      if (s.txn_status === 'refunded') {
+        amtPaid += ` <span class="badge badge-refunded" style="font-size:.62rem;padding:.1rem .35rem;margin-left:.25rem;">Refunded</span>`;
+      }
+      // Amount due to consultant
+      const amtConsultant = s.consultant_payout > 0 ? `<strong style="color:#059669;">${fmt(s.consultant_payout)}</strong>` : (s.is_free ? '<span style="color:#9ca3af;">—</span>' : `<span style="color:#9ca3af;">${fmt(s.consultant_payout)}</span>`);
+
+
+      // Payout status badge
+      const payoutBadge = s.payout_status
+        ? `<span class="badge badge-${s.payout_status}" style="font-size:.66rem;">${s.payout_status}</span>`
+        : '<span style="color:#d1d5db;font-size:.72rem;">—</span>';
+
+      // Consultant avatar initials
+      const cInit = (s.consultant_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      const uInit = (s.user_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+
+      return `
+      <tr>
+        <td style="font-family:monospace;font-size:.72rem;color:#9ca3af;">#${s.appointment_id}</td>
+        <td>
+          <div class="name-cell">
+            <div class="user-avatar" style="background:linear-gradient(135deg,#0d9488,#065f46);">${cInit}</div>
+            <div><div class="nm">${s.consultant_name}</div><div class="em">${s.consultant_specialization||s.consultant_email}</div></div>
+          </div>
+        </td>
+        <td>
+          <div class="name-cell">
+            <div class="user-avatar" style="background:linear-gradient(135deg,#0891b2,#0c4a6e);">${uInit}</div>
+            <div><div class="nm">${s.user_name}</div><div class="em">${s.user_email}</div></div>
+          </div>
+        </td>
+        <td style="white-space:nowrap;">
+          <div style="font-weight:600;color:#111827;">${fmtDate(s.appointment_date)}</div>
+          <div style="font-size:.72rem;color:#9ca3af;">${fmtTime(s.appointment_date)} · ${s.duration_minutes||60}min</div>
+        </td>
+        <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+        <td style="text-align:right;">${amtPaid}</td>
+        <td style="text-align:right;">${amtConsultant}</td>
+        <td>${payoutBadge}</td>
+      </tr>`;
+    }).join('');
+
+    const start = (page - 1) * AS_PER_PAGE + 1;
+    const end   = Math.min(start + rows.length - 1, asTotal);
+    document.getElementById('asPageInfo').textContent = `${start}–${end} of ${asTotal}`;
+    document.getElementById('asBtnPrev').disabled = page <= 1;
+    document.getElementById('asBtnNext').disabled = end >= asTotal;
+  }).catch(e => {
+    document.getElementById('sessionsBody').innerHTML = `<tr><td colspan="8" class="empty-state">Error: ${e.message}</td></tr>`;
+  });
+}
+
+function asGoPrev() { if (asPage > 1) loadSessions(asPage - 1); }
+function asGoNext()  { loadSessions(asPage + 1); }
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+}
+
+function exportSessionsCSV() {
+  const consultantId = document.getElementById('as-consultant').value;
+  const userId       = document.getElementById('as-user').value;
+  const status       = document.getElementById('as-status').value;
+  const from         = document.getElementById('as-from').value;
+  const to           = document.getElementById('as-to').value;
+
+  let url = `/api/admin/finance/appointment-sessions?page=1&per_page=5000`;
+  if (consultantId) url += `&consultant_user_id=${consultantId}`;
+  if (userId)       url += `&user_id=${userId}`;
+  if (status)       url += `&appt_status=${status}`;
+  if (from)         url += `&date_from=${from}`;
+  if (to)           url += `&date_to=${to}`;
+
+  fetch(url).then(r => r.json()).then(data => {
+    const rows = data.sessions || [];
+    const headers = ['Appt ID','Consultant','Consultant Email','User','User Email','Date','Time','Status','Amt Paid (INR)','Amt to Consultant (INR)','Payout Status','Invoice'];
+    const csv = [headers.join(','), ...rows.map(s => [
+      s.appointment_id,
+      `"${(s.consultant_name||'').replace(/"/g,'""')}"`,
+      s.consultant_email||'',
+      `"${(s.user_name||'').replace(/"/g,'""')}"`,
+      s.user_email||'',
+      (s.appointment_date||'').slice(0,10),
+      (s.appointment_date||'').slice(11,16),
+      s.derived_status||'',
+      s.is_free ? 'Free' : (s.gross_amount||0).toFixed(2),
+      (s.consultant_payout||0).toFixed(2),
+      s.payout_status||'',
+      s.invoice_number||'',
+    ].join(','))].join('\n');
+    const blob = new Blob([csv], {type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `appointment-sessions-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  });
+}
+
+// ── Consultant List ───────────────────────────────────────────────────────────
+function loadConsultantList() {
+  fetch('/api/admin/consultants?page=1&per_page=200').then(r=>r.json()).then(data => {
+    const consultants = data.consultants || [];
+    if (!consultants.length) {
+      document.getElementById('consultantList').innerHTML = '<div class="empty-state">No consultants found.</div>';
+      return;
+    }
+    document.getElementById('consultantList').innerHTML = consultants.map(c => `
+      <div class="consultant-card" onclick="selectConsultant(${c.user_id || c.id}, '${(c.name||c.full_name||'Consultant').replace(/'/g,"\\'")}')">
+        <h4>${c.name || c.full_name || 'Consultant'}</h4>
+        <p>${c.email || ''}</p>
+        <p>${c.specialization || ''}</p>
+        <span class="fee-badge">₹${c.consultation_fee || 0} / session · ${c.platform_fee_pct || 20}% platform fee</span>
+      </div>
+    `).join('');
+  }).catch(e => {
+    document.getElementById('consultantList').innerHTML = `<div class="empty-state">Could not load consultants: ${e.message}</div>`;
+  });
+}
+
+function selectConsultant(consultantUserId, consultantName) {
+  selectedConsultantId = consultantUserId;
+  document.getElementById('consultantListView').style.display = 'none';
+  document.getElementById('consultantEarningsView').style.display = '';
+  document.querySelector('#consultantEarningsView .back-btn').textContent = `← ${consultantName}`;
+  loadConsultantEarnings();
+}
+
+function backToConsultants() {
+  selectedConsultantId = null;
+  document.getElementById('consultantListView').style.display = '';
+  document.getElementById('consultantEarningsView').style.display = 'none';
+}
+
+function loadConsultantEarnings() {
+  if (!selectedConsultantId) return;
+  const from   = document.getElementById('ced-from').value;
+  const to     = document.getElementById('ced-to').value;
+  const status = document.getElementById('ced-status').value;
+  const url = `/api/admin/finance/consultant/${selectedConsultantId}/earnings?payout_status=${status}${from?'&date_from='+from:''}${to?'&date_to='+to:''}`;
+  fetch(url).then(r=>r.json()).then(data => {
+    const s = data.summary || {};
+    document.getElementById('earnSummary').innerHTML = `
+      <div class="earn-card"><div class="earn-card-label">Total Gross</div><div class="earn-card-value">${fmt(s.total_gross)}</div></div>
+      <div class="earn-card"><div class="earn-card-label">Platform Fees</div><div class="earn-card-value">${fmt(s.total_platform_fee)}</div></div>
+      <div class="earn-card"><div class="earn-card-label">Consultant Earned</div><div class="earn-card-value" style="color:#059669;">${fmt(s.total_consultant_payout)}</div></div>
+      <div class="earn-card" style="border-color:#fde68a;"><div class="earn-card-label">Pending Payout</div><div class="earn-card-value" style="color:#d97706;">${fmt(s.pending_payout)}</div></div>
+    `;
+    const earnings = data.earnings || [];
+    if (!earnings.length) {
+      document.getElementById('earningBody').innerHTML = '<tr><td colspan="8" class="empty-state">No earnings found for this period.</td></tr>';
+      return;
+    }
+    document.getElementById('earningBody').innerHTML = earnings.map(e => `
+      <tr>
+        <td style="white-space:nowrap;">${fmtDate(e.appointment_date)}</td>
+        <td style="font-weight:600;">${e.client_name}</td>
+        <td style="text-align:right;">${fmt(e.gross_amount)}</td>
+        <td style="text-align:right;color:#dc2626;">−${fmt(e.platform_fee)} <span style="font-size:.7rem;color:#9ca3af;">(${e.platform_fee_pct}%)</span></td>
+        <td style="text-align:right;font-weight:700;color:#059669;">${fmt(e.consultant_payout)}</td>
+        <td style="font-family:monospace;font-size:.75rem;color:#0d9488;">${e.invoice_number || '—'}</td>
+        <td>
+          ${e.payout_status === 'on_hold' ? `
+            <span class="badge badge-on_hold">⛔ Refunded — payout frozen</span>
+            ${e.admin_notes ? `<div style="font-size:.68rem;color:#92400e;margin-top:.25rem;font-style:italic;" title="${e.admin_notes}">${e.admin_notes.slice(0,80)}${e.admin_notes.length>80?'…':''}</div>` : ''}
+          ` : `
+            <span class="badge badge-${e.payout_status}">${e.payout_status}</span>
+            ${e.payout_date ? `<div style="font-size:.7rem;color:#9ca3af;">${fmtDate(e.payout_date)}</div>` : ''}
+            ${e.payout_reference ? `<div style="font-size:.7rem;color:#6b7280;font-family:monospace;">${e.payout_reference}</div>` : ''}
+          `}
+        </td>
+        <td>
+          ${(e.payout_status === 'pending' || e.payout_status === 'processing') ? `<button class="btn-sm" style="background:#d1fae5;color:#065f46;" onclick="openMarkPaid(${e.id}, ${selectedConsultantId})">Mark Paid</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  }).catch(console.error);
+}
+
+// ── Mark Paid ─────────────────────────────────────────────────────────────────
+function openMarkPaid(earningId, consultantUserId) {
+  document.getElementById('modalEarningId').value = earningId;
+  document.getElementById('modalRef').value   = '';
+  document.getElementById('modalNotes').value = '';
+  document.getElementById('bankDetailsBanner').style.display = 'none';
+  document.getElementById('noBankDetails').style.display     = 'none';
+  document.getElementById('paidModal').style.display         = 'flex';
+
+  // Load consultant bank/UPI details into modal
+  if (consultantUserId) {
+    fetch(`/api/admin/finance/consultant/${consultantUserId}/earnings`)
+      .then(r => r.json())
+      .then(d => {
+        const b = d.bank_details || {};
+        const hasBank = b.upi_id || b.bank_account_number;
+        if (hasBank) {
+          let html = '';
+          if (b.upi_id)              html += `<div>UPI ID: <strong>${b.upi_id}</strong></div>`;
+          if (b.bank_account_number) html += `<div>A/C: <strong>${b.bank_account_number}</strong></div>`;
+          if (b.bank_ifsc)           html += `<div>IFSC: <strong>${b.bank_ifsc}</strong></div>`;
+          if (b.bank_name)           html += `<div>Bank: <strong>${b.bank_name}</strong></div>`;
+          if (b.bank_account_name)   html += `<div>A/C Name: <strong>${b.bank_account_name}</strong></div>`;
+          document.getElementById('bankDetailsContent').innerHTML = html;
+          document.getElementById('bankDetailsBanner').style.display = 'block';
+        } else {
+          document.getElementById('noBankDetails').style.display = 'block';
+        }
+      }).catch(() => { document.getElementById('noBankDetails').style.display = 'block'; });
+  }
+}
+
+function confirmMarkPaid() {
+  const id    = document.getElementById('modalEarningId').value;
+  const ref   = document.getElementById('modalRef').value.trim();
+  const notes = document.getElementById('modalNotes').value;
+  if (!ref) { alert('⚠️ Please enter the transfer reference (UTR) before marking as paid.'); return; }
+
+  const btn = document.getElementById('confirmPaidBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Processing…';
+
+  const fd = new FormData();
+  fd.append('payout_reference', ref);
+  fd.append('admin_notes', notes);
+  fetch(`/api/admin/finance/consultant-earnings/${id}/mark-paid`, { method:'POST', body:fd })
+    .then(r => r.json())
+    .then(d => {
+      btn.disabled    = false;
+      btn.textContent = 'Confirm Paid';
+      if (d.success) {
+        document.getElementById('paidModal').style.display = 'none';
+        loadConsultantEarnings();
+        loadSummary();
+        alert(`✅ Payout of ₹${(d.payout_amount||0).toLocaleString('en-IN')} marked as paid!\nRef: ${d.payout_reference}\nConsultant: ${d.consultant_name}`);
+      } else {
+        alert(`❌ Error: ${d.error}`);
+      }
+    })
+    .catch(err => {
+      btn.disabled    = false;
+      btn.textContent = 'Confirm Paid';
+      alert(`❌ Network error: ${err.message}`);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Physical Wellness Coaching Online – SolaceSquad{% endblock %}
+{% block meta_desc %}Personalised physical wellness coaching from certified experts. Online, convenient, and available across India. Start your wellness journey today.{% endblock %}
+{% block og_title %}Physical Wellness Coaching Online — SolaceSquad{% endblock %}
+{% block og_desc %}Personalised physical wellness coaching from certified experts. Online, convenient, and available across India. Start your wellness journey today.{% endblock %}
+{% block tw_title %}Physical Wellness Coaching Online — SolaceSquad{% endblock %}
+{% block tw_desc %}Certified physical wellness coaches available online across India. Personalised plans for a healthier you. Book on SolaceSquad today.{% endblock %}
+{% block jsonld %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Service","name":"Online Physical Wellness Coaching","serviceType":"Physical Wellness Coaching","description":"Personalised online physical wellness coaching from certified experts across India. Covers fitness, nutrition, lifestyle habits, and preventive health.","provider":{"@type":"Organization","name":"SolaceSquad","url":"https://www.solacesquad.com"},"areaServed":"IN","url":"https://www.solacesquad.com/physical-wellness","breadcrumb":{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.solacesquad.com"},{"@type":"ListItem","position":2,"name":"Physical Wellness","item":"https://www.solacesquad.com/physical-wellness"}]}}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is online physical wellness coaching?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Online physical wellness coaching is personalised guidance from a certified wellness expert delivered via video or chat. SolaceSquad's physical wellness coaches help you build sustainable fitness habits, improve nutrition, and achieve long-term health goals from anywhere in India."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How is physical wellness coaching different from a gym trainer?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Physical wellness coaching takes a holistic approach — beyond exercise, it covers nutrition, sleep, stress management, and lifestyle habits. SolaceSquad coaches create personalised plans that fit your lifestyle, available entirely online."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I get physical wellness coaching online in India?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. SolaceSquad offers certified online physical wellness coaching accessible from any city in India. Sessions are conducted via video call at a time convenient for you."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What does a physical wellness session on SolaceSquad cover?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "SolaceSquad's physical wellness sessions cover fitness assessment, personalised exercise plans, nutrition guidance, healthy lifestyle habits, and ongoing progress tracking — all customised to your individual health goals."
+      }
+    }
+  ]
+}
+</script>
+{% endblock %}
+
+
+{% block content %}
+{% include "components/header.html" %}
+
+<style>
+    .ss-page-section {
+        padding-top: 9rem;
+        padding-bottom: 4rem;
+        background: #f8faf9;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
+    .ss-page-inner {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 0 1.25rem;
+        box-sizing: border-box;
+    }
+
+    .ss-page-eyebrow {
+        text-align: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #2d6a5a;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+    }
+
+    .ss-page-title {
+        text-align: center;
+        font-size: clamp(1.4rem, 5vw, 1.75rem);
+        font-weight: 800;
+        color: #2d6a5a;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.5rem;
+    }
+
+    .ss-page-divider {
+        width: 3rem;
+        height: 3px;
+        background: linear-gradient(90deg, #2d6a5a, #1e4d40);
+        border-radius: 2px;
+        margin: 0 auto 1.75rem;
+    }
+
+    .ss-story-body {
+        font-size: 0.9rem;
+        color: #374151;
+        line-height: 1.9;
+    }
+
+    .ss-story-body p {
+        margin-bottom: 1.1rem;
+    }
+
+    .ss-story-card {
+        background: #fff;
+        border-radius: 0.75rem;
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 8px rgba(45, 106, 90, .08);
+        border-left: 3px solid #2d6a5a;
+        box-sizing: border-box;
+    }
+
+    .ss-back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: #2d6a5a;
+        font-size: 0.82rem;
+        font-weight: 600;
+        text-decoration: none;
+        margin-bottom: 1.5rem;
+        transition: opacity 0.15s;
+    }
+    .ss-back-link:hover { opacity: 0.75; }
+</style>
+
+<section class="ss-page-section">
+    <div class="ss-page-inner">
+        <p class="ss-page-eyebrow">Physical Wellness</p>
+        <h1 class="ss-page-title">Online Physical Wellness Coaching</h1>
+        <div class="ss-page-divider"></div>
+
+        <a href="/" class="ss-back-link">
+            ← Back to Home
+        </a>
+
+        <p style="font-size:0.92rem;color:#4b5563;line-height:1.8;margin-bottom:1.5rem;text-align:center;max-width:640px;margin-left:auto;margin-right:auto;">
+            SolaceSquad's certified experts offer <strong>online physical wellness coaching</strong> to help you build sustainable healthy habits — personalised, affordable, and available across India. Here's an inspiring story about the power of physical wellness transformation.
+        </p>
+
+        <div class="ss-story-card">
+            <div class="ss-story-body">
+                <p>In the heart of the bustling city, where skyscrapers kissed the sky and the streets thrummed with the rhythm of life, there lived a man named David. He was an ordinary office worker who had spent most of his adult life in a sedentary job, glued to his desk, and neglecting his physical wellbeing. But one fateful morning, everything changed.</p>
+
+                <p>David's wake-up call came in the form of a routine medical checkup. The doctor's stern expression and somber words left him shaken. He had high blood pressure, was overweight, and on the brink of various lifestyle-related health issues. His doctor warned him that if he continued on this path, his future might hold a daunting prescription list and a life of limitations.</p>
+
+                <p>The news hit David like a ton of bricks. He realized that he needed to take control of his life, starting with his physical wellbeing. So, he embarked on a journey to transform himself from a sedentary office worker to a beacon of physical fitness.</p>
+
+                <p>David started with small, manageable changes. He swapped his morning donut for a hearty bowl of oatmeal, and his daily soda for a refreshing glass of water. He began walking to work instead of taking the elevator to his office on the 14th floor. His coworkers were surprised, but they couldn't deny the newfound energy and enthusiasm radiating from David.</p>
+
+                <p>As the days turned into weeks, David's enthusiasm only grew. He joined a local gym, where he met a trainer named Sarah, who would become his guide on this transformative journey. Under Sarah's expert guidance, David's workout routine gradually expanded. Weightlifting, cardio, and stretching became part of his daily regimen. With each drop of sweat, he felt himself shedding not only pounds but also years of neglect.</p>
+
+                <p>One of the most significant changes in David's life was his newfound appreciation for food. He began cooking his meals, experimenting with fresh vegetables, lean proteins, and wholesome grains. He discovered that eating clean not only improved his physical health but also enhanced his mental clarity and overall sense of well-being.</p>
+
+                <p>But David's journey was not without its challenges. There were days when he wanted to give up, when the allure of a sedentary lifestyle and junk food seemed irresistible. But he had a vision, a vision of a healthier, happier future, and he clung to it like a lifeline.</p>
+
+                <p>Months passed, and David's transformation became evident to all. He had lost weight, his blood pressure had normalized, and he had a newfound sense of confidence. His coworkers marveled at his energy levels, and he became an inspiration to those around him.</p>
+
+                <p>One sunny morning, as David stood atop a nearby hill, he looked out at the city that had once seemed overwhelming and suffocating. Now, it looked like a landscape of opportunities, a city where dreams could be realized, and where physical wellness was not an obstacle but a foundation for a fulfilling life.</p>
+
+                <p>David's journey to physical wellness had not only changed his body but also his outlook on life. He realized that investing in his health was the greatest gift he could give himself. As he took a deep breath of the crisp city air, he knew that this journey was far from over; it was a lifelong commitment to living his best, healthiest life.</p>
+
+                <p>David's story became a testament to the power of determination, resilience, and the transformative potential of embracing physical wellness. It was a story that resonated with many, reminding them that no matter how daunting the path may seem, the journey to physical wellness was always worth taking.</p>
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem; text-align: center;">
+            <a href="#" onclick="openBookModal(); return false;" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                Talk to a Coach Now →
+            </a>
+        </div>
+    </div>
+</section>
+
+{% include "components/cta_section.html" %}
+{% include "components/footer.html" %}
+{% endblock %}

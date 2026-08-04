@@ -1,24 +1,54 @@
 {% extends "base.html" %}
 
+{% block title %}Create Your SolaceSquad Account — Free Wellbeing Platform{% endblock %}
+{% block meta_desc %}Join SolaceSquad free and connect with certified wellness consultants for mental, physical & professional wellbeing. Confidential online sessions across India.{% endblock %}
+{% block meta_robots %}noindex, follow{% endblock %}
+{% block og_title %}Create Your SolaceSquad Account{% endblock %}
+{% block og_desc %}Join SolaceSquad and connect with certified wellness consultants for mental, physical and professional wellbeing. Affordable & confidential online sessions.{% endblock %}
+{% block tw_title %}Create Your SolaceSquad Account{% endblock %}
+{% block tw_desc %}Join SolaceSquad — certified wellness consultants for mental, physical and professional wellbeing. Confidential online sessions across India.{% endblock %}
+
 {% block content %}
 <div
-    class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-secondary-50 py-12 px-4">
+    class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-secondary-50 auth-page-container">
     <div class="max-w-md w-full">
         <!-- Logo -->
         <div class="text-center mb-8">
-            <a href="/" class="inline-flex items-center gap-2 mb-4">
-                <div class="bg-gradient-to-br from-primary-600 to-secondary-600 p-2 rounded-xl">
-                    <i data-lucide="heart" class="w-6 h-6 text-white fill-white"></i>
-                </div>
-                <span class="text-2xl font-display font-bold gradient-text">SolaceSquad</span>
+            <a href="/" class="inline-block mb-4">
+                <img src="/static/images/logo.png" alt="SolaceSquad" class="h-16 w-auto mx-auto">
             </a>
-            <h2 class="text-3xl font-display font-bold text-gray-900 mt-4">Get Started</h2>
+            <h1 class="text-3xl font-display font-bold text-gray-900 mt-4">Get Started</h1>
             <p class="text-gray-600 mt-2">Create your account and begin your wellbeing journey</p>
         </div>
 
         <!-- Signup Form -->
-        <div class="card">
+        <div class="card auth-card">
             <form method="POST" action="/signup" class="space-y-6">
+
+                <!-- Google Signup Button -->
+                <a href="/auth/google/login" id="google-signup-btn" class="auth-btn-google">
+                    <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+                    Continue with Google
+                </a>
+
+                <!-- Consultant onboarding popup (hidden by default) -->
+                <div id="consultantOnboardingPopup" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:9999; align-items:center; justify-content:center;">
+                    <div style="background:#fff; border-radius:16px; padding:2rem; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.25); text-align:center; font-family:inherit;">
+                        <div style="font-size:2.5rem; margin-bottom:.75rem;">📋</div>
+                        <h3 style="font-size:1.2rem; font-weight:800; color:#1f2937; margin:0 0 .6rem;">One more step!</h3>
+                        <p style="font-size:.9rem; color:#4b5563; line-height:1.6; margin:0 0 1.25rem;">After creating your account, you'll be taken to our <strong>Onboarding Form</strong> where you can fill in your professional details. This helps us match you with the right clients.</p>
+                        <button type="button" id="consultantPopupOk" class="auth-btn-primary">OK, Let's Go! 🚀</button>
+                        <button type="button" id="consultantPopupCancel" class="auth-btn-secondary mt-2">Go Back</button>
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div class="flex items-center gap-3 my-2">
+                    <hr class="flex-grow border-gray-200">
+                    <span class="text-xs text-gray-400 whitespace-nowrap">or sign up with email</span>
+                    <hr class="flex-grow border-gray-200">
+                </div>
+
                 <!-- Error Messages -->
                 {% if error %}
                 <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
@@ -29,12 +59,41 @@
                 </div>
                 {% endif %}
 
+                <!-- DPDP Act, 2023 Consent & Privacy Notice -->
+                <div class="border border-violet-100 rounded-xl bg-violet-50/40 p-4 mb-4">
+                    <button type="button" onclick="toggleDpdpaNotice()" class="w-full flex items-center justify-between text-xs font-semibold text-violet-800 focus:outline-none">
+                        <span class="flex items-center gap-1.5">
+                            🛡️ <span id="dpdpa-header-title">Privacy & Consent Notice (DPDPA 2023)</span>
+                        </span>
+                        <span id="dpdpa-chevron" class="transition-transform duration-200">▼</span>
+                    </button>
+                    
+                    <div id="dpdpa-content" class="mt-3 text-xs text-gray-600 space-y-2.5">
+                        <div class="flex items-center justify-between border-t border-violet-100/60 pt-2.5">
+                            <span class="text-[10px] text-gray-500 font-medium">Language / भाषा / ಭಾಷೆ / மொழி</span>
+                            <select id="dpdpa-lang" onchange="translateDpdpaNotice(this.value)" class="text-xs border border-violet-200 rounded px-1.5 py-0.5 bg-white text-violet-700 focus:outline-none">
+                                <option value="en">English</option>
+                                <option value="hi">हिंदी (Hindi)</option>
+                                <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                                <option value="ta">தமிழ் (Tamil)</option>
+                            </select>
+                        </div>
+                        <p id="dpdpa-desc" class="text-[11px] leading-normal font-medium text-gray-700"></p>
+                        <div class="space-y-1.5 text-[11px] leading-relaxed">
+                            <div><strong id="dpdpa-lbl-cats"></strong> <span id="dpdpa-val-cats"></span></div>
+                            <div><strong id="dpdpa-lbl-purp"></strong> <span id="dpdpa-val-purp"></span></div>
+                            <div><strong id="dpdpa-lbl-rights"></strong> <span id="dpdpa-val-rights"></span></div>
+                            <div><strong id="dpdpa-lbl-griev"></strong> <span id="dpdpa-val-griev"></span></div>
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
                         Full Name
                     </label>
                     <input type="text" id="name" name="name" required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                        class="auth-input"
                         placeholder="John Doe">
                 </div>
 
@@ -43,8 +102,23 @@
                         Email Address
                     </label>
                     <input type="email" id="email" name="email" required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                        class="auth-input"
                         placeholder="you@example.com">
+                </div>
+
+                <div>
+                    <label for="phone_number" class="block text-sm font-medium text-gray-700 mb-2">
+                        Mobile Number
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 sm:text-sm">🇮🇳 +91</span>
+                        </div>
+                        <input type="tel" id="phone_number" name="phone_number" required pattern="[0-9]{10}"
+                            class="auth-input pl-16"
+                            placeholder="98765 43210">
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">10-digit mobile number</p>
                 </div>
 
                 <div>
@@ -52,34 +126,56 @@
                         Password
                     </label>
                     <input type="password" id="password" name="password" required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition"
+                        class="auth-input"
                         placeholder="••••••••">
+                    <p class="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
                 </div>
 
                 <div>
                     <label for="user_type" class="block text-sm font-medium text-gray-700 mb-2">
                         I am a
                     </label>
-                    <select id="user_type" name="user_type" required
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition">
+                    <select id="user_type" name="user_type" required onchange="toggleConsultantFields(this.value)"
+                        class="auth-input">
                         <option value="user">User seeking support</option>
                         <option value="consultant">Wellbeing Consultant</option>
                     </select>
                 </div>
+
+                <!-- Consultant-only: Expected Fee -->
+                <div id="consultant-fee-field" style="display:none;">
+                    <label for="expected_hourly_fee" class="block text-sm font-medium text-gray-700 mb-2">
+                        Expected Fee for 1-Hour Consultation
+                        <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 font-medium">₹</span>
+                        </div>
+                        <input type="number" id="expected_hourly_fee" name="expected_hourly_fee" min="0" step="0.01"
+                            class="auth-input pl-8"
+                            placeholder="e.g. 1500">
+                    </div>
+                    <p class="mt-1 text-xs text-gray-500">This is your requested rate for audio/video consultations. The
+                        admin will review and set the final approved rate.</p>
+                </div>
+
+                <!-- Hidden OTP field (bypass enabled) -->
+                <input type="hidden" name="otp" value="000000">
 
                 <div class="flex items-start">
                     <input type="checkbox" required
                         class="w-4 h-4 mt-1 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
                     <label class="ml-2 text-sm text-gray-600">
                         I agree to the
-                        <a href="#" class="text-primary-600 hover:text-primary-700">Terms of Service</a>
+                        <a href="/terms" class="text-primary-600 hover:text-primary-700">Terms of Service</a>
                         and
-                        <a href="#" class="text-primary-600 hover:text-primary-700">Privacy Policy</a>
+                        <a href="/privacy" class="text-primary-600 hover:text-primary-700">Privacy Policy</a>
                     </label>
                 </div>
 
-                <button type="submit" class="btn btn-primary w-full text-lg">
-                    Create Account
+                <button type="submit" id="submitBtn" class="auth-btn-primary">
+                    <span id="submitBtnText">Create Account</span>
                     <i data-lucide="arrow-right" class="w-5 h-5"></i>
                 </button>
             </form>
@@ -95,4 +191,154 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Phone number validation
+    const phoneInput = document.getElementById('phone_number');
+    phoneInput.addEventListener('input', function (e) {
+        this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);
+    });
+
+    const popup = document.getElementById('consultantOnboardingPopup');
+    let _pendingAction = null; // stores what to do after OK
+
+    function showConsultantPopup(onOk) {
+        _pendingAction = onOk;
+        popup.style.display = 'flex';
+    }
+
+    document.getElementById('consultantPopupOk').addEventListener('click', () => {
+        popup.style.display = 'none';
+        if (_pendingAction) _pendingAction();
+    });
+    document.getElementById('consultantPopupCancel').addEventListener('click', () => {
+        popup.style.display = 'none';
+        _pendingAction = null;
+    });
+
+    // Show/hide consultant fee field + update button text
+    function toggleConsultantFields(userType) {
+        const feeField = document.getElementById('consultant-fee-field');
+        const feeInput = document.getElementById('expected_hourly_fee');
+        const btnText  = document.getElementById('submitBtnText');
+        const googleBtn = document.getElementById('google-signup-btn');
+        if (userType === 'consultant') {
+            feeField.style.display = 'block';
+            feeInput.required = true;
+            btnText.textContent = 'Next';
+            googleBtn.dataset.consultant = 'true';
+            googleBtn.href = '/auth/google/login?role=consultant';
+        } else {
+            feeField.style.display = 'none';
+            feeInput.required = false;
+            feeInput.value = '';
+            btnText.textContent = 'Create Account';
+            delete googleBtn.dataset.consultant;
+            googleBtn.href = '/auth/google/login?role=user';
+        }
+    }
+
+    // Intercept Google button for consultants
+    document.getElementById('google-signup-btn').addEventListener('click', function(e) {
+        if (this.dataset.consultant === 'true') {
+            e.preventDefault();
+            const href = this.href;
+            showConsultantPopup(() => { window.location.href = href; });
+        }
+    });
+
+    // Intercept form submit for consultants
+    document.querySelector('form[action="/signup"]').addEventListener('submit', function(e) {
+        const userType = document.getElementById('user_type').value;
+        if (userType === 'consultant' && !this.dataset.confirmed) {
+            e.preventDefault();
+            showConsultantPopup(() => {
+                this.dataset.confirmed = 'true';
+                this.submit();
+            });
+        }
+    });
+
+    // On load — handle pre-selected value
+    toggleConsultantFields(document.getElementById('user_type').value);
+
+    // DPDP Act Compliance Notice Logic
+    const dpdpaNoticeTranslations = {
+        en: {
+            header: "Privacy & Consent Notice (DPDPA 2023)",
+            desc: "SolaceSquad (Data Fiduciary) collects your data in compliance with India's DPDP Act, 2023.",
+            lbl_cats: "1. Data Collected:",
+            val_cats: "Name, email, mobile number, and consultation notes.",
+            lbl_purp: "2. Purpose:",
+            val_purp: "To schedule, verify, and conduct online wellbeing consultations.",
+            lbl_rights: "3. Your Rights:",
+            val_rights: "Right to access, correction, consent withdrawal, and erasure via your Settings dashboard.",
+            lbl_griev: "4. Grievances:",
+            val_griev: "Contact us at grievance@solacesquad.com for any data concerns."
+        },
+        hi: {
+            header: "गोपनीयता और सहमति सूचना (DPDPA 2023)",
+            desc: "SolaceSquad (डेटा फिद्यूशियरी) भारत के DPDP अधिनियम, 2023 के अनुपालन में आपका डेटा एकत्र करता है।",
+            lbl_cats: "1. एकत्र किया गया डेटा:",
+            val_cats: "नाम, ईमेल, मोबाइल नंबर, और परामर्श नोट।",
+            lbl_purp: "2. उद्देश्य:",
+            val_purp: "ऑनलाइन कल्याण परामर्शों को शेड्यूल, सत्यापित और संचालित करने के लिए।",
+            lbl_rights: "3. आपके अधिकार:",
+            val_rights: "सेटिंग्स डैशबोर्ड के माध्यम से डेटा एक्सेस करने, सुधारने, सहमति वापस लेने और हटाने का अधिकार।",
+            lbl_griev: "4. शिकायत निवारण:",
+            val_griev: "किसी भी डेटा समस्या के लिए grievance@solacesquad.com पर संपर्क करें।"
+        },
+        kn: {
+            header: "ಗೌಪ್ಯತೆ ಮತ್ತು ಒಪ್ಪಿಗೆ ಸೂಚನೆ (DPDPA 2023)",
+            desc: "ಭಾರತದ DPDP ಕಾಯ್ದೆ 2023 ಕ್ಕೆ ಬದ್ಧವಾಗಿ SolaceSquad (ಡೇಟಾ ಫಿಡ್ಯೂಷಿಯರಿ) ನಿಮ್ಮ ಡೇಟಾವನ್ನು ಸಂಗ್ರಹಿಸುತ್ತದೆ.",
+            lbl_cats: "1. ಸಂಗ್ರಹಿಸಿದ ಡೇಟಾ:",
+            val_cats: "ಹೆಸರು, ಇಮೇಲ್, ಮೊಬೈಲ್ ಸಂಖ್ಯೆ, ಮತ್ತು ಸಮಾಲೋಚನೆ ಟಿಪ್ಪಣಿಗಳು.",
+            lbl_purp: "2. ಉದ್ದೇಶ:",
+            val_purp: "ಆನ್‌ಲೈನ್ ಸಮಾಲೋಚನೆಗಳನ್ನು ನಿಗದಿಪಡಿಸಲು, ಪರಿಶೀಲಿಸಲು ಮತ್ತು ನಡೆಸಲು.",
+            lbl_rights: "3. ನಿಮ್ಮ ಹಕ್ಕುಗಳು:",
+            val_rights: "ನಿಮ್ಮ ಸೆಟ್ಟಿಂಗ್‌ಗಳ ಮೂಲಕ ಡೇಟಾ ಪ್ರವೇಶಿಸಲು, ತಿದ್ದಲು, ಒಪ್ಪಿಗೆ ಹಿಂಪಡೆಯಲು ಮತ್ತು ಅಳಿಸಲು ಹಕ್ಕಿದೆ.",
+            lbl_griev: "4. ಕುಂದುಕೊರತೆಗಳು:",
+            val_griev: "ಯಾವುದೇ ಡೇಟಾ ಕಾಳಜಿಗಳಿಗಾಗಿ grievance@solacesquad.com ಅನ್ನು ಸಂಪರ್ಕಿಸಿ."
+        },
+        ta: {
+            header: "தனியுரிமை மற்றும் ஒப்புதல் அறிவிப்பு (DPDPA 2023)",
+            desc: "இந்தியாவின் DPDP சட்டம் 2023-ன் படி SolaceSquad (தரவு எஜமானர்) உங்கள் தரவைச் சேகரிக்கிறது.",
+            lbl_cats: "1. சேகரிக்கப்பட்ட தரவு:",
+            val_cats: "பெயர், மின்னஞ்சல், மொபைல் எண் மற்றும் ஆலோசனை குறிப்புகள்.",
+            lbl_purp: "2. நோக்கம்:",
+            val_purp: "ஆன்லைன் ஆலோசனை அமர்வுகளை திட்டமிட, சரிபார்க்க மற்றும் நடத்த.",
+            lbl_rights: "3. உங்கள் உரிமைகள்:",
+            val_rights: "உங்கள் அமைப்புகள் பக்கம் வழியாக தரவை அணுக, திருத்த, ஒப்புதலைத் திரும்பப் பெற மற்றும் அழிக்க உரிமை உண்டு.",
+            lbl_griev: "4. குறைதீர்க்கும் அதிகாரி:",
+            val_griev: "தரவு தொடர்பான புகார்களுக்கு grievance@solacesquad.com ஐத் தொடர்பு கொள்ளவும்."
+        }
+    };
+
+    let dpdpaNoticeOpen = true;
+    function toggleDpdpaNotice() {
+        const content = document.getElementById('dpdpa-content');
+        const chevron = document.getElementById('dpdpa-chevron');
+        dpdpaNoticeOpen = !dpdpaNoticeOpen;
+        content.style.display = dpdpaNoticeOpen ? 'block' : 'none';
+        chevron.style.transform = dpdpaNoticeOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+    }
+
+    function translateDpdpaNotice(lang) {
+        const trans = dpdpaNoticeTranslations[lang] || dpdpaNoticeTranslations.en;
+        document.getElementById('dpdpa-header-title').textContent = trans.header;
+        document.getElementById('dpdpa-desc').textContent = trans.desc;
+        document.getElementById('dpdpa-lbl-cats').textContent = trans.lbl_cats;
+        document.getElementById('dpdpa-val-cats').textContent = trans.val_cats;
+        document.getElementById('dpdpa-lbl-purp').textContent = trans.lbl_purp;
+        document.getElementById('dpdpa-val-purp').textContent = trans.val_purp;
+        document.getElementById('dpdpa-lbl-rights').textContent = trans.lbl_rights;
+        document.getElementById('dpdpa-val-rights').textContent = trans.val_rights;
+        document.getElementById('dpdpa-lbl-griev').textContent = trans.lbl_griev;
+        document.getElementById('dpdpa-val-griev').textContent = trans.val_griev;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        translateDpdpaNotice('en');
+    });
+</script>
 {% endblock %}

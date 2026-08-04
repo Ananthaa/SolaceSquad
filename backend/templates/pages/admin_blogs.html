@@ -1,0 +1,800 @@
+{% extends "base.html" %}
+{% block title %}Blog Studio — SolaceSquad Admin{% endblock %}
+
+{% block content %}
+<!-- Admin Nav Bar -->
+<nav style="position:fixed;top:0;left:0;right:0;z-index:9999;height:56px;
+            background:linear-gradient(90deg,#0f766e,#0d9488);
+            display:flex;align-items:center;justify-content:space-between;
+            padding:0 20px;box-shadow:0 2px 12px rgba(0,0,0,0.15);">
+  <div style="display:flex;align-items:center;gap:16px;">
+    <a href="/admin" style="display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.85);
+       text-decoration:none;font-size:0.875rem;font-weight:500;
+       padding:6px 12px;border-radius:8px;background:rgba(255,255,255,0.12);
+       transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.22)'"
+       onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+      &#8592; Admin Dashboard
+    </a>
+    <span style="color:rgba(255,255,255,0.3);">|</span>
+    <span style="color:#fff;font-weight:700;font-size:0.95rem;">&#x270D;&#xFE0F; Blog Studio</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="/blog" target="_blank" style="color:rgba(255,255,255,0.7);font-size:0.8rem;
+       text-decoration:none;padding:5px 12px;border:1px solid rgba(255,255,255,0.25);
+       border-radius:6px;transition:all 0.2s;" onmouseover="this.style.borderColor='rgba(255,255,255,0.6)';this.style.color='#fff'"
+       onmouseout="this.style.borderColor='rgba(255,255,255,0.25)';this.style.color='rgba(255,255,255,0.7)'">
+      &#128065; View Blog
+    </a>
+  </div>
+</nav>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+
+  :root {
+    --teal: #0d9488;
+    --teal-light: #ccfbf1;
+    --teal-dark: #0f766e;
+    --slate: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --ai-purple: #7c3aed;
+    --ai-purple-light: #ede9fe;
+  }
+
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); }
+
+  /* ── Layout ── */
+  .studio-wrap {
+    display: grid;
+    grid-template-columns: 280px 1fr 360px;
+    height: calc(100vh - 56px);
+    margin-top: 56px;
+    overflow: hidden;
+  }
+
+  /* ── Left: Post List ── */
+  .post-list-panel {
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 20px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    sticky: top;
+  }
+  .panel-header h2 { font-size: 1rem; font-weight: 700; color: var(--slate); margin: 0 0 12px; }
+  .btn-new-post {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--teal); color: #fff;
+    border: none; border-radius: 10px;
+    font-size: 0.875rem; font-weight: 600; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-new-post:hover { background: var(--teal-dark); }
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .search-box input { border: none; background: transparent; outline: none; font-size: 0.875rem; flex: 1; color: var(--slate); }
+  .post-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .post-item {
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: background 0.15s;
+    border: 2px solid transparent;
+  }
+  .post-item:hover { background: var(--bg); }
+  .post-item.active { background: var(--teal-light); border-color: var(--teal); }
+  .post-item-title { font-size: 0.875rem; font-weight: 600; color: var(--slate); margin-bottom: 4px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .post-item-meta { display: flex; gap: 8px; align-items: center; }
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; border-radius: 20px;
+    font-size: 0.7rem; font-weight: 600;
+  }
+  .badge-published { background: #dcfce7; color: #15803d; }
+  .badge-draft { background: #fef9c3; color: #854d0e; }
+  .post-item-date { font-size: 0.7rem; color: var(--muted); }
+  .filter-tabs { display: flex; gap: 4px; padding: 8px; border-bottom: 1px solid var(--border); }
+  .filter-tab { padding: 5px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--muted); transition: all 0.15s; }
+  .filter-tab.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+
+  /* ── Centre: Editor ── */
+  .editor-panel {
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .editor-toolbar {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+  }
+  .editor-toolbar .meta-row {
+    display: flex; gap: 12px; flex: 1; align-items: center; flex-wrap: wrap;
+  }
+  .meta-input {
+    padding: 7px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 0.875rem; color: var(--slate);
+    background: var(--bg); outline: none; transition: border-color 0.2s;
+  }
+  .meta-input:focus { border-color: var(--teal); }
+  .editor-actions { display: flex; gap: 8px; }
+  .btn-save { padding: 8px 18px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--muted); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+  .btn-save:hover { border-color: var(--teal); color: var(--teal); }
+  .btn-publish { padding: 8px 18px; border: none; border-radius: 8px; background: var(--teal); color: #fff; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+  .btn-publish:hover { background: var(--teal-dark); }
+  .btn-publish.unpublish { background: #dc2626; }
+  .btn-publish.unpublish:hover { background: #b91c1c; }
+  .btn-delete { padding: 8px 14px; border: 1px solid #fecaca; border-radius: 8px; background: #fff5f5; color: #dc2626; font-size: 0.875rem; cursor: pointer; }
+
+  .editor-main { flex: 1; overflow-y: auto; padding: 24px; background: var(--bg); }
+  .editor-field-label { font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .title-input {
+    width: 100%; border: none; border-bottom: 2px solid var(--border);
+    font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700;
+    color: var(--slate); background: transparent; outline: none; padding: 0 0 8px;
+    margin-bottom: 20px; transition: border-color 0.2s;
+  }
+  .title-input:focus { border-color: var(--teal); }
+  .excerpt-input {
+    width: 100%; min-height: 60px; resize: vertical;
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; font-size: 0.9rem; color: var(--slate);
+    background: var(--card); outline: none; margin-bottom: 16px;
+    font-family: 'Inter', sans-serif; line-height: 1.6;
+  }
+  .excerpt-input:focus { border-color: var(--teal); }
+
+  /* Rich text toolbar */
+  .rich-toolbar {
+    display: flex; gap: 4px; flex-wrap: wrap;
+    padding: 8px 12px; background: var(--card);
+    border: 1px solid var(--border); border-bottom: none;
+    border-radius: 10px 10px 0 0;
+  }
+  .rich-btn {
+    padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px;
+    background: transparent; cursor: pointer; font-size: 0.8rem; font-weight: 600;
+    color: var(--slate); transition: all 0.15s;
+  }
+  .rich-btn:hover { background: var(--teal-light); border-color: var(--teal); color: var(--teal); }
+  .rich-editor {
+    min-height: 420px; max-height: 520px; overflow-y: auto;
+    border: 1px solid var(--border); border-radius: 0 0 10px 10px;
+    padding: 16px; background: var(--card);
+    font-size: 0.95rem; line-height: 1.8; color: var(--slate);
+    outline: none;
+  }
+  .rich-editor h2 { font-size: 1.4rem; font-weight: 700; color: var(--slate); margin: 20px 0 8px; }
+  .rich-editor h3 { font-size: 1.15rem; font-weight: 600; color: var(--slate); margin: 16px 0 6px; }
+  .rich-editor blockquote { border-left: 4px solid var(--teal); padding: 8px 16px; margin: 16px 0; color: var(--muted); font-style: italic; background: var(--teal-light); border-radius: 0 8px 8px 0; }
+  .rich-editor ul, .rich-editor ol { padding-left: 20px; margin: 12px 0; }
+  .rich-editor p { margin: 0 0 12px; }
+
+  /* Cover + extras */
+  .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .cover-preview { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; margin-top: 8px; display: none; }
+  .tag-input-wrap { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; background: var(--card); min-height: 42px; cursor: text; }
+  .tag-pill { display: flex; align-items: center; gap: 4px; padding: 3px 10px; background: var(--teal-light); color: var(--teal-dark); border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+  .tag-pill button { background: none; border: none; cursor: pointer; color: var(--teal-dark); font-size: 0.9rem; padding: 0; line-height: 1; }
+  .tag-input-box { border: none; outline: none; font-size: 0.875rem; min-width: 80px; flex: 1; background: transparent; }
+  .view-tag { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); }
+  .view-count-badge { font-weight: 700; color: var(--slate); }
+
+  /* ── Right: AI Panel ── */
+  .ai-panel {
+    background: linear-gradient(180deg, #1e1b4b 0%, #312e81 100%);
+    display: flex; flex-direction: column; overflow: hidden;
+    border-left: 1px solid #3730a3;
+  }
+  .ai-header {
+    padding: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .ai-header h3 { font-size: 0.95rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; margin: 0 0 4px; }
+  .ai-header p { font-size: 0.78rem; color: rgba(255,255,255,0.6); margin: 0; }
+  .ai-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  .ai-btn-group { display: flex; flex-direction: column; gap: 8px; }
+  .ai-btn {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px; cursor: pointer; color: #fff;
+    font-size: 0.875rem; font-weight: 500; transition: all 0.2s;
+    text-align: left;
+  }
+  .ai-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
+  .ai-btn-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+  .ai-topic-section { }
+  .ai-label { font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .ai-textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px; background: rgba(255,255,255,0.07); color: #fff;
+    font-size: 0.875rem; resize: vertical; min-height: 70px; outline: none;
+    font-family: 'Inter', sans-serif; transition: border-color 0.2s;
+  }
+  .ai-textarea:focus { border-color: #a78bfa; }
+  .ai-textarea::placeholder { color: rgba(255,255,255,0.35); }
+
+  .ai-response-box {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 14px; min-height: 80px;
+    font-size: 0.83rem; color: rgba(255,255,255,0.85); line-height: 1.6;
+    display: none;
+    max-height: 220px; overflow-y: auto;
+  }
+  .ai-response-box.visible { display: block; }
+
+  .ai-loading {
+    display: none; align-items: center; gap: 8px;
+    color: rgba(255,255,255,0.6); font-size: 0.83rem; padding: 8px 0;
+  }
+  .ai-loading.visible { display: flex; }
+  .ai-spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: #a78bfa; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ai-apply-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .ai-apply-btn { padding: 6px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+  .ai-apply-full { background: #7c3aed; color: #fff; }
+  .ai-apply-full:hover { background: #6d28d9; }
+  .ai-apply-insert { background: rgba(255,255,255,0.15); color: #fff; }
+  .ai-apply-insert:hover { background: rgba(255,255,255,0.25); }
+
+  .divider { border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 8px 0; }
+
+  /* ── Empty state ── */
+  .no-post-selected {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: var(--muted); gap: 12px;
+  }
+  .no-post-icon { font-size: 3rem; opacity: 0.3; }
+
+  /* Toast */
+  #toast {
+    position: fixed; top: 90px; right: 24px; z-index: 9999;
+    padding: 12px 20px; border-radius: 10px;
+    font-size: 0.875rem; font-weight: 500; color: #fff;
+    transform: translateY(-20px) scale(0.95); opacity: 0;
+    transition: all 0.3s; pointer-events: none;
+  }
+  #toast.show { transform: translateY(0) scale(1); opacity: 1; }
+  #toast.success { background: var(--teal); }
+  #toast.error { background: #dc2626; }
+
+  @media (max-width: 1100px) {
+    .studio-wrap { grid-template-columns: 240px 1fr; }
+    .ai-panel { display: none; }
+  }
+  @media (max-width: 768px) {
+    .studio-wrap { grid-template-columns: 1fr; height: auto; }
+    .post-list-panel { max-height: 250px; }
+  }
+</style>
+
+<div id="toast"></div>
+
+<div class="studio-wrap">
+  <!-- ── LEFT: Post List ───────────────────────────────── -->
+  <section class="post-list-panel">
+    <div class="panel-header">
+      <h2>✍️ Blog Studio</h2>
+      <button class="btn-new-post" onclick="newPost()">
+        <span style="font-size:1.1rem;">+</span> New Post
+      </button>
+      <div class="search-box">
+        <span>🔍</span>
+        <input type="text" id="searchInput" placeholder="Search posts..." oninput="filterPosts()">
+      </div>
+    </div>
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="setFilter('all', this)">All</button>
+      <button class="filter-tab" onclick="setFilter('published', this)">Published</button>
+      <button class="filter-tab" onclick="setFilter('draft', this)">Drafts</button>
+    </div>
+    <div class="post-list" id="postList">
+      <div style="padding:24px;text-align:center;color:var(--muted);font-size:0.85rem;">Loading posts…</div>
+    </div>
+  </section>
+
+  <!-- ── CENTRE: Editor ───────────────────────────────── -->
+  <section class="editor-panel" id="editorPanel">
+    <div id="noPostMsg" class="no-post-selected" style="flex:1;display:flex;">
+      <div class="no-post-icon">📝</div>
+      <div style="font-weight:600;font-size:1rem;color:var(--slate);">Select a post or create a new one</div>
+      <div style="font-size:0.85rem;">Use the AI assistant to help you write</div>
+    </div>
+
+    <div id="editorContent" style="display:none;height:100%;flex-direction:column;overflow:hidden;">
+      <!-- Toolbar -->
+      <div class="editor-toolbar">
+        <div class="meta-row">
+          <select id="catSelect" class="meta-input" onchange="markDirty()">
+            <option value="General">General</option>
+            <option value="Mental">Mental Wellness</option>
+            <option value="Physical">Physical Wellness</option>
+            <option value="Professional">Professional Wellness</option>
+          </select>
+          <span class="view-tag" id="viewTag" style="display:none;">
+            👁 <span class="view-count-badge" id="viewCount">0</span> views
+          </span>
+          <span id="statusBadge" class="badge badge-draft">Draft</span>
+        </div>
+        <div class="editor-actions">
+          <button class="btn-save" onclick="savePost()">💾 Save</button>
+          {% if user_type != 'admin_assistant' %}
+          <button class="btn-publish" id="publishBtn" onclick="togglePublish()">🚀 Publish</button>
+          <button class="btn-delete" onclick="deletePost()" title="Delete post">🗑</button>
+          {% else %}
+          <span title="Only Admins can publish" style="font-size:0.78rem;color:#9ca3af;padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;cursor:not-allowed;display:inline-flex;align-items:center;gap:5px;">🔒 Publish (Admin Only)</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Main editing area -->
+      <div class="editor-main">
+        <div class="editor-field-label">Title</div>
+        <input type="text" id="titleInput" class="title-input" placeholder="Your compelling blog title…" oninput="markDirty()">
+
+        <div class="editor-field-label">Excerpt (2-sentence teaser shown on cards)</div>
+        <textarea id="excerptInput" class="excerpt-input" placeholder="A brief, engaging teaser that makes readers click…" oninput="markDirty()"></textarea>
+
+        <div class="editor-field-label">Content</div>
+        <div class="rich-toolbar">
+          <button class="rich-btn" onclick="fmt('bold')"><strong>B</strong></button>
+          <button class="rich-btn" onclick="fmt('italic')"><em>I</em></button>
+          <button class="rich-btn" onclick="fmt('underline')"><u>U</u></button>
+          <button class="rich-btn" onclick="fmtBlock('h2')">H2</button>
+          <button class="rich-btn" onclick="fmtBlock('h3')">H3</button>
+          <button class="rich-btn" onclick="fmt('insertUnorderedList')">• List</button>
+          <button class="rich-btn" onclick="fmt('insertOrderedList')">1. List</button>
+          <button class="rich-btn" onclick="fmtBlock('blockquote')">" Quote</button>
+          <button class="rich-btn" onclick="insertLink()">🔗 Link</button>
+          <button class="rich-btn" onclick="fmt('removeFormat')">✕ Clear</button>
+        </div>
+        <div id="richEditor" class="rich-editor" contenteditable="true" oninput="markDirty()"
+             data-placeholder="Start writing your wellness article here…"></div>
+
+        <div class="fields-grid">
+          <div>
+            <div class="editor-field-label" style="margin-top:14px;">Cover Image URL</div>
+            <input type="url" id="coverInput" class="meta-input" style="width:100%" placeholder="https://images.unsplash.com/…" oninput="previewCover()">
+            <img id="coverPreview" class="cover-preview" alt="Cover preview">
+          </div>
+          <div>
+            <div class="editor-field-label" style="margin-top:14px;">Author Name</div>
+            <input type="text" id="authorInput" class="meta-input" style="width:100%;margin-bottom:10px" value="SolaceSquad Team" oninput="markDirty()">
+            <div class="editor-field-label">Tags (press Enter to add)</div>
+            <div class="tag-input-wrap" id="tagWrap" onclick="document.getElementById('tagBox').focus()">
+              <input id="tagBox" class="tag-input-box" placeholder="Add tag…" onkeydown="handleTagKey(event)">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── RIGHT: AI Panel ──────────────────────────────── -->
+  <section class="ai-panel">
+    <div class="ai-header">
+      <h3>✨ AI Writing Assistant</h3>
+      <p>Powered by Gemini — your wellness content co-pilot</p>
+    </div>
+    <div class="ai-body">
+
+      <div class="ai-topic-section">
+        <div class="ai-label">Blog Topic / Prompt</div>
+        <textarea id="aiTopic" class="ai-textarea" placeholder="e.g. Managing work stress with mindfulness techniques…"></textarea>
+      </div>
+
+      <div class="ai-btn-group">
+        <button class="ai-btn" onclick="aiAssist('generate_draft')">
+          <span class="ai-btn-icon">🚀</span>
+          <div>
+            <div style="font-weight:600;">Generate Full Draft</div>
+            <div style="font-size:0.75rem;opacity:0.6;">Title + excerpt + full article</div>
+          </div>
+        </button>
+        <button class="ai-btn" onclick="aiAssist('write_intro')">
+          <span class="ai-btn-icon">✍️</span>
+          <div>
+            <div style="font-weight:600;">Write Introduction</div>
+            <div style="font-size:0.75rem;opacity:0.6;">Compelling opening paragraph</div>
+          </div>
+        </button>
+        <button class="ai-btn" onclick="aiAssist('improve')">
+          <span class="ai-btn-icon">✨</span>
+          <div>
+            <div style="font-weight:600;">Improve Content</div>
+            <div style="font-size:0.75rem;opacity:0.6;">Polish existing content</div>
+          </div>
+        </button>
+        <button class="ai-btn" onclick="aiAssist('suggest_tags')">
+          <span class="ai-btn-icon">🏷️</span>
+          <div>
+            <div style="font-weight:600;">Suggest Tags</div>
+            <div style="font-size:0.75rem;opacity:0.6;">Relevant topic tags</div>
+          </div>
+        </button>
+        <button class="ai-btn" onclick="aiAssist('suggest_title')">
+          <span class="ai-btn-icon">💡</span>
+          <div>
+            <div style="font-weight:600;">Suggest Titles</div>
+            <div style="font-size:0.75rem;opacity:0.6;">5 click-worthy titles</div>
+          </div>
+        </button>
+      </div>
+
+      <hr class="divider">
+
+      <div class="ai-loading" id="aiLoading">
+        <div class="ai-spinner"></div>
+        <span>Gemini is thinking…</span>
+      </div>
+
+      <div class="ai-response-box" id="aiResponseBox"></div>
+      <div class="ai-apply-btns" id="aiApplyBtns" style="display:none"></div>
+
+    </div>
+  </section>
+</div>
+
+<script>
+  let posts = [];
+  let currentPost = null;
+  let isDirty = false;
+  let filterMode = 'all';
+  let tags = [];
+  let lastAiResult = null;
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadPosts();
+    // Placeholder for empty editor
+    const ed = document.getElementById('richEditor');
+    ed.addEventListener('focus', () => { if (!ed.textContent.trim()) ed.innerHTML = ''; });
+  });
+
+  async function loadPosts() {
+    try {
+      const r = await fetch('/api/admin/blogs');
+      const d = await r.json();
+      posts = d.posts || [];
+      renderPostList();
+    } catch(e) { showToast('Failed to load posts', 'error'); }
+  }
+
+  function renderPostList() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const list = document.getElementById('postList');
+    let filtered = posts.filter(p => {
+      if (filterMode !== 'all' && p.status !== filterMode) return false;
+      if (q && !p.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    if (!filtered.length) {
+      list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--muted);font-size:0.85rem;">No posts found</div>`;
+      return;
+    }
+    list.innerHTML = filtered.map(p => `
+      <div class="post-item${currentPost && currentPost.id === p.id ? ' active' : ''}" onclick="selectPost(${p.id})">
+        <div class="post-item-title">${escHtml(p.title) || '(Untitled)'}</div>
+        <div class="post-item-meta">
+          <span class="badge badge-${p.status}">${p.status === 'published' ? '● Published' : '○ Draft'}</span>
+          <span class="post-item-date">${p.category}</span>
+        </div>
+      </div>`).join('');
+  }
+
+  function setFilter(mode, btn) {
+    filterMode = mode;
+    document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderPostList();
+  }
+
+  function filterPosts() { renderPostList(); }
+
+  // ── Post CRUD ─────────────────────────────────────────────────────────────
+
+  function newPost() {
+    currentPost = { id: null, title: '', excerpt: '', content: '', cover_image_url: '', category: 'General', tags: [], author_name: 'SolaceSquad Team', status: 'draft', view_count: 0 };
+    loadEditor(currentPost);
+    isDirty = false;
+    document.getElementById('aiTopic').value = '';
+  }
+
+  function selectPost(id) {
+    if (isDirty && !confirm('You have unsaved changes. Discard?')) return;
+    const p = posts.find(x => x.id === id);
+    if (!p) return;
+    currentPost = { ...p };
+    loadEditor(p);
+    isDirty = false;
+    renderPostList();
+  }
+
+  function loadEditor(p) {
+    document.getElementById('noPostMsg').style.display = 'none';
+    const ec = document.getElementById('editorContent');
+    ec.style.display = 'flex';
+
+    document.getElementById('titleInput').value = p.title || '';
+    document.getElementById('excerptInput').value = p.excerpt || '';
+    document.getElementById('richEditor').innerHTML = p.content || '';
+    document.getElementById('coverInput').value = p.cover_image_url || '';
+    document.getElementById('catSelect').value = p.category || 'General';
+    document.getElementById('authorInput').value = p.author_name || 'SolaceSquad Team';
+
+    tags = Array.isArray(p.tags) ? [...p.tags] : [];
+    renderTags();
+    previewCover();
+
+    const pub = p.status === 'published';
+    document.getElementById('statusBadge').className = `badge badge-${p.status}`;
+    document.getElementById('statusBadge').textContent = pub ? 'Published' : 'Draft';
+    document.getElementById('publishBtn').textContent = pub ? '📴 Unpublish' : '🚀 Publish';
+    document.getElementById('publishBtn').className = `btn-publish${pub ? ' unpublish' : ''}`;
+
+    const views = p.view_count || 0;
+    document.getElementById('viewTag').style.display = p.id ? 'flex' : 'none';
+    document.getElementById('viewCount').textContent = views;
+  }
+
+  function markDirty() { isDirty = true; }
+
+  function collectData() {
+    return {
+      title: document.getElementById('titleInput').value.trim(),
+      excerpt: document.getElementById('excerptInput').value.trim(),
+      content: document.getElementById('richEditor').innerHTML,
+      cover_image_url: document.getElementById('coverInput').value.trim(),
+      category: document.getElementById('catSelect').value,
+      author_name: document.getElementById('authorInput').value.trim(),
+      tags: tags,
+    };
+  }
+
+  async function savePost() {
+    const data = collectData();
+    if (!data.title) { showToast('Please add a title', 'error'); return; }
+    try {
+      let r, d;
+      if (currentPost && currentPost.id) {
+        r = await fetch(`/api/admin/blogs/${currentPost.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      } else {
+        r = await fetch('/api/admin/blogs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      }
+      d = await r.json();
+      if (!d.success) throw new Error(d.error);
+      currentPost = { ...d.post, tags: d.post.tags || [] };
+      const idx = posts.findIndex(x => x.id === currentPost.id);
+      if (idx >= 0) posts[idx] = currentPost; else posts.unshift(currentPost);
+      renderPostList();
+      isDirty = false;
+      showToast('Post saved!', 'success');
+      document.getElementById('viewTag').style.display = 'flex';
+    } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+  }
+
+  async function togglePublish() {
+    if (!currentPost || !currentPost.id) { showToast('Save the post first', 'error'); return; }
+    try {
+      const r = await fetch(`/api/admin/blogs/${currentPost.id}/publish`, { method: 'POST' });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error);
+      currentPost = { ...d.post, tags: d.post.tags || [] };
+      const idx = posts.findIndex(x => x.id === currentPost.id);
+      if (idx >= 0) posts[idx] = currentPost;
+      loadEditor(currentPost);
+      renderPostList();
+      showToast(currentPost.status === 'published' ? 'Post published! 🎉' : 'Post unpublished', 'success');
+    } catch(e) { showToast('Publish failed: ' + e.message, 'error'); }
+  }
+
+  async function deletePost() {
+    if (!currentPost || !currentPost.id) return;
+    if (!confirm(`Delete "${currentPost.title}"? This cannot be undone.`)) return;
+    try {
+      const r = await fetch(`/api/admin/blogs/${currentPost.id}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error);
+      posts = posts.filter(x => x.id !== currentPost.id);
+      currentPost = null;
+      document.getElementById('editorContent').style.display = 'none';
+      document.getElementById('noPostMsg').style.display = 'flex';
+      renderPostList();
+      showToast('Post deleted', 'success');
+    } catch(e) { showToast('Delete failed: ' + e.message, 'error'); }
+  }
+
+  // ── Rich Editor ───────────────────────────────────────────────────────────
+
+  function fmt(cmd) {
+    document.getElementById('richEditor').focus();
+    document.execCommand(cmd, false, null);
+    markDirty();
+  }
+  function fmtBlock(tag) {
+    document.getElementById('richEditor').focus();
+    document.execCommand('formatBlock', false, tag);
+    markDirty();
+  }
+  function insertLink() {
+    const url = prompt('Enter URL:');
+    if (url) { document.getElementById('richEditor').focus(); document.execCommand('createLink', false, url); markDirty(); }
+  }
+
+  // ── Tags ──────────────────────────────────────────────────────────────────
+
+  function handleTagKey(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const val = e.target.value.trim().toLowerCase().replace(/,/g, '');
+      if (val && !tags.includes(val)) { tags.push(val); renderTags(); markDirty(); }
+      e.target.value = '';
+    }
+  }
+  function removeTag(t) { tags = tags.filter(x => x !== t); renderTags(); markDirty(); }
+  function renderTags() {
+    const wrap = document.getElementById('tagWrap');
+    const box = document.getElementById('tagBox');
+    const pills = tags.map(t => `<span class="tag-pill">#${t}<button type="button" onclick="removeTag('${t}')">×</button></span>`).join('');
+    wrap.innerHTML = pills;
+    wrap.appendChild(box);
+  }
+  function setTags(arr) { tags = arr; renderTags(); markDirty(); }
+
+  // ── Cover ─────────────────────────────────────────────────────────────────
+
+  function previewCover() {
+    const url = document.getElementById('coverInput').value.trim();
+    const img = document.getElementById('coverPreview');
+    if (url) { img.src = url; img.style.display = 'block'; } else { img.style.display = 'none'; }
+    markDirty();
+  }
+
+  // ── AI Assistant ──────────────────────────────────────────────────────────
+
+  async function aiAssist(action) {
+    const topic = document.getElementById('aiTopic').value.trim();
+    const existing = document.getElementById('richEditor').innerHTML;
+    const cat = document.getElementById('catSelect').value;
+
+    if (action === 'generate_draft' && !topic) { showToast('Enter a topic first', 'error'); return; }
+
+    document.getElementById('aiLoading').classList.add('visible');
+    document.getElementById('aiResponseBox').classList.remove('visible');
+    document.getElementById('aiApplyBtns').style.display = 'none';
+
+    try {
+      const r = await fetch('/api/admin/blogs/ai-assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, topic, existing_content: existing, category: cat }),
+      });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error);
+
+      lastAiResult = d.result;
+      const box = document.getElementById('aiResponseBox');
+      const applyBtns = document.getElementById('aiApplyBtns');
+      box.classList.add('visible');
+      applyBtns.style.display = 'flex';
+
+      if (action === 'generate_draft') {
+        box.innerHTML = `<strong style="color:#c4b5fd;">✨ Draft Generated</strong><br><br>
+          <strong>Title:</strong> ${escHtml(d.result.title || '')}<br><br>
+          <strong>Excerpt:</strong> ${escHtml(d.result.excerpt || '')}<br><br>
+          <strong>Tags:</strong> ${(d.result.tags || []).join(', ')}`;
+        applyBtns.innerHTML = `
+          <button class="ai-apply-btn ai-apply-full" onclick="applyDraft()">Apply Full Draft</button>
+          <button class="ai-apply-btn ai-apply-insert" onclick="applyContent()">Content Only</button>`;
+
+      } else if (action === 'improve') {
+        box.textContent = 'Improved content ready to apply.';
+        applyBtns.innerHTML = `<button class="ai-apply-btn ai-apply-full" onclick="applyImproved()">Apply Improved Content</button>`;
+
+      } else if (action === 'suggest_tags') {
+        box.innerHTML = `<strong style="color:#c4b5fd;">Suggested Tags:</strong><br><br>${(d.result.tags || []).map(t => `#${t}`).join('  ·  ')}`;
+        applyBtns.innerHTML = `<button class="ai-apply-btn ai-apply-full" onclick="applyTags()">Add These Tags</button>`;
+
+      } else if (action === 'write_intro') {
+        box.innerHTML = `<strong style="color:#c4b5fd;">Introduction:</strong><br><br><div style="font-size:0.8rem;opacity:0.8;">${d.result.intro || ''}</div>`;
+        applyBtns.innerHTML = `
+          <button class="ai-apply-btn ai-apply-full" onclick="insertIntro()">Insert Into Editor</button>`;
+
+      } else if (action === 'suggest_title') {
+        const titles = d.result.titles || [];
+        box.innerHTML = `<strong style="color:#c4b5fd;">Title Suggestions:</strong><br><br>` +
+          titles.map((t, i) => `<div onclick="useTitle('${escHtml(t).replace(/'/g,"\\'")}',this)" style="cursor:pointer;padding:6px 8px;border-radius:6px;margin-bottom:4px;transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='transparent'">${i+1}. ${escHtml(t)}</div>`).join('');
+        applyBtns.innerHTML = '';
+      }
+
+    } catch(e) {
+      const box = document.getElementById('aiResponseBox');
+      box.classList.add('visible');
+      box.innerHTML = `<span style="color:#fca5a5;">Error: ${escHtml(e.message)}</span>`;
+    } finally {
+      document.getElementById('aiLoading').classList.remove('visible');
+    }
+  }
+
+  function applyDraft() {
+    if (!lastAiResult) return;
+    document.getElementById('titleInput').value = lastAiResult.title || '';
+    document.getElementById('excerptInput').value = lastAiResult.excerpt || '';
+    document.getElementById('richEditor').innerHTML = lastAiResult.content || '';
+    if (lastAiResult.tags) setTags(lastAiResult.tags);
+    markDirty();
+    showToast('Full draft applied! ✨', 'success');
+  }
+  function applyContent() {
+    if (!lastAiResult) return;
+    document.getElementById('richEditor').innerHTML = lastAiResult.content || '';
+    markDirty();
+    showToast('Content applied', 'success');
+  }
+  function applyImproved() {
+    if (!lastAiResult) return;
+    document.getElementById('richEditor').innerHTML = lastAiResult.content || '';
+    if (lastAiResult.excerpt) document.getElementById('excerptInput').value = lastAiResult.excerpt;
+    markDirty();
+    showToast('Content improved! ✨', 'success');
+  }
+  function applyTags() {
+    if (!lastAiResult || !lastAiResult.tags) return;
+    const newTags = lastAiResult.tags.filter(t => !tags.includes(t));
+    tags = [...tags, ...newTags];
+    renderTags();
+    markDirty();
+    showToast('Tags added!', 'success');
+  }
+  function insertIntro() {
+    if (!lastAiResult) return;
+    const ed = document.getElementById('richEditor');
+    ed.innerHTML = (lastAiResult.intro || '') + ed.innerHTML;
+    markDirty();
+    showToast('Introduction inserted', 'success');
+  }
+  function useTitle(t, el) {
+    document.getElementById('titleInput').value = t;
+    el.style.background = 'rgba(124,58,237,0.3)';
+    markDirty();
+    showToast('Title applied!', 'success');
+  }
+
+  // ── Utils ─────────────────────────────────────────────────────────────────
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  let toastTimer;
+  function showToast(msg, type='success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.className = '', 3000);
+  }
+</script>
+
+{% endblock %}

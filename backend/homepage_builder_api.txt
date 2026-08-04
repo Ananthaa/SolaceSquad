@@ -1,0 +1,203 @@
+"""
+Home Page Builder API Endpoints
+Add these to main.py before the "if __name__ == '__main__':" line
+"""
+
+# ============================================================================
+# HOME PAGE BUILDER API
+# ============================================================================
+
+@app.get("/admin/homepage-builder")
+async def homepage_builder_page(request: Request, db: Session = Depends(get_db)):
+    """Render the homepage builder admin interface"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "consultant":  # Only admins/consultants
+        return RedirectResponse(url="/dashboard", status_code=303)
+    
+    return templates.TemplateResponse("admin/homepage_builder.html", {
+        "request": request,
+        "user": user
+    })
+
+
+@app.get("/api/homepage/sections")
+async def get_homepage_sections(
+    request: Request,
+    db: Session = Depends(get_db),
+    published_only: bool = False
+):
+    """Get all homepage sections"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"success": False, "error": "Unauthorized"}
+    
+    query = db.query(HomePageSection)
+    if published_only:
+        query = query.filter(HomePageSection.is_published == True)
+    
+    sections = query.order_by(HomePageSection.order_index).all()
+    
+    return {
+        "success": True,
+        "sections": [
+            {
+                "id": s.id,
+                "title": s.title,
+                "html_content": s.html_content,
+                "css_content": s.css_content,
+                "order_index": s.order_index,
+                "is_published": s.is_published,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "updated_at": s.updated_at.isoformat() if s.updated_at else None
+            }
+            for s in sections
+        ]
+    }
+
+
+@app.post("/api/homepage/sections")
+async def create_homepage_section(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Create a new homepage section"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"success": False, "error": "Unauthorized"}
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "consultant":
+        return {"success": False, "error": "Admin access required"}
+    
+    try:
+        data = await request.json()
+        
+        # Get the highest order_index
+        max_order = db.query(func.max(HomePageSection.order_index)).scalar() or 0
+        
+        new_section = HomePageSection(
+            title=data.get("title", "New Section"),
+            html_content=data.get("html_content", "<div>New section content</div>"),
+            css_content=data.get("css_content", ""),
+            order_index=max_order + 1,
+            is_published=False,
+            created_by=user_id
+        )
+        
+        db.add(new_section)
+        db.commit()
+        db.refresh(new_section)
+        
+        return {
+            "success": True,
+            "section": {
+                "id": new_section.id,
+                "title": new_section.title,
+                "html_content": new_section.html_content,
+                "css_content": new_section.css_content,
+                "order_index": new_section.order_index,
+                "is_published": new_section.is_published
+            }
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.put("/api/homepage/sections/{section_id}")
+async def update_homepage_section(
+    section_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Update a homepage section"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"success": False, "error": "Unauthorized"}
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "consultant":
+        return {"success": False, "error": "Admin access required"}
+    
+    try:
+        section = db.query(HomePageSection).filter(HomePageSection.id == section_id).first()
+        if not section:
+            return {"success": False, "error": "Section not found"}
+        
+        data = await request.json()
+        
+        if "title" in data:
+            section.title = data["title"]
+        if "html_content" in data:
+            section.html_content = data["html_content"]
+        if "css_content" in data:
+            section.css_content = data["css_content"]
+        if "order_index" in data:
+            section.order_index = data["order_index"]
+        if "is_published" in data:
+            section.is_published = data["is_published"]
+        
+        section.updated_at = datetime.utcnow()
+        db.commit()
+        
+        return {"success": True, "message": "Section updated successfully"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.delete("/api/homepage/sections/{section_id}")
+async def delete_homepage_section(
+    section_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Delete a homepage section"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"success": False, "error": "Unauthorized"}
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "consultant":
+        return {"success": False, "error": "Admin access required"}
+    
+    try:
+        section = db.query(HomePageSection).filter(HomePageSection.id == section_id).first()
+        if not section:
+            return {"success": False, "error": "Section not found"}
+        
+        db.delete(section)
+        db.commit()
+        
+        return {"success": True, "message": "Section deleted successfully"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/homepage/sections/{section_id}/reorder")
+async def reorder_section(
+    section_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Reorder a section"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"success": False, "error": "Unauthorized"}
+    
+    try:
+        data = await request.json()
+        new_order = data.get("new_order")
+        
+        section = db.query(HomePageSection).filter(HomePageSection.id == section_id).first()
+        if not section:
+            return {"success": False, "error": "Section not found"}
+        
+        section.order_index = new_order
+        db.commit()
+        
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

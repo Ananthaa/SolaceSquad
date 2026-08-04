@@ -1,0 +1,484 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+
+<style>
+    /* ── Summary card ────────────────────────────────────────────── */
+    .summary-wrap {
+        max-width: 820px;
+        margin: 0 auto;
+    }
+
+    .summary-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 16px rgba(0, 0, 0, .08);
+        overflow: hidden;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    /* Header band */
+    .s-header {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        padding: 2rem 2.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1.75rem;
+        color: #fff;
+    }
+
+    .s-avatar {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, .4);
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .s-avatar-initials {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, .4);
+        background: rgba(255, 255, 255, .15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: 800;
+        flex-shrink: 0;
+    }
+
+    .s-title h1 {
+        font-size: 1.5rem;
+        font-weight: 800;
+        margin: 0 0 .25rem;
+    }
+
+    .s-title .s-spec {
+        font-size: .95rem;
+        opacity: .85;
+        margin: 0 0 .5rem;
+    }
+
+    .s-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem;
+        font-size: .75rem;
+    }
+
+    .s-badge {
+        background: rgba(255, 255, 255, .15);
+        border: 1px solid rgba(255, 255, 255, .25);
+        border-radius: 999px;
+        padding: .2rem .65rem;
+        font-weight: 600;
+    }
+
+    /* Body */
+    .s-body {
+        padding: 2rem 2.5rem;
+    }
+
+    .s-section {
+        margin-bottom: 1.75rem;
+    }
+
+    .s-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .s-label {
+        font-size: .65rem;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-bottom: .5rem;
+    }
+
+    .s-text {
+        font-size: .9rem;
+        color: #1f2937;
+        line-height: 1.7;
+    }
+
+    /* Bio box */
+    .bio-box {
+        background: #f5f3ff;
+        border-left: 3px solid #7c3aed;
+        border-radius: 0 8px 8px 0;
+        padding: .875rem 1.1rem;
+        font-size: .9rem;
+        color: #1f2937;
+        line-height: 1.75;
+        min-height: 60px;
+    }
+
+    .bio-placeholder {
+        color: #9ca3af;
+        font-style: italic;
+        font-size: .85rem;
+    }
+
+    /* Tag chips */
+    .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4rem;
+    }
+
+    .chip {
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        border-radius: 999px;
+        padding: .2rem .7rem;
+        font-size: .78rem;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .chip.indigo {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+        color: #4338ca;
+    }
+
+    .chip.teal {
+        background: #f0fdfa;
+        border-color: #99f6e4;
+        color: #0f766e;
+    }
+
+    .chip.rose {
+        background: #fff1f2;
+        border-color: #fecdd3;
+        color: #be123c;
+    }
+
+    /* Two-col grid for details */
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .9rem 2rem;
+    }
+
+    .detail-item {}
+
+    .detail-item .d-key {
+        font-size: .7rem;
+        font-weight: 700;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+    }
+
+    .detail-item .d-val {
+        font-size: .875rem;
+        color: #1f2937;
+        font-weight: 500;
+        margin-top: 2px;
+    }
+
+    /* Divider */
+    .s-divider {
+        border: none;
+        border-top: 1px solid #f0f0f0;
+        margin: 1.5rem 0;
+    }
+
+    /* Action bar */
+    .action-bar {
+        display: flex;
+        gap: .75rem;
+        align-items: center;
+        flex-wrap: wrap;
+        padding: 1.25rem 2.5rem;
+        background: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .btn-gen {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .6rem 1.25rem;
+        border-radius: 8px;
+        font-size: .875rem;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+        transition: all .2s;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: #fff;
+    }
+
+    .btn-gen:hover {
+        opacity: .9;
+        transform: translateY(-1px);
+    }
+
+    .btn-gen:disabled {
+        opacity: .6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-print {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .6rem 1.1rem;
+        border-radius: 8px;
+        font-size: .875rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1.5px solid #d1d5db;
+        background: #fff;
+        color: #374151;
+        transition: all .2s;
+        text-decoration: none;
+    }
+
+    .btn-print:hover {
+        background: #f9fafb;
+        border-color: #9ca3af;
+    }
+
+    .btn-edit {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .6rem 1.1rem;
+        border-radius: 8px;
+        font-size: .875rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1.5px solid #7c3aed;
+        background: transparent;
+        color: #7c3aed;
+        text-decoration: none;
+        transition: all .2s;
+    }
+
+    .btn-edit:hover {
+        background: #f5f3ff;
+    }
+
+    .gen-status {
+        font-size: .8rem;
+        color: #6b7280;
+    }
+
+    /* ── Print styles ──────────────────────────────────────────────── */
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+
+        .summary-card,
+        .summary-card * {
+            visibility: visible;
+        }
+
+        .summary-card {
+            position: absolute;
+            inset: 0;
+            box-shadow: none;
+            border-radius: 0;
+        }
+
+        .action-bar {
+            display: none !important;
+        }
+
+        .s-header {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .bio-box {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    }
+</style>
+
+<div class="summary-wrap">
+    <!-- Heading row -->
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+        <div>
+            <h1 class="text-xl font-display font-bold text-gray-900">My Professional Summary</h1>
+            <p class="text-sm text-gray-500">AI-generated profile card — update your profile for better results.</p>
+        </div>
+        <a href="/consultant/profile" class="btn-edit">
+            <i data-lucide="pencil" class="w-4 h-4"></i> Edit Profile
+        </a>
+    </div>
+
+    <div class="summary-card">
+
+        <!-- ── Header ───────────────────── -->
+        <div class="s-header">
+            {% if profile.photo_url %}
+            <img class="s-avatar" src="/api/profile-photo/{{ user_id }}" alt="Profile photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+            {% else %}
+            <div class="s-avatar-initials">{{ user_initials }}</div>
+            {% endif %}
+
+            <div class="s-title">
+                <h1>{{ profile.full_name or user_name }}</h1>
+                <p class="s-spec">{{ profile.specialization or 'Wellness Consultant' }}</p>
+                <div class="s-meta">
+                    {% if profile.experience_years %}
+                    <span class="s-badge">{{ profile.experience_years }} yrs experience</span>
+                    {% endif %}
+                    {% if profile.city %}
+                    <span class="s-badge">{{ profile.city }}</span>
+                    {% endif %}
+                    {% if profile.rating and profile.rating > 0 %}
+                    <span class="s-badge">&#9733; {{ "%.1f"|format(profile.rating) }}</span>
+                    {% endif %}
+                    {% if profile.qacp_certified %}
+                    <span class="s-badge">QACP Certified</span>
+                    {% endif %}
+                    {% if profile.delivery_methods %}
+                    <span class="s-badge">{{ profile.delivery_methods }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Body ────────────────────── -->
+        <div class="s-body">
+
+            <!-- Professional Summary / Bio -->
+            <div class="s-section">
+                <div class="s-label">Professional Summary</div>
+                <div class="bio-box" id="bioBox">
+                    {% if profile.bio %}
+                    {{ profile.bio }}
+                    {% else %}
+                    <span class="bio-placeholder">Complete your profile to display your professional bio here.</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <hr class="s-divider">
+
+            <!-- Expertise + Methods -->
+            <div class="detail-grid" style="margin-bottom:1.5rem;">
+                <div class="s-section" style="margin:0;">
+                    <div class="s-label">Areas of Expertise</div>
+                    {% if expertise_list %}
+                    <div class="chip-row">
+                        {% for item in expertise_list %}
+                        <span class="chip indigo">{{ item }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <span class="s-text" style="color:#9ca3af;">Not specified</span>
+                    {% endif %}
+                </div>
+
+                <div class="s-section" style="margin:0;">
+                    <div class="s-label">Therapeutic Approaches</div>
+                    {% if methods_list %}
+                    <div class="chip-row">
+                        {% for item in methods_list %}
+                        <span class="chip teal">{{ item }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <span class="s-text" style="color:#9ca3af;">Not specified</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <hr class="s-divider">
+
+            <!-- Detail Grid -->
+            <div class="s-section">
+                <div class="s-label">Professional Details</div>
+                <div class="detail-grid">
+
+                    {% if profile.highest_qualification or profile.education %}
+                    <div class="detail-item">
+                        <div class="d-key">Education</div>
+                        <div class="d-val">{{ profile.highest_qualification or '' }}{% if profile.education %} — {{
+                            profile.education | truncate(60, True, '…') }}{% endif %}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if profile.clinical_experience %}
+                    <div class="detail-item">
+                        <div class="d-key">Clinical Experience</div>
+                        <div class="d-val">{{ profile.clinical_experience }} years</div>
+                    </div>
+                    {% endif %}
+
+                    {% if profile.target_audience %}
+                    <div class="detail-item">
+                        <div class="d-key">Serves</div>
+                        <div class="d-val">{{ profile.target_audience }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if languages_list %}
+                    <div class="detail-item">
+                        <div class="d-key">Languages</div>
+                        <div class="d-val">{{ languages_list | join(', ') }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if profile.engagement_type %}
+                    <div class="detail-item">
+                        <div class="d-key">Engagement</div>
+                        <div class="d-val">{{ profile.engagement_type }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if profile.intended_hours %}
+                    <div class="detail-item">
+                        <div class="d-key">Availability</div>
+                        <div class="d-val">{{ profile.intended_hours }} hrs/week</div>
+                    </div>
+                    {% endif %}
+
+                    {% if profile.linkedin_url %}
+                    <div class="detail-item">
+                        <div class="d-key">LinkedIn</div>
+                        <div class="d-val"><a href="{{ profile.linkedin_url }}" target="_blank"
+                                style="color:#4f46e5;text-decoration:underline;">View Profile</a></div>
+                    </div>
+                    {% endif %}
+
+                    {% if profile.cv_url %}
+                    <div class="detail-item">
+                        <div class="d-key">CV / Resume</div>
+                        <div class="d-val"><a href="{{ profile.cv_url }}" target="_blank"
+                                style="color:#4f46e5;text-decoration:underline;">Download CV</a></div>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+
+        </div><!-- /s-body -->
+
+        <!-- ── Action bar ───────────────── -->
+        <div class="action-bar">
+            <button class="btn-print" onclick="window.print()">
+                <i data-lucide="printer" class="w-4 h-4"></i>
+                Print / Save PDF
+            </button>
+        </div>
+
+    </div><!-- /summary-card -->
+</div>
+
+
+
+{% endblock %}

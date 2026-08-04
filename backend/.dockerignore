@@ -1,8 +1,7 @@
 __pycache__
 *.pyc
-venv
 .env
-.git
-*.db
-*.log
-ollama_trace.log
+service-account.json
+venv/
+.git/
+.gitignore

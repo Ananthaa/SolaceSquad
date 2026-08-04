@@ -1,285 +1,244 @@
 {% extends "layouts/protected.html" %}
-
-{% block title %}Call Recordings - SolaceSquad{% endblock %}
-
-{% set nav_items = [
-{'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/app', 'key': 'dashboard'},
-{'icon': 'activity', 'label': 'Vitals & Scan', 'href': '/app/vitals', 'key': 'vitals'},
-{'icon': 'message-circle', 'label': 'Messages', 'href': '/app/messages', 'key': 'messages'},
-{'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/journal', 'key': 'journal'},
-{'icon': 'calendar', 'label': 'Grooming', 'href': '/app/grooming', 'key': 'grooming'},
-{'icon': 'message-square', 'label': 'AI Assistant', 'href': '/app/ai-chat', 'key': 'ai-chat'},
-{'icon': 'dumbbell', 'label': 'Exercise', 'href': '/app/exercise', 'key': 'exercise'},
-{'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
-{'icon': 'mic', 'label': 'Call Recordings', 'href': '/recordings', 'key': 'recordings'},
-{'icon': 'sparkles', 'label': 'Find Consultant', 'href': '/app/consultants', 'key': 'consultants'}
-] %}
+{% block title %}Consultation Sessions - SolaceSquad&reg;{% endblock %}
 
 {% block dashboard_content %}
-<div class="max-w-6xl mx-auto">
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Call Recordings</h1>
-        <p class="text-gray-600">Listen to your consultation recordings</p>
-    </div>
+<style>
+.cs-page { max-width: 820px; margin: 0 auto; }
+.cs-page h1 { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0 0 0.15rem; }
+.cs-page .sub { font-size: 0.875rem; color: #6b7280; margin: 0 0 1rem; }
 
-    <!-- Recordings List -->
-    <div id="recordings-container" class="space-y-4">
-        <!-- Loading state -->
-        <div id="loading" class="text-center py-12">
-            <div
-                class="animate-spin w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full mx-auto mb-4">
-            </div>
-            <p class="text-gray-500">Loading recordings...</p>
-        </div>
+/* Toolbar */
+.cs-toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+.cs-search {
+  display: flex; align-items: center; gap: 0.5rem;
+  flex: 1; min-width: 180px;
+  border: 1.5px solid #d1d5db; border-radius: 0.5rem;
+  background: white; padding: 0 0.75rem;
+}
+.cs-search input {
+  border: none; outline: none; width: 100%; background: transparent;
+  font-size: 0.875rem; color: #374151; padding: 0.55rem 0;
+}
+.cs-search svg { width: 16px; height: 16px; color: #9ca3af; flex-shrink: 0; }
+.cs-filter {
+  border: 1.5px solid #d1d5db; border-radius: 0.5rem;
+  background: white; padding: 0.55rem 0.9rem;
+  font-size: 0.875rem; color: #374151; outline: none; cursor: pointer;
+  min-width: 140px;
+}
 
-        <!-- Empty state -->
-        <div id="empty-state" class="hidden text-center py-12 bg-gray-50 rounded-xl">
-            <i data-lucide="mic-off" class="w-16 h-16 mx-auto mb-4 text-gray-400"></i>
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">No Recordings Yet</h3>
-            <p class="text-gray-600">Your call recordings will appear here after consultations</p>
-        </div>
+/* Session card */
+.s-card {
+  background: #eaf7ea;
+  border: 2px solid #81c784;
+  border-radius: 0.875rem;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,100,0,0.07);
+}
+.card-top-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 0.9rem 1.2rem 0.6rem;
+}
+.card-date  { font-size: 0.82rem; font-weight: 600; color: #374151; }
+.card-timing { text-align: right; font-size: 0.82rem; color: #374151; line-height: 1.55; }
+.card-mid-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 1.2rem 0.8rem;
+}
+.card-name { font-size: 1.1rem; font-weight: 700; color: #111827; }
+.dl-link {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.82rem; font-weight: 500; color: #1d4ed8;
+  text-decoration: none;
+}
+.dl-link:hover { text-decoration: underline; }
+.dl-link svg { width: 14px; height: 14px; }
+.no-rpt { font-size: 0.78rem; color: #9ca3af; }
 
-        <!-- Recordings will be loaded here -->
-        <div id="recordings-list" class="hidden space-y-4"></div>
-    </div>
+/* Recording section — separated by a green border line */
+.rec-row {
+  border-top: 1.5px solid #81c784;
+  padding: 0.7rem 1.2rem 0.9rem;
+  background: #dff0df;
+}
+.rec-lbl { font-size: 0.72rem; font-weight: 600; color: #4b6b4b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+.rec-row audio, .rec-row video { width: 100%; display: block; }
+.rec-row video { max-height: 360px; border-radius: 0.5rem; background: #000; margin-top: 0.4rem; }
+.rec-row audio::-internal-media-controls-download-button,
+.rec-row video::-internal-media-controls-download-button {
+  display: none !important;
+}
+.no-rec-txt { font-size: 0.8rem; color: #6b7280; }
+
+/* Notes section */
+.notes-row {
+  border-top: 1.5px solid #81c784;
+  padding: 0.8rem 1.2rem 1rem;
+  background: #f4faf4;
+}
+.notes-lbl {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #4b6b4b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+}
+.notes-txt {
+  font-size: 0.85rem;
+  color: #374151;
+  white-space: pre-line;
+  line-height: 1.45;
+}
+
+/* Loading */
+.cs-sk {
+  background: linear-gradient(90deg,#dff0df 25%,#c8e6c9 50%,#dff0df 75%);
+  background-size: 200% 100%; animation: cssk 1.4s infinite;
+  border-radius: 0.875rem; height: 130px; margin-bottom: 1.5rem;
+}
+@keyframes cssk { to { background-position: -200% 0; } }
+
+/* Empty */
+.cs-empty {
+  text-align: center; padding: 3rem 1rem;
+  background: #f9fafb; border: 1.5px dashed #d1d5db; border-radius: 0.875rem;
+}
+.cs-empty h3 { font-size: 0.95rem; font-weight: 600; color: #374151; margin: 0.6rem 0 0.25rem; }
+.cs-empty p { font-size: 0.8rem; color: #9ca3af; }
+
+.cs-nor { text-align: center; padding: 2rem; color: #9ca3af; font-size: 0.85rem; }
+
+@media(max-width:520px){
+  .card-top-row, .card-mid-row { flex-direction: column; gap: 0.25rem; }
+  .card-timing { text-align: left; }
+}
+</style>
+
+{% if not recording_access_allowed %}
+<div style="margin:0 0 1.25rem;padding:.85rem 1.1rem;background:linear-gradient(135deg,#fef3c7,#fffbeb);border:1.5px solid #fcd34d;border-radius:.875rem;display:flex;align-items:center;gap:.75rem;">
+  <span style="font-size:1.4rem;">🔒</span>
+  <div style="flex:1;">
+    <div style="font-size:.85rem;font-weight:700;color:#92400e;">{{ recording_lock_message }}</div>
+    <div style="font-size:.78rem;color:#b45309;margin-top:.15rem;">Upgrade your plan to view and listen to your call recordings.</div>
+  </div>
+  <a href="/app/plans" style="background:#0d9488;color:#fff;padding:.45rem 1rem;border-radius:.5rem;font-size:.8rem;font-weight:700;text-decoration:none;white-space:nowrap;">Upgrade Plan →</a>
 </div>
+{% endif %}
 
-<!-- Audio Player Modal -->
-<div id="player-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-xl max-w-2xl w-full shadow-2xl">
-        <div class="p-6">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-xl font-semibold text-gray-900" id="player-title">Call Recording</h3>
-                <button onclick="closePlayer()" class="p-2 hover:bg-gray-100 rounded-lg transition">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
+<div class="cs-page">
+  <h1>Consultation Sessions</h1>
+  <p class="sub">Your Appointments</p>
 
-            <!-- Recording Info -->
-            <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <span class="text-gray-600">Date:</span>
-                        <span class="font-medium text-gray-900 ml-2" id="player-date"></span>
-                    </div>
-                    <div>
-                        <span class="text-gray-600">Duration:</span>
-                        <span class="font-medium text-gray-900 ml-2" id="player-duration"></span>
-                    </div>
-                    <div>
-                        <span class="text-gray-600">Consultant:</span>
-                        <span class="font-medium text-gray-900 ml-2" id="player-consultant"></span>
-                    </div>
-                    <div>
-                        <span class="text-gray-600">Status:</span>
-                        <span class="font-medium text-gray-900 ml-2" id="player-status"></span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Audio Player -->
-            <div class="mb-6">
-                <audio id="audio-player" controls class="w-full">
-                    <source id="audio-source" src="" type="audio/mpeg">
-                    Your browser does not support the audio element.
-                </audio>
-            </div>
-
-            <!-- Transcription/Summary -->
-            <div id="transcription-section" class="hidden">
-                <h4 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <i data-lucide="file-text" class="w-5 h-5"></i>
-                    Call Summary
-                </h4>
-                <div id="transcription-content"
-                    class="bg-gray-50 p-4 rounded-lg text-sm text-gray-700 max-h-64 overflow-y-auto">
-                </div>
-            </div>
-        </div>
-
-        <div class="border-t border-gray-200 p-4 bg-gray-50 flex justify-end">
-            <button onclick="closePlayer()" class="px-6 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition">
-                Close
-            </button>
-        </div>
+  <div class="cs-toolbar">
+    <div class="cs-search">
+      <i data-lucide="search"></i>
+      <input type="text" id="cs-q" placeholder="Search by consultant name" oninput="csRender()">
     </div>
+    <select class="cs-filter" id="cs-sf" onchange="csRender()">
+      <option value="all">All Sessions</option>
+      <option value="completed">Completed</option>
+      <option value="in_progress">In Progress</option>
+      <option value="scheduled">Upcoming</option>
+      <option value="cancelled">Cancelled</option>
+    </select>
+  </div>
+
+  <div id="cs-sk">
+    <div class="cs-sk"></div>
+    <div class="cs-sk" style="opacity:.75"></div>
+    <div class="cs-sk" style="opacity:.5"></div>
+  </div>
+
+  <div class="cs-empty" id="cs-empty" style="display:none">
+    <i data-lucide="calendar-x" style="width:44px;height:44px;color:#d1d5db;display:block;margin:0 auto"></i>
+    <h3>No Sessions Yet</h3>
+    <p>Your completed consultations will appear here.</p>
+    <a href="/app/consultants" style="margin-top:.875rem;display:inline-flex;align-items:center;gap:.35rem;padding:.5rem 1rem;background:#10b981;color:white;border-radius:.6rem;font-size:.8rem;font-weight:600;text-decoration:none">
+      <i data-lucide="sparkles" style="width:13px;height:13px"></i> Book Now
+    </a>
+  </div>
+
+  <div class="cs-nor" id="cs-nor" style="display:none">No sessions match your search.</div>
+  <div id="cs-list"></div>
 </div>
 
 <script>
-    let currentRecordingId = null;
+const RECORDING_ACCESS = {{ 'true' if recording_access_allowed else 'false' }};
+let CS_ALL = [];
+function csFdate(iso){ return new Date(iso).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}); }
+function csFtime(iso){ return new Date(iso).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}); }
+function csFdur(s,m){if(s){const mm=Math.floor(s/60),ss=s%60;return ss?`${mm}m${ss}s`:`${mm}min`;}return`${m}min`;}
 
-    // Load recordings on page load
-    document.addEventListener('DOMContentLoaded', async () => {
-        await loadRecordings();
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    });
-
-    async function loadRecordings() {
-        try {
-            const response = await fetch('/api/user/recordings');
-            const data = await response.json();
-
-            document.getElementById('loading').classList.add('hidden');
-
-            if (data.success && data.recordings.length > 0) {
-                document.getElementById('recordings-list').classList.remove('hidden');
-                renderRecordings(data.recordings);
-            } else {
-                document.getElementById('empty-state').classList.remove('hidden');
-            }
-        } catch (error) {
-            console.error('Error loading recordings:', error);
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('empty-state').classList.remove('hidden');
-        }
+document.addEventListener('DOMContentLoaded', async()=>{
+  try{
+    const d = await (await fetch('/api/user/consultation-sessions')).json();
+    document.getElementById('cs-sk').style.display='none';
+    if(!d.success||!d.sessions?.length){
+      document.getElementById('cs-empty').style.display='block';
+      if(typeof lucide!=='undefined') lucide.createIcons();
+      return;
     }
+    CS_ALL=d.sessions;
+    csRender();
+  }catch(e){
+    document.getElementById('cs-sk').style.display='none';
+    document.getElementById('cs-empty').style.display='block';
+    if(typeof lucide!=='undefined') lucide.createIcons();
+  }
+});
 
-    function renderRecordings(recordings) {
-        const container = document.getElementById('recordings-list');
-        container.innerHTML = '';
+function csRender(){
+  const q=(document.getElementById('cs-q').value||'').toLowerCase().trim();
+  const sf=document.getElementById('cs-sf').value;
+  const list=CS_ALL.filter(s=>
+    s.consultant_name.toLowerCase().includes(q)&&(sf==='all'||s.status===sf)
+  );
+  const el=document.getElementById('cs-list');
+  const nr=document.getElementById('cs-nor');
+  el.innerHTML='';
+  if(!list.length){nr.style.display='block';if(typeof lucide!=='undefined')lucide.createIcons();return;}
+  nr.style.display='none';
+  list.forEach(s=>el.appendChild(csCard(s)));
+  if(typeof lucide!=='undefined') lucide.createIcons();
+}
 
-        // Group by date
-        const groupedByDate = {};
-        recordings.forEach(rec => {
-            const date = new Date(rec.call_date).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-            if (!groupedByDate[date]) {
-                groupedByDate[date] = [];
-            }
-            groupedByDate[date].push(rec);
-        });
-
-        // Render grouped recordings
-        Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a)).forEach(date => {
-            const dateSection = document.createElement('div');
-            dateSection.className = 'mb-6';
-
-            dateSection.innerHTML = `
-                <h3 class="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <i data-lucide="calendar" class="w-5 h-5"></i>
-                    ${date}
-                </h3>
-                <div class="space-y-3" id="recordings-${date.replace(/\s/g, '-')}"></div>
-            `;
-
-            container.appendChild(dateSection);
-
-            const recordingsContainer = dateSection.querySelector(`#recordings-${date.replace(/\s/g, '-')}`);
-
-            groupedByDate[date].forEach(rec => {
-                const card = document.createElement('div');
-                card.className = 'bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow';
-
-                const duration = formatDuration(rec.duration_seconds);
-                const time = new Date(rec.call_date).toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    hour12: true
-                });
-
-                card.innerHTML = `
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-4 flex-1">
-                            <div class="bg-primary-100 p-3 rounded-xl">
-                                <i data-lucide="mic" class="w-6 h-6 text-primary-600"></i>
-                            </div>
-                            <div class="flex-1">
-                                <h4 class="font-semibold text-gray-900 mb-1">
-                                    Consultation with ${rec.consultant_name}
-                                </h4>
-                                <div class="flex items-center gap-4 text-sm text-gray-600">
-                                    <span class="flex items-center gap-1">
-                                        <i data-lucide="clock" class="w-4 h-4"></i>
-                                        ${time}
-                                    </span>
-                                    <span class="flex items-center gap-1">
-                                        <i data-lucide="timer" class="w-4 h-4"></i>
-                                        ${duration}
-                                    </span>
-                                    ${rec.has_transcription ? `
-                                        <span class="flex items-center gap-1 text-green-600">
-                                            <i data-lucide="file-text" class="w-4 h-4"></i>
-                                            Summary Available
-                                        </span>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="playRecording(${rec.id})" 
-                                class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition flex items-center gap-2">
-                            <i data-lucide="play" class="w-4 h-4"></i>
-                            <span>Play</span>
-                        </button>
-                    </div>
-                `;
-
-                recordingsContainer.appendChild(card);
-            });
-        });
-
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    }
-
-    async function playRecording(recordingId) {
-        currentRecordingId = recordingId;
-
-        try {
-            const response = await fetch(`/api/recordings/${recordingId}`);
-            const data = await response.json();
-
-            if (data.success) {
-                const rec = data.recording;
-
-                // Set player info
-                document.getElementById('player-title').textContent = `Call with ${rec.consultant_name}`;
-                document.getElementById('player-date').textContent = new Date(rec.call_date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit'
-                });
-                document.getElementById('player-duration').textContent = formatDuration(rec.duration_seconds);
-                document.getElementById('player-consultant').textContent = rec.consultant_name;
-                document.getElementById('player-status').textContent = rec.status;
-
-                // Set audio source
-                document.getElementById('audio-source').src = rec.recording_url;
-                document.getElementById('audio-player').load();
-
-                // Show transcription if available
-                if (rec.transcription) {
-                    document.getElementById('transcription-section').classList.remove('hidden');
-                    document.getElementById('transcription-content').textContent = rec.transcription.summary || 'Transcription processing...';
-                } else {
-                    document.getElementById('transcription-section').classList.add('hidden');
-                }
-
-                // Show modal
-                document.getElementById('player-modal').classList.remove('hidden');
-
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-            }
-        } catch (error) {
-            console.error('Error loading recording:', error);
-            alert('Failed to load recording');
-        }
-    }
-
-    function closePlayer() {
-        document.getElementById('player-modal').classList.add('hidden');
-        document.getElementById('audio-player').pause();
-        currentRecordingId = null;
-    }
-
-    function formatDuration(seconds) {
-        if (!seconds) return 'N/A';
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${String(secs).padStart(2, '0')}`;
-    }
+function csCard(s){
+  const hasRec=s.has_recording&&s.call_session_id;
+  const hasRpt=s.has_prescription&&s.prescription_id;
+  const div=document.createElement('div');
+  div.className='s-card';
+  div.innerHTML=`
+    <div class="card-top-row">
+      <div class="card-date">${csFdate(s.appointment_date)}</div>
+      <div class="card-timing">Start Time: ${csFtime(s.appointment_date)}<br>Duration: ${csFdur(s.duration_seconds,s.duration_minutes)}</div>
+    </div>
+    <div class="card-mid-row">
+      <div class="card-name">${s.consultant_name}</div>
+      ${hasRpt
+        ?`<a class="dl-link" href="/prescriptions/${s.prescription_id}/download" target="_blank"><i data-lucide="download"></i>Download reports</a>`
+        :`<span class="no-rpt">No report</span>`}
+    </div>
+    <div class="rec-row">
+      <div class="rec-lbl">Call Recording</div>
+      ${!RECORDING_ACCESS
+        ? `<div style="display:flex;align-items:center;gap:.6rem;padding:.35rem 0;">
+             <span style="font-size:1.1rem;">🔒</span>
+             <span style="font-size:.8rem;color:#6b7280;">Recording locked — <a href="/app/plans" style="color:#0d9488;font-weight:700;">Upgrade your plan</a> to listen.</span>
+           </div>`
+        : hasRec
+          ? (s.has_video
+            ? `<video controls controlsList="nodownload noremoteplayback" oncontextmenu="return false;" src="/api/recordings/${s.call_session_id}/stream"></video>`
+            : `<audio controls controlsList="nodownload noremoteplayback" oncontextmenu="return false;" src="/api/recordings/${s.call_session_id}/stream"></audio>`)
+          : `<div class="no-rec-txt">No recording available for this session.</div>`
+      }
+    </div>
+    <div class="notes-row">
+      <div class="notes-lbl">Consultation Notes</div>
+      <div class="notes-txt">${s.notes ? s.notes : 'No notes recorded for this session.'}</div>
+    </div>`;
+  return div;
+}
 </script>
 {% endblock %}

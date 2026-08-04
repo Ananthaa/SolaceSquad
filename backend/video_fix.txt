@@ -1,0 +1,63 @@
+
+# Pydantic models for video library
+from pydantic import BaseModel
+from typing import Optional
+
+class FolderCreate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    thumbnail_url: Optional[str] = ""
+
+class VideoCreate(BaseModel):
+    folder_id: int
+    title: str
+    description: Optional[str] = ""
+    video_url: str
+    thumbnail_url: Optional[str] = ""
+    duration_seconds: Optional[int] = 0
+    is_youtube: Optional[bool] = False
+
+
+# Fixed video library routes with JSON support
+@app.post("/api/admin/folders/create")
+async def create_folder_json(request: Request, folder_data: FolderCreate, db: Session = Depends(get_db)):
+    """Create a new video folder"""
+    user_id = request.session.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    folder = VideoFolder(
+        name=folder_data.name,
+        description=folder_data.description,
+        thumbnail_url=folder_data.thumbnail_url if folder_data.thumbnail_url else None
+    )
+    db.add(folder)
+    db.commit()
+    db.refresh(folder)
+    
+    return JSONResponse({"success": True, "folder_id": folder.id})
+
+
+@app.post("/api/admin/videos/create")
+async def create_video_json(request: Request, video_data: VideoCreate, db: Session = Depends(get_db)):
+    """Create a new video in a folder"""
+    user_id = request.session.get("user_id")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or user.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
+    video = Video(
+        folder_id=video_data.folder_id,
+        title=video_data.title,
+        description=video_data.description,
+        video_url=video_data.video_url,
+        thumbnail_url=video_data.thumbnail_url if video_data.thumbnail_url else None,
+        duration_seconds=video_data.duration_seconds,
+        is_youtube=video_data.is_youtube
+    )
+    db.add(video)
+    db.commit()
+    db.refresh(video)
+    
+    return JSONResponse({"success": True, "video_id": video.id})

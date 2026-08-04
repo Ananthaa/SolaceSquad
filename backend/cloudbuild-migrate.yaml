@@ -1,0 +1,33 @@
+steps:
+  - name: 'python:3.11-slim'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        pip install pg8000 cloud-sql-python-connector sqlalchemy -q 2>/dev/null
+        python3 - << 'EOF'
+        from google.cloud.sql.connector import Connector
+        import sqlalchemy
+
+        connector = Connector()
+        def getconn():
+            return connector.connect(
+                "abiding-idea-485817-k2:us-central1:solacesquad-login-data1",
+                "pg8000", user="Admin", password="SoulSquad2024x", db="solacesquad_prod",
+            )
+        engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=getconn)
+
+        with engine.connect() as conn:
+            rows = conn.execute(sqlalchemy.text("""
+                SELECT cp.id, u.name, cp.consultation_fee, cp.consultant_payout, cp.is_approved, u.is_active
+                FROM consultant_profiles cp JOIN users u ON cp.user_id = u.id
+                ORDER BY cp.id
+            """)).fetchall()
+            print("\n=== Consultant Profiles ===")
+            for r in rows:
+                print(f"  CP_ID={r[0]}  name={r[1]}  fee=₹{r[2]}  payout=₹{r[3]}  approved={r[4]}  active={r[5]}")
+
+        connector.close()
+        EOF
+
+timeout: 120s

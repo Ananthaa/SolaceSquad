@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #374151;
+            background-color: #f3f4f6;
+            margin: 0;
+            padding: 0;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
+        }
+        .letterhead {
+            background: #ffffff;
+            border-bottom: 3px solid #0d9488;
+            padding: 30px 40px;
+            text-align: center;
+        }
+        .logo {
+            height: 50px;
+            width: auto;
+            display: inline-block;
+        }
+        .invoice-body {
+            padding: 40px;
+        }
+        .invoice-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #111827;
+            margin: 0 0 10px;
+            letter-spacing: -0.02em;
+        }
+        .meta-grid {
+            display: table;
+            width: 100%;
+            margin-top: 20px;
+            border-top: 1px solid #f3f4f6;
+            padding-top: 20px;
+        }
+        .meta-col {
+            display: table-cell;
+            width: 50%;
+            font-size: 13px;
+            color: #6b7280;
+            vertical-align: top;
+        }
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0 20px;
+        }
+        .invoice-table th {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #9ca3af;
+            border-bottom: 2px solid #f3f4f6;
+            padding: 10px 0;
+            text-align: left;
+        }
+        .invoice-table td {
+            padding: 12px 0;
+            border-bottom: 1px solid #f9fafb;
+            font-size: 14px;
+        }
+        .totals-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px dashed #e5e7eb;
+        }
+        .totals-row {
+            margin: 8px 0;
+            font-size: 14px;
+            color: #4b5563;
+        }
+        .totals-row.total {
+            font-size: 18px;
+            font-weight: 800;
+            color: #111827;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 15px;
+            margin-top: 12px;
+        }
+        .footer {
+            text-align: center;
+            padding: 30px 40px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Letterhead -->
+        <div class="letterhead">
+            <img src="https://www.solacesquad.com/static/images/logo.png" alt="SolaceSquad" class="logo" style="height: 50px; outline: none; border: none; text-decoration: none;">
+        </div>
+        
+        <!-- Invoice Body -->
+        <div class="invoice-body">
+            <div class="invoice-title">Tax Invoice / Receipt</div>
+            <p style="margin: 0; font-size: 15px; color: #4b5563;">Hi <strong>John Doe</strong>,</p>
+            <p style="margin: 6px 0 0; font-size: 14px; color: #6b7280;">Thank you for your payment. Here are the invoice details for your transaction.</p>
+            
+            <div class="meta-grid">
+                <div class="meta-col">
+                    <strong style="color: #374151; display: block; margin-bottom: 4px;">Billed To</strong>
+                    John Doe<br>
+                    testuser@example.com
+                </div>
+                <div class="meta-col" style="text-align: right;">
+                    <strong style="color: #374151; display: block; margin-bottom: 4px;">Invoice Information</strong>
+                    Invoice #: <strong>SS-2026-00123</strong><br>
+                    Date: 09 June 2026<br>
+                    Razorpay Ref: <strong>pay_123456789</strong>
+                </div>
+            </div>
+            
+            <table class="invoice-table">
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">Item Description</th>
+                        <th style="text-align: right; width: 120px;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="color: #111827; font-weight: 600;">Blue Plan (Monthly) — June 2026</td>
+                        <td style="text-align: right; color: #111827; font-weight: 700;">₹36,500.00</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="padding: 10px 0 4px; color: #374151; font-weight: 700; font-size: 13px; border-bottom: none;">Discounts:</td>
+                    </tr>
+                    
+        <tr style="color: #16a34a; font-size: 14px;">
+            <td style="padding: 8px 0; padding-left: 15px;">&emsp;↳ 1. Plan Discount (75% off Blue Plan)</td>
+            <td style="padding: 8px 0; text-align: right;">-₹27,375.00</td>
+        </tr>
+        
+                    
+        <tr style="color: #9ca3af; font-size: 14px;">
+            <td style="padding: 8px 0; padding-left: 15px;">&emsp;↳ 2. Blue Plan Member Discount (25% off Consultation & Emora)</td>
+            <td style="padding: 8px 0; text-align: right;">₹0.00</td>
+        </tr>
+        
+                    
+        <tr style="color: #16a34a; font-size: 14px;">
+            <td style="padding: 8px 0; padding-left: 15px;">&emsp;↳ 3. Prorated Plan Switch / Waiver Discount</td>
+            <td style="padding: 8px 0; text-align: right;">-₹200.00</td>
+        </tr>
+        
+                </tbody>
+            </table>
+            
+            <div class="totals-section">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr class="totals-row">
+                        <td style="padding: 4px 0; color: #4b5563; font-size: 14px;">Actual Cost After Discount</td>
+                        <td style="padding: 4px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">₹8,925.00</td>
+                    </tr>
+                    <tr class="totals-row">
+                        <td style="padding: 4px 0; color: #4b5563; font-size: 14px;">Add GST (18%)</td>
+                        <td style="padding: 4px 0; text-align: right; color: #111827; font-size: 14px; font-weight: 600;">₹1,606.50</td>
+                    </tr>
+                    <tr class="totals-row total">
+                        <td style="padding: 15px 0 0; color: #111827; font-size: 18px; font-weight: 800; border-top: 1px solid #e5e7eb;">Total Amount Paid</td>
+                        <td style="padding: 15px 0 0; text-align: right; color: #0d9488; font-size: 18px; font-weight: 800; border-top: 1px solid #e5e7eb;">₹10,531.50</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p style="margin: 0 0 6px;">Questions? Contact us at <a href="mailto:admin@solacesquad.com" style="color: #0d9488; text-decoration: none; font-weight: 600;">admin@solacesquad.com</a></p>
+            <p style="margin: 0;">&copy; 2026 SolaceSquad Technologies. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

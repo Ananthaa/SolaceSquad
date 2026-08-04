@@ -1,0 +1,85 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="mb-8">
+        <a href="/exercises"
+            class="inline-flex items-center text-sm text-gray-500 hover:text-gray-900 mb-4 transition-colors">
+            <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i>
+            Back to Library
+        </a>
+        <div class="flex items-start justify-between">
+            <div>
+                <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">{{ folder.name }}</h1>
+                <p class="text-gray-600 max-w-2xl">{{ folder.description }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Videos Grid -->
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {% for video in videos %}
+        <div
+            class="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 overflow-hidden flex flex-col">
+            <!-- Thumbnail -->
+            <a href="/exercises/watch/{{ video.id }}" class="relative aspect-video block bg-gray-900 overflow-hidden">
+                {% if video.thumbnail_url %}
+                <img src="{{ video.thumbnail_url }}" alt="{{ video.title }}"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100">
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center bg-gray-800">
+                    <i data-lucide="play" class="w-12 h-12 text-gray-600 group-hover:text-white transition-colors"></i>
+                </div>
+                {% endif %}
+
+                <!-- Play Overlay -->
+                <div
+                    class="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
+                    <div
+                        class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <i data-lucide="play-circle" class="w-12 h-12 text-white fill-white/20"></i>
+                    </div>
+                </div>
+
+                <!-- Duration Badge -->
+                <div
+                    class="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm text-white text-xs px-2 py-1 rounded font-medium">
+                    {{ video.duration_formatted }}
+                </div>
+
+                <!-- Completed Badge -->
+                {% if video.completed %}
+                <div
+                    class="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 shadow-sm">
+                    <i data-lucide="check" class="w-3 h-3"></i>
+                    Done
+                </div>
+                {% endif %}
+            </a>
+
+            <!-- Content -->
+            <div class="p-4 flex flex-col flex-grow">
+                <h3 class="font-bold text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1 mb-1">
+                    <a href="/exercises/watch/{{ video.id }}">{{ video.title }}</a>
+                </h3>
+                <p class="text-sm text-gray-500 line-clamp-2 mb-4 flex-grow">{{ video.description }}</p>
+
+                <div class="flex items-center justify-between pt-3 border-t border-gray-100 mt-auto">
+                    <button class="text-gray-400 hover:text-red-500 transition-colors" title="Add to favorites">
+                        <i data-lucide="heart" class="w-4 h-4"></i>
+                    </button>
+                    <a href="/exercises/watch/{{ video.id }}"
+                        class="text-sm font-medium text-primary-600 hover:text-primary-700">
+                        Start Now &rarr;
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-span-full py-12 text-center text-gray-500">
+            <p>No videos available in this folder yet.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
