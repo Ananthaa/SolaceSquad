@@ -1,18 +1,68 @@
 {% extends "layouts/protected.html" %}
 
 {% block dashboard_content %}
+<style>
+    .journal-header {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .journal-header-title-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    .journal-header-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0;
+        white-space: nowrap;
+    }
+    .journal-header-date-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        align-items: flex-start;
+    }
+    .journal-date-input {
+        font-size: 1.1rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 0.5rem;
+        border: 2px solid #fde68a;
+        background-color: #fff;
+        color: #374151;
+        width: 100%;
+        max-width: 200px;
+    }
+    @media (min-width: 640px) {
+        .journal-header {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .journal-header-title {
+            font-size: 2.25rem;
+        }
+        .journal-header-date-section {
+            align-items: flex-end;
+            text-align: right;
+        }
+    }
+</style>
 <div class="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 py-8 -m-3 sm:-m-4 md:-m-6">
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header with Date -->
-        <div class="bg-white rounded-t-2xl shadow-lg p-8 border-b-4 border-amber-200">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div>
-                    <h1 class="text-2xl sm:text-4xl font-serif font-bold text-gray-800 mb-1 whitespace-nowrap">My Daily Journal</h1>
+        <div class="bg-white rounded-t-2xl shadow-lg p-4 sm:p-8 border-b-4 border-amber-200">
+            <div class="journal-header">
+                <div class="journal-header-title-section">
+                    <h1 class="journal-header-title font-serif">My Daily Journal</h1>
                     <p class="text-xs sm:text-sm text-gray-600 italic">A space for your thoughts and feelings</p>
                 </div>
-                <div class="text-left sm:text-right">
+                <div class="journal-header-date-section">
                     <input type="date" id="journal-date"
-                        class="text-lg sm:text-2xl font-serif text-gray-700 border-2 border-amber-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-amber-400 focus:border-transparent">
+                        class="journal-date-input font-serif focus:ring-2 focus:ring-amber-400 focus:border-transparent">
                     <p class="text-xs sm:text-sm text-gray-500 mt-1" id="day-of-week"></p>
                 </div>
             </div>
