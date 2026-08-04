@@ -5,7 +5,7 @@ import os
 
 API_KEY = os.getenv("SENDGRID_API_KEY", "").strip()
 FROM_EMAIL = os.getenv("FROM_EMAIL", "sg@solacesquad.com").strip()
-TO_EMAIL = "ananthaa@gmail.com"
+TO_EMAIL = os.getenv("TO_EMAIL", "sg@solacesquad.com").strip()
 
 html_body = """<!DOCTYPE html>
 <html>
