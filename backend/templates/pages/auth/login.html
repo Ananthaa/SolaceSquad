@@ -119,14 +119,16 @@
                         <label for="login-phone" class="block text-sm font-medium text-gray-700 mb-2">
                             Mobile Number
                         </label>
-                        <div class="flex gap-2">
-                            <span class="inline-flex items-center px-3 border border-gray-300 bg-gray-50 rounded-lg text-gray-500 text-sm font-medium">
-                                🇮🇳 +91
-                            </span>
-                            <input type="tel" id="login-phone" placeholder="98765 43210" pattern="[0-9]{10}"
-                                class="flex-grow px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition text-base">
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <div class="flex gap-2 flex-grow">
+                                <span class="inline-flex items-center px-3 border border-gray-300 bg-gray-50 rounded-lg text-gray-500 text-sm font-medium whitespace-nowrap" style="min-width: 65px; justify-content: center;">
+                                    🇮🇳 +91
+                                </span>
+                                <input type="tel" id="login-phone" placeholder="98765 43210" pattern="[0-9]{10}"
+                                    class="flex-grow px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition text-base">
+                            </div>
                             <button type="button" id="login-send-otp-btn" onclick="sendLoginOtp()"
-                                class="btn border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm px-4 whitespace-nowrap rounded-lg">
+                                class="w-full sm:w-auto btn border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-sm px-4 py-3 sm:py-0 whitespace-nowrap rounded-lg">
                                 Send OTP
                             </button>
                         </div>
