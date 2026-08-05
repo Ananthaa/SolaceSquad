@@ -398,6 +398,12 @@
         gap: .6rem;
     }
 
+    @media (min-width: 768px) {
+        .qa-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
     .qa-btn {
         display: flex;
         align-items: center;
@@ -589,6 +595,43 @@
         <a href="/app/vitals">Scan again →</a>
     </div>
 
+    <!-- ②.5 Quick Actions (moved above THRYVEQ) ───────────────────────── -->
+    <div class="db-card" style="margin-bottom: 1.5rem;">
+        <div class="db-card-title">
+            <i data-lucide="zap"></i> Quick Actions
+        </div>
+        <div class="qa-grid">
+            <a href="/app/vitals" class="qa-btn" style="background:#f0fdfa;border-color:#99f6e4;">
+                <div class="qa-icon" style="background:#0d9488;"><i data-lucide="activity"></i></div>
+                <div>
+                    <div class="qa-text-title">Scan Vitals</div>
+                    <div class="qa-text-sub">Check your health</div>
+                </div>
+            </a>
+            <a href="/app/journal" class="qa-btn" style="background:#fdf4ff;border-color:#e9d5ff;">
+                <div class="qa-icon" style="background:#7c3aed;"><i data-lucide="book-open"></i></div>
+                <div>
+                    <div class="qa-text-title">Write Journal</div>
+                    <div class="qa-text-sub">Express yourself</div>
+                </div>
+            </a>
+            <a href="/app/ai-chat" class="qa-btn" style="background:#eff6ff;border-color:#bfdbfe;">
+                <div class="qa-icon" style="background:#2563eb;"><i data-lucide="message-square"></i></div>
+                <div>
+                    <div class="qa-text-title">Emora - Your buddy</div>
+                    <div class="qa-text-sub">Get support</div>
+                </div>
+            </a>
+            <a href="/app/consultants" class="qa-btn" style="background:#f0fdf4;border-color:#bbf7d0;">
+                <div class="qa-icon" style="background:#16a34a;"><i data-lucide="calendar"></i></div>
+                <div>
+                    <div class="qa-text-title">Book Session</div>
+                    <div class="qa-text-sub">Talk to an expert</div>
+                </div>
+            </a>
+        </div>
+    </div>
+
     <!-- ③ THRYVEQ score band ──────────────────────────────────────────── -->
     <div>
         <div class="db-section-label" style="align-items:center; gap:0.4rem;">
@@ -749,42 +792,7 @@
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="db-card">
-                <div class="db-card-title">
-                    <i data-lucide="zap"></i> Quick Actions
-                </div>
-                <div class="qa-grid">
-                    <a href="/app/vitals" class="qa-btn" style="background:#f0fdfa;border-color:#99f6e4;">
-                        <div class="qa-icon" style="background:#0d9488;"><i data-lucide="activity"></i></div>
-                        <div>
-                            <div class="qa-text-title">Scan Vitals</div>
-                            <div class="qa-text-sub">Check your health</div>
-                        </div>
-                    </a>
-                    <a href="/app/journal" class="qa-btn" style="background:#fdf4ff;border-color:#e9d5ff;">
-                        <div class="qa-icon" style="background:#7c3aed;"><i data-lucide="book-open"></i></div>
-                        <div>
-                            <div class="qa-text-title">Write Journal</div>
-                            <div class="qa-text-sub">Express yourself</div>
-                        </div>
-                    </a>
-                    <a href="/app/ai-chat" class="qa-btn" style="background:#eff6ff;border-color:#bfdbfe;">
-                        <div class="qa-icon" style="background:#2563eb;"><i data-lucide="message-square"></i></div>
-                        <div>
-                            <div class="qa-text-title">Emora - Your buddy</div>
-                            <div class="qa-text-sub">Get support</div>
-                        </div>
-                    </a>
-                    <a href="/app/consultants" class="qa-btn" style="background:#f0fdf4;border-color:#bbf7d0;">
-                        <div class="qa-icon" style="background:#16a34a;"><i data-lucide="calendar"></i></div>
-                        <div>
-                            <div class="qa-text-title">Book Session</div>
-                            <div class="qa-text-sub">Talk to an expert</div>
-                        </div>
-                    </a>
-                </div>
-            </div>
+
 
             <!-- Disclaimer -->
             <div class="db-disclaimer">
