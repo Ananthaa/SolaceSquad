@@ -985,6 +985,8 @@
                         labels.push(p.display_name);
                     } else if (sd.need_reconnect) {
                         toast(`⚠ ${p.display_name} token expired — reconnect in Profile`, 'error');
+                    } else {
+                        toast(`⚠ ${p.display_name} sync failed: ${sd.error || 'unknown error'}`, 'error');
                     }
                 } catch(e) { /* silent per-provider fail */ }
             }
@@ -992,7 +994,7 @@
             if (totalSaved > 0) {
                 toast(`✅ Synced ${totalSaved} new workout${totalSaved !== 1 ? 's' : ''} from ${labels.join(', ')}`, 'success');
                 await loadLogs();
-            } else {
+            } else if (labels.length > 0) {
                 toast(`✅ ${labels.join(', ')} — already up to date`, 'success');
             }
 
