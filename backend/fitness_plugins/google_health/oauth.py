@@ -85,7 +85,7 @@ def _get_access_token(refresh_token: str) -> Optional[str]:
 
 
 def _extract_fp_val(dataset: list, label: str) -> float:
-    """Extract sum of fpVal from a dataset list returned by bucketBySession."""
+    """Extract sum of fpVal or intVal from a dataset list returned by bucketBySession."""
     total = 0.0
     for ds in dataset:
         src = ds.get("dataSourceId", "")
@@ -93,7 +93,10 @@ def _extract_fp_val(dataset: list, label: str) -> float:
             continue
         for pt in ds.get("point", []):
             for v in pt.get("value", []):
-                total += v.get("fpVal", 0.0)
+                if "fpVal" in v:
+                    total += v["fpVal"]
+                elif "intVal" in v:
+                    total += float(v["intVal"])
     return total
 
 
