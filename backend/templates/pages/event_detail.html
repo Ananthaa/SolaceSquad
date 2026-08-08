@@ -158,12 +158,12 @@
                                  onclick="openLightbox({{ loop.index0 }})">
                                 
                                 {% if item.media_type == 'image' %}
-                                    <img src="{% if 'storage.googleapis.com' in item.source %}/api/events/media?url={{ item.source | urlencode }}{% else %}{{ item.source }}{% endif %}" alt="{{ item.alt_text or 'Gallery Image' }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+                                    <img src="{% if 'storage.googleapis.com' in item.source %}/api/events/media?url={{ item.source | urlencode }}{% else %}{{ item.source }}{% endif %}" alt="{{ item.alt_text or 'Gallery Image' }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 select-none pointer-events-none" oncontextmenu="return false;" ondragstart="return false;">
                                 {% else %}
                                     <!-- Video Poster/Thumbnail -->
                                     <div class="relative w-full h-full">
                                         {% if item.thumbnail %}
-                                            <img src="{% if 'storage.googleapis.com' in item.thumbnail %}/api/events/media?url={{ item.thumbnail | urlencode }}{% else %}{{ item.thumbnail }}{% endif %}" alt="Video Poster" class="w-full h-full object-cover">
+                                            <img src="{% if 'storage.googleapis.com' in item.thumbnail %}/api/events/media?url={{ item.thumbnail | urlencode }}{% else %}{{ item.thumbnail }}{% endif %}" alt="Video Poster" class="w-full h-full object-cover select-none pointer-events-none" oncontextmenu="return false;" ondragstart="return false;">
                                         {% else %}
                                             <div class="w-full h-full bg-gray-900 flex items-center justify-center">
                                                 <i data-lucide="play-circle" class="w-12 h-12 text-white/80"></i>
@@ -393,14 +393,18 @@
             const img = document.createElement('img');
             img.src = item.source.includes('storage.googleapis.com') ? `/api/events/media?url=${encodeURIComponent(item.source)}` : item.source;
             img.alt = item.alt_text;
-            img.className = 'max-w-full max-h-[70vh] rounded-xl object-contain shadow-2xl';
+            img.className = 'max-w-full max-h-[70vh] rounded-xl object-contain shadow-2xl select-none pointer-events-none';
+            img.setAttribute('oncontextmenu', 'return false;');
+            img.setAttribute('ondragstart', 'return false;');
             container.appendChild(img);
         } else {
             const video = document.createElement('video');
             video.src = item.source.includes('storage.googleapis.com') ? `/api/events/media?url=${encodeURIComponent(item.source)}` : item.source;
             video.controls = true;
             video.autoplay = true;
-            video.className = 'max-w-full max-h-[70vh] rounded-xl object-contain shadow-2xl outline-none';
+            video.controlsList = 'nodownload';
+            video.className = 'max-w-full max-h-[70vh] rounded-xl object-contain shadow-2xl outline-none select-none';
+            video.setAttribute('oncontextmenu', 'return false;');
             container.appendChild(video);
         }
     }
