@@ -43,12 +43,12 @@ class GoogleHealthPlugin(FitnessPlugin):
             if not token:
                 return SyncResult(success=False, error="Not connected")
 
-            import pytz
+            from zoneinfo import ZoneInfo
             tz_name = user.timezone if user else "UTC"
             try:
-                user_tz = pytz.timezone(tz_name)
+                user_tz = ZoneInfo(tz_name)
             except Exception:
-                user_tz = pytz.UTC
+                user_tz = ZoneInfo("UTC")
 
             access_token = _get_access_token(token.refresh_token)
             if not access_token:
