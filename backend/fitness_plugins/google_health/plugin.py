@@ -31,10 +31,10 @@ class GoogleHealthPlugin(FitnessPlugin):
             from datetime import date, datetime, timedelta, timezone
             import requests as _req
 
+            user = db.query(User).filter(User.id == user_id).first()
             token = get_token(db, user_id, "google_health")
             if not token:
                 # Fallback to check legacy User.google_fit_refresh_token
-                user = db.query(User).filter(User.id == user_id).first()
                 if user and user.google_fit_refresh_token:
                     store_token(db, user_id, "google_health", user.google_fit_refresh_token)
                     db.commit()
@@ -42,6 +42,13 @@ class GoogleHealthPlugin(FitnessPlugin):
 
             if not token:
                 return SyncResult(success=False, error="Not connected")
+
+            import pytz
+            tz_name = user.timezone if user else "UTC"
+            try:
+                user_tz = pytz.timezone(tz_name)
+            except Exception:
+                user_tz = pytz.UTC
 
             access_token = _get_access_token(token.refresh_token)
             if not access_token:
@@ -83,7 +90,7 @@ class GoogleHealthPlugin(FitnessPlugin):
                 workout_type = _ACTIVITY_MAP.get(act_type, "Other")
                 start_ms    = int(s.get("startTimeMillis", bucket.get("startTimeMillis", 0)))
                 end_ms      = int(s.get("endTimeMillis",   bucket.get("endTimeMillis",   0)))
-                act_date    = date.fromtimestamp(start_ms / 1000) if start_ms else date.today()
+                act_date    = datetime.fromtimestamp(start_ms / 1000, user_tz).date() if start_ms else datetime.now(user_tz).date()
                 duration_min = max(0, int((end_ms - start_ms) / 60000))
                 external_id = s.get("id", "")
 
@@ -122,7 +129,7 @@ class GoogleHealthPlugin(FitnessPlugin):
                 ))
                 saved += 1
 
-            # ── 2. Today's total steps (if no session covered it) ────────────────────
+            # ── 2. Daily total steps (sync all days in range) ────────────────────
             try:
                 step_resp = _req.post(
                     f"{_FITNESS_BASE}/dataset:aggregate",
@@ -136,29 +143,31 @@ class GoogleHealthPlugin(FitnessPlugin):
                     timeout=15,
                 )
                 step_resp.raise_for_status()
-                today_str = date.today().isoformat()
 
                 for bucket in step_resp.json().get("bucket", []):
-                    b_date = date.fromtimestamp(
-                        int(bucket.get("startTimeMillis", 0)) / 1000
-                    ).isoformat()
-                    if b_date != today_str:
+                    start_ms_bucket = int(bucket.get("startTimeMillis", 0))
+                    if not start_ms_bucket:
                         continue
+                    b_date = datetime.fromtimestamp(start_ms_bucket / 1000, user_tz).date()
                     steps = int(_extract_fp_val(bucket.get("dataset", []), "step_count.delta"))
                     if steps < 1:
                         continue
+                    
                     existing = db.query(WorkoutLog).filter(
                         WorkoutLog.user_id  == user_id,
-                        WorkoutLog.log_date == date.today(),
+                        WorkoutLog.log_date == b_date,
                         WorkoutLog.source   == "google_health",
                         WorkoutLog.notes.like("Google Fit daily steps%"),
                     ).first()
                     if existing:
-                        existing.step_count = steps
+                        if existing.step_count != steps:
+                            existing.step_count = steps
+                            if b_date == datetime.now(user_tz).date():
+                                saved += 1
                     else:
                         db.add(WorkoutLog(
                             user_id      = user_id,
-                            log_date     = date.today(),
+                            log_date     = b_date,
                             workout_type = "Walking",
                             step_count   = steps,
                             source       = "google_health",
