@@ -23,14 +23,13 @@
         <div class="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
             
             <!-- Cover image -->
-            <div class="relative h-64 md:h-96 w-full bg-gray-100">
-                {% if event.featured_image %}
-                    <img src="{% if 'storage.googleapis.com' in event.featured_image %}/api/events/media?url={{ event.featured_image | urlencode }}{% else %}{{ event.featured_image }}{% endif %}" alt="{{ event.title }}" class="w-full h-full object-cover">
-                {% else %}
-                    <div class="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
-                        <i data-lucide="image" class="w-16 h-16"></i>
-                    </div>
-                {% endif %}
+            {% if event.featured_image %}
+                <div class="relative w-full bg-gray-100">
+                    <img src="{% if 'storage.googleapis.com' in event.featured_image %}/api/events/media?url={{ event.featured_image | urlencode }}{% else %}{{ event.featured_image }}{% endif %}" alt="{{ event.title }}" class="w-full h-auto block select-none pointer-events-none" oncontextmenu="return false;" ondragstart="return false;">
+            {% else %}
+                <div class="relative h-64 md:h-96 w-full bg-gray-100 flex items-center justify-center text-gray-400">
+                    <i data-lucide="image" class="w-16 h-16"></i>
+            {% endif %}
                 
                 <!-- Category/Mode Badge -->
                 <div class="absolute top-6 left-6 flex gap-2">
