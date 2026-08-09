@@ -363,7 +363,18 @@
 
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Brief Description of Requirement</label>
-                    <textarea name="requirements" required rows="3" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-700 placeholder-gray-400 resize-none" placeholder="Let us know what you want to achieve or any customization requests..."></textarea>
+                    <textarea name="requirements" required rows="3" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-700 placeholder-gray-400 resize-none" placeholder="Let us know what you want to achieve..."></textarea>
+                    <p class="text-[10px] text-gray-500 mt-1 leading-relaxed">
+                        * For privacy protection (HIPAA & DPDP compliance), please do not share sensitive medical records or diagnosis details in this form. Specific health conditions will be discussed securely in your private assessment.
+                    </p>
+                </div>
+
+                <!-- DPDP Consent Checkbox -->
+                <div class="flex items-start gap-2.5 pt-1.5">
+                    <input type="checkbox" required id="consent-check" class="mt-0.5 h-4 w-4 text-[#2d6a5a] border-gray-300 rounded focus:ring-[#2d6a5a]">
+                    <label for="consent-check" class="text-[11px] text-gray-500 select-none leading-normal">
+                        I consent to SolaceSquad processing my name, contact number, and email to coordinate this booking.
+                    </label>
                 </div>
 
                 <!-- Action buttons inside form -->

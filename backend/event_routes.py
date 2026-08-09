@@ -355,11 +355,34 @@ def register_event_routes(app: FastAPI, templates: Jinja2Templates, get_db):
 
         try:
             from google import genai as _genai
-            api_key = os.getenv("GEMINI_API_KEY", "")
-            if not api_key:
-                return JSONResponse({"success": False, "error": "GEMINI_API_KEY not configured"}, status_code=500)
+            # Initialize Client using Vertex AI (HIPAA/DPDP compliant) or fallback to Developer key
+            gcp_project = os.getenv("GCP_PROJECT_ID", "abiding-idea-485817-k2")
+            gcp_location = os.getenv("GCP_LOCATION", "global")
             
-            client = _genai.Client(api_key=api_key)
+            client = None
+            vertex_err = None
+            try:
+                # Try Vertex AI first (uses ADC inside Cloud Run)
+                client = _genai.Client(vertex=True, project=gcp_project, location=gcp_location)
+                # Warm-up call to confirm permissions
+                client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents="Test connection",
+                )
+                print("[AI Assist] Successfully initialized HIPAA-eligible Vertex AI client.")
+            except Exception as vx_err:
+                vertex_err = vx_err
+                client = None
+
+            if not client:
+                # Fallback to direct Gemini API with developer key
+                api_key = os.getenv("GEMINI_API_KEY", "")
+                if not api_key:
+                    return JSONResponse({
+                        "success": False, 
+                        "error": f"Vertex AI initialization failed ({vertex_err}) and Developer GEMINI_API_KEY is not configured."
+                    }, status_code=500)
+                client = _genai.Client(api_key=api_key)
 
             system_prompt = (
                 "You are an expert wellness events planner and editor for SolaceSquad. "
