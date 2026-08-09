@@ -415,3 +415,53 @@ Return ONLY valid JSON, no markdown code block formatting or fences."""
             return {"success": False, "error": f"AI returned invalid JSON: {e}", "raw": raw}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    @app.post("/api/events/enquire")
+    async def event_enquiry(request: Request, db: Session = Depends(get_db)):
+        """Capture enquiry details and email them to sg@solacesquad.com via SendGrid."""
+        try:
+            data = await request.json()
+            event_id = data.get("event_id")
+            name = data.get("name")
+            phone = data.get("phone")
+            email = data.get("email")
+            requirements = data.get("requirements")
+            tentative_date = data.get("tentative_date")
+
+            if not (event_id and name and phone and email and requirements and tentative_date):
+                return JSONResponse({"success": False, "error": "All fields are required"}, status_code=400)
+
+            event = db.query(EventWorkshop).filter(EventWorkshop.id == event_id).first()
+            if not event:
+                return JSONResponse({"success": False, "error": "Event/Workshop not found"}, status_code=404)
+
+            # Build structured plain-text email body
+            email_body = f"""New Wellness Session Booking Enquiry:
+------------------------------------
+Event/Workshop: {event.title} ({event.type.upper()})
+
+Inquirer Contact Details:
+- Name: {name}
+- Email: {email}
+- Phone: {phone}
+
+Session Plan:
+- Tentative Date: {tentative_date}
+
+Brief Description of Requirements:
+{requirements}
+"""
+            from sendgrid_email import send_plain_email
+            sent = send_plain_email(
+                to_email="sg@solacesquad.com",
+                subject=f"New Session Enquiry: {event.title}",
+                body=email_body
+            )
+
+            if not sent:
+                return JSONResponse({"success": False, "error": "Failed to send email notification"}, status_code=500)
+
+            return {"success": True, "message": "Enquiry sent successfully"}
+
+        except Exception as e:
+            return JSONResponse({"success": False, "error": str(e)}, status_code=500)

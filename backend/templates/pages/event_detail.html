@@ -295,25 +295,163 @@
 </div>
 
 <!-- Inquiry Modal -->
-<div id="inquiry-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl border border-gray-100">
-        <div class="flex items-center justify-between mb-4 border-b border-gray-50 pb-3">
-            <h3 class="font-bold text-lg text-gray-900">Event Inquiry</h3>
+<div id="inquiry-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 hidden overflow-y-auto">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-xl border border-gray-100 my-8 relative flex flex-col max-h-[90vh]">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+            <h3 class="font-bold text-lg text-gray-900">Book / Enquire</h3>
             <button onclick="closeInquiryModal()" class="text-gray-400 hover:text-gray-700">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>
-        <p class="text-sm text-gray-600 leading-relaxed mb-4">
-            If you are interested in attending <strong>{{ event.title }}</strong>, please reach out to us directly or send a message to support.
-        </p>
-        <div class="space-y-2 mb-6">
-            <a href="mailto:support@solacesquad.com?subject=Inquiry: {{ event.title }}" class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition text-sm font-semibold text-gray-800">
-                <i data-lucide="mail" class="w-4 h-4 text-primary-700"></i> support@solacesquad.com
-            </a>
+
+        <!-- Scrollable Form Container -->
+        <div class="flex-grow overflow-y-auto pr-1 space-y-5 text-left text-gray-700 text-sm">
+            <!-- Introduction -->
+            <div class="bg-primary-50 border border-primary-100 rounded-2xl p-4 flex gap-3 text-xs text-primary-800 leading-relaxed shadow-sm">
+                <div class="text-primary-700 flex-shrink-0 mt-0.5">
+                    <i data-lucide="info" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <strong class="font-bold">About SolaceSquad:</strong>
+                    SolaceSquad is dedicated to bringing premier holistic wellness programs, group workshops, and expert consultations directly to individuals and corporate teams. Share your details below to schedule or customize a wellness session.
+                </div>
+            </div>
+
+            <!-- Speaker/Consultant Profile Button -->
+            {% if event.expert_name or event.author_name %}
+            <div class="flex items-center justify-between bg-gray-50 border border-gray-200/50 rounded-2xl p-3.5 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-[#2d6a5a]/10 text-[#2d6a5a] flex items-center justify-center font-bold text-sm uppercase">
+                        {% if event.expert_name %}{{ event.expert_name[:2] }}{% else %}{{ event.author_name[:2] }}{% endif %}
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-400 uppercase tracking-wider font-semibold">Consultant / Host</div>
+                        <div class="font-bold text-gray-900 text-xs">{% if event.expert_name %}{{ event.expert_name }}{% else %}{{ event.author_name }}{% endif %}</div>
+                    </div>
+                </div>
+                <button type="button" onclick="openProfileSlides()" class="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 text-[#2d6a5a] hover:text-[#1c473c] text-xs font-bold rounded-full transition shadow-sm flex items-center gap-1.5">
+                    <i data-lucide="user" class="w-3.5 h-3.5"></i> View Profile
+                </button>
+            </div>
+            {% endif %}
+
+            <!-- Form Fields -->
+            <form id="enquiry-form" class="space-y-4" onsubmit="submitEnquiry(event)">
+                <input type="hidden" name="event_id" value="{{ event.id }}">
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Your Name</label>
+                    <input type="text" name="name" required class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-700 placeholder-gray-400" placeholder="e.g. John Doe">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Contact Number</label>
+                        <input type="tel" name="phone" required class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-700 placeholder-gray-400" placeholder="e.g. +91 98765 43210">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Email ID</label>
+                        <input type="email" name="email" required class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-700 placeholder-gray-400" placeholder="e.g. john@example.com">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Tentative Session Date</label>
+                    <input type="date" name="tentative_date" required class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-700 text-gray-900">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Brief Description of Requirement</label>
+                    <textarea name="requirements" required rows="3" class="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-700 placeholder-gray-400 resize-none" placeholder="Let us know what you want to achieve or any customization requests..."></textarea>
+                </div>
+
+                <!-- Action buttons inside form -->
+                <div class="flex gap-3 pt-3">
+                    <button type="button" onclick="closeInquiryModal()" class="flex-1 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-full font-bold text-sm transition">
+                        Cancel
+                    </button>
+                    <button type="submit" id="enquiry-submit-btn" class="flex-1 py-2.5 bg-[#2d6a5a] hover:bg-[#1f4b3e] text-white rounded-full font-bold text-sm shadow-sm transition flex items-center justify-center gap-2">
+                        Send Enquiry
+                    </button>
+                </div>
+            </form>
         </div>
-        <button onclick="closeInquiryModal()" class="w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-full font-bold text-sm shadow-sm transition">
-            Close
+    </div>
+</div>
+
+<!-- Consultant Profile Slides Modal -->
+<div id="profile-slides-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99999] flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl border border-gray-100 relative flex flex-col max-h-[85vh]">
+        <!-- Close button top-right -->
+        <button onclick="closeProfileSlides()" class="absolute top-5 right-5 text-gray-400 hover:text-gray-700 transition" aria-label="Close Profile">
+            <i data-lucide="x" class="w-5 h-5"></i>
         </button>
+
+        <!-- Slides Container -->
+        <div class="flex-grow overflow-y-auto py-2">
+            <!-- Slide 1: Overview -->
+            <div id="prof-slide-1" class="prof-slide flex flex-col items-center text-center space-y-4">
+                {% if event.expert_name %}
+                    <!-- Expert Profile -->
+                    <div class="w-24 h-24 rounded-full bg-amber-50 border-2 border-amber-200 flex items-center justify-center text-amber-800 text-3xl font-extrabold uppercase shadow-sm">
+                        {{ event.expert_name[:2] }}
+                    </div>
+                    <div>
+                        <h4 class="font-extrabold text-xl text-gray-900">{{ event.expert_name }}</h4>
+                        <span class="inline-block mt-1 bg-amber-50 border border-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">Wellness Consultant</span>
+                    </div>
+                {% else %}
+                    <!-- Host Profile -->
+                    {% if event.author_image %}
+                        <img src="{% if 'storage.googleapis.com' in event.author_image %}/api/events/media?url={{ event.author_image | urlencode }}{% else %}{{ event.author_image }}{% endif %}" alt="{{ event.author_name }}" class="w-24 h-24 rounded-full object-cover border-2 border-primary-200 shadow-sm p-1 bg-white">
+                    {% else %}
+                        <div class="w-24 h-24 rounded-full bg-primary-50 border-2 border-primary-200 flex items-center justify-center text-primary-800 text-3xl font-extrabold uppercase shadow-sm">
+                            {{ event.author_name[:2] }}
+                        </div>
+                    {% endif %}
+                    <div>
+                        <h4 class="font-extrabold text-xl text-gray-900">{{ event.author_name }}</h4>
+                        <span class="inline-block mt-1 bg-primary-50 border border-primary-100 text-primary-800 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">Event Host / Organizer</span>
+                    </div>
+                {% endif %}
+                <p class="text-xs text-gray-400 italic">Click Next to view biography & credentials</p>
+            </div>
+
+            <!-- Slide 2: Credentials/Bio -->
+            <div id="prof-slide-2" class="prof-slide hidden flex flex-col space-y-4 text-left">
+                <div class="border-b border-gray-100 pb-2">
+                    <h5 class="font-bold text-xs uppercase tracking-wider text-gray-400">Biography & Credentials</h5>
+                    <h4 class="font-bold text-base text-gray-900">{% if event.expert_name %}{{ event.expert_name }}{% else %}{{ event.author_name }}{% endif %}</h4>
+                </div>
+                <div class="text-sm text-gray-600 leading-relaxed max-h-[40vh] overflow-y-auto pr-1">
+                    {% if event.expert_name %}
+                        {{ event.expert_bio or 'No bio details available.' }}
+                    {% else %}
+                        {{ event.author_bio or 'No bio details available.' }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Slides Navigation Footer -->
+        <div class="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+            <!-- Prev Button -->
+            <button onclick="changeProfileSlide(-1)" id="prof-prev-btn" class="p-2 border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-800 rounded-full transition shadow-sm disabled:opacity-30 disabled:pointer-events-none" disabled>
+                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Dots Indicator -->
+            <div class="flex gap-2" id="prof-dots-container">
+                <span class="w-2.5 h-2.5 rounded-full bg-[#2d6a5a] transition-all duration-300" id="prof-dot-1"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-gray-200 transition-all duration-300" id="prof-dot-2"></span>
+            </div>
+
+            <!-- Next Button -->
+            <button onclick="changeProfileSlide(1)" id="prof-next-btn" class="p-2 border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-gray-800 rounded-full transition shadow-sm disabled:opacity-30 disabled:pointer-events-none">
+                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+            </button>
+        </div>
     </div>
 </div>
 
@@ -449,9 +587,141 @@
     // Inquiry Modal
     function openInquiryModal() {
         document.getElementById('inquiry-modal').classList.remove('hidden');
+        document.getElementById('inquiry-modal').classList.add('flex');
+        document.body.style.overflow = 'hidden';
     }
+    
     function closeInquiryModal() {
         document.getElementById('inquiry-modal').classList.add('hidden');
+        document.getElementById('inquiry-modal').classList.remove('flex');
+        document.body.style.overflow = '';
+    }
+
+    // Profile Slides Modal
+    let currentProfileSlide = 1;
+    const totalProfileSlides = 2;
+
+    function openProfileSlides() {
+        const modal = document.getElementById('profile-slides-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        currentProfileSlide = 1;
+        showSlide(1);
+    }
+
+    function closeProfileSlides() {
+        const modal = document.getElementById('profile-slides-modal');
+        modal.classList.add('opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }, 300);
+    }
+
+    function changeProfileSlide(direction) {
+        currentProfileSlide = currentProfileSlide + direction;
+        if (currentProfileSlide < 1) currentProfileSlide = 1;
+        if (currentProfileSlide > totalProfileSlides) currentProfileSlide = totalProfileSlides;
+        showSlide(currentProfileSlide);
+    }
+
+    function showSlide(slideNum) {
+        document.querySelectorAll('.prof-slide').forEach((el, idx) => {
+            if (idx + 1 === slideNum) {
+                el.classList.remove('hidden');
+                el.classList.add('flex');
+            } else {
+                el.classList.add('hidden');
+                el.classList.remove('flex');
+            }
+        });
+
+        for (let i = 1; i <= totalProfileSlides; i++) {
+            const dot = document.getElementById(`prof-dot-${i}`);
+            if (dot) {
+                if (i === slideNum) {
+                    dot.className = 'w-2.5 h-2.5 rounded-full bg-[#2d6a5a] transition-all duration-300';
+                } else {
+                    dot.className = 'w-2.5 h-2.5 rounded-full bg-gray-200 transition-all duration-300';
+                }
+            }
+        }
+
+        document.getElementById('prof-prev-btn').disabled = (slideNum === 1);
+        document.getElementById('prof-next-btn').disabled = (slideNum === totalProfileSlides);
+    }
+
+    // Submit Booking Inquiry Form
+    async function submitEnquiry(event) {
+        event.preventDefault();
+        const form = event.target;
+        const btn = document.getElementById('enquiry-submit-btn');
+        const origText = btn.textContent;
+        
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+
+        const formData = {
+            event_id: form.event_id.value,
+            name: form.name.value,
+            phone: form.phone.value,
+            email: form.email.value,
+            tentative_date: form.tentative_date.value,
+            requirements: form.requirements.value
+        };
+
+        try {
+            const res = await fetch('/api/events/enquire', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+            const data = await res.json();
+            if (data.success) {
+                showInquiryToast('✅ Inquiry sent successfully!', 'success');
+                form.reset();
+                closeInquiryModal();
+            } else {
+                showInquiryToast(`⚠️ ${data.error || 'Failed to send enquiry'}`, 'error');
+            }
+        } catch(e) {
+            showInquiryToast('⚠️ Connection error — please try again', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = origText;
+        }
+    }
+
+    // Custom Toast Helper
+    function showInquiryToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-5 right-5 z-[100000] px-5 py-3 rounded-2xl shadow-xl border text-sm font-semibold transition-all duration-500 transform translate-y-10 opacity-0 flex items-center gap-2 ${
+            type === 'success' 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+        }`;
+        
+        const icon = document.createElement('span');
+        icon.innerHTML = type === 'success' ? '✓' : '⚠️';
+        toast.appendChild(icon);
+
+        const text = document.createElement('span');
+        text.innerText = message;
+        toast.appendChild(text);
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.remove('translate-y-10', 'opacity-0');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.add('translate-y-10', 'opacity-0');
+            setTimeout(() => toast.remove(), 500);
+        }, 3500);
     }
 </script>
 
