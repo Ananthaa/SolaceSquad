@@ -318,23 +318,6 @@
                 </div>
             </div>
 
-            <!-- Speaker/Consultant Profile Button -->
-            {% if event.expert_name or event.author_name %}
-            <div class="flex items-center justify-between bg-gray-50 border border-gray-200/50 rounded-2xl p-3.5 shadow-sm">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-[#2d6a5a]/10 text-[#2d6a5a] flex items-center justify-center font-bold text-sm uppercase">
-                        {% if event.expert_name %}{{ event.expert_name[:2] }}{% else %}{{ event.author_name[:2] }}{% endif %}
-                    </div>
-                    <div>
-                        <div class="text-xs text-gray-400 uppercase tracking-wider font-semibold">Consultant / Host</div>
-                        <div class="font-bold text-gray-900 text-xs">{% if event.expert_name %}{{ event.expert_name }}{% else %}{{ event.author_name }}{% endif %}</div>
-                    </div>
-                </div>
-                <button type="button" onclick="openProfileSlides()" class="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 text-[#2d6a5a] hover:text-[#1c473c] text-xs font-bold rounded-full transition shadow-sm flex items-center gap-1.5">
-                    <i data-lucide="user" class="w-3.5 h-3.5"></i> View Profile
-                </button>
-            </div>
-            {% endif %}
 
             <!-- Form Fields -->
             <form id="enquiry-form" class="space-y-4" onsubmit="submitEnquiry(event)">
