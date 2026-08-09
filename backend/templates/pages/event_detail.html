@@ -107,8 +107,13 @@
                 {% if event.show_registration %}
                 <div class="flex flex-col sm:flex-row items-center gap-4 justify-between bg-[#fcfbfa] border border-gray-100 p-6 rounded-2xl">
                     <div>
-                        <div class="font-bold text-gray-900 text-base">Securing your spot</div>
-                        <p class="text-gray-500 text-xs mt-1">Please register in advance to join this wellness session.</p>
+                        {% if event.type == 'workshop' %}
+                            <div class="font-bold text-gray-900 text-base">Bring this to your organization</div>
+                            <p class="text-gray-500 text-xs mt-1">Inquire to host this customized wellness workshop at your office premises or team retreat.</p>
+                        {% else %}
+                            <div class="font-bold text-gray-900 text-base">Securing your spot</div>
+                            <p class="text-gray-500 text-xs mt-1">Please register in advance to join this wellness session.</p>
+                        {% endif %}
                     </div>
                     {% if event.registration_link %}
                         <a href="{{ event.registration_link }}" target="_blank" class="w-full sm:w-auto px-8 py-3 bg-[#2d6a5a] text-white rounded-full font-bold shadow-sm hover:bg-[#1e4d40] hover:shadow-md transition text-center text-sm">
