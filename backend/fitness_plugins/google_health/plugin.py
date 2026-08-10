@@ -50,6 +50,30 @@ class GoogleHealthPlugin(FitnessPlugin):
             except Exception:
                 user_tz = ZoneInfo("UTC")
 
+            # Load user weight (default 70kg) and MET configurations
+            from models import UserProfile
+            profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+            user_weight = profile.weight if (profile and profile.weight) else 70.0
+
+            _WL_MET = {
+                'Running': 9.8,
+                'Walking': 3.5,
+                'Cycling': 7.5,
+                'Swimming': 7.0,
+                'Yoga': 2.5,
+                'Strength': 5.0,
+                'HIIT': 10.0,
+                'Pilates': 3.0,
+                'Dancing': 5.5,
+                'Meditation': 1.3,
+                'Sports': 6.0,
+                'Rowing': 7.0,
+                'Boxing': 9.0,
+                'Climbing': 8.0,
+                'Stretching': 2.3,
+                'Other': 4.0,
+            }
+
             access_token = _get_access_token(token.refresh_token)
             if not access_token:
                 return SyncResult(success=False, error="Token refresh failed")
@@ -111,6 +135,11 @@ class GoogleHealthPlugin(FitnessPlugin):
                 dist_km     = round(dist_m / 1000, 2) if dist_m > 0 else None
                 steps       = int(_extract_fp_val(dataset, "step_count.delta"))
 
+                # Estimate calories if Google Fit doesn't have it
+                if calories <= 0:
+                    met = _WL_MET.get(workout_type, 4.0)
+                    calories = round(met * user_weight * (duration_min / 60.0))
+
                 # Only attach distance for distance-based activities
                 if act_type not in _DISTANCE_ACTIVITY_TYPES:
                     dist_km = None
@@ -120,7 +149,7 @@ class GoogleHealthPlugin(FitnessPlugin):
                     log_date     = act_date,
                     workout_type = workout_type,
                     duration_min = duration_min,
-                    calories     = calories if calories > 0 else 0,
+                    calories     = calories,
                     step_count   = steps if steps > 0 else 0,
                     distance_km  = dist_km,
                     source       = "google_health",
@@ -153,6 +182,11 @@ class GoogleHealthPlugin(FitnessPlugin):
                     if steps < 1:
                         continue
                     
+                    # Calculate Walking calories & duration: 100 steps per min, MET = 3.5
+                    effective_dur = steps / 100.0
+                    step_calories = round(3.5 * user_weight * (effective_dur / 60.0))
+                    duration_min = round(effective_dur)
+
                     existing = db.query(WorkoutLog).filter(
                         WorkoutLog.user_id  == user_id,
                         WorkoutLog.log_date == b_date,
@@ -160,8 +194,10 @@ class GoogleHealthPlugin(FitnessPlugin):
                         WorkoutLog.notes.like("Google Fit daily steps%"),
                     ).first()
                     if existing:
-                        if existing.step_count != steps:
+                        if existing.step_count != steps or existing.calories != step_calories:
                             existing.step_count = steps
+                            existing.calories = step_calories
+                            existing.duration_min = duration_min
                             if b_date == datetime.now(user_tz).date():
                                 saved += 1
                     else:
@@ -169,7 +205,9 @@ class GoogleHealthPlugin(FitnessPlugin):
                             user_id      = user_id,
                             log_date     = b_date,
                             workout_type = "Walking",
+                            duration_min = duration_min,
                             step_count   = steps,
+                            calories     = step_calories,
                             source       = "google_health",
                             notes        = f"Google Fit daily steps: {steps:,} steps synced",
                         ))
