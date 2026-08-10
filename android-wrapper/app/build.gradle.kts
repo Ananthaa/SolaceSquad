@@ -15,10 +15,20 @@ android {
         versionName = "1.1"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("solacesquad-release.keystore")
+            storePassword = "SolaceSquad2026x"
+            keyAlias = "solacesquad-key"
+            keyPassword = "SolaceSquad2026x"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
