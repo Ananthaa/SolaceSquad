@@ -149,6 +149,61 @@ def init_db():
     except Exception as e:
         print(f"[Migration] Warning: Migration check/alter failed: {e}")
         
+    # Backfill calories and duration for existing Google Health logs
+    try:
+        db_session = SessionLocal()
+        from models import WorkoutLog, UserProfile
+        _WL_MET = {
+            'Running': 9.8,
+            'Walking': 3.5,
+            'Cycling': 7.5,
+            'Swimming': 7.0,
+            'Yoga': 2.5,
+            'Strength': 5.0,
+            'HIIT': 10.0,
+            'Pilates': 3.0,
+            'Dancing': 5.5,
+            'Meditation': 1.3,
+            'Sports': 6.0,
+            'Rowing': 7.0,
+            'Boxing': 9.0,
+            'Climbing': 8.0,
+            'Stretching': 2.3,
+            'Other': 4.0,
+        }
+        logs = db_session.query(WorkoutLog).filter(WorkoutLog.source == "google_health").all()
+        updated = 0
+        for log in logs:
+            profile = db_session.query(UserProfile).filter(UserProfile.user_id == log.user_id).first()
+            user_weight = profile.weight if (profile and profile.weight) else 70.0
+            needs_update = False
+            
+            if log.notes and log.notes.startswith("Google Fit daily steps"):
+                steps = log.step_count or 0
+                if steps > 0:
+                    effective_dur = steps / 100.0
+                    step_calories = round(3.5 * user_weight * (effective_dur / 60.0))
+                    duration_min = round(effective_dur)
+                    if not log.calories or log.calories <= 0 or not log.duration_min or log.duration_min <= 0:
+                        log.calories = step_calories
+                        log.duration_min = duration_min
+                        needs_update = True
+            else:
+                if not log.calories or log.calories <= 0:
+                    duration_min = log.duration_min or 0
+                    if duration_min > 0:
+                        met = _WL_MET.get(log.workout_type, 4.0)
+                        log.calories = round(met * user_weight * (duration_min / 60.0))
+                        needs_update = True
+            if needs_update:
+                updated += 1
+        if updated > 0:
+            db_session.commit()
+            print(f"[Migration] Backfilled {updated} existing Google Health logs with calories/duration.")
+        db_session.close()
+    except Exception as e:
+        print(f"[Migration] Google Health backfill failed: {e}")
+
     print("Database initialized successfully!")
 
 
