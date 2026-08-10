@@ -771,6 +771,46 @@
     }
   })();
 
+  // ── Send Email OTP ────────────────────────────────────────────────
+  async function sendEmailOTP() {
+    const email = document.getElementById('email').value.trim();
+    const name  = document.getElementById('name').value.trim() || 'there';
+    const role  = selectedRole || 'user';
+    if (!email || !email.includes('@')) { showFlash('Please enter a valid email address first.', 'red'); return; }
+
+    const btn = document.getElementById('send-otp-btn');
+    btn.disabled = true; btn.textContent = 'Sending…';
+
+    try {
+      const res  = await fetch('/api/auth/email-otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name, role })
+      });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('otp-section').classList.remove('hidden');
+        startCountdown();
+        btn.textContent = 'Resend';
+        btn.disabled = false;
+        showFlash('OTP sent! Check your inbox — also check your spam/junk folder if you don\'t see it.', 'green');
+      } else if (data.code === 'ROLE_MISMATCH') {
+        // Show the dedicated role-mismatch banner
+        showRoleMismatch(data.existing_role, data.error);
+        btn.textContent = 'Send OTP';
+        btn.disabled = false;
+      } else {
+        showFlash(data.error || 'Failed to send OTP.', 'red');
+        btn.textContent = 'Send OTP';
+        btn.disabled = false;
+      }
+    } catch (e) {
+      showFlash('Network error. Please try again.', 'red');
+      btn.textContent = 'Send OTP';
+      btn.disabled = false;
+    }
+  }
+
   // ── Verify OTP ────────────────────────────────────────────────────
   async function verifyOTP() {
     const email = document.getElementById('email').value.trim();
