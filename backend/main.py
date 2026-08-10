@@ -13350,6 +13350,27 @@ async def delete_workout_log(log_id: int, request: Request, db: Session = Depend
     return {"success": True}
 
 
+@app.post("/api/user/sync-timezone")
+async def sync_timezone(request: Request, db: Session = Depends(get_db)):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"success": False, "error": "Unauthorized"}
+    try:
+        data = await request.json()
+        tz = data.get("timezone")
+        if tz:
+            request.session["timezone"] = tz
+            from models import User
+            user = db.query(User).filter(User.id == user_id).first()
+            if user:
+                user.timezone = tz
+                db.commit()
+            print(f"[INFO] Timezone synced for user {user_id}: {tz}")
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # ============================================================================
 # HOME PAGE BUILDER API
 # ============================================================================

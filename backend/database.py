@@ -111,6 +111,10 @@ def init_db():
             result = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"))
             columns = [row[0] for row in result.fetchall()]
             
+            if "timezone" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN timezone VARCHAR(100) DEFAULT 'UTC'"))
+                print("[Migration] Added column timezone to users table")
+
             if "consent_account" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN consent_account BOOLEAN DEFAULT TRUE"))
                 conn.execute(text("UPDATE users SET consent_account = TRUE"))
