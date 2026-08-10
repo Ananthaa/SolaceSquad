@@ -108,14 +108,15 @@ fun AppScreen(initialPath: String? = null) {
     // Handle deep link path from notifications
     LaunchedEffect(initialPath) {
         if (!initialPath.isNullOrEmpty() && webViewInstance != null) {
-            val baseUrl = "https://www.solacesquad.com"
+            val baseUrl = context.getString(R.string.app_base_url)
             webViewInstance?.loadUrl(baseUrl + initialPath)
         }
     }
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        val baseUrl = "https://www.solacesquad.com/login"
-        val startUrl = if (!initialPath.isNullOrEmpty()) "https://www.solacesquad.com" + initialPath else baseUrl
+        val baseUrl = context.getString(R.string.app_base_url)
+        val loginUrl = "$baseUrl/login"
+        val startUrl = if (!initialPath.isNullOrEmpty()) baseUrl + initialPath else loginUrl
 
         WebViewWrapper(
             url = startUrl,

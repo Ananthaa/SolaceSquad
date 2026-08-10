@@ -1,16 +1,28 @@
 package com.ssq2_and.solacesquad.ui
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.webkit.CookieManager
 import android.webkit.PermissionRequest
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+
+class FileCallbackHolder {
+    var callback: ValueCallback<Array<Uri>>? = null
+}
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -20,6 +32,18 @@ fun WebViewWrapper(
     modifier: Modifier = Modifier,
     onWebViewCreated: (WebView) -> Unit = {}
 ) {
+    val callbackHolder = remember { FileCallbackHolder() }
+    val fileChooserLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isEmpty()) {
+            callbackHolder.callback?.onReceiveValue(null)
+        } else {
+            callbackHolder.callback?.onReceiveValue(uris.toTypedArray())
+        }
+        callbackHolder.callback = null
+    }
+
     AndroidView(
         modifier = modifier.fillMaxSize(),
         factory = { context ->
@@ -59,11 +83,28 @@ fun WebViewWrapper(
                     }
                 }
 
-                // Configure WebChrome Client for WebRTC permissions
+                // Configure WebChrome Client for WebRTC permissions and file chooser
                 webChromeClient = object : WebChromeClient() {
                     override fun onPermissionRequest(request: PermissionRequest?) {
                         // Grant runtime camera/microphone permissions requested by WebRTC inside WebView
                         request?.grant(request.resources)
+                    }
+
+                    override fun onShowFileChooser(
+                        webView: WebView?,
+                        filePathCallback: ValueCallback<Array<Uri>>?,
+                        fileChooserParams: FileChooserParams?
+                    ): Boolean {
+                        callbackHolder.callback?.onReceiveValue(null)
+                        callbackHolder.callback = filePathCallback
+                        try {
+                            fileChooserLauncher.launch("*/*")
+                        } catch (e: Exception) {
+                            callbackHolder.callback?.onReceiveValue(null)
+                            callbackHolder.callback = null
+                            return false
+                        }
+                        return true
                     }
                 }
 

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">SolaceSquad</string>
+    <string name="app_base_url">https://www.solacesquad.com</string>
 </resources>
