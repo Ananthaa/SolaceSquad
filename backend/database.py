@@ -146,6 +146,14 @@ def init_db():
                 print("[Migration] Altered email column to be nullable (DROP NOT NULL)")
             except Exception as _em_err:
                 print(f"[Migration] Note: Altering email column (non-fatal): {_em_err}")
+
+            # Clean up accidental consultant profiles for admin accounts
+            try:
+                result_del = conn.execute(text("DELETE FROM consultant_profiles WHERE user_id IN (SELECT id FROM users WHERE user_type = 'admin')"))
+                if result_del.rowcount > 0:
+                    print(f"[Migration] Cleaned up {result_del.rowcount} accidental consultant profiles from admin accounts")
+            except Exception as _del_err:
+                print(f"[Migration] Note: Clean up admin profiles failed (non-fatal): {_del_err}")
     except Exception as e:
         print(f"[Migration] Warning: Migration check/alter failed: {e}")
         

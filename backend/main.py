@@ -3627,9 +3627,10 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/app", status_code=303)
     
     # Get pending consultants (is_approved=False)
-    # We join User to get names
+    # We join User to get names and ensure we only load actual consultants
     pending = db.query(ConsultantProfile).join(User).filter(
-        ConsultantProfile.is_approved == False
+        ConsultantProfile.is_approved == False,
+        User.user_type == "consultant"
     ).all()
 
     # Calculate user stats
@@ -4227,6 +4228,15 @@ async def consultant_dashboard(request: Request, db: Session = Depends(get_db)):
     if not user_id:
         return RedirectResponse(url="/login", status_code=303)
         
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+
+    if user.user_type != "consultant":
+        if user.user_type == "admin":
+            return RedirectResponse(url="/admin", status_code=303)
+        return RedirectResponse(url="/app", status_code=303)
+
     # Get profile
     consultant_profile = db.query(ConsultantProfile).filter(
         ConsultantProfile.user_id == user_id
