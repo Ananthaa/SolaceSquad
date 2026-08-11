@@ -12003,7 +12003,8 @@ async def get_incomplete_consultants(request: Request, db: Session = Depends(get
         return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
     # 1. Consultants with an incomplete profile record
     profiles = db.query(ConsultantProfile).join(User).filter(
-        ConsultantProfile.is_profile_completed == False
+        ConsultantProfile.is_profile_completed == False,
+        User.user_type == "consultant"
     ).all()
     result = []
     seen_user_ids = set()
