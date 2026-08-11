@@ -958,10 +958,13 @@ class ConsultantEarning(Base):
     created_at             = Column(DateTime, default=datetime.utcnow)
     updated_at             = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    event_workshop_id      = Column(Integer, ForeignKey("event_workshops.id"), nullable=True)
+
     # Relationships
     consultant = relationship("User", backref="consultant_earnings")
     appointment = relationship("Appointment", backref="earning")
     transaction = relationship("PaymentTransaction", backref="earning")
+    event_workshop = relationship("EventWorkshop", backref="earnings")
 
 
 # ── Blog Platform ─────────────────────────────────────────────────────────────
@@ -1072,8 +1075,12 @@ class EventWorkshop(Base):
     created_at          = Column(DateTime, default=datetime.utcnow)
     updated_at          = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    consultant_id       = Column(Integer, ForeignKey("consultant_profiles.id"), nullable=True)
+    payout_amount       = Column(Float, default=0.0, nullable=True)
+
     # Relationships
     gallery_items = relationship("EventGalleryItem", backref="event", cascade="all, delete-orphan", order_by="EventGalleryItem.sort_order")
+    consultant = relationship("ConsultantProfile", backref="events_workshops")
 
 
 class EventGalleryItem(Base):

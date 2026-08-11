@@ -9,8 +9,53 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from models import EventWorkshop, EventGalleryItem
+from models import EventWorkshop, EventGalleryItem, ConsultantEarning, ConsultantProfile
 from gcs_uploads import upload_to_gcs
+
+def _is_test_mode() -> bool:
+    """Return True when Razorpay is configured with a test key."""
+    key_id = os.getenv("RAZORPAY_KEY_ID", "")
+    return key_id.startswith("rzp_test_")
+
+def sync_event_earning(db: Session, event: EventWorkshop):
+    """Sync the ConsultantEarning table with the event's payout info."""
+    # Find existing earning for this event
+    earning = db.query(ConsultantEarning).filter(ConsultantEarning.event_workshop_id == event.id).first()
+    
+    if event.consultant_id and event.payout_amount and event.payout_amount > 0:
+        # We need an earning record
+        # Find the User.id for the given ConsultantProfile.id
+        profile = db.query(ConsultantProfile).filter(ConsultantProfile.id == event.consultant_id).first()
+        if not profile:
+            if earning:
+                db.delete(earning)
+            return
+            
+        consultant_user_id = profile.user_id
+        is_test = _is_test_mode()
+        
+        if not earning:
+            earning = ConsultantEarning(
+                consultant_user_id=consultant_user_id,
+                event_workshop_id=event.id,
+                gross_amount=float(event.payout_amount),
+                platform_fee=0.0,
+                consultant_payout=float(event.payout_amount),
+                payout_status="pending",
+                is_test=is_test
+            )
+            db.add(earning)
+        else:
+            earning.consultant_user_id = consultant_user_id
+            earning.gross_amount = float(event.payout_amount)
+            earning.consultant_payout = float(event.payout_amount)
+            earning.is_test = is_test
+    else:
+        # No consultant or zero payout: remove any existing earning record
+        if earning:
+            db.delete(earning)
+            
+    db.commit()
 
 def _event_dict(event: EventWorkshop) -> dict:
     """Helper to serialize an EventWorkshop object with its gallery items."""
@@ -41,6 +86,8 @@ def _event_dict(event: EventWorkshop) -> dict:
         "sort_order": event.sort_order,
         "created_at": event.created_at.isoformat() if event.created_at else None,
         "updated_at": event.updated_at.isoformat() if event.updated_at else None,
+        "consultant_id": event.consultant_id,
+        "payout_amount": event.payout_amount,
         "gallery_items": [
             {
                 "id": item.id,
@@ -154,15 +201,20 @@ def register_event_routes(app: FastAPI, templates: Jinja2Templates, get_db):
     # ── Admin CMS Page & API ────────────────────────────────────────────────────
 
     @app.get("/admin/events", response_class=HTMLResponse, tags=["Admin / Events"])
-    async def admin_events_page(request: Request):
+    async def admin_events_page(request: Request, db: Session = Depends(get_db)):
         """Admin page to manage events and workshops."""
         _admin_check(request, allow_assistant=True)
+        from models import User
+        consultants = db.query(ConsultantProfile).join(User).filter(
+            ConsultantProfile.is_approved == True
+        ).order_by(User.name.asc()).all()
         return templates.TemplateResponse(
             "pages/admin_events.html",
             {
                 "request": request,
                 "active_page": "events",
-                "active_user_type": request.session.get("user_type")
+                "active_user_type": request.session.get("user_type"),
+                "consultants": consultants
             }
         )
 
@@ -195,6 +247,18 @@ def register_event_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         except ValueError:
             event_date = date.today()
 
+        consultant_id_val = data.get("consultant_id")
+        payout_amount_val = data.get("payout_amount")
+        try:
+            consultant_id = int(consultant_id_val) if consultant_id_val else None
+        except (ValueError, TypeError):
+            consultant_id = None
+            
+        try:
+            payout_amount = float(payout_amount_val) if payout_amount_val else 0.0
+        except (ValueError, TypeError):
+            payout_amount = 0.0
+
         event = EventWorkshop(
             type=data.get("type", "event"),
             title=data.get("title", "").strip(),
@@ -218,11 +282,16 @@ def register_event_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             show_date_time=bool(data.get("show_date_time", True)),
             show_location=bool(data.get("show_location", True)),
             status=data.get("status", "draft"),
-            sort_order=int(data.get("sort_order", 0))
+            sort_order=int(data.get("sort_order", 0)),
+            consultant_id=consultant_id,
+            payout_amount=payout_amount
         )
         db.add(event)
         db.commit()
         db.refresh(event)
+
+        # Sync consultant earnings
+        sync_event_earning(db, event)
 
         # Handle Gallery items
         gallery_data = data.get("gallery_items", [])
@@ -298,8 +367,25 @@ def register_event_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             )
             db.add(gal_item)
 
+        # Update event consultant fields
+        consultant_id_val = data.get("consultant_id")
+        payout_amount_val = data.get("payout_amount")
+        try:
+            event.consultant_id = int(consultant_id_val) if consultant_id_val else None
+        except (ValueError, TypeError):
+            event.consultant_id = None
+            
+        try:
+            event.payout_amount = float(payout_amount_val) if payout_amount_val else 0.0
+        except (ValueError, TypeError):
+            event.payout_amount = 0.0
+
         db.commit()
         db.refresh(event)
+
+        # Sync consultant earnings
+        sync_event_earning(db, event)
+
         return {"success": True, "event": _event_dict(event)}
 
     @app.delete("/api/admin/events/{event_id}", tags=["Admin / Events"])
@@ -308,6 +394,8 @@ def register_event_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         event = db.query(EventWorkshop).filter(EventWorkshop.id == event_id).first()
         if not event:
             raise HTTPException(status_code=404, detail="Event not found")
+        # Delete linked consultant earnings
+        db.query(ConsultantEarning).filter(ConsultantEarning.event_workshop_id == event_id).delete()
         db.delete(event)
         db.commit()
         return {"success": True}

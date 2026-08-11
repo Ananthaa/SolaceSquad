@@ -154,6 +154,32 @@ def init_db():
                     print(f"[Migration] Cleaned up {result_del.rowcount} accidental consultant profiles from admin/user accounts")
             except Exception as _del_err:
                 print(f"[Migration] Note: Clean up non-consultant profiles failed (non-fatal): {_del_err}")
+
+            # Add columns to event_workshops table
+            try:
+                result_ew = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'event_workshops'"))
+                columns_ew = [row[0] for row in result_ew.fetchall()]
+                
+                if "consultant_id" not in columns_ew:
+                    conn.execute(text("ALTER TABLE event_workshops ADD COLUMN consultant_id INTEGER REFERENCES consultant_profiles(id) ON DELETE SET NULL"))
+                    print("[Migration] Added column consultant_id to event_workshops table")
+                    
+                if "payout_amount" not in columns_ew:
+                    conn.execute(text("ALTER TABLE event_workshops ADD COLUMN payout_amount FLOAT DEFAULT 0.0"))
+                    print("[Migration] Added column payout_amount to event_workshops table")
+            except Exception as _ew_err:
+                print(f"[Migration] Note: Adding event_workshops columns failed (non-fatal): {_ew_err}")
+
+            # Add event_workshop_id column to consultant_earnings table
+            try:
+                result_ce = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'consultant_earnings'"))
+                columns_ce = [row[0] for row in result_ce.fetchall()]
+                
+                if "event_workshop_id" not in columns_ce:
+                    conn.execute(text("ALTER TABLE consultant_earnings ADD COLUMN event_workshop_id INTEGER REFERENCES event_workshops(id) ON DELETE SET NULL"))
+                    print("[Migration] Added column event_workshop_id to consultant_earnings table")
+            except Exception as _ce_err:
+                print(f"[Migration] Note: Adding consultant_earnings columns failed (non-fatal): {_ce_err}")
     except Exception as e:
         print(f"[Migration] Warning: Migration check/alter failed: {e}")
         

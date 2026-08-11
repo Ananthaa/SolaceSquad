@@ -1421,8 +1421,8 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 {
                     "id":               e.id,
                     "appointment_id":   e.appointment_id,
-                    "appointment_date": appt.appointment_date.isoformat() if appt else None,
-                    "client_name":      client.name if client else "Unknown",
+                    "appointment_date": appt.appointment_date.isoformat() if appt else (e.event_workshop.event_date.isoformat() if e.event_workshop else None),
+                    "client_name":      client.name if client else (f"Event: {e.event_workshop.title}" if e.event_workshop else "Unknown"),
                     "gross_amount":     e.gross_amount,
                     "platform_fee_pct": e.platform_fee_pct,
                     "platform_fee":     e.platform_fee,
@@ -1904,8 +1904,8 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             "earnings": [
                 {
                     "id":               e.id,
-                    "appointment_date": appt.appointment_date.isoformat() if appt else None,
-                    "client_name":      client.name if client else "Unknown",
+                    "appointment_date": appt.appointment_date.isoformat() if appt else (e.event_workshop.event_date.isoformat() if e.event_workshop else None),
+                    "client_name":      client.name if client else (f"Event: {e.event_workshop.title}" if e.event_workshop else "Unknown"),
                     "my_payout":        e.consultant_payout,
                     "payout_status":    e.payout_status,
                     "payout_date":      e.payout_date.isoformat() if e.payout_date else None,

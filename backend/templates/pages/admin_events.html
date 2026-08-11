@@ -202,6 +202,31 @@
                     </div>
                 </div>
 
+                <!-- Consultant Association & Financials (CMS Only) -->
+                <div class="bg-teal-50/50 border border-teal-100 rounded-2xl p-4 space-y-4">
+                    <h4 class="font-bold text-xs text-teal-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="banknote" class="w-4 h-4 text-teal-600"></i> Consultant Payout Info (Financials Only)
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-teal-900 uppercase tracking-wider mb-1">Associated Consultant</label>
+                            <select id="event-consultant-id" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-600">
+                                <option value="">-- No Consultant --</option>
+                                {% for consultant in consultants %}
+                                <option value="{{ consultant.id }}">{{ consultant.user.name }} ({{ consultant.user.email }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-teal-900 uppercase tracking-wider mb-1">Payout Amount (₹)</label>
+                            <input type="number" step="0.01" min="0" id="event-payout-amount" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-600" placeholder="0.00">
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-teal-700 italic leading-relaxed">
+                        * Note: This information is only visible to admins in the dashboard and is used for consultant earnings tracking. It is not shown on the public events website.
+                    </p>
+                </div>
+
                 <!-- AI Helper Tools section -->
                 <div class="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 space-y-3">
                     <div class="flex items-center justify-between">
@@ -486,6 +511,8 @@
         document.getElementById('event-short-summary').value = currentEvent.short_summary || '';
         document.getElementById('event-full-content').innerHTML = currentEvent.full_content || '';
         document.getElementById('event-ai-assisted').checked = currentEvent.ai_assisted_content;
+        document.getElementById('event-consultant-id').value = currentEvent.consultant_id || '';
+        document.getElementById('event-payout-amount').value = currentEvent.payout_amount || '';
 
         document.getElementById('delete-btn').classList.remove('hidden');
         document.getElementById('header-delete-btn').classList.remove('hidden');
@@ -545,6 +572,8 @@
         document.getElementById('event-short-summary').value = '';
         document.getElementById('event-full-content').innerHTML = '';
         document.getElementById('event-ai-assisted').checked = false;
+        document.getElementById('event-consultant-id').value = '';
+        document.getElementById('event-payout-amount').value = '';
 
         document.getElementById('delete-btn').classList.add('hidden');
         document.getElementById('header-delete-btn').classList.add('hidden');
@@ -778,6 +807,8 @@
             short_summary: document.getElementById('event-short-summary').value.trim(),
             full_content: document.getElementById('event-full-content').innerHTML,
             ai_assisted_content: document.getElementById('event-ai-assisted').checked,
+            consultant_id: document.getElementById('event-consultant-id').value || null,
+            payout_amount: document.getElementById('event-payout-amount').value || 0.0,
             gallery_items: currentEvent.gallery_items
         };
 
