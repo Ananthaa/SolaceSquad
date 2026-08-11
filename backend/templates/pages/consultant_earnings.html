@@ -241,7 +241,10 @@ function renderTable(earnings) {
   document.getElementById('earningBody').innerHTML = earnings.map(e => `
     <tr>
       <td style="white-space:nowrap;">${fmtDate(e.appointment_date)}</td>
-      <td style="font-weight:600;">${e.client_name}</td>
+      <td>
+        <div style="font-weight:600;color:#111827;">${e.client_name}</div>
+        ${e.fee_tag ? `<div style="margin-top:.2rem;"><span class="type-pill" style="background:#e0f2fe;color:#0369a1;font-size:.65rem;padding:.08rem .35rem;border-radius:.25rem;font-weight:700;text-transform:uppercase;border:1px solid #bae6fd;">${e.fee_tag}</span></div>` : ''}
+      </td>
       <td style="text-align:right;font-weight:800;color:#059669;">${fmt(e.my_payout)}</td>
       <td><span class="badge badge-${e.payout_status}">${e.payout_status.replace('_',' ')}</span></td>
       <td style="color:#9ca3af;white-space:nowrap;">${fmtDate(e.payout_date)}</td>
