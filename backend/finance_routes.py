@@ -1458,6 +1458,21 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         now = datetime.utcnow()
         is_test = _is_test_mode()
 
+        # Auto-complete past in_progress appointments in database
+        try:
+            db.execute(
+                text(
+                    "UPDATE appointments "
+                    "SET status = 'completed' "
+                    "WHERE status = 'in_progress' AND appointment_date < :now - (duration_minutes * INTERVAL '1 minute')"
+                ),
+                {"now": now}
+            )
+            db.commit()
+        except Exception as _sync_err:
+            db.rollback()
+            print(f"[Sync-Appointments] Warning: Auto-completing past in_progress failed: {_sync_err}")
+
         # Build dynamic WHERE clauses
         where_parts = ["a.is_test = :is_test"]
         params: dict = {"is_test": is_test, "now": now}

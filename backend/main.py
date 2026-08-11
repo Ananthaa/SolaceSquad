@@ -7777,6 +7777,11 @@ async def get_user_appointments(request: Request, db: Session = Depends(get_db))
                 appt.status = "expired"
                 changed = True
 
+            # Auto-complete: slot is fully over AND call was in_progress (status 'in_progress')
+            if appt.status == "in_progress" and appt_end < now:
+                appt.status = "completed"
+                changed = True
+
             # Reset future 'in_progress' to 'scheduled' if it's in the future
             if appt.status == "in_progress" and appt.appointment_date > now + timedelta(minutes=15):
                 appt.status = "scheduled"
@@ -7836,6 +7841,11 @@ async def get_consultant_appointments(request: Request, db: Session = Depends(ge
             # 'completed' means call finished normally - leave it alone
             if appt.status == "scheduled" and appt_end < now:
                 appt.status = "expired"
+                changed = True
+
+            # Auto-complete: slot is fully over AND call was in_progress (status 'in_progress')
+            if appt.status == "in_progress" and appt_end < now:
+                appt.status = "completed"
                 changed = True
 
             # Reset future 'in_progress' to 'scheduled' if it's in the future
