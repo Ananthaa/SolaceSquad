@@ -10865,10 +10865,11 @@ async def update_consultant_price(user_id: int, request: Request, db: Session = 
     
     if not profile:
         # Create profile if it doesn't exist (edge case)
-        profile = ConsultantProfile(user_id=user_id, hourly_rate=float(hourly_rate))
+        profile = ConsultantProfile(user_id=user_id, hourly_rate=float(hourly_rate), consultation_fee=float(hourly_rate))
         db.add(profile)
     else:
         profile.hourly_rate = float(hourly_rate)
+        profile.consultation_fee = float(hourly_rate)
         
     db.commit()
     
@@ -10884,6 +10885,43 @@ async def update_consultant_price(user_id: int, request: Request, db: Session = 
     )
     
     return {"success": True}
+
+
+@app.post("/api/admin/update-price/{user_id}")
+async def admin_update_price(user_id: int, request: Request, db: Session = Depends(get_db)):
+    """Update a consultant's hourly rate and consultation fee via HTML form submission"""
+    admin_id = request.session.get("user_id")
+    if not admin_id:
+        return RedirectResponse(url="/login", status_code=303)
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return RedirectResponse(url="/admin", status_code=303)
+
+    form = await request.form()
+    hourly_rate_str = form.get("hourly_rate")
+    if hourly_rate_str is not None:
+        try:
+            rate = float(hourly_rate_str)
+            profile = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user_id).first()
+            if profile:
+                profile.hourly_rate = rate
+                profile.consultation_fee = rate
+                db.commit()
+                
+                # Audit Log
+                AuditLogger.log_event(
+                    db, 
+                    event_type="admin_update_price_form", 
+                    user_id=admin_id,
+                    resource_type="consultant_profile",
+                    resource_id=str(profile.id),
+                    details=f"Form set price to {rate}",
+                    request=request
+                )
+        except ValueError:
+            pass
+
+    return RedirectResponse(url="/admin", status_code=303)
 
 # ============================================================================
 # EXERCISE VIDEO LIBRARY ROUTES
@@ -12188,6 +12226,7 @@ async def update_consultant_fee(
         return JSONResponse({"success": False, "error": "Consultant not found"}, status_code=404)
 
     consultant.consultation_fee = fee
+    consultant.hourly_rate = fee
     if payout is not None:
         consultant.consultant_payout = payout
     db.commit()
@@ -12441,6 +12480,7 @@ async def admin_consultant_fix_page(request: Request, db: Session = Depends(get_
     )
 
 # Remove consultant profile only (keeps user account intact)
+@app.delete("/api/admin/consultants/{user_id}/delete")
 @app.delete("/api/admin/consultants/{user_id}/profile")
 async def remove_consultant_profile(user_id: int, request: Request, db: Session = Depends(get_db)):
     """Remove a consultant profile without deleting the user account.
