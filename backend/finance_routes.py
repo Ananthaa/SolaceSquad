@@ -1963,7 +1963,8 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         })
 
     @app.get("/api/admin/finance/debug-db")
-    async def debug_db(db: Session = Depends(get_db)):
+    async def debug_db(request: Request, db: Session = Depends(get_db)):
+        _admin_check(request, db)
         from models import ConsultantEarning, EventWorkshop, ConsultantProfile, User
         earnings = db.query(ConsultantEarning).all()
         events = db.query(EventWorkshop).all()
