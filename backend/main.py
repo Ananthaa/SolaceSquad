@@ -4850,7 +4850,8 @@ async def forgot_password_api(request: Request, db: Session = Depends(get_db)):
         
         # Send reset email using SendGrid
         try:
-            reset_link = f"https://solacesquad-312011725712.us-central1.run.app/reset-password?token={reset_token}"
+            app_base_url = os.getenv("APP_BASE_URL", "https://www.solacesquad.com").rstrip("/")
+            reset_link = f"{app_base_url}/reset-password?token={reset_token}"
             
             # Send email via SendGrid
             email_sent = send_password_reset_email(user.email, user.name, reset_link)
@@ -6791,7 +6792,7 @@ async def forgot_password_post(request: Request, db: Session = Depends(get_db)):
             
             # Send password reset email
             try:
-                base_url = "https://solacesquad-312011725712.us-central1.run.app"
+                base_url = os.getenv("APP_BASE_URL", "https://www.solacesquad.com").rstrip("/")
                 reset_link = f"{base_url}/reset-password?token={reset_token}"
                 send_password_reset_email(user_email, user.name or "there", reset_link)
                 print(f"âœ… Password reset email dispatched to {user_email}")
