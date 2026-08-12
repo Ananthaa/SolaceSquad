@@ -518,6 +518,7 @@ def log_consultant_earning(
     taxes: float = 0.0,
     discount_amount: float = 0.0,
     discount_pct: float = 0.0,
+    standard_fee_pct: float = None,  # If provided, platform fee is calculated as (gross_amount - taxes) * standard_fee_pct
 ) -> "ConsultantEarning":
     """Create a ConsultantEarning row after a consultation payment."""
     from models import ConsultantEarning
@@ -525,14 +526,18 @@ def log_consultant_earning(
     # Fee split: admin sets consultation_fee (user pays) and consultant_payout (consultant receives)
     payout = round(payout_amount, 2) if payout_amount is not None else round(gross_amount, 2)
     
-    # Platform fee: 0 in case of 100% discount, else: customer paid - Taxes - Consultant payout
+    # Platform fee: 0 in case of 100% discount, else: based on what user paid base * standard platform fee percentage
     if gross_amount <= 0.0 or discount_pct >= 99.9:
         fee = 0.0
         pct = 0.0
     else:
-        fee = round(gross_amount - taxes - payout, 2)
         net_gross = gross_amount - taxes
-        pct = round((fee / net_gross * 100), 2) if net_gross > 0.0 else 0.0
+        if standard_fee_pct is not None:
+            fee = round(net_gross * standard_fee_pct, 2)
+            pct = round(standard_fee_pct * 100, 2)
+        else:
+            fee = round(net_gross - payout, 2)
+            pct = round((fee / net_gross * 100), 2) if net_gross > 0.0 else 0.0
 
     earning = ConsultantEarning(
         consultant_user_id     = consultant_user_id,
@@ -1101,6 +1106,11 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         disc_amt  = max(0.0, round(std_gross - prorated_fee, 2))
         disc_pct  = round((disc_amt / std_gross * 100), 2) if std_gross > 0 else 0.0
 
+        # Calculate standard platform fee percentage from profile
+        prof_fee = profile.consultation_fee or profile.hourly_rate or 500.0
+        prof_payout = profile.consultant_payout or prof_fee
+        std_fee_pct = (prof_fee - prof_payout) / prof_fee if prof_fee > 0 else 0.20
+
         log_consultant_earning(
             db                     = db,
             consultant_user_id     = profile.user_id,
@@ -1111,6 +1121,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             taxes                  = taxes_val,
             discount_amount        = disc_amt,
             discount_pct           = disc_pct,
+            standard_fee_pct       = std_fee_pct,
         )
 
         db.commit()
@@ -1471,15 +1482,22 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 disc_pct = 0.0
 
             # 4. platform_fee
-            # Requirement 3: platform fee is 0 in case of 100% discount, else: customer paid - Taxes - Consultant payout
+            # Platform fee is 0 in case of 100% discount, else: based on what user paid base * standard platform fee percentage
             is_hundred_percent = (customer_paid == 0.0 and e.consultant_payout > 0.0) or (disc_pct >= 99.9)
             if is_hundred_percent:
                 platform_fee_val = 0.0
                 platform_fee_pct_val = 0.0
             else:
-                platform_fee_val = round(customer_paid - taxes_val - e.consultant_payout, 2)
-                net_gross = customer_paid - taxes_val
-                platform_fee_pct_val = round((platform_fee_val / net_gross * 100), 2) if net_gross > 0.0 else 0.0
+                profile = appt.consultant if appt else None
+                if profile:
+                    prof_fee = profile.consultation_fee or profile.hourly_rate or 500.0
+                    prof_payout = profile.consultant_payout or prof_fee
+                    standard_pct = (prof_fee - prof_payout) / prof_fee if prof_fee > 0 else 0.20
+                else:
+                    standard_pct = 0.20
+                
+                platform_fee_val = round((customer_paid - taxes_val) * standard_pct, 2)
+                platform_fee_pct_val = round(standard_pct * 100, 2)
 
             # Increment totals
             total_gross += customer_paid
