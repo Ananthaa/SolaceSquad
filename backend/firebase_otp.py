@@ -175,8 +175,12 @@ class MSG91Provider:
             # Clean phone number (remove + and spaces)
             clean_phone = phone_number.replace("+", "").replace(" ", "").replace("-", "")
             
+            # Remove leading 0 if present (common input pattern)
+            if clean_phone.startswith("0") and len(clean_phone) == 11:
+                clean_phone = clean_phone[1:]
+            
             # Add country code if not present (assuming India)
-            if not clean_phone.startswith("91") and len(clean_phone) == 10:
+            if len(clean_phone) == 10:
                 clean_phone = "91" + clean_phone
                 print(f"[MSG91] Added country code: {clean_phone}")
             else:
@@ -311,13 +315,16 @@ class AWSSNSProvider:
             
             # Clean phone number (ensure it has + prefix)
             clean_phone = phone_number.replace(" ", "").replace("-", "")
-            if not clean_phone.startswith("+"):
-                # Add country code if missing (assuming India)
-                if clean_phone.startswith("91"):
-                    clean_phone = "+" + clean_phone
-                elif len(clean_phone) == 10:
-                    clean_phone = "+91" + clean_phone
-                else:
+            
+            # Extract digits only to check length
+            digits_only = clean_phone.replace("+", "")
+            if digits_only.startswith("0") and len(digits_only) == 11:
+                digits_only = digits_only[1:]
+                
+            if len(digits_only) == 10:
+                clean_phone = "+91" + digits_only
+            else:
+                if not clean_phone.startswith("+"):
                     clean_phone = "+" + clean_phone
             
             print(f"[AWS SNS] Formatted phone: {clean_phone}")
