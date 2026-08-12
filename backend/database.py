@@ -170,7 +170,7 @@ def init_db():
             except Exception as _ew_err:
                 print(f"[Migration] Note: Adding event_workshops columns failed (non-fatal): {_ew_err}")
 
-            # Add event_workshop_id column to consultant_earnings table
+            # Add event_workshop_id, taxes, discount_amount, discount_pct columns to consultant_earnings table
             try:
                 result_ce = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'consultant_earnings'"))
                 columns_ce = [row[0] for row in result_ce.fetchall()]
@@ -178,6 +178,18 @@ def init_db():
                 if "event_workshop_id" not in columns_ce:
                     conn.execute(text("ALTER TABLE consultant_earnings ADD COLUMN event_workshop_id INTEGER REFERENCES event_workshops(id) ON DELETE SET NULL"))
                     print("[Migration] Added column event_workshop_id to consultant_earnings table")
+                
+                if "taxes" not in columns_ce:
+                    conn.execute(text("ALTER TABLE consultant_earnings ADD COLUMN taxes FLOAT DEFAULT 0.0"))
+                    print("[Migration] Added column taxes to consultant_earnings table")
+                    
+                if "discount_amount" not in columns_ce:
+                    conn.execute(text("ALTER TABLE consultant_earnings ADD COLUMN discount_amount FLOAT DEFAULT 0.0"))
+                    print("[Migration] Added column discount_amount to consultant_earnings table")
+                    
+                if "discount_pct" not in columns_ce:
+                    conn.execute(text("ALTER TABLE consultant_earnings ADD COLUMN discount_pct FLOAT DEFAULT 0.0"))
+                    print("[Migration] Added column discount_pct to consultant_earnings table")
             except Exception as _ce_err:
                 print(f"[Migration] Note: Adding consultant_earnings columns failed (non-fatal): {_ce_err}")
     except Exception as e:

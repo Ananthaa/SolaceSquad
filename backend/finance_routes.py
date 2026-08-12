@@ -515,15 +515,24 @@ def log_consultant_earning(
     payment_transaction_id: int,
     gross_amount: float,
     payout_amount: float = None,  # consultant_payout from profile; if None, full amount goes to consultant
+    taxes: float = 0.0,
+    discount_amount: float = 0.0,
+    discount_pct: float = 0.0,
 ) -> "ConsultantEarning":
     """Create a ConsultantEarning row after a consultation payment."""
     from models import ConsultantEarning
 
     # Fee split: admin sets consultation_fee (user pays) and consultant_payout (consultant receives)
-    # platform_fee = what's left
     payout = round(payout_amount, 2) if payout_amount is not None else round(gross_amount, 2)
-    fee    = round(gross_amount - payout, 2)
-    pct    = round((fee / gross_amount * 100), 2) if gross_amount > 0 else 0.0
+    
+    # Platform fee: 0 in case of 100% discount, else: customer paid - Taxes - Consultant payout
+    if gross_amount <= 0.0 or discount_pct >= 99.9:
+        fee = 0.0
+        pct = 0.0
+    else:
+        fee = round(gross_amount - taxes - payout, 2)
+        net_gross = gross_amount - taxes
+        pct = round((fee / net_gross * 100), 2) if net_gross > 0.0 else 0.0
 
     earning = ConsultantEarning(
         consultant_user_id     = consultant_user_id,
@@ -535,6 +544,9 @@ def log_consultant_earning(
         consultant_payout      = payout,
         payout_status          = "pending",
         is_test                = _is_test_mode(),  # tag mirror earnings as test
+        taxes                  = taxes,
+        discount_amount        = discount_amount,
+        discount_pct           = discount_pct,
     )
     db.add(earning)
     db.commit()
@@ -860,6 +872,8 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             db.flush()
 
             # Log consultant earning (gross_amount = 0, no txn)
+            std_base = fee * (eff_duration / 60.0)
+            std_gross = round(std_base * 1.18, 2)
             log_consultant_earning(
                 db                     = db,
                 consultant_user_id     = profile.user_id,
@@ -867,6 +881,9 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 payment_transaction_id = None,
                 gross_amount           = 0.0,
                 payout_amount          = round((profile.consultant_payout or fee) * (eff_duration / 60), 2),
+                taxes                  = 0.0,
+                discount_amount        = std_gross,
+                discount_pct           = 100.0,
             )
             db.commit()
             db.refresh(appt)
@@ -1076,13 +1093,24 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             description         = f"Consultation with {consultant_name} on {appointment_date[:10]} ({eff_duration} min @ ₹{hourly_rate}/hr)",
         )
 
+        # Calculate gross, taxes, and discounts
+        gross_val = prorated_fee
+        taxes_val = round(prorated_fee - (prorated_fee / 1.18), 2)
+        std_base  = hourly_rate * (eff_duration / 60.0)
+        std_gross = round(std_base * 1.18, 2)
+        disc_amt  = max(0.0, round(std_gross - prorated_fee, 2))
+        disc_pct  = round((disc_amt / std_gross * 100), 2) if std_gross > 0 else 0.0
+
         log_consultant_earning(
             db                     = db,
             consultant_user_id     = profile.user_id,
             appointment_id         = appt.id,
             payment_transaction_id = txn.id,
-            gross_amount           = round(prorated_fee / 1.18, 2), # Exclude GST from gross amount
+            gross_amount           = gross_val,
             payout_amount          = round((profile.consultant_payout or hourly_rate) * (eff_duration / 60), 2),
+            taxes                  = taxes_val,
+            discount_amount        = disc_amt,
+            discount_pct           = disc_pct,
         )
 
         db.commit()
@@ -1393,10 +1421,89 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         cp = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == consultant_user_id).first()
         cu = db.query(User).filter(User.id == consultant_user_id).first()
 
-        total_gross   = sum(e.gross_amount for e, *_ in rows)
-        total_payout  = sum(e.consultant_payout for e, *_ in rows)
-        total_fee     = sum(e.platform_fee for e, *_ in rows)
-        pending       = sum(e.consultant_payout for e, *_ in rows if e.payout_status == "pending")
+        # Prepare rows list and calculate summaries
+        earnings_list = []
+        total_gross = 0.0
+        total_payout = 0.0
+        total_fee = 0.0
+        pending = 0.0
+
+        for e, txn, appt, client in rows:
+            # 1. customer_paid (Gross amount)
+            if appt:
+                # If we have a transaction, use the transaction amount (which includes GST).
+                # For legacy records, gross_amount was stored without GST, so txn.amount is the true amount paid.
+                # If no transaction (free first session), customer paid 0.0.
+                customer_paid = txn.amount if txn else 0.0
+            else:
+                customer_paid = e.gross_amount
+
+            # 2. taxes
+            if getattr(e, "taxes", None) is not None:
+                taxes_val = e.taxes
+            elif txn:
+                taxes_val = round(customer_paid - (customer_paid / 1.18), 2)
+            else:
+                taxes_val = 0.0
+
+            # 3. discount_amount and discount_pct
+            if getattr(e, "discount_amount", None) is not None:
+                disc_amt = e.discount_amount
+                disc_pct = e.discount_pct
+            elif appt:
+                # Legacy record approximation
+                profile = appt.consultant
+                base_rate = profile.consultation_fee or profile.hourly_rate or 500.0
+                standard_base = base_rate * (appt.duration_minutes / 60.0)
+                standard_gross = round(standard_base * 1.18, 2)
+                if customer_paid < standard_gross:
+                    disc_amt = max(0.0, round(standard_gross - customer_paid, 2))
+                    disc_pct = round((disc_amt / standard_gross * 100), 2) if standard_gross > 0 else 0.0
+                else:
+                    disc_amt = 0.0
+                    disc_pct = 0.0
+            else:
+                disc_amt = 0.0
+                disc_pct = 0.0
+
+            # 4. platform_fee
+            # Requirement 3: platform fee is 0 in case of 100% discount, else: customer paid - Taxes - Consultant payout
+            is_hundred_percent = (customer_paid == 0.0 and e.consultant_payout > 0.0) or (disc_pct >= 99.9)
+            if is_hundred_percent:
+                platform_fee_val = 0.0
+                platform_fee_pct_val = 0.0
+            else:
+                platform_fee_val = round(customer_paid - taxes_val - e.consultant_payout, 2)
+                net_gross = customer_paid - taxes_val
+                platform_fee_pct_val = round((platform_fee_val / net_gross * 100), 2) if net_gross > 0.0 else 0.0
+
+            # Increment totals
+            total_gross += customer_paid
+            total_payout += e.consultant_payout
+            total_fee += platform_fee_val
+            if e.payout_status == "pending":
+                pending += e.consultant_payout
+
+            earnings_list.append({
+                "id":               e.id,
+                "appointment_id":   e.appointment_id,
+                "appointment_date": appt.appointment_date.isoformat() if appt else (e.event_workshop.event_date.isoformat() if e.event_workshop else None),
+                "client_name":      client.name if client else (f"Event: {e.event_workshop.title}" if e.event_workshop else "Unknown"),
+                "fee_tag":          "consultation fee" if e.appointment_id else (f"{e.event_workshop.event_mode} {'webinar' if e.event_workshop.type == 'event' else e.event_workshop.type} fee" if e.event_workshop else "financial entry"),
+                "gross_amount":     round(customer_paid, 2),
+                "taxes":            round(taxes_val, 2),
+                "discount_amount":  round(disc_amt, 2),
+                "discount_pct":     round(disc_pct, 2),
+                "platform_fee_pct": round(platform_fee_pct_val, 2),
+                "platform_fee":     round(platform_fee_val, 2),
+                "consultant_payout":round(e.consultant_payout, 2),
+                "payout_status":    e.payout_status,
+                "payout_date":      e.payout_date.isoformat() if e.payout_date else None,
+                "payout_reference": e.payout_reference,
+                "admin_notes":      e.admin_notes,
+                "invoice_number":   txn.invoice_number if txn else None,
+                "created_at":       e.created_at.isoformat(),
+            })
 
         return {
             "consultant_user_id": consultant_user_id,
@@ -1417,26 +1524,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 "pending_payout":          round(pending,      2),
                 "session_count":           len(rows),
             },
-            "earnings": [
-                {
-                    "id":               e.id,
-                    "appointment_id":   e.appointment_id,
-                    "appointment_date": appt.appointment_date.isoformat() if appt else (e.event_workshop.event_date.isoformat() if e.event_workshop else None),
-                    "client_name":      client.name if client else (f"Event: {e.event_workshop.title}" if e.event_workshop else "Unknown"),
-                    "fee_tag":          "consultation fee" if e.appointment_id else (f"{e.event_workshop.event_mode} {'webinar' if e.event_workshop.type == 'event' else e.event_workshop.type} fee" if e.event_workshop else "financial entry"),
-                    "gross_amount":     e.gross_amount,
-                    "platform_fee_pct": e.platform_fee_pct,
-                    "platform_fee":     e.platform_fee,
-                    "consultant_payout":e.consultant_payout,
-                    "payout_status":    e.payout_status,
-                    "payout_date":      e.payout_date.isoformat() if e.payout_date else None,
-                    "payout_reference": e.payout_reference,
-                    "admin_notes":      e.admin_notes,
-                    "invoice_number":   txn.invoice_number if txn else None,
-                    "created_at":       e.created_at.isoformat(),
-                }
-                for e, txn, appt, client in rows
-            ],
+            "earnings": earnings_list,
         }
 
     # ── Admin: Appointment Sessions itemized ledger ─────────────────────────────
@@ -1665,6 +1753,69 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             "upi_id":             profile.upi_id if profile else None,
             "bank_account_number": profile.bank_account_number if profile else None,
         }
+
+    @app.post("/api/admin/finance/consultant-earnings/{earning_id}/mark-free")
+    async def admin_mark_earning_free(
+        request: Request,
+        earning_id: int,
+        db: Session = Depends(get_db),
+    ):
+        _admin_check(request, db)
+        from models import ConsultantEarning
+        earning = db.query(ConsultantEarning).filter(ConsultantEarning.id == earning_id).first()
+        if not earning:
+            return JSONResponse({"success": False, "error": "Not found"}, status_code=404)
+
+        # Store original payout amount in admin_notes before setting to 0, just in case we need to restore it
+        if earning.consultant_payout > 0:
+            original_payout = earning.consultant_payout
+            if not earning.admin_notes:
+                earning.admin_notes = f"original_payout:{original_payout}"
+            elif "original_payout:" not in earning.admin_notes:
+                earning.admin_notes += f" | original_payout:{original_payout}"
+
+        earning.payout_status = "free"
+        earning.consultant_payout = 0.0
+        db.commit()
+        return {"success": True}
+
+    @app.post("/api/admin/finance/consultant-earnings/{earning_id}/restore-pending")
+    async def admin_restore_earning_pending(
+        request: Request,
+        earning_id: int,
+        db: Session = Depends(get_db),
+    ):
+        _admin_check(request, db)
+        from models import ConsultantEarning, Appointment, ConsultantProfile
+        earning = db.query(ConsultantEarning).filter(ConsultantEarning.id == earning_id).first()
+        if not earning:
+            return JSONResponse({"success": False, "error": "Not found"}, status_code=404)
+
+        # Restore original payout
+        original_payout = None
+        if earning.admin_notes and "original_payout:" in earning.admin_notes:
+            try:
+                parts = earning.admin_notes.split("original_payout:")
+                original_payout = float(parts[-1].split(" ")[0].split("|")[0].strip())
+            except Exception:
+                pass
+
+        if original_payout is None:
+            # Recompute based on profile and duration
+            if earning.appointment_id:
+                appt = db.query(Appointment).filter(Appointment.id == earning.appointment_id).first()
+                if appt:
+                    profile = db.query(ConsultantProfile).filter(ConsultantProfile.id == appt.consultant_id).first()
+                    if profile:
+                        rate = profile.consultant_payout or profile.consultation_fee or profile.hourly_rate or 500.0
+                        original_payout = round(rate * (appt.duration_minutes / 60.0), 2)
+            if original_payout is None:
+                original_payout = 500.0  # Fallback
+
+        earning.consultant_payout = original_payout
+        earning.payout_status = "pending"
+        db.commit()
+        return {"success": True}
 
     # ── Consultant: get/save payout bank details ───────────────────────────────
     @app.get("/api/consultant/payout-details")

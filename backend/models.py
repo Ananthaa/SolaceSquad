@@ -947,10 +947,15 @@ class ConsultantEarning(Base):
     consultant_payout      = Column(Float, nullable=False)   # gross_amount - platform_fee
 
     payout_status          = Column(String(30), nullable=False, default="pending")
-    # "pending" | "processing" | "paid" | "on_hold"
+    # "pending" | "processing" | "paid" | "on_hold" | "free"
     payout_date            = Column(DateTime, nullable=True)
     payout_reference       = Column(String(100), nullable=True)  # Bank transfer ref / UPI UTR
     admin_notes            = Column(Text, nullable=True)
+
+    # Taxes and discounts
+    taxes                  = Column(Float, nullable=True, default=0.0)
+    discount_amount        = Column(Float, nullable=True, default=0.0)
+    discount_pct           = Column(Float, nullable=True, default=0.0)
 
     # True if this earning was generated through the Mirror/test environment
     is_test                = Column(Boolean, nullable=False, default=False)

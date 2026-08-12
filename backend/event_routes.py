@@ -43,7 +43,10 @@ def sync_event_earning(db: Session, event: EventWorkshop):
                 platform_fee=0.0,
                 consultant_payout=float(event.payout_amount),
                 payout_status="pending",
-                is_test=is_test
+                is_test=is_test,
+                taxes=0.0,
+                discount_amount=0.0,
+                discount_pct=0.0
             )
             db.add(earning)
         else:
@@ -52,6 +55,9 @@ def sync_event_earning(db: Session, event: EventWorkshop):
             earning.consultant_payout = float(event.payout_amount)
             earning.platform_fee_pct = 0.0
             earning.is_test = is_test
+            earning.taxes = 0.0
+            earning.discount_amount = 0.0
+            earning.discount_pct = 0.0
     else:
         # No consultant or zero payout: remove any existing earning record
         if earning:
