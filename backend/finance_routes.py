@@ -1436,65 +1436,78 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         pending = 0.0
 
         for e, txn, appt, client in rows:
-            # 1. customer_paid (Gross amount)
-            if appt:
-                # If we have a transaction, use the transaction amount (which includes GST).
-                # For legacy records, gross_amount was stored without GST, so txn.amount is the true amount paid.
-                # If no transaction (free first session), customer paid 0.0.
-                customer_paid = txn.amount if txn else 0.0
-            else:
-                customer_paid = e.gross_amount
+            is_refunded = (e.payout_status == "on_hold")
 
-            # 2. taxes
-            # For new entries, e.taxes is saved.
-            # For legacy paid appointments, e.taxes was migrated as 0.0. Compute it dynamically if there is a payment.
-            if getattr(e, "taxes", 0.0) is not None and getattr(e, "taxes", 0.0) > 0.0:
-                taxes_val = e.taxes
-            elif txn and customer_paid > 0.0:
-                taxes_val = round(customer_paid - (customer_paid / 1.18), 2)
-            else:
+            if is_refunded:
+                customer_paid = 0.0
                 taxes_val = 0.0
+                disc_amt = 0.0
+                disc_pct = 0.0
+                platform_fee_val = 0.0
+                platform_fee_pct_val = 0.0
+                payout_val = 0.0
+            else:
+                # 1. customer_paid (Gross amount)
+                if appt:
+                    # If we have a transaction, use the transaction amount (which includes GST).
+                    # For legacy records, gross_amount was stored without GST, so txn.amount is the true amount paid.
+                    # If no transaction (free first session), customer paid 0.0.
+                    customer_paid = txn.amount if txn else 0.0
+                else:
+                    customer_paid = e.gross_amount
 
-            # 3. discount_amount and discount_pct
-            # For new entries, e.discount_amount is saved.
-            # For legacy paid appointments, it was migrated as 0.0. Compute it dynamically if there is a payment.
-            if getattr(e, "discount_amount", 0.0) is not None and getattr(e, "discount_amount", 0.0) > 0.0:
-                disc_amt = e.discount_amount
-                disc_pct = e.discount_pct
-            elif appt:
-                # Legacy record approximation
-                profile = appt.consultant
-                base_rate = profile.consultation_fee or profile.hourly_rate or 500.0
-                standard_base = base_rate * (appt.duration_minutes / 60.0)
-                standard_gross = round(standard_base * 1.18, 2)
-                if customer_paid < standard_gross:
-                    disc_amt = max(0.0, round(standard_gross - customer_paid, 2))
-                    disc_pct = round((disc_amt / standard_gross * 100), 2) if standard_gross > 0 else 0.0
+                # 2. taxes
+                # For new entries, e.taxes is saved.
+                # For legacy paid appointments, e.taxes was migrated as 0.0. Compute it dynamically if there is a payment.
+                if getattr(e, "taxes", 0.0) is not None and getattr(e, "taxes", 0.0) > 0.0:
+                    taxes_val = e.taxes
+                elif txn and customer_paid > 0.0:
+                    taxes_val = round(customer_paid - (customer_paid / 1.18), 2)
+                else:
+                    taxes_val = 0.0
+
+                # 3. discount_amount and discount_pct
+                # For new entries, e.discount_amount is saved.
+                # For legacy paid appointments, it was migrated as 0.0. Compute it dynamically if there is a payment.
+                if getattr(e, "discount_amount", 0.0) is not None and getattr(e, "discount_amount", 0.0) > 0.0:
+                    disc_amt = e.discount_amount
+                    disc_pct = e.discount_pct
+                elif appt:
+                    # Legacy record approximation
+                    profile = appt.consultant
+                    base_rate = profile.consultation_fee or profile.hourly_rate or 500.0
+                    standard_base = base_rate * (appt.duration_minutes / 60.0)
+                    standard_gross = round(standard_base * 1.18, 2)
+                    if customer_paid < standard_gross:
+                        disc_amt = max(0.0, round(standard_gross - customer_paid, 2))
+                        disc_pct = round((disc_amt / standard_gross * 100), 2) if standard_gross > 0 else 0.0
+                    else:
+                        disc_amt = 0.0
+                        disc_pct = 0.0
                 else:
                     disc_amt = 0.0
                     disc_pct = 0.0
-            else:
-                disc_amt = 0.0
-                disc_pct = 0.0
 
-            # 4. platform_fee
-            # No platform fee for events, and no platform fee when there is a discount
-            has_discount = (disc_amt > 0.0 or disc_pct > 0.0 or customer_paid == 0.0)
-            is_event = (e.appointment_id is None)
-            if has_discount or is_event:
-                platform_fee_val = 0.0
-                platform_fee_pct_val = 0.0
-            else:
-                net_gross = customer_paid - taxes_val
-                platform_fee_val = round(net_gross - e.consultant_payout, 2)
-                platform_fee_pct_val = round((platform_fee_val / net_gross * 100), 2) if net_gross > 0.0 else 0.0
+                # 4. platform_fee
+                # No platform fee for events, and no platform fee when there is a discount
+                has_discount = (disc_amt > 0.0 or disc_pct > 0.0 or customer_paid == 0.0)
+                is_event = (e.appointment_id is None)
+                if has_discount or is_event:
+                    platform_fee_val = 0.0
+                    platform_fee_pct_val = 0.0
+                else:
+                    net_gross = customer_paid - taxes_val
+                    platform_fee_val = round(net_gross - e.consultant_payout, 2)
+                    platform_fee_pct_val = round((platform_fee_val / net_gross * 100), 2) if net_gross > 0.0 else 0.0
+
+                payout_val = e.consultant_payout
 
             # Increment totals
             total_gross += customer_paid
-            total_payout += e.consultant_payout
+            total_payout += payout_val
             total_fee += platform_fee_val
             if e.payout_status == "pending":
-                pending += e.consultant_payout
+                pending += payout_val
 
             earnings_list.append({
                 "id":               e.id,
@@ -1508,7 +1521,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 "discount_pct":     round(disc_pct, 2),
                 "platform_fee_pct": round(platform_fee_pct_val, 2),
                 "platform_fee":     round(platform_fee_val, 2),
-                "consultant_payout":round(e.consultant_payout, 2),
+                "consultant_payout":round(payout_val, 2),
                 "payout_status":    e.payout_status,
                 "payout_date":      e.payout_date.isoformat() if e.payout_date else None,
                 "payout_reference": e.payout_reference,
