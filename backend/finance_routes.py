@@ -526,18 +526,14 @@ def log_consultant_earning(
     # Fee split: admin sets consultation_fee (user pays) and consultant_payout (consultant receives)
     payout = round(payout_amount, 2) if payout_amount is not None else round(gross_amount, 2)
     
-    # Platform fee: 0 in case of 100% discount, else: based on what user paid base * standard platform fee percentage
-    if gross_amount <= 0.0 or discount_pct >= 99.9:
+    # Platform fee: 0 in case of discount (or event), else: customer paid - Taxes - Consultant payout
+    if gross_amount <= 0.0 or discount_pct > 0.0 or discount_amount > 0.0 or appointment_id is None:
         fee = 0.0
         pct = 0.0
     else:
         net_gross = gross_amount - taxes
-        if standard_fee_pct is not None:
-            fee = round(net_gross * standard_fee_pct, 2)
-            pct = round(standard_fee_pct * 100, 2)
-        else:
-            fee = round(net_gross - payout, 2)
-            pct = round((fee / net_gross * 100), 2) if net_gross > 0.0 else 0.0
+        fee = round(net_gross - payout, 2)
+        pct = round((fee / net_gross * 100), 2) if net_gross > 0.0 else 0.0
 
     earning = ConsultantEarning(
         consultant_user_id     = consultant_user_id,
@@ -1482,22 +1478,16 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 disc_pct = 0.0
 
             # 4. platform_fee
-            # Platform fee is 0 in case of 100% discount, else: based on what user paid base * standard platform fee percentage
-            is_hundred_percent = (customer_paid == 0.0 and e.consultant_payout > 0.0) or (disc_pct >= 99.9)
-            if is_hundred_percent:
+            # No platform fee for events, and no platform fee when there is a discount
+            has_discount = (disc_amt > 0.0 or disc_pct > 0.0 or customer_paid == 0.0)
+            is_event = (e.appointment_id is None)
+            if has_discount or is_event:
                 platform_fee_val = 0.0
                 platform_fee_pct_val = 0.0
             else:
-                profile = appt.consultant if appt else None
-                if profile:
-                    prof_fee = profile.consultation_fee or profile.hourly_rate or 500.0
-                    prof_payout = profile.consultant_payout or prof_fee
-                    standard_pct = (prof_fee - prof_payout) / prof_fee if prof_fee > 0 else 0.20
-                else:
-                    standard_pct = 0.20
-                
-                platform_fee_val = round((customer_paid - taxes_val) * standard_pct, 2)
-                platform_fee_pct_val = round(standard_pct * 100, 2)
+                net_gross = customer_paid - taxes_val
+                platform_fee_val = round(net_gross - e.consultant_payout, 2)
+                platform_fee_pct_val = round((platform_fee_val / net_gross * 100), 2) if net_gross > 0.0 else 0.0
 
             # Increment totals
             total_gross += customer_paid
