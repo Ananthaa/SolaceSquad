@@ -1439,15 +1439,19 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 customer_paid = e.gross_amount
 
             # 2. taxes
-            if getattr(e, "taxes", None) is not None:
+            # For new entries, e.taxes is saved.
+            # For legacy paid appointments, e.taxes was migrated as 0.0. Compute it dynamically if there is a payment.
+            if getattr(e, "taxes", 0.0) is not None and getattr(e, "taxes", 0.0) > 0.0:
                 taxes_val = e.taxes
-            elif txn:
+            elif txn and customer_paid > 0.0:
                 taxes_val = round(customer_paid - (customer_paid / 1.18), 2)
             else:
                 taxes_val = 0.0
 
             # 3. discount_amount and discount_pct
-            if getattr(e, "discount_amount", None) is not None:
+            # For new entries, e.discount_amount is saved.
+            # For legacy paid appointments, it was migrated as 0.0. Compute it dynamically if there is a payment.
+            if getattr(e, "discount_amount", 0.0) is not None and getattr(e, "discount_amount", 0.0) > 0.0:
                 disc_amt = e.discount_amount
                 disc_pct = e.discount_pct
             elif appt:
