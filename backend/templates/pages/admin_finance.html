@@ -813,8 +813,13 @@ function loadConsultantEarnings() {
         <td style="text-align:right;color:#0d9488;">
           ${e.discount_amount > 0 ? `${fmt(e.discount_amount)} <span style="font-size:.7rem;color:#9ca3af;">(${e.discount_pct}%)</span>` : '—'}
         </td>
-        <td style="text-align:right;color:#dc2626;">
-          ${e.platform_fee > 0 ? `−${fmt(e.platform_fee)} <span style="font-size:.7rem;color:#9ca3af;">(${e.platform_fee_pct}%)</span>` : '₹0.00'}
+        <td style="text-align:right;">
+          ${e.platform_fee !== 0 ? `
+            <span style="color:${e.platform_fee < 0 ? '#10b981' : '#dc2626'}; font-weight:600;">
+              ${e.platform_fee < 0 ? '+' : '−'}${fmt(Math.abs(e.platform_fee))}
+            </span>
+            <span style="font-size:.7rem;color:#9ca3af;">(${e.platform_fee_pct}%)</span>
+          ` : '<span style="color:#6b7280;">₹0.00</span>'}
         </td>
         <td style="text-align:right;font-weight:700;color:#059669;">${fmt(e.consultant_payout)}</td>
         <td style="font-family:monospace;font-size:.75rem;color:#0d9488;">${e.invoice_number || '—'}</td>
