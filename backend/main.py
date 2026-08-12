@@ -3904,6 +3904,7 @@ async def approve_consultant(profile_id: int, request: Request, db: Session = De
 
     # Approve the consultant profile and activate their account
     profile.is_approved = True
+    profile.is_profile_completed = True
     consultant_user = db.query(User).filter(User.id == profile.user_id).first()
     if consultant_user:
         consultant_user.is_active = True
@@ -12177,6 +12178,8 @@ async def toggle_user(request: Request, user_id: int, db: Session = Depends(get_
             ).first()
             if profile:
                 profile.is_approved = target_user.is_active  # True when activating, False when deactivating
+                if target_user.is_active:
+                    profile.is_profile_completed = True
         db.commit()
         return JSONResponse({"success": True, "is_active": target_user.is_active})
     
@@ -12442,9 +12445,14 @@ async def fix_consultant_profiles(request: Request, db: Session = Depends(get_db
             user.user_type = "consultant"
             user_type_fixed += 1
         
-        # Also approve the profile if not approved
+        # Also approve the profile if not approved, and ensure is_profile_completed is True
+        if profile.is_approved and not profile.is_profile_completed:
+            profile.is_profile_completed = True
+            fixed_count += 1
+
         if not profile.is_approved:
             profile.is_approved = True
+            profile.is_profile_completed = True
             fixed_count += 1
     
     # Second, create profiles for users with consultant type but no profile
