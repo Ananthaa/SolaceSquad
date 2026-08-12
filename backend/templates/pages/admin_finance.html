@@ -815,8 +815,8 @@ function loadConsultantEarnings() {
         </td>
         <td style="text-align:right;">
           ${e.platform_fee !== 0 ? `
-            <span style="color:${e.platform_fee < 0 ? '#10b981' : '#dc2626'}; font-weight:600;">
-              ${e.platform_fee < 0 ? '+' : '−'}${fmt(Math.abs(e.platform_fee))}
+            <span style="color:${e.platform_fee < 0 ? '#dc2626' : '#111827'}; font-weight:600;">
+              ${e.platform_fee < 0 ? '−' : ''}${fmt(Math.abs(e.platform_fee))}
             </span>
             <span style="font-size:.7rem;color:#9ca3af;">(${e.platform_fee_pct}%)</span>
           ` : '<span style="color:#6b7280;">₹0.00</span>'}
