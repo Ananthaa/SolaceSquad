@@ -1,0 +1,371 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1001 /* SolaceSquadApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2001 /* SolaceSquadApp.swift */; };
+		1002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2002 /* AppDelegate.swift */; };
+		1003 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2003 /* AppEnvironment.swift */; };
+		1004 /* BiometricAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2004 /* BiometricAuthManager.swift */; };
+		1005 /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2005 /* PushNotificationManager.swift */; };
+		1006 /* CookieStorageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2006 /* CookieStorageManager.swift */; };
+		1007 /* SolaceWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2007 /* SolaceWebView.swift */; };
+		1008 /* WebViewCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2008 /* WebViewCoordinator.swift */; };
+		1009 /* JavaScriptBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2009 /* JavaScriptBridge.swift */; };
+		1010 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2010 /* HealthKitManager.swift */; };
+		1011 /* HealthSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2011 /* HealthSyncService.swift */; };
+		1012 /* PaymentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2012 /* PaymentModels.swift */; };
+		1013 /* RazorpayPaymentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2013 /* RazorpayPaymentManager.swift */; };
+		1014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2014 /* Assets.xcassets */; };
+		1015 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2015 /* PrivacyInfo.xcprivacy */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0001 /* SolaceSquad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SolaceSquad.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2001 /* SolaceSquadApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolaceSquadApp.swift; sourceTree = "<group>"; };
+		2002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		2003 /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
+		2004 /* BiometricAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricAuthManager.swift; sourceTree = "<group>"; };
+		2005 /* PushNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
+		2006 /* CookieStorageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CookieStorageManager.swift; sourceTree = "<group>"; };
+		2007 /* SolaceWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolaceWebView.swift; sourceTree = "<group>"; };
+		2008 /* WebViewCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewCoordinator.swift; sourceTree = "<group>"; };
+		2009 /* JavaScriptBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptBridge.swift; sourceTree = "<group>"; };
+		2010 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
+		2011 /* HealthSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSyncService.swift; sourceTree = "<group>"; };
+		2012 /* PaymentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaymentModels.swift; sourceTree = "<group>"; };
+		2013 /* RazorpayPaymentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RazorpayPaymentManager.swift; sourceTree = "<group>"; };
+		2014 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		2015 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		2016 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		2017 /* SolaceSquad.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SolaceSquad.entitlements; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4001 = {
+			isa = PBXGroup;
+			children = (
+				4002 /* SolaceSquad */,
+				0001 /* SolaceSquad.app */,
+				2017 /* SolaceSquad.entitlements */,
+			);
+			sourceTree = "<group>";
+		};
+		4002 /* SolaceSquad */ = {
+			isa = PBXGroup;
+			children = (
+				4003 /* App */,
+				4004 /* Core */,
+				4005 /* Modules */,
+				4006 /* Resources */,
+			);
+			path = SolaceSquad;
+			sourceTree = "<group>";
+		};
+		4003 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				2001 /* SolaceSquadApp.swift */,
+				2002 /* AppDelegate.swift */,
+				2003 /* AppEnvironment.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		4004 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				4007 /* Security */,
+				4008 /* Notifications */,
+				4009 /* Storage */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		4007 /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				2004 /* BiometricAuthManager.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
+		4008 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				2005 /* PushNotificationManager.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
+		4009 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				2006 /* CookieStorageManager.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		4005 /* Modules */ = {
+			isa = PBXGroup;
+			children = (
+				4010 /* WebView */,
+				4011 /* HealthKit */,
+				4012 /* Payments */,
+			);
+			path = Modules;
+			sourceTree = "<group>";
+		};
+		4010 /* WebView */ = {
+			isa = PBXGroup;
+			children = (
+				2007 /* SolaceWebView.swift */,
+				2008 /* WebViewCoordinator.swift */,
+				2009 /* JavaScriptBridge.swift */,
+			);
+			path = WebView;
+			sourceTree = "<group>";
+		};
+		4011 /* HealthKit */ = {
+			isa = PBXGroup;
+			children = (
+				2010 /* HealthKitManager.swift */,
+				2011 /* HealthSyncService.swift */,
+			);
+			path = HealthKit;
+			sourceTree = "<group>";
+		};
+		4012 /* Payments */ = {
+			isa = PBXGroup;
+			children = (
+				2012 /* PaymentModels.swift */,
+				2013 /* RazorpayPaymentManager.swift */,
+			);
+			path = Payments;
+			sourceTree = "<group>";
+		};
+		4006 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				2014 /* Assets.xcassets */,
+				2015 /* PrivacyInfo.xcprivacy */,
+				2016 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5001 /* SolaceSquad */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6001 /* Build configuration list for PBXNativeTarget "SolaceSquad" */;
+			buildPhases = (
+				7001 /* Sources */,
+				3001 /* Frameworks */,
+				8001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SolaceSquad;
+			productName = SolaceSquad;
+			productReference = 0001 /* SolaceSquad.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		9001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1540;
+				LastUpgradeCheck = 1540;
+				TargetAttributes = {
+					5001 = {
+						CreatedOnToolsVersion = 15.4;
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 6002 /* Build configuration list for PBXProject "SolaceSquad" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 4001;
+			productRefGroup = 4001;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5001 /* SolaceSquad */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1014 /* Assets.xcassets in Resources */,
+				1015 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		7001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1001 /* SolaceSquadApp.swift in Sources */,
+				1002 /* AppDelegate.swift in Sources */,
+				1003 /* AppEnvironment.swift in Sources */,
+				1004 /* BiometricAuthManager.swift in Sources */,
+				1005 /* PushNotificationManager.swift in Sources */,
+				1006 /* CookieStorageManager.swift in Sources */,
+				1007 /* SolaceWebView.swift in Sources */,
+				1008 /* WebViewCoordinator.swift in Sources */,
+				1009 /* JavaScriptBridge.swift in Sources */,
+				1010 /* HealthKitManager.swift in Sources */,
+				1011 /* HealthSyncService.swift in Sources */,
+				1012 /* PaymentModels.swift in Sources */,
+				1013 /* RazorpayPaymentManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		6003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ANALYZER_NONNULL = YES;
+				CODE_SIGN_ENTITLEMENTS = "SolaceSquad.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SolaceSquad/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ssq2.solacesquad;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ANALYZER_NONNULL = YES;
+				CODE_SIGN_ENTITLEMENTS = "SolaceSquad.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SolaceSquad/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ssq2.solacesquad;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		6005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		6006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_OPTIMIZATION_LEVEL = s;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SWIFT_COMPILATION_MODE = "wholemodule";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6001 /* Build configuration list for PBXNativeTarget "SolaceSquad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6003 /* Debug */,
+				6004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6002 /* Build configuration list for PBXProject "SolaceSquad" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6005 /* Debug */,
+				6006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = 9001 /* Project object */;
+}
