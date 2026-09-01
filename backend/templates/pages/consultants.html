@@ -474,9 +474,6 @@
 
 
 
-                <div id="availabilityInfo" class="availability-info"></div>
-
-
 
                 <div id="bookingError"></div>
 
@@ -510,6 +507,8 @@
                 </div>
 
             </form>
+
+            <div id="razorpayEmbeddedContainer" style="display:none; width:100%; min-height:400px; margin-top:10px;"></div>
 
         </div>
 
@@ -1257,6 +1256,10 @@
 
         overflow-y: auto;
 
+    }
+
+    #razorpayEmbeddedContainer iframe {
+        color-scheme: light !important;
     }
 
     @media (max-width: 768px) {
@@ -2214,6 +2217,12 @@
 
                 hideError();
 
+                var submitBtn = bookingForm.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span> Confirm Booking';
+                }
+
                 modal.classList.add('active');
 
             });
@@ -2229,6 +2238,14 @@
             modal.classList.remove('active');
 
             bookingForm.reset();
+
+            // Restore form visibility and hide/clear Razorpay embedded frame
+            bookingForm.style.display = 'block';
+            var rzpContainer = document.getElementById('razorpayEmbeddedContainer');
+            if (rzpContainer) {
+                rzpContainer.style.display = 'none';
+                rzpContainer.innerHTML = '';
+            }
 
             hideError();
 
@@ -2316,7 +2333,7 @@
                             var todayStr = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
                             dateOnlyPicker.min   = todayStr;
                             dateOnlyPicker.value = todayStr;
-                            setTimeout(onDateOrDurationChange, 100);
+                            onDateOrDurationChange();
                         }
                     } else {
                         if (isImpersonating) {
@@ -2330,7 +2347,7 @@
                                 dateOnlyPicker.min = todayStr;
                                 if (!dateOnlyPicker.value || dateOnlyPicker.value < todayStr) {
                                     dateOnlyPicker.value = todayStr;
-                                    setTimeout(onDateOrDurationChange, 100);
+                                    onDateOrDurationChange();
                                 }
                             }
                         } else {
@@ -2350,7 +2367,7 @@
                                     // Auto-select the first valid date and load timeline
                                     if (!dateOnlyPicker.value || dateOnlyPicker.value < minDateStr) {
                                         dateOnlyPicker.value = minDateStr;
-                                        setTimeout(onDateOrDurationChange, 100);
+                                        onDateOrDurationChange();
                                     }
                                 }
                             }
@@ -2377,23 +2394,8 @@
         }
 
         function displayAvailability(schedule) {
-
-            var el = document.getElementById('availabilityInfo');
-
-            var days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-            if (!schedule.length) { el.innerHTML = '<p>No availability set.</p>'; return; }
-
-            var html = '<strong>Available Hours:</strong><ul style="margin:.5rem 0;padding-left:1.5rem;">';
-
-            schedule.forEach(function (s) {
-
-                html += '<li>' + days[s.day_of_week] + ': ' + s.start_time + ' &ndash; ' + s.end_time + '</li>';
-
-            });
-
-            el.innerHTML = html + '</ul>';
-
+            // Section removed as available slots are visible directly
+            return;
         }
 
 
@@ -2522,6 +2524,7 @@
                             prefill: {
                                 name:  d.user_name  || '',
                                 email: d.user_email || '',
+                                contact: d.user_phone || '',
                             },
                             theme: { color: '#0d9488' },
                             handler: function(resp) {
@@ -2559,13 +2562,34 @@
                             },
                             modal: {
                                 ondismiss: function() {
-                                    // User closed the payment popup without paying
+                                    document.getElementById('bookingModal').classList.add('active');
                                     btn.disabled = false;
                                     btn.innerHTML = '<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span> Confirm Booking';
                                 }
                             }
                         };
-                        new window.Razorpay(options).open();
+                        // Native Android Razorpay Bridge check
+                        if (window.AndroidBridge && typeof window.AndroidBridge.openRazorpay === 'function') {
+                            window.handleNativeRazorpaySuccess = function(resp) {
+                                options.handler(resp);
+                            };
+                            window.handleNativeRazorpayError = function(code, desc) {
+                                showError('Payment cancelled or failed: ' + (desc || ''));
+                                btn.disabled = false;
+                                btn.innerHTML = '<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span> Confirm Booking';
+                            };
+                            window.AndroidBridge.openRazorpay(JSON.stringify(options));
+                            return;
+                        }
+
+                        // Web / Browser checkout fallback
+                        var rzp = new window.Razorpay(options);
+                        rzp.on('payment.failed', function(resp) {
+                            showError('Payment failed: ' + (resp.error ? resp.error.description : 'Unknown error'));
+                            btn.disabled = false;
+                            btn.innerHTML = '<span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span> Confirm Booking';
+                        });
+                        rzp.open();
                     });
                 })
                 .catch(function(err) {
@@ -2576,6 +2600,10 @@
         });
 
         function loadRazorpay(cb) {
+            if (window.AndroidBridge && typeof window.AndroidBridge.openRazorpay === 'function') {
+                cb();
+                return;
+            }
             if (window.Razorpay) { cb(); return; }
             var s = document.createElement('script');
             s.src = 'https://checkout.razorpay.com/v1/checkout.js';

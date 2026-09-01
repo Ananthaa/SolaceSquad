@@ -131,7 +131,7 @@
                     <p class="mt-1 text-xs text-gray-500">Minimum 8 characters</p>
                 </div>
 
-                <div>
+                <div id="user-type-container">
                     <label for="user_type" class="block text-sm font-medium text-gray-700 mb-2">
                         I am a
                     </label>
@@ -193,6 +193,26 @@
 </div>
 
 <script>
+    // Auto-detect mobile apps & mobile screens to lock signup strictly to standard Users
+    function checkMobileSignup() {
+        const isMobileApp = window.AndroidBridge !== undefined || 
+                            window.iOSBridge !== undefined || 
+                            /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ||
+                            window.innerWidth < 768;
+        if (isMobileApp) {
+            const userTypeSelect = document.getElementById('user_type');
+            const userTypeContainer = document.getElementById('user-type-container');
+            if (userTypeSelect) {
+                userTypeSelect.value = 'user';
+            }
+            if (userTypeContainer) {
+                userTypeContainer.style.display = 'none';
+            }
+            toggleConsultantFields('user');
+        }
+    }
+    document.addEventListener('DOMContentLoaded', checkMobileSignup);
+
     // Phone number validation
     const phoneInput = document.getElementById('phone_number');
     phoneInput.addEventListener('input', function (e) {
