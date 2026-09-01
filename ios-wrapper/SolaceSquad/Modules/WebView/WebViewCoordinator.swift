@@ -43,18 +43,15 @@ public class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
     }
     
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        // Evaluate helper JS bridge for web compatibility
+        // Expose iOS native bridge for Apple Health sync
         let bridgePolyfill = """
         window.iOSBridge = {
-            openRazorpay: function(jsonStr) {
-                window.webkit.messageHandlers.openRazorpay.postMessage(jsonStr);
-            },
             syncAppleHealth: function() {
-                window.webkit.messageHandlers.syncAppleHealth.postMessage({});
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.syncAppleHealth) {
+                    window.webkit.messageHandlers.syncAppleHealth.postMessage({});
+                }
             }
         };
-        // Alias AndroidBridge so existing web templates work out-of-the-box!
-        window.AndroidBridge = window.iOSBridge;
         """
         webView.evaluateJavaScript(bridgePolyfill, completionHandler: nil)
     }
