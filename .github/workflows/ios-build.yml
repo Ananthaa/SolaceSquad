@@ -2,7 +2,7 @@ name: SolaceSquad iOS Build & Appetize Package
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ '**' ]
   workflow_dispatch:
 
 jobs:
