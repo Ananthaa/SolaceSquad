@@ -35,13 +35,8 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Zip Simulator App for Appetize.io
-        run: |
-          cd ios-wrapper/build/Build/Products/Debug-iphonesimulator
-          zip -r SolaceSquad-Simulator.app.zip SolaceSquad.app
-
       - name: Upload Artifact (Ready for Appetize.io testing)
         uses: actions/upload-artifact@v4
         with:
           name: SolaceSquad-Simulator-App
-          path: ios-wrapper/build/Build/Products/Debug-iphonesimulator/SolaceSquad-Simulator.app.zip
+          path: ios-wrapper/build/Build/Products/Debug-iphonesimulator/SolaceSquad.app
