@@ -7,6 +7,8 @@
 <script src="/static/js/socket.io.min.js"></script>
 <!-- Agora Web SDK (Hosted locally to bypass firewall blocks) -->
 <script src="/static/js/agora-rtc-4.22.0.js"></script>
+<!-- Agora Virtual Background Extension (Hosted locally) -->
+<script src="/static/js/agora-extension-virtual-background.js"></script>
 
 <!-- Chart.js for health charts (Hosted locally to bypass firewall blocks) -->
 <script src="/static/js/chart-4.4.0.umd.min.js"></script>
@@ -204,13 +206,19 @@
     #video-panels.single-video {
         grid-template-columns: 1fr !important;
     }
-    #remote-video, #local-video {
+    .video-wrapper {
+        position: relative;
         width: 100%;
         height: 385px;
         border-radius: 0.75rem;
         background: #0f172a;
-        object-fit: cover;
         border: 2px solid #1e293b;
+        overflow: hidden;
+    }
+    .video-wrapper video {
+        object-fit: cover !important;
+        width: 100% !important;
+        height: 100% !important;
     }
     .video-label {
         position: absolute;
@@ -221,15 +229,13 @@
         background: rgba(0,0,0,.5);
         padding: 1px 6px;
         border-radius: 4px;
-    }
-    .video-wrapper {
-        position: relative;
+        z-index: 15;
     }
     @media (max-width: 640px) {
         #video-panels.active {
             grid-template-columns: 1fr;
         }
-        #remote-video, #local-video {
+        .video-wrapper {
             height: 180px;
         }
     }
@@ -603,13 +609,32 @@
 
     <!-- Video Panels (hidden until camera enabled) -->
     <div id="video-panels">
+        <!-- Network Warning Alert Banner -->
+        <div id="network-warning-banner" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: #ef4444; color: white; padding: 8px 16px; border-radius: 8px; z-index: 99; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); font-family: sans-serif; font-weight: 500; font-size: 13px; text-align: center; display: none; align-items: center; gap: 6px; width: 90%; max-width: 500px; justify-content: center; border: 1px solid rgba(255,255,255,0.2);">
+            <span class="warning-icon">⚠️</span>
+            <span id="network-warning-message"></span>
+        </div>
+
         <div class="video-wrapper" id="remote-video-wrapper">
-            <video id="remote-video" autoplay playsinline></video>
             <span class="video-label">{% if user.user_type == 'user' %}Consultant{% else %}{{ patient.name.split()[0] if patient else 'Patient' }}{% endif %}</span>
+            <div id="remote-network-indicator" class="network-indicator hidden" style="position: absolute; bottom: 10px; right: 10px; background: rgba(15, 23, 42, 0.75); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 11px; z-index: 10; display: flex; align-items: center; gap: 4px; font-family: sans-serif; border: 1px solid rgba(255,255,255,0.15);">
+                <span class="network-icon">📶</span>
+                <span class="network-text">Good Connection</span>
+            </div>
         </div>
         <div class="video-wrapper" id="local-video-wrapper">
-            <video id="local-video" autoplay playsinline muted></video>
             <span class="video-label">You</span>
+            
+            <!-- Floating Blur Toggler inside local video preview -->
+            <button id="local-blur-btn" onclick="toggleBlur()" class="hidden animate-pulse" style="position: absolute; top: 10px; left: 10px; background: rgba(15, 23, 42, 0.85); color: #fff; padding: 6px 12px; border-radius: 20px; font-size: 11px; z-index: 10; display: flex; align-items: center; gap: 4px; font-family: sans-serif; border: 1px solid rgba(255,255,255,0.25); cursor: pointer; transition: all 0.2s;">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                <span id="local-blur-text">Blur Background</span>
+            </button>
+
+            <div id="local-network-indicator" class="network-indicator hidden" style="position: absolute; bottom: 10px; right: 10px; background: rgba(15, 23, 42, 0.75); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 11px; z-index: 10; display: flex; align-items: center; gap: 4px; font-family: sans-serif; border: 1px solid rgba(255,255,255,0.15);">
+                <span class="network-icon">📶</span>
+                <span class="network-text">Good Connection</span>
+            </div>
         </div>
     </div>
 
@@ -1146,6 +1171,21 @@
     </div>
 </div>
 
+<!-- Upload Progress Modal Overlay -->
+<div id="upload-overlay" class="modal-overlay" style="z-index: 10000; background: rgba(15, 23, 42, 0.85); display: none; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
+    <div class="modal-content" style="max-width: 400px; text-align: center; padding: 2.5rem; border-radius: 20px; background: #ffffff; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+        <div style="margin-bottom: 1.5rem;">
+            <svg class="animate-spin" style="margin: 0 auto; height: 3rem; width: 3rem; color: #0284c7;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+        </div>
+        <h3 id="upload-status-title" style="font-size: 1.25rem; font-weight: 600; color: #0f172a; margin-bottom: 0.5rem; font-family: sans-serif;">Saving Session Recording...</h3>
+        <p id="upload-status-percentage" style="font-size: 2rem; font-weight: 700; color: #0284c7; margin-bottom: 0.75rem; font-family: sans-serif;">0%</p>
+        <p style="font-size: 0.875rem; color: #64748b; line-height: 1.5; margin: 0; font-family: sans-serif;">Please keep this window open while the recording is saved to our secure servers.</p>
+    </div>
+</div>
+
 <style>
 .exit-option-label:hover {
     background: rgba(0,0,0,0.02);
@@ -1237,6 +1277,10 @@
     let localAudioTrack = null;
     let localVideoTrack = null;
     let isAgoraInitialized = false;
+    let virtualBackgroundExtension = null;
+    let virtualBackgroundProcessor = null;
+    let isBlurEnabled = false;
+    let remoteVideoActive = false;
     
     // Lobby State Variables
     let lobbyStream = null;
@@ -1777,6 +1821,7 @@
     let canvasStream;
     let isRecordingVideo = false;
     let recordingUploaded = false;
+    let isUploadingRecording = false;
 
     // ── Auto-start recording on audio mix destination ──────────────────
     function startRecording() {
@@ -1813,11 +1858,11 @@
                 recordingCtx.fillStyle = '#0f172a';
                 recordingCtx.fillRect(0, 0, 640, 480);
                 
-                const remoteVideo = document.getElementById('remote-video');
-                const localVideo = document.getElementById('local-video');
+                const remoteVideo = document.querySelector('#remote-video-wrapper video');
+                const localVideo = document.querySelector('#local-video-wrapper video');
                 
-                const remoteActive = remoteVideo && remoteVideo.srcObject && remoteVideo.srcObject.getVideoTracks().length > 0 && remoteVideo.srcObject.getVideoTracks()[0].readyState === 'live';
-                const localActive = localVideo && localVideo.srcObject && localVideo.srcObject.getVideoTracks().length > 0 && localVideo.srcObject.getVideoTracks()[0].readyState === 'live';
+                const remoteActive = remoteVideo && remoteVideoActive && remoteVideo.readyState >= 2;
+                const localActive = localVideo && cameraEnabled && localVideo.readyState >= 2;
                 
                 if (remoteActive && localActive) {
                     // Draw side-by-side
@@ -2000,6 +2045,14 @@
                 // Initialize Agora client
                 console.log('[Agora] Initializing Web SDK client...');
                 agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+
+                // Track network quality changes
+                agoraClient.on("network-quality", (quality) => {
+                    const localQuality = quality.uplinkNetworkQuality;
+                    const remoteQuality = quality.downlinkNetworkQuality;
+                    handleNetworkQualityChange("local", localQuality);
+                    handleNetworkQualityChange("remote", remoteQuality);
+                });
                 
                 // Handle Agora autoplay policy failure
                 AgoraRTC.onAutoplayFailed = () => {
@@ -2057,19 +2110,17 @@
                     }
  
                     if (mediaType === "video") {
-                        const remoteVideoEl = document.getElementById('remote-video');
-                        if (remoteVideoEl) {
-                            remoteVideoEl.srcObject = new MediaStream([user.videoTrack.getMediaStreamTrack()]);
-                            updateVideoLayout();
-                        }
+                        remoteVideoActive = true;
+                        user.videoTrack.play("remote-video-wrapper");
+                        updateVideoLayout();
                     }
                 });
  
                 agoraClient.on("user-unpublished", (user, mediaType) => {
                     console.log("[Agora] Remote user unpublished stream:", user.uid, mediaType);
                     if (mediaType === "video") {
-                        const remoteVideoEl = document.getElementById('remote-video');
-                        if (remoteVideoEl) remoteVideoEl.srcObject = null;
+                        remoteVideoActive = false;
+                        user.videoTrack.stop();
                         updateVideoLayout();
                     }
                     if (!agoraClient.remoteUsers || agoraClient.remoteUsers.length === 0) {
@@ -2082,6 +2133,8 @@
                     // Do not unpublish or auto-mute local mic here. Keeping the session published
                     // ensures that when the peer reconnects/rejoins, they immediately receive
                     // the audio stream without having to trigger a re-publish or manual unmute.
+                    remoteVideoActive = false;
+                    updateVideoLayout();
 
                     if (!agoraClient.remoteUsers || agoraClient.remoteUsers.length === 0) {
                         updateStatus('connecting', 'Waiting for peer to join...');
@@ -2106,10 +2159,7 @@
                                 cameraId: selectedCameraId || undefined,
                                 encoderConfig: "720p_1"
                             });
-                            const localVideoEl = document.getElementById('local-video');
-                            if (localVideoEl) {
-                                localVideoEl.srcObject = new MediaStream([localVideoTrack.getMediaStreamTrack()]);
-                            }
+                            localVideoTrack.play("local-video-wrapper");
                             cameraEnabled = true;
                             updateVideoLayout();
                             tracksToPublish.push(localVideoTrack);
@@ -2167,8 +2217,7 @@
             // Remote party turned off their camera — clear the remote video panel
             socket.on('video_stopped', () => {
                 console.log('[Call] Remote stopped video');
-                const remoteVideoEl = document.getElementById('remote-video');
-                if (remoteVideoEl) remoteVideoEl.srcObject = null;
+                remoteVideoActive = false;
                 updateVideoLayout();
             });
 
@@ -2373,13 +2422,165 @@
         }
     }
 
+    // ── Virtual Background & Auto Restore ─────────────────────────────────────
+    async function initVirtualBackground() {
+        if (typeof VirtualBackgroundExtension === 'undefined') {
+            console.warn('[Video] VirtualBackgroundExtension class not loaded yet.');
+            return;
+        }
+        try {
+            virtualBackgroundExtension = new VirtualBackgroundExtension();
+            if (!virtualBackgroundExtension.checkCompatibility()) {
+                console.warn('[Video] Agora Virtual Background is not compatible with this browser/device.');
+                virtualBackgroundExtension = null;
+                return;
+            }
+            AgoraRTC.registerExtensions([virtualBackgroundExtension]);
+            console.log('[Video] Registered Agora Virtual Background Extension successfully.');
+        } catch (e) {
+            console.error('[Video] Failed to register virtual background extension:', e);
+        }
+    }
+
+    async function toggleBlur() {
+        if (!cameraEnabled || !localVideoTrack) return;
+        
+        const blurBtn = document.getElementById('blur-btn');
+        const blurText = document.getElementById('blur-text');
+        const localBlurBtn = document.getElementById('local-blur-btn');
+        const localBlurText = document.getElementById('local-blur-text');
+        
+        try {
+            if (!isBlurEnabled) {
+                console.log('[Video] Enabling background blur...');
+                
+                if (!virtualBackgroundProcessor) {
+                    if (!virtualBackgroundExtension) {
+                        await initVirtualBackground();
+                    }
+                    if (virtualBackgroundExtension) {
+                        virtualBackgroundProcessor = virtualBackgroundExtension.createProcessor();
+                        await virtualBackgroundProcessor.init();
+                    } else {
+                        alert('Background blurring is not supported on this device/browser (requires WebGL2 support, best on Desktop Chrome).');
+                        return;
+                    }
+                }
+                
+                if (virtualBackgroundProcessor) {
+                    localVideoTrack.pipe(virtualBackgroundProcessor).pipe(localVideoTrack.processorDestination);
+                    await virtualBackgroundProcessor.setOptions({
+                        type: 'blur',
+                        blurDegree: 3
+                    });
+                    await virtualBackgroundProcessor.enable();
+                    isBlurEnabled = true;
+                    
+                    if (blurBtn) {
+                        blurBtn.style.background = '#0284c7'; // Active blue background
+                        blurBtn.style.opacity = '1';
+                    }
+                    if (blurText) blurText.textContent = 'Disable Blur';
+                    
+                    if (localBlurBtn) {
+                        localBlurBtn.style.background = '#0284c7';
+                    }
+                    if (localBlurText) {
+                        localBlurText.textContent = 'Disable Blur';
+                    }
+                    console.log('[Video] Background blur enabled successfully.');
+                }
+            } else {
+                console.log('[Video] Disabling background blur...');
+                if (virtualBackgroundProcessor) {
+                    await virtualBackgroundProcessor.disable();
+                    localVideoTrack.unpipe();
+                }
+                isBlurEnabled = false;
+
+                if (blurBtn) {
+                    blurBtn.style.background = '#475569'; // Slate-600 default
+                }
+                if (blurText) blurText.textContent = 'Blur Background';
+                
+                if (localBlurBtn) {
+                    localBlurBtn.style.background = 'rgba(15, 23, 42, 0.85)';
+                }
+                if (localBlurText) {
+                    localBlurText.textContent = 'Blur Background';
+                }
+                console.log('[Video] Background blur disabled successfully.');
+            }
+        } catch (err) {
+            console.error('[Video] Failed to toggle virtual background blur:', err);
+            alert('Your device or browser does not support background blurring. Details: ' + (err.message || err));
+        }
+    }
+
+    async function autoRestoreCamera() {
+        if (!cameraEnabled || !localVideoTrack) return;
+        try {
+            console.log('[Agora] Attempting to auto-restore camera...');
+            if (agoraClient) {
+                await agoraClient.unpublish([localVideoTrack]).catch(()=>{});
+            }
+            localVideoTrack.close();
+            localVideoTrack = null;
+            
+            localVideoTrack = await AgoraRTC.createCameraVideoTrack({
+                cameraId: selectedCameraId || undefined,
+                encoderConfig: "720p_1"
+            });
+            
+            localVideoTrack.play("local-video-wrapper");
+            
+            // Re-apply background blur if it was active
+            if (isBlurEnabled && virtualBackgroundProcessor) {
+                if (virtualBackgroundExtension) {
+                    virtualBackgroundProcessor = virtualBackgroundExtension.createProcessor();
+                    await virtualBackgroundProcessor.init();
+                    localVideoTrack.pipe(virtualBackgroundProcessor).pipe(localVideoTrack.processorDestination);
+                    await virtualBackgroundProcessor.setOptions({
+                        type: 'blur',
+                        blurDegree: 3
+                    });
+                    await virtualBackgroundProcessor.enable();
+                }
+            }
+            
+            // Sync floating button state
+            const localBlurBtn = document.getElementById('local-blur-btn');
+            const localBlurText = document.getElementById('local-blur-text');
+            if (localBlurBtn) {
+                localBlurBtn.classList.remove('hidden');
+                if (isBlurEnabled) {
+                    localBlurBtn.style.background = '#0284c7';
+                    if (localBlurText) localBlurText.textContent = 'Disable Blur';
+                } else {
+                    localBlurBtn.style.background = 'rgba(15, 23, 42, 0.85)';
+                    if (localBlurText) localBlurText.textContent = 'Blur Background';
+                }
+            }
+            
+            if (agoraClient) {
+                await agoraClient.publish([localVideoTrack]);
+                console.log('[Agora] Auto-restore camera published successfully.');
+            }
+        } catch(err) {
+            console.warn('[Agora] Failed to auto-restore camera:', err);
+        }
+    }
+
     // ── Camera Toggle ─────────────────────────────────────────────────────────
     async function toggleCamera() {
         const cameraBtn  = document.getElementById('camera-btn');
         const cameraIcon = document.getElementById('camera-icon');
         const cameraText = document.getElementById('camera-text');
-        const localVideoEl  = document.getElementById('local-video');
         const videoPanels   = document.getElementById('video-panels');
+        const blurBtn = document.getElementById('blur-btn');
+        const blurText = document.getElementById('blur-text');
+        const localBlurBtn = document.getElementById('local-blur-btn');
+        const localBlurText = document.getElementById('local-blur-text');
 
         if (!cameraEnabled) {
             try {
@@ -2389,8 +2590,8 @@
                     encoderConfig: "720p_1"
                 });
 
-                // Display local self-view using the underlying stream track
-                localVideoEl.srcObject = new MediaStream([localVideoTrack.getMediaStreamTrack()]);
+                // Display local self-view using Agora's native play method
+                localVideoTrack.play("local-video-wrapper");
                 cameraEnabled = true;
                 updateVideoLayout();
 
@@ -2404,6 +2605,19 @@
                 cameraIcon.setAttribute('data-lucide', 'video');
                 cameraText.textContent = 'Stop Video';
                 if (typeof lucide !== 'undefined') lucide.createIcons();
+
+                // Enable blur button UI
+                if (blurBtn) {
+                    blurBtn.disabled = false;
+                    blurBtn.style.opacity = '1';
+                    blurBtn.style.cursor = 'pointer';
+                    blurBtn.style.background = '#475569';
+                }
+
+                // Show floating blur button
+                if (localBlurBtn) {
+                    localBlurBtn.classList.remove('hidden');
+                }
 
                 if (socket && socket.connected) {
                     socket.emit('toggle_activity', {
@@ -2419,6 +2633,13 @@
             }
         } else {
             // Turn off camera
+            if (isBlurEnabled && virtualBackgroundProcessor) {
+                try {
+                    await virtualBackgroundProcessor.disable().catch(()=>{});
+                } catch(e){}
+                isBlurEnabled = false;
+            }
+
             if (agoraClient && localVideoTrack) {
                 try {
                     await agoraClient.unpublish([localVideoTrack]);
@@ -2429,11 +2650,11 @@
             }
 
             if (localVideoTrack) {
+                localVideoTrack.stop();
                 localVideoTrack.close();
                 localVideoTrack = null;
             }
 
-            localVideoEl.srcObject = null;
             cameraEnabled = false;
 
             // Notify remote party to clear their video panel
@@ -2452,15 +2673,35 @@
             cameraBtn.classList.remove('camera-on');
             cameraIcon.setAttribute('data-lucide', 'video-off');
             cameraText.textContent = 'Start Video';
+
+            // Disable blur button UI
+            if (blurBtn) {
+                blurBtn.disabled = true;
+                blurBtn.style.opacity = '0.6';
+                blurBtn.style.cursor = 'not-allowed';
+                blurBtn.style.background = '#475569';
+            }
+            if (blurText) {
+                blurText.textContent = 'Blur Background';
+            }
+
+            // Hide floating blur button
+            if (localBlurBtn) {
+                localBlurBtn.classList.add('hidden');
+                localBlurBtn.style.background = 'rgba(15, 23, 42, 0.85)';
+            }
+            if (localBlurText) {
+                localBlurText.textContent = 'Blur Background';
+            }
         }
     }
 
     // ── Pop-out & Picture-in-Picture Support ─────────────────────────────────
     async function togglePictureInPicture() {
         try {
-            const remoteVid = document.getElementById('remote-video');
-            const localVid  = document.getElementById('local-video');
-            const vidElem   = (remoteVid && remoteVid.srcObject && remoteVid.readyState >= 2) ? remoteVid : localVid;
+            const remoteVid = document.querySelector('#remote-video-wrapper video');
+            const localVid  = document.querySelector('#local-video-wrapper video');
+            const vidElem   = (remoteVid && remoteVid.readyState >= 2) ? remoteVid : localVid;
 
             if (document.pictureInPictureElement) {
                 await document.exitPictureInPicture();
@@ -2742,14 +2983,38 @@
             }
         }
 
-        // Stop recorder and upload in background without blocking exit
+        // Stop recorder and upload before exiting
         if (mediaRecorder && mediaRecorder.state !== 'inactive') {
             isDrawingCanvas = false;
+            
+            // Show the upload progress overlay modal
+            const overlay = document.getElementById('upload-overlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+            }
+            
             mediaRecorder.stop();
-            mediaRecorder.onstop = () => {
+            mediaRecorder.onstop = async () => {
                 const mimeType = isRecordingVideo ? 'video/webm' : 'audio/webm';
                 const blob = new Blob(recordedChunks, { type: mimeType });
-                uploadRecordingInBackground(blob);
+                
+                if (blob && blob.size > 0) {
+                    try {
+                        isUploadingRecording = true;
+                        await uploadRecording(blob);
+                    } catch (uploadErr) {
+                        console.error('[Recording] Failed to upload recording:', uploadErr);
+                    } finally {
+                        isUploadingRecording = false;
+                    }
+                } else {
+                    console.warn('[Recording] Empty blob — skipping upload');
+                }
+                
+                // Hide overlay and clean up/redirect
+                if (overlay) {
+                    overlay.style.display = 'none';
+                }
                 cleanupAndRedirect();
             };
         } else {
@@ -2758,34 +3023,7 @@
         }
     }
 
-    // Background upload via keepalive fetch — allows instant page exit
-    function uploadRecordingInBackground(blob) {
-        if (recordingUploaded) return;
-        if (!blob || blob.size === 0) {
-            console.warn('[Recording] Empty blob — skipping background upload');
-            return;
-        }
-        recordingUploaded = true;
-        const formData = new FormData();
-        formData.append('file', blob, `recording-${APPOINTMENT_ID}.webm`);
-        formData.append('appointment_id', APPOINTMENT_ID);
-
-        try {
-            fetch(`/api/calls/${ROOM_ID}/recording`, {
-                method: 'POST',
-                body: formData,
-                keepalive: true
-            }).then(r => r.json()).then(res => {
-                console.log('[Recording] Background upload completed:', res);
-            }).catch(e => {
-                console.error('[Recording] Background upload error:', e);
-            });
-        } catch (err) {
-            console.error('[Recording] Failed to initiate background upload:', err);
-        }
-    }
-
-    // Upload Recording — called automatically after endCall()
+    // Upload Recording using standard XMLHttpRequest with progress reporting
     function uploadRecording(blob) {
         return new Promise((resolve) => {
             if (!blob || blob.size === 0) {
@@ -2797,9 +3035,8 @@
             formData.append('file', blob, `recording-${APPOINTMENT_ID}.webm`);
             formData.append('appointment_id', APPOINTMENT_ID);
 
-            // Show saving status on end button (safe — call already ended)
-            const btn = document.querySelector('.btn-end');
-            if (btn) btn.textContent = 'Saving recording (0%)...';
+            const pctText = document.getElementById('upload-status-percentage');
+            if (pctText) pctText.textContent = '0%';
 
             const xhr = new XMLHttpRequest();
             xhr.open('POST', `/api/calls/${ROOM_ID}/recording`, true);
@@ -2807,7 +3044,7 @@
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable) {
                     const percentComplete = Math.round((event.loaded / event.total) * 100);
-                    if (btn) btn.textContent = `Saving recording (${percentComplete}%)...`;
+                    if (pctText) pctText.textContent = `${percentComplete}%`;
                 }
             };
 
@@ -2904,14 +3141,113 @@
         statusText.textContent = text;
     }
 
+    // Network quality tracking variables & helper
+    let lastLocalQuality = 0;
+    let lastRemoteQuality = 0;
+
+    function handleNetworkQualityChange(type, quality) {
+        const isLocal = type === 'local';
+        const indicator = document.getElementById(isLocal ? 'local-network-indicator' : 'remote-network-indicator');
+        if (!indicator) return;
+        
+        const iconEl = indicator.querySelector('.network-icon');
+        const textEl = indicator.querySelector('.network-text');
+        
+        // Show indicator once we have a valid quality reading
+        if (quality > 0) {
+            indicator.classList.remove('hidden');
+        } else {
+            indicator.classList.add('hidden');
+            return;
+        }
+        
+        let statusText = 'Good Connection';
+        let statusColor = '#22c55e'; // Green
+        let statusIcon = '📶';
+        let isUnstable = false;
+        
+        if (quality === 3) {
+            statusText = 'Unstable Connection';
+            statusColor = '#eab308'; // Yellow
+            statusIcon = '⚠️';
+            isUnstable = true;
+        } else if (quality >= 4) {
+            statusText = 'Poor Connection';
+            statusColor = '#ef4444'; // Red
+            statusIcon = '❗';
+            isUnstable = true;
+        }
+        
+        indicator.style.border = `1px solid ${statusColor}`;
+        textEl.textContent = statusText;
+        iconEl.textContent = statusIcon;
+        
+        // Handle Top Alert Banner
+        const banner = document.getElementById('network-warning-banner');
+        const messageEl = document.getElementById('network-warning-message');
+        
+        if (isLocal) {
+            lastLocalQuality = quality;
+        } else {
+            lastRemoteQuality = quality;
+        }
+        
+        const localIsUnstable = lastLocalQuality >= 3;
+        const remoteIsUnstable = lastRemoteQuality >= 3;
+        
+        if (localIsUnstable || remoteIsUnstable) {
+            if (banner && messageEl) {
+                let msg = '';
+                if (localIsUnstable && remoteIsUnstable) {
+                    msg = 'Both connections are weak. Audio/video quality might be affected.';
+                } else if (localIsUnstable) {
+                    msg = 'Your internet connection is weak. Audio/video quality might be affected.';
+                } else {
+                    const label = USER_TYPE === 'user' ? "Consultant's" : "Patient's";
+                    msg = `${label} internet connection is weak. Audio/video quality might be affected.`;
+                }
+                messageEl.textContent = msg;
+                banner.style.display = 'flex';
+            }
+            
+            // Auto bandwidth optimization: disable camera if local connection is extremely bad (5 or 6)
+            if (isLocal && quality >= 5 && localVideoTrack && !localVideoTrack.isMuted) {
+                try {
+                    localVideoTrack.setEnabled(false);
+                    console.log("[Network] Disabled local video track to prioritize audio stream due to critical network degradation");
+                } catch(e) {
+                    console.warn("[Network] Failed to disable video track:", e);
+                }
+            }
+        } else {
+            if (banner) {
+                banner.style.display = 'none';
+            }
+            
+            // Restore video track if local connection recovered
+            if (isLocal && lastLocalQuality > 0 && lastLocalQuality < 3 && localVideoTrack) {
+                try {
+                    localVideoTrack.setEnabled(true);
+                } catch(e) {}
+            }
+        }
+    }
+
     // Cleanup on page unload — upload any unsaved recording via sendBeacon to prevent data loss
-    window.addEventListener('beforeunload', () => {
+    window.addEventListener('beforeunload', (e) => {
         // Stop all local tracks
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
         }
+
+        // If recording upload is active, prompt/warn the user
+        if (isUploadingRecording) {
+            e.preventDefault();
+            e.returnValue = 'Your session recording is still being uploaded to the server. If you leave now, the recording will be lost.';
+            return e.returnValue;
+        }
         
-        // Try to capture and send the final recording chunk before the page is destroyed
+        // Try to capture and send the final recording chunk before the page is destroyed (only as fallback if not uploaded)
         if (CONSENT_TO_RECORD && mediaRecorder && mediaRecorder.state !== 'inactive' && !recordingUploaded) {
             try {
                 isDrawingCanvas = false;
@@ -3016,9 +3352,7 @@
         const remoteWrapper = document.getElementById('remote-video-wrapper');
         
         const localActive = cameraEnabled && localVideoTrack;
-        
-        const remoteVideoEl = document.getElementById('remote-video');
-        const remoteActive = !!(remoteVideoEl && remoteVideoEl.srcObject);
+        const remoteActive = remoteVideoActive;
         
         console.log('[VideoLayout] localActive:', localActive, 'remoteActive:', remoteActive);
         

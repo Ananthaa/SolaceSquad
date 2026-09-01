@@ -79,6 +79,8 @@ def run_migrations():
              threshold_value INTEGER,
              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
          )"""),
+        ("sponsor_config on event_workshops", 
+         "ALTER TABLE event_workshops ADD COLUMN IF NOT EXISTS sponsor_config TEXT DEFAULT NULL"),
     ]
     
     conn = get_conn()

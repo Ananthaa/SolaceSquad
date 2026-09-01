@@ -151,6 +151,7 @@ class VitalsRecord(Base):
     scan_duration = Column(Integer, default=0, nullable=False)  # seconds
     method = Column(String(50), default="camera", nullable=False)
     health_score = Column(Float, nullable=True)  # Overall health score (0-100)
+    stress = Column(Integer, nullable=True)
     
     # Relationship
     user = relationship("User", back_populates="vitals_records")
@@ -1082,6 +1083,7 @@ class EventWorkshop(Base):
 
     consultant_id       = Column(Integer, ForeignKey("consultant_profiles.id"), nullable=True)
     payout_amount       = Column(Float, default=0.0, nullable=True)
+    sponsor_config      = Column(Text, nullable=True)
 
     # Relationships
     gallery_items = relationship("EventGalleryItem", backref="event", cascade="all, delete-orphan", order_by="EventGalleryItem.sort_order")

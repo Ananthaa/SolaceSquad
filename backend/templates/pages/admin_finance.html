@@ -243,7 +243,10 @@
   <!-- ═══════ CONSULTANT EARNINGS TAB ═══════ -->
   <div id="panel-consultants" style="display:none;">
     <div id="consultantListView">
-      <p style="font-size:.84rem;color:#6b7280;margin-bottom:.75rem;">Select a consultant to see their sessions and earnings:</p>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap;">
+        <p style="font-size:.84rem;color:#6b7280;margin: 0;">Select a consultant to see their sessions and earnings:</p>
+        <input type="text" id="consultantSearch" placeholder="🔍 Search consultant name or email..." oninput="filterConsultants()" style="padding: 6px 12px; font-size: 0.85rem; border: 1px solid #d1d5db; border-radius: 6px; width: 100%; max-width: 320px; outline: none; transition: border-color 0.2s;" />
+      </div>
       <div class="consultant-list" id="consultantList">
         <div class="empty-state">Loading consultants…</div>
       </div>
@@ -748,24 +751,53 @@ function exportSessionsCSV() {
 }
 
 // ── Consultant List ───────────────────────────────────────────────────────────
+let allConsultants = [];
+
 function loadConsultantList() {
   fetch('/api/admin/consultants?page=1&per_page=200').then(r=>r.json()).then(data => {
-    const consultants = data.consultants || [];
-    if (!consultants.length) {
-      document.getElementById('consultantList').innerHTML = '<div class="empty-state">No consultants found.</div>';
-      return;
-    }
-    document.getElementById('consultantList').innerHTML = consultants.map(c => `
-      <div class="consultant-card" onclick="selectConsultant(${c.user_id || c.id}, '${(c.name||c.full_name||'Consultant').replace(/'/g,"\\'")}')">
-        <h4>${c.name || c.full_name || 'Consultant'}</h4>
-        <p>${c.email || ''}</p>
-        <p>${c.specialization || ''}</p>
-        <span class="fee-badge">₹${c.consultation_fee || 0} / session · ${c.platform_fee_pct || 20}% platform fee</span>
-      </div>
-    `).join('');
+    allConsultants = data.consultants || [];
+    renderConsultants(allConsultants);
   }).catch(e => {
     document.getElementById('consultantList').innerHTML = `<div class="empty-state">Could not load consultants: ${e.message}</div>`;
   });
+}
+
+function renderConsultants(consultants) {
+  if (!consultants.length) {
+    document.getElementById('consultantList').innerHTML = '<div class="empty-state">No consultants found.</div>';
+    return;
+  }
+  document.getElementById('consultantList').innerHTML = consultants.map(c => {
+    const hasPending = (c.pending_payout || 0) > 0;
+    const highlightStyle = hasPending ? 'border: 2px solid #10b981; background-color: #f0fdf4;' : '';
+    const pendingText = hasPending 
+      ? `<span style="font-weight: 700; color: #047857; margin-top: 0.35rem; display: inline-block; font-size: 0.76rem; background: #d1fae5; padding: 2px 8px; border-radius: 999px;">Pending: ₹${c.pending_payout.toFixed(2)}</span>` 
+      : '<span style="color: #9ca3af; margin-top: 0.35rem; display: inline-block; font-size: 0.72rem;">No pending payout</span>';
+    
+    return `
+      <div class="consultant-card" onclick="selectConsultant(${c.user_id || c.id}, '${(c.name||c.full_name||'Consultant').replace(/'/g,"\\'")}')" style="${highlightStyle}">
+        <h4>${c.name || c.full_name || 'Consultant'}</h4>
+        <p>${c.email || ''}</p>
+        <p style="font-weight: 500; margin-top: 0.15rem;">${c.specialization || ''}</p>
+        <span class="fee-badge">₹${c.consultation_fee || 0} / session · ${c.platform_fee_pct || 20}% platform fee</span>
+        <div style="margin-top: 0.2rem;">${pendingText}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterConsultants() {
+  const query = document.getElementById('consultantSearch').value.toLowerCase().trim();
+  if (!query) {
+    renderConsultants(allConsultants);
+    return;
+  }
+  const filtered = allConsultants.filter(c => {
+    const name = (c.name || c.full_name || '').toLowerCase();
+    const email = (c.email || '').toLowerCase();
+    return name.includes(query) || email.includes(query);
+  });
+  renderConsultants(filtered);
 }
 
 function selectConsultant(consultantUserId, consultantName) {

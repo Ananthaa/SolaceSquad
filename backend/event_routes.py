@@ -96,6 +96,7 @@ def _event_dict(event: EventWorkshop) -> dict:
         "updated_at": event.updated_at.isoformat() if event.updated_at else None,
         "consultant_id": event.consultant_id,
         "payout_amount": event.payout_amount,
+        "sponsor_config": event.sponsor_config,
         "gallery_items": [
             {
                 "id": item.id,
@@ -166,12 +167,47 @@ def register_event_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             except HTTPException:
                 raise HTTPException(status_code=404, detail="Event or Workshop not found")
 
+        import json
+        sponsor_rows = 0
+        sponsor_cols = 0
+        sponsor_logos = []
+        if hasattr(event, "sponsor_config") and event.sponsor_config:
+            try:
+                config = json.loads(event.sponsor_config)
+                sponsor_rows = int(config.get("rows", 0))
+                sponsor_cols = int(config.get("cols", 0))
+                sponsor_logos = config.get("logos", [])
+                
+                # Grid dimension fallback if rows/cols are unspecified (0) but logos are added
+                if sponsor_logos:
+                    max_r = 0
+                    max_c = 0
+                    for l in sponsor_logos:
+                        try:
+                            r_val = int(l.get("row", 0))
+                            c_val = int(l.get("col", 0))
+                            if r_val > max_r:
+                                max_r = r_val
+                            if c_val > max_c:
+                                max_c = c_val
+                        except (ValueError, TypeError):
+                            pass
+                    if sponsor_rows <= 0:
+                        sponsor_rows = max_r + 1
+                    if sponsor_cols <= 0:
+                        sponsor_cols = max_c + 1
+            except Exception as e:
+                print("[SponsorConfig Error]", e)
+
         return templates.TemplateResponse(
             "pages/event_detail.html",
             {
                 "request": request,
                 "event": event,
-                "active_page": "events"
+                "active_page": "events",
+                "sponsor_rows": sponsor_rows,
+                "sponsor_cols": sponsor_cols,
+                "sponsor_logos": sponsor_logos
             }
         )
 
@@ -267,6 +303,11 @@ def register_event_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         except (ValueError, TypeError):
             payout_amount = 0.0
 
+        import json
+        sponsor_conf = data.get("sponsor_config")
+        if isinstance(sponsor_conf, (dict, list)):
+            sponsor_conf = json.dumps(sponsor_conf)
+
         event = EventWorkshop(
             type=data.get("type", "event"),
             title=data.get("title", "").strip(),
@@ -292,7 +333,8 @@ def register_event_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             status=data.get("status", "draft"),
             sort_order=int(data.get("sort_order", 0)),
             consultant_id=consultant_id,
-            payout_amount=payout_amount
+            payout_amount=payout_amount,
+            sponsor_config=sponsor_conf
         )
         db.add(event)
         db.commit()
@@ -387,6 +429,14 @@ def register_event_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             event.payout_amount = float(payout_amount_val) if payout_amount_val else 0.0
         except (ValueError, TypeError):
             event.payout_amount = 0.0
+
+        # Update sponsor matrix config
+        import json
+        sponsor_conf_val = data.get("sponsor_config")
+        if isinstance(sponsor_conf_val, (dict, list)):
+            event.sponsor_config = json.dumps(sponsor_conf_val)
+        else:
+            event.sponsor_config = sponsor_conf_val
 
         db.commit()
         db.refresh(event)

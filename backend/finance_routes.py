@@ -785,10 +785,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
 
         # ── Run all booking validation rules ──────────────────────────────────
         is_paid = (profile.consultation_fee or 0) > 0 and not is_admin_booking
-        if is_admin_booking:
-            eff_duration = duration_minutes if duration_minutes in (30, 60, 90) else 60
-        else:
-            eff_duration = 15 if not is_paid else (duration_minutes if duration_minutes in (30, 60, 90) else 60)
+        eff_duration = duration_minutes if duration_minutes in (30, 60, 90) else 60
 
         err = _validate_booking(db, uid, consultant_id, appt_dt, eff_duration, is_paid, request=request)
         if err:
@@ -853,11 +850,11 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             Appointment.is_test == False
         ).count() == 0
 
-        chargeable_duration = max(0, eff_duration - 30) if is_first_consultation else eff_duration
+        chargeable_duration = max(0, eff_duration - 15) if is_first_consultation else eff_duration
         prorated_fee = round(fee * (chargeable_duration / 60), 2)
 
         if prorated_fee <= 0:
-            # Free consultation because of first session 30-min waiver — book directly, no payment
+            # Free consultation because of first session 15-min waiver — book directly, no payment
             from models import User
             appt = Appointment(
                 user_id          = uid,
@@ -1044,7 +1041,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             Appointment.is_test == False
         ).count() == 0
 
-        chargeable_duration = max(0, eff_duration - 30) if is_first_consultation else eff_duration
+        chargeable_duration = max(0, eff_duration - 15) if is_first_consultation else eff_duration
         prorated_fee = round(hourly_rate * (chargeable_duration / 60), 2)
 
         # ── Plan-based consultation discount ─────────────────────────────────
@@ -1177,7 +1174,20 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         per_page: int = 200,
     ):
         _admin_check(request, db)
-        from models import ConsultantProfile, User
+        from models import ConsultantProfile, User, ConsultantEarning
+        from sqlalchemy import func
+        
+        # Calculate pending payouts for each consultant in current environment
+        pending_payouts_q = db.query(
+            ConsultantEarning.consultant_user_id,
+            func.sum(ConsultantEarning.consultant_payout)
+        ).filter(
+            ConsultantEarning.payout_status == "pending",
+            ConsultantEarning.is_test == _is_test_mode()
+        ).group_by(ConsultantEarning.consultant_user_id).all()
+        
+        pending_map = {uid: (amt or 0.0) for uid, amt in pending_payouts_q}
+
         # Query all approved consultants
         q = db.query(ConsultantProfile, User).join(User, ConsultantProfile.user_id == User.id).filter(
             ConsultantProfile.is_approved == True
@@ -1188,11 +1198,16 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
 
         consultants_list = []
         for cp, u in rows:
+            pending_amt = pending_map.get(cp.user_id, 0.0)
             consultants_list.append({
                 "id": cp.id,
                 "user_id": cp.user_id,
                 "name": u.name or u.email,
                 "email": u.email,
+                "specialization": cp.specialization or "",
+                "consultation_fee": cp.consultation_fee or 0.0,
+                "platform_fee_pct": 20.0,
+                "pending_payout": pending_amt,
             })
 
         return {

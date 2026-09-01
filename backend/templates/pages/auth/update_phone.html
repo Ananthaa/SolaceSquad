@@ -39,10 +39,10 @@
                             </div>
                             <input type="tel" id="phone_number" name="phone_number" required pattern="[0-9]{10}"
                                 class="auth-input pl-12"
-                                placeholder="98765 43210"
+                                placeholder="Enter 10-digit number"
                                 value="{{ phone_number or '' }}">
                         </div>
-                        <button type="button" id="sendOtpBtn" class="px-4 py-2 bg-primary-50 text-primary-700 border border-primary-200 rounded-lg text-sm font-medium hover:bg-primary-100 transition-colors whitespace-nowrap">
+                        <button type="button" id="sendOtpBtn" class="px-4 py-2 bg-primary-50 text-primary-700 border border-primary-200 rounded-lg text-sm font-medium hover:bg-primary-100 transition-colors whitespace-nowrap" disabled>
                             Send OTP
                         </button>
                     </div>
@@ -90,6 +90,9 @@
     const otpContainer = document.getElementById('otp-container');
     const otpStatus = document.getElementById('otp-status');
     const submitBtn = document.getElementById('submitBtn');
+    
+    // Initialize state on page load
+    sendOtpBtn.disabled = phoneInput.value.length !== 10;
 
     phoneInput.addEventListener('input', function() {
         this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10);

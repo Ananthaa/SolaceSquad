@@ -103,6 +103,19 @@
                     {% endif %}
                 </div>
 
+                <!-- Event Sponsors Tile -->
+                {% if sponsor_logos %}
+                <div class="bg-[#fcfbfa] border border-gray-100 p-6 rounded-2xl mb-6">
+                    <div style="display: grid; grid-template-columns: repeat({{ sponsor_cols }}, minmax(0, 1fr)); grid-template-rows: repeat({{ sponsor_rows }}, minmax(0, 1fr)); gap: 12px; align-items: center; justify-items: start; width: 100%;">
+                        {% for logo in sponsor_logos %}
+                        <div style="grid-row: {{ logo.row + 1 }}; grid-column: {{ logo.col + 1 }}; display: flex; align-items: center; justify-content: center; background: white; border: 1px solid #f3f4f6; border-radius: 8px; padding: 6px; aspect-ratio: 3/2; box-shadow: 0 1px 2px rgba(0,0,0,0.01); width: 100%; max-width: 120px;">
+                            <img src="{% if 'storage.googleapis.com' in logo.url %}/api/events/media?url={{ logo.url | urlencode }}{% else %}{{ logo.url }}{% endif %}" alt="{{ logo.alt or 'Sponsor' }}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Registration / Inquiry CTA -->
                 {% if event.show_registration %}
                 <div class="flex flex-col sm:flex-row items-center gap-4 justify-between bg-[#fcfbfa] border border-gray-100 p-6 rounded-2xl">

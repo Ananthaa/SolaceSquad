@@ -32,34 +32,37 @@
     <!-- Navigation Tabs -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
         <div class="border-b border-gray-200">
-            <nav class="flex gap-1 p-2">
+            <nav class="flex gap-1 p-2 overflow-x-auto whitespace-nowrap" style="scrollbar-width: none; -ms-overflow-style: none;">
+                <style>
+                    nav::-webkit-scrollbar { display: none; }
+                </style>
                 <button onclick="showTab('history')" id="tab-history"
-                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2">
+                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 flex-shrink-0">
                     <i data-lucide="clock" class="w-4 h-4"></i>
                     <span>History</span>
                 </button>
                 <button onclick="showTab('health')" id="tab-health"
-                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2">
+                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 flex-shrink-0">
                     <i data-lucide="activity" class="w-4 h-4"></i>
                     <span>Health Reports</span>
                 </button>
                 <button onclick="showTab('recordings')" id="tab-recordings"
-                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2">
+                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 flex-shrink-0">
                     <i data-lucide="mic" class="w-4 h-4"></i>
                     <span>Consultation Sessions</span>
                 </button>
                 <button onclick="showTab('summary')" id="tab-summary"
-                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2">
+                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 flex-shrink-0">
                     <i data-lucide="file-text" class="w-4 h-4"></i>
                     <span>Call Summaries</span>
                 </button>
                 <button onclick="showTab('notes')" id="tab-notes"
-                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2">
+                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 flex-shrink-0">
                     <i data-lucide="sticky-note" class="w-4 h-4"></i>
                     <span>Notes</span>
                 </button>
                 <button onclick="showTab('lab-reports')" id="tab-lab-reports"
-                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2">
+                    class="tab-btn px-6 py-3 rounded-lg font-medium transition flex items-center gap-2 flex-shrink-0">
                     <i data-lucide="folder-heart" class="w-4 h-4"></i>
                     <span>Lab Reports</span>
                 </button>
@@ -668,6 +671,14 @@
         // Clear existing elements in SVG
         svg.innerHTML = '';
 
+        // Hide connector lines on mobile to prevent layout clutter and overlap
+        if (window.innerWidth < 640) {
+            svg.style.display = 'none';
+            return;
+        } else {
+            svg.style.display = 'block';
+        }
+
         const containerRect = container.getBoundingClientRect();
 
         function getCardPorts(cardId) {
@@ -796,7 +807,7 @@
 
         let html = `
             <!-- Row 1: ThryveQ, Weight, Height -->
-            <div class="grid grid-cols-3 gap-6 mb-12">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-12">
                 <!-- Tile 1: ThryveQ -->
                 <div id="card-thryveq" onclick="openChartModal('thryveq')" class="cursor-pointer p-5 bg-gradient-to-br from-teal-50 to-emerald-50 hover:from-teal-100 hover:to-emerald-100 border border-teal-200 hover:border-teal-300 rounded-2xl transition duration-200 shadow-sm flex flex-col justify-between h-36">
                     <div class="flex items-center justify-between text-teal-800">
@@ -829,7 +840,7 @@
             </div>
 
             <!-- Row 2: Health, Lifestyle, Mood -->
-            <div class="grid grid-cols-3 gap-6 mb-12">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-12">
                 <!-- Tile 2: Health Score -->
                 <div id="card-health_score" onclick="openChartModal('health_score')" class="cursor-pointer p-5 bg-gradient-to-br from-green-50 to-teal-50 hover:from-green-100 hover:to-teal-100 border border-green-200 hover:border-green-300 rounded-2xl transition duration-200 shadow-sm flex flex-col justify-between h-36">
                     <div class="flex items-center justify-between text-green-800">
@@ -864,7 +875,7 @@
             </div>
 
             <!-- Row 3: BP, HR, SpO2, Temp -->
-            <div class="grid grid-cols-4 gap-6">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
                 <!-- Tile 5: BP -->
                 <div id="card-bp" onclick="openChartModal('bp')" class="cursor-pointer p-5 bg-gradient-to-br from-violet-50 to-purple-50 hover:from-violet-100 hover:to-purple-100 border border-violet-200 hover:border-violet-300 rounded-2xl transition duration-200 shadow-sm flex flex-col justify-between h-36">
                     <div class="flex items-center justify-between text-violet-800">

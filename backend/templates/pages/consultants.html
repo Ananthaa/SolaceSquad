@@ -415,11 +415,10 @@
                         </label>
 
                         <select id="duration" name="duration_minutes" onchange="onDateOrDurationChange()">
-                            <option value="15">15 minutes (Free)</option>
                             {% if is_first_consultation %}
-                            <option value="30">30 minutes (Free - First Session)</option>
-                            <option value="60" selected>1 hour (30 mins free)</option>
-                            <option value="90">1.5 hours (30 mins free)</option>
+                            <option value="30">30 minutes (15 mins free - First Session)</option>
+                            <option value="60" selected>1 hour (15 mins free)</option>
+                            <option value="90">1.5 hours (15 mins free)</option>
                             {% else %}
                             <option value="30">30 minutes</option>
                             <option value="60" selected>1 hour</option>
@@ -2308,13 +2307,7 @@
                     var pad = function(n) { return n.toString().padStart(2,'0'); };
 
                     if (!d.is_paid) {
-                        // Free consultant: force 15-min, hide other options
-                        Array.from(durationSel.options).forEach(function(o) {
-                            o.disabled = o.value !== '15';
-                            o.hidden   = o.value !== '15';
-                        });
-                        durationSel.value = '15';
-                        durationNote.textContent = 'Free consultations are 15 minutes only.';
+                        durationNote.textContent = 'Free consultation.';
                         durationNote.style.color = '#059669';
 
                         // Auto-select today and load timeline
@@ -2326,13 +2319,6 @@
                             setTimeout(onDateOrDurationChange, 100);
                         }
                     } else {
-                        // Paid consultant: hide 15-min option, enforce 24h advance min
-                        Array.from(durationSel.options).forEach(function(o) {
-                            o.disabled = o.value === '15';
-                            o.hidden   = o.value === '15';
-                        });
-                        if (durationSel.value === '15') durationSel.value = '60';
-
                         if (isImpersonating) {
                             durationNote.textContent = 'Admin Mode: Same-day booking allowed.';
                             durationNote.style.color = '#059669';
@@ -2349,7 +2335,7 @@
                             }
                         } else {
                             {% if is_first_consultation %}
-                            durationNote.innerHTML = '<span style="color:#0d9488;font-weight:700;">🎁 Your first 30 minutes are free!</span><br>Sessions must be booked at least 24 hours in advance.';
+                            durationNote.innerHTML = '<span style="color:#0d9488;font-weight:700;">🎁 Your first 15 minutes are free!</span><br>Sessions must be booked at least 24 hours in advance.';
                             {% else %}
                             durationNote.textContent = 'Sessions must be booked at least 24 hours in advance.';
                             {% endif %}

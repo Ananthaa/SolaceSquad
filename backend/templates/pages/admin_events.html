@@ -135,6 +135,61 @@
                     </div>
                 </div>
 
+                <!-- Sponsor Logos Matrix Configuration -->
+                <div class="border-t border-gray-100 my-1 pt-3"></div>
+                <div class="space-y-4">
+                    <h3 class="text-xs font-bold text-gray-800 uppercase tracking-wider text-[#2d6a5a]">Sponsor Logos Matrix</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Matrix Rows</label>
+                            <input type="number" id="event-sponsor-rows" min="0" max="10" value="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="e.g. 2">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Matrix Columns</label>
+                            <input type="number" id="event-sponsor-cols" min="0" max="10" value="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="e.g. 3">
+                        </div>
+                    </div>
+
+                    <!-- Inline form to add a sponsor logo -->
+                    <div class="border border-gray-200 rounded-xl p-4 bg-gray-50/50 space-y-3">
+                        <span class="block text-xs font-bold text-[#2d6a5a] uppercase tracking-wider">Add Sponsor Logo</span>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div class="md:col-span-2">
+                                <label class="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Logo Image File</label>
+                                <div class="flex gap-1">
+                                    <input type="text" id="new-sponsor-logo-url" class="flex-grow px-3 py-1.5 border border-gray-300 rounded-lg text-xs bg-white" placeholder="Upload a file or enter URL..." readonly>
+                                    <label class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-[10px] rounded-lg cursor-pointer border border-gray-300 flex items-center justify-center">
+                                        Upload
+                                        <input type="file" accept="image/*" class="hidden" onchange="uploadImageField(this, 'new-sponsor-logo-url')">
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Row (1-indexed)</label>
+                                <input type="number" id="new-sponsor-logo-row" min="1" max="10" value="1" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Col (1-indexed)</label>
+                                <input type="number" id="new-sponsor-logo-col" min="1" max="10" value="1" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-xs">
+                            </div>
+                        </div>
+                        <div class="flex justify-end pt-1">
+                            <button type="button" onclick="addSponsorLogoToList()" class="px-4 py-2 bg-[#2d6a5a] hover:bg-[#1f4c3f] text-white font-semibold text-xs rounded-lg transition shadow-sm">
+                                + Add Logo to Matrix
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Configured Logos List -->
+                    <div class="border border-gray-200 rounded-xl p-4 bg-gray-50/30">
+                        <span class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Configured Logos</span>
+                        <div id="sponsor-logos-list" class="space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                            <p class="text-xs text-gray-400 italic">No sponsor logos configured.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Cover Image Section -->
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Featured Cover Image</label>
@@ -514,6 +569,17 @@
         document.getElementById('event-consultant-id').value = currentEvent.consultant_id || '';
         document.getElementById('event-payout-amount').value = currentEvent.payout_amount || '';
 
+        let sponsorConfig = {};
+        try {
+            sponsorConfig = currentEvent.sponsor_config ? JSON.parse(currentEvent.sponsor_config) : {};
+        } catch(e) {
+            console.error("Error parsing sponsor_config:", e);
+        }
+        document.getElementById('event-sponsor-rows').value = sponsorConfig.rows || 0;
+        document.getElementById('event-sponsor-cols').value = sponsorConfig.cols || 0;
+        currentSponsorLogos = sponsorConfig.logos || [];
+        renderSponsorLogosList();
+
         document.getElementById('delete-btn').classList.remove('hidden');
         document.getElementById('header-delete-btn').classList.remove('hidden');
         renderGalleryItems();
@@ -574,6 +640,11 @@
         document.getElementById('event-ai-assisted').checked = false;
         document.getElementById('event-consultant-id').value = '';
         document.getElementById('event-payout-amount').value = '';
+
+        document.getElementById('event-sponsor-rows').value = 0;
+        document.getElementById('event-sponsor-cols').value = 0;
+        currentSponsorLogos = [];
+        renderSponsorLogosList();
 
         document.getElementById('delete-btn').classList.add('hidden');
         document.getElementById('header-delete-btn').classList.add('hidden');
@@ -809,7 +880,12 @@
             ai_assisted_content: document.getElementById('event-ai-assisted').checked,
             consultant_id: document.getElementById('event-consultant-id').value || null,
             payout_amount: document.getElementById('event-payout-amount').value || 0.0,
-            gallery_items: currentEvent.gallery_items
+            gallery_items: currentEvent.gallery_items,
+            sponsor_config: {
+                rows: parseInt(document.getElementById('event-sponsor-rows').value) || 0,
+                cols: parseInt(document.getElementById('event-sponsor-cols').value) || 0,
+                logos: currentSponsorLogos
+            }
         };
 
         const url = id ? `/api/admin/events/${id}` : '/api/admin/events';
@@ -850,6 +926,67 @@
         } catch (e) {
             alert("Error deleting event.");
         }
+    }
+
+    let currentSponsorLogos = [];
+
+    function addSponsorLogoToList() {
+        const urlInput = document.getElementById('new-sponsor-logo-url');
+        const url = urlInput.value.trim();
+        const rowVal = parseInt(document.getElementById('new-sponsor-logo-row').value);
+        const colVal = parseInt(document.getElementById('new-sponsor-logo-col').value);
+        
+        if (!url) {
+            alert("Please upload a sponsor logo first.");
+            return;
+        }
+        if (isNaN(rowVal) || rowVal < 1 || isNaN(colVal) || colVal < 1) {
+            alert("Please enter valid row and column numbers starting from 1.");
+            return;
+        }
+        
+        // Add to array (storing 0-indexed values in backend model)
+        currentSponsorLogos.push({
+            url: url,
+            row: rowVal - 1,
+            col: colVal - 1,
+            alt: "Sponsor Logo"
+        });
+        
+        // Clear inputs
+        urlInput.value = "";
+        document.getElementById('new-sponsor-logo-row').value = 1;
+        document.getElementById('new-sponsor-logo-col').value = 1;
+        
+        // Redraw
+        renderSponsorLogosList();
+    }
+    
+    function deleteSponsorLogo(idx) {
+        currentSponsorLogos.splice(idx, 1);
+        renderSponsorLogosList();
+    }
+    
+    function renderSponsorLogosList() {
+        const container = document.getElementById('sponsor-logos-list');
+        if (!currentSponsorLogos || currentSponsorLogos.length === 0) {
+            container.innerHTML = '<p class="text-xs text-gray-400 italic">No sponsor logos configured.</p>';
+            return;
+        }
+        
+        container.innerHTML = currentSponsorLogos.map((logo, idx) => `
+            <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-2.5 text-xs shadow-sm">
+                <div class="flex items-center gap-3">
+                    <img src="${logo.url}" class="h-6 w-auto max-w-[80px] object-contain border border-gray-100 rounded" />
+                    <div>
+                        <span class="font-bold text-gray-700">Row ${logo.row + 1}, Col ${logo.col + 1}</span>
+                    </div>
+                </div>
+                <button type="button" onclick="deleteSponsorLogo(${idx})" class="text-xs font-bold text-red-600 hover:text-red-700 uppercase">
+                    Remove
+                </button>
+            </div>
+        `).join('');
     }
 
     function escapeHtml(text) {

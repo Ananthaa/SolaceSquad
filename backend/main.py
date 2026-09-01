@@ -280,6 +280,8 @@ async def startup_event():
                  "ALTER TABLE vitals_records ADD COLUMN IF NOT EXISTS temp_rating VARCHAR(20)"),
                 ("temp_score on vitals_records",
                  "ALTER TABLE vitals_records ADD COLUMN IF NOT EXISTS temp_score INTEGER"),
+                ("stress on vitals_records",
+                 "ALTER TABLE vitals_records ADD COLUMN IF NOT EXISTS stress INTEGER"),
                 ("emotional_wellness_score on mood_entries",
                  "ALTER TABLE mood_entries ADD COLUMN IF NOT EXISTS emotional_wellness_score INTEGER"),
                 ("lifestyle_score on workout_logs",
@@ -505,6 +507,8 @@ async def startup_event():
                  "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reschedule_free BOOLEAN DEFAULT FALSE"),
                 ("refund_status on appointments",
                  "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS refund_status VARCHAR(50)"),
+                ("sponsor_config on event_workshops",
+                 "ALTER TABLE event_workshops ADD COLUMN IF NOT EXISTS sponsor_config TEXT DEFAULT NULL"),
             ]
 
             # Migrations that require superuser (postgres) - run separately
@@ -527,22 +531,34 @@ async def startup_event():
                  "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reschedule_free BOOLEAN DEFAULT FALSE"),
                 ("refund_status on appointments (pg)",
                  "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS refund_status VARCHAR(50)"),
+                ("sponsor_config on event_workshops (pg)",
+                 "ALTER TABLE event_workshops ADD COLUMN IF NOT EXISTS sponsor_config TEXT DEFAULT NULL"),
             ]
 
             # Open a direct psycopg2 connection - NOT from SQLAlchemy pool
             _direct = _pg2.connect(
-                user=_db_user, password=_db_pass, dbname=_db_name, host=_host
+                user=_db_user, password=_db_pass, dbname=_db_name, host=_host, connect_timeout=5
             )
             _direct.autocommit = True  # Each statement is fully independent
             _dcur = _direct.cursor()
+            try:
+                _dcur.execute("SET lock_timeout = 5000")
+                _dcur.execute("SET statement_timeout = 5000")
+            except Exception:
+                pass
 
             # Also open a postgres superuser connection for tables not owned by Admin
             try:
                 _direct_pg = _pg2.connect(
-                    user="postgres", password=_db_pass, dbname=_db_name, host=_host
+                    user="postgres", password=_db_pass, dbname=_db_name, host=_host, connect_timeout=5
                 )
                 _direct_pg.autocommit = True
                 _dcur_pg = _direct_pg.cursor()
+                try:
+                    _dcur_pg.execute("SET lock_timeout = 5000")
+                    _dcur_pg.execute("SET statement_timeout = 5000")
+                except Exception:
+                    pass
             except Exception as _pge:
                 _direct_pg = None
                 _dcur_pg = None
@@ -2285,7 +2301,7 @@ async def vitals(request: Request, db: Session = Depends(get_db)):
             ).order_by(VitalsRecord.timestamp.desc()).limit(10).all()
             vitals_history = [
                 {
-                    "timestamp": r.timestamp.isoformat(),
+                    "timestamp": r.timestamp.isoformat() + "Z",
                     "heart_rate": r.heart_rate,
                     "spo2": r.spo2,
                     "respiratory_rate": r.respiratory_rate,
@@ -2293,6 +2309,7 @@ async def vitals(request: Request, db: Session = Depends(get_db)):
                     "blood_pressure_systolic": r.blood_pressure_systolic,
                     "blood_pressure_diastolic": r.blood_pressure_diastolic,
                     "health_score": r.health_score,
+                    "stress": r.stress,
                 }
                 for r in records
             ]
@@ -2720,7 +2737,20 @@ def calculate_health_score(
     # Redistribute weights for missing vitals proportionally
     available_weight = sum(WEIGHTS[k] for k in vital_scores)
     weighted_sum = sum(vital_scores[k] * WEIGHTS[k] for k in vital_scores)
-    return round(weighted_sum / available_weight, 1)
+    physical_score = weighted_sum / available_weight
+
+    # Apply stress penalty (Option 2)
+    stress = vitals_data.get("stress")
+    if stress is not None:
+        try:
+            stress_val = int(stress)
+            if stress_val > 35:
+                penalty = (stress_val - 35) / 200.0
+                physical_score = physical_score * (1.0 - penalty)
+        except Exception:
+            pass
+
+    return round(max(0.0, min(100.0, physical_score)), 1)
 
 
 
@@ -2791,6 +2821,7 @@ async def save_vitals(request: Request, db: Session = Depends(get_db)):
             temperature=float(data.get("temperature"))   if data.get("temperature")      else None,
             blood_pressure_systolic=int(data.get("blood_pressure_systolic"))   if data.get("blood_pressure_systolic")  else None,
             blood_pressure_diastolic=int(data.get("blood_pressure_diastolic")) if data.get("blood_pressure_diastolic") else None,
+            stress=int(data.get("stress")) if data.get("stress") is not None else None,
             # Ratings use best-available data (current + historical fallback)
             hr_rating=_hr_label,
             hr_score=_hr_score,
@@ -2832,7 +2863,7 @@ async def save_vitals(request: Request, db: Session = Depends(get_db)):
         
         # Return vitals entry
         vitals_entry = {
-            "timestamp": vitals_record.timestamp.isoformat(),
+            "timestamp": vitals_record.timestamp.isoformat() + "Z",
             "heart_rate": vitals_record.heart_rate,
             "spo2": vitals_record.spo2,
             "respiratory_rate": vitals_record.respiratory_rate,
@@ -2880,7 +2911,7 @@ async def get_vitals_history(request: Request, db: Session = Depends(get_db)):
         # Convert to list of dictionaries with all vitals
         vitals_history = [
             {
-                "timestamp": record.timestamp.isoformat(),
+                "timestamp": record.timestamp.isoformat() + "Z",
                 "heart_rate": record.heart_rate,
                 "spo2": record.spo2,
                 "respiratory_rate": record.respiratory_rate,
@@ -2890,7 +2921,8 @@ async def get_vitals_history(request: Request, db: Session = Depends(get_db)):
                 "confidence": record.confidence,
                 "scan_duration": record.scan_duration,
                 "method": record.method,
-                "health_score": record.health_score
+                "health_score": record.health_score,
+                "stress": record.stress
             }
             for record in vitals_records
         ]
@@ -3339,7 +3371,7 @@ async def get_journal_entry_by_date(date: str, request: Request, db: Session = D
                 "spo2": vitals_record.spo2,
                 "respiratory_rate": vitals_record.respiratory_rate,
                 "health_score": vitals_record.health_score,
-                "timestamp": vitals_record.timestamp.isoformat()
+                "timestamp": vitals_record.timestamp.isoformat() + "Z"
             }
         
         return result
@@ -4296,8 +4328,17 @@ async def consultant_dashboard(request: Request, db: Session = Depends(get_db)):
         Appointment.status == "completed"
     ).count()
 
-    payout_per_session = float(consultant_profile.consultant_payout or 0.0)
-    total_earnings = calls_completed * payout_per_session
+    from models import ConsultantEarning
+    from finance_routes import _is_test_mode
+    earnings_query = db.query(ConsultantEarning).filter(
+        ConsultantEarning.consultant_user_id == user_id
+    )
+    if not _is_test_mode():
+        earnings_query = earnings_query.filter(ConsultantEarning.is_test == False)
+    else:
+        earnings_query = earnings_query.filter(ConsultantEarning.is_test == True)
+    earnings_rows = earnings_query.all()
+    total_earnings = sum(e.consultant_payout for e in earnings_rows if e.payout_status != "on_hold")
 
     # Format earnings as Indian currency string
     def format_inr(amount):
@@ -5421,6 +5462,319 @@ async def send_otp(request: Request, db: Session = Depends(get_db)):
         import traceback
         traceback.print_exc()
         return {"success": False, "error": "Internal server error"}
+
+@app.post("/api/auth/webinar-signup")
+async def webinar_signup(request: Request, db: Session = Depends(get_db)):
+    """Signup endpoint for webinar guest registration with email OTP verification."""
+    try:
+        data = await request.json()
+        name = data.get("name", "").strip()
+        email = data.get("email", "").strip().lower()
+        password = data.get("password", "")
+        otp = data.get("otp", "").strip()
+
+        if not name or not email or not password or not otp:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Name, email, password, and verification OTP are required"})
+
+        if len(password) < 8:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Password must be at least 8 characters long"})
+
+        # Verify Email OTP
+        record = db.query(OTPVerification).filter(
+            OTPVerification.otp_email == email,
+            OTPVerification.otp_code == otp,
+            OTPVerification.expires_at > datetime.utcnow(),
+        ).first()
+        if not record:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Invalid or expired Email verification OTP. Please try again."})
+
+        # Check existing user
+        existing_user = db.query(User).filter(User.email == email).first()
+        if existing_user:
+            return JSONResponse(status_code=400, content={"success": False, "error": "This email is already registered. Please click 'Log In' instead."})
+
+        # Create User
+        new_user = User(
+            name=name,
+            email=email,
+            user_type="user",
+            is_active=True,
+            email_verified=True
+        )
+        new_user.set_password(password)
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+
+        # Create UserProfile
+        first_name = name.split()[0] if name else name
+        profile = UserProfile(
+            user_id=new_user.id,
+            full_name=name,
+            preferred_name=first_name,
+            contact_email=email,
+        )
+        db.add(profile)
+        db.delete(record)
+        db.commit()
+
+        # Send welcome email only to new users
+        try:
+            from sendgrid_email import send_welcome_email
+            send_welcome_email(email, name)
+        except Exception as e:
+            print(f"[Webinar Signup] Failed to send welcome email: {e}")
+
+        # Set session
+        request.session["user_id"] = new_user.id
+        request.session["user_type"] = new_user.user_type
+        request.session["user_email"] = new_user.email
+        request.session["user_name"] = new_user.name
+
+        return {"success": True, "message": "Account created successfully!"}
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.post("/api/auth/webinar-login")
+async def webinar_login(request: Request, db: Session = Depends(get_db)):
+    """Login endpoint for webinar guest registration."""
+    try:
+        data = await request.json()
+        email = data.get("email", "").strip().lower()
+        password = data.get("password", "")
+
+        if not email or not password:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Email and password are required"})
+
+        user = db.query(User).filter(User.email == email).first()
+        if not user or user.user_type != "user":
+            return JSONResponse(status_code=400, content={"success": False, "error": "Invalid email or password"})
+
+        if not user.verify_password(password):
+            return JSONResponse(status_code=400, content={"success": False, "error": "Invalid email or password"})
+
+        if not user.is_active:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Account is disabled. Please contact support."})
+
+        user.update_last_login()
+        db.commit()
+
+        # Set session
+        request.session["user_id"] = user.id
+        request.session["user_type"] = user.user_type
+        request.session["user_email"] = user.email
+        request.session["user_name"] = user.name
+
+        return {"success": True, "message": "Logged in successfully!"}
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.post("/api/auth/webinar-phone-otp/send")
+async def webinar_phone_otp_send(request: Request, db: Session = Depends(get_db)):
+    """Generate and send phone OTP for webinar registration login/signup."""
+    try:
+        data = await request.json()
+        phone = (data.get("phone") or "").strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        if not phone:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Phone number is required"})
+        
+        # Extract the 10-digit number
+        clean_phone = phone
+        if clean_phone.startswith("+91"):
+            clean_phone = clean_phone[3:]
+        elif clean_phone.startswith("91") and len(clean_phone) == 12:
+            clean_phone = clean_phone[2:]
+
+        if len(clean_phone) != 10 or not clean_phone.isdigit():
+            return JSONResponse(status_code=400, content={"success": False, "error": "Please enter a valid 10-digit mobile number"})
+
+        # Check if user exists
+        user = db.query(User).filter(
+            (User.phone_number == clean_phone) |
+            (User.phone_number == f"+91{clean_phone}") |
+            (User.phone_number == f"91{clean_phone}")
+        ).first()
+
+        # Generate secure 6-digit OTP
+        import secrets as _sec
+        otp = "".join(str(_sec.randbelow(10)) for _ in range(6))
+
+        db.query(OTPVerification).filter(OTPVerification.phone_number == phone).delete()
+        db.add(OTPVerification(
+            phone_number=phone,
+            otp_code=otp,
+            expires_at=datetime.utcnow() + timedelta(minutes=10),
+        ))
+        db.commit()
+
+        # Send via MSG91
+        provider = FallbackOTP()
+        result = provider.send_otp(phone, otp)
+        
+        is_dev = os.getenv("ENVIRONMENT", "development") == "development"
+        response_data = {"success": True, "exists": bool(user)}
+        if is_dev:
+            response_data["otp_debug"] = otp
+        
+        return response_data
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.post("/api/auth/webinar-phone-otp/verify")
+async def webinar_phone_otp_verify(request: Request, db: Session = Depends(get_db)):
+    """Verify phone OTP and handle webinar user login or initial registration."""
+    try:
+        data = await request.json()
+        phone = (data.get("phone") or "").strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        otp_code = (data.get("otp") or "").strip()
+        name = (data.get("name") or "").strip()
+
+        if not phone or not otp_code:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Phone number and OTP are required"})
+
+        # Normalize phone
+        clean_phone = phone
+        if clean_phone.startswith("+91"):
+            clean_phone = clean_phone[3:]
+        elif clean_phone.startswith("91") and len(clean_phone) == 12:
+            clean_phone = clean_phone[2:]
+
+        # Verify OTP
+        record = db.query(OTPVerification).filter(
+            OTPVerification.phone_number == phone,
+            OTPVerification.otp_code == otp_code,
+            OTPVerification.expires_at > datetime.utcnow(),
+        ).first()
+
+        if not record:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Invalid or expired OTP"})
+
+        # Retrieve user
+        user = db.query(User).filter(
+            (User.phone_number == clean_phone) |
+            (User.phone_number == f"+91{clean_phone}") |
+            (User.phone_number == f"91{clean_phone}")
+        ).first()
+
+        is_new = False
+        if not user:
+            # Perform sign-up
+            if not name:
+                return JSONResponse(status_code=400, content={"success": False, "error": "Name is required for signing up"})
+            
+            user = User(
+                name=name,
+                phone_number=phone,
+                user_type="user",
+                is_active=True,
+                email_verified=False
+            )
+            import secrets as _sec
+            user.set_password("".join(str(_sec.randbelow(10)) for _ in range(12))) # secure random password
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+            profile = UserProfile(user_id=user.id, full_name=name)
+            db.add(profile)
+            db.commit()
+            is_new = True
+        else:
+            if not user.is_active:
+                return JSONResponse(status_code=403, content={"success": False, "error": "Account deactivated"})
+
+        # Delete OTP
+        db.delete(record)
+        db.commit()
+
+        # Set session
+        request.session["user_id"] = user.id
+        request.session["user_name"] = user.name
+        request.session["user_email"] = user.email
+        request.session["user_type"] = user.user_type
+
+        # Check primary / secondary email
+        profile = db.query(UserProfile).filter(UserProfile.user_id == user.id).first()
+        email = user.email
+        if not email and profile:
+            email = profile.contact_email
+
+        email_required = not bool(email)
+
+        return {"success": True, "email_required": email_required, "is_new": is_new}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.post("/api/auth/webinar-verify-capture-email")
+async def webinar_verify_capture_email(request: Request, db: Session = Depends(get_db)):
+    """Verify email OTP for phone-based users, check for duplication, and save to profile."""
+    try:
+        data = await request.json()
+        email = (data.get("email") or "").strip().lower()
+        otp_code = (data.get("otp") or "").strip()
+
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return JSONResponse(status_code=401, content={"success": False, "error": "Not authenticated"})
+
+        if not email or not otp_code:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Email address and OTP code are required"})
+
+        # Verify Email OTP
+        record = db.query(OTPVerification).filter(
+            OTPVerification.otp_email == email,
+            OTPVerification.otp_code == otp_code,
+            OTPVerification.expires_at > datetime.utcnow(),
+        ).first()
+
+        if not record:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Invalid or expired Email verification OTP. Please try again."})
+
+        # Check if email is already in use by another user
+        existing = db.query(User).filter(User.email == email, User.id != user_id).first()
+        if existing:
+            return JSONResponse(status_code=400, content={"success": False, "error": "This email is already associated with another account"})
+
+        # Update User & UserProfile
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return JSONResponse(status_code=404, content={"success": False, "error": "User record not found"})
+
+        # Determine if we should send a welcome email (only if they had no email before, meaning they were a new phone user)
+        should_send_welcome = not bool(user.email)
+        
+        user.email = email
+        user.email_verified = True
+        
+        profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+        if not profile:
+            profile = UserProfile(user_id=user_id, full_name=user.name)
+            db.add(profile)
+        profile.contact_email = email
+        
+        db.delete(record)
+        db.commit()
+
+        # Update session
+        request.session["user_email"] = email
+
+        # Send welcome email only if it's a new user
+        if should_send_welcome:
+            try:
+                from sendgrid_email import send_welcome_email
+                send_welcome_email(email, user.name)
+            except Exception as e:
+                print(f"[Webinar Email Capture] Welcome email delivery failed: {e}")
+
+        return {"success": True, "message": "Email address verified and updated successfully!"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 @app.post("/signup")
 async def signup_post(request: Request, db: Session = Depends(get_db)):
@@ -10185,7 +10539,7 @@ async def get_user_recordings(request: Request, db: Session = Depends(get_db)):
 
             recordings.append({
                 "id":               session.id,
-                "call_date":        session_date.isoformat() if session_date else None,
+                "call_date":        (session_date.isoformat() + "Z") if session_date else None,
                 "duration_seconds": session.duration_seconds,
                 "consultant_name":  consultant.name if consultant else "Unknown",
                 "has_transcription": transcription is not None and transcription.summary is not None,
@@ -10234,7 +10588,7 @@ async def get_recording_details(
 
         recording_data = {
             "id": session.id,
-            "call_date": session.actual_start.isoformat() if session.actual_start else session.scheduled_start.isoformat(),
+            "call_date": (session.actual_start.isoformat() + "Z") if session.actual_start else (session.scheduled_start.isoformat() + "Z"),
             "duration_seconds": session.duration_seconds,
             "consultant_name": consultant.name if consultant else "Unknown",
             "status": session.status,
@@ -10297,7 +10651,7 @@ async def get_patient_recordings(
             recordings.append({
                 "id": session.id,
                 "call_session_id": session.id,
-                "call_date": s_date.isoformat() if s_date else None,
+                "call_date": (s_date.isoformat() + "Z") if s_date else None,
                 "duration_seconds": session.duration_seconds or 0,
                 "has_video": has_vid
             })
@@ -10344,7 +10698,7 @@ async def get_patient_summaries(
             if transcription and transcription.summary:
                 summaries.append({
                     "id": transcription.id,
-                    "date": session.actual_start.isoformat() if session.actual_start else session.scheduled_start.isoformat(),
+                    "date": (session.actual_start.isoformat() + "Z") if session.actual_start else (session.scheduled_start.isoformat() + "Z"),
                     "summary": transcription.summary,
                     "status": transcription.summary_status
                 })
@@ -10869,6 +11223,74 @@ async def update_user_status(user_id: int, request: Request, db: Session = Depen
     )
     
     return {"success": True}
+
+
+@app.post("/api/admin/users/{user_id}/change-email")
+async def admin_change_user_email(user_id: int, request: Request, db: Session = Depends(get_db)):
+    """Change a user's primary email, nullifying their google_id to allow re-linking."""
+    admin_id = request.session.get("user_id")
+    if not admin_id:
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=401)
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+        
+    try:
+        data = await request.json()
+        new_email = (data.get("email") or "").strip().lower()
+        if not new_email or "@" not in new_email:
+            return JSONResponse({"success": False, "error": "Valid email address is required"}, status_code=400)
+            
+        # Check if email is already in use by another user
+        existing = db.query(User).filter(User.email == new_email, User.id != user_id).first()
+        if existing:
+            return JSONResponse({"success": False, "error": f"The email {new_email} is already in use by another account"}, status_code=400)
+            
+        # Get target user
+        target_user = db.query(User).filter(User.id == user_id).first()
+        if not target_user:
+            return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+            
+        old_email = target_user.email
+        target_user.email = new_email
+        target_user.google_id = None  # Clear Google SSO link so they can log in / link with new Google account
+        target_user.email_verified = True
+        
+        # Update UserProfile contact_email
+        from models import UserProfile, ConsultantProfile
+        profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+        if profile:
+            profile.contact_email = new_email
+            
+        # Update ConsultantProfile contact_details
+        consultant_profile = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user_id).first()
+        if consultant_profile:
+            import json
+            details = {}
+            try:
+                if consultant_profile.contact_details:
+                    details = json.loads(consultant_profile.contact_details)
+            except Exception:
+                pass
+            details["email"] = new_email
+            consultant_profile.contact_details = json.dumps(details)
+            
+        db.commit()
+
+        # Audit Log
+        AuditLogger.log_event(
+            db, 
+            event_type="admin_change_email", 
+            user_id=admin_id,
+            resource_type="user",
+            resource_id=str(user_id),
+            details=f"Changed email from {old_email} to {new_email} and cleared Google OAuth ID",
+            request=request
+        )
+
+        return {"success": True, "message": "Primary Gmail / Email address updated successfully!"}
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 
 @app.post("/api/admin/consultants/{user_id}/price")
@@ -11806,8 +12228,18 @@ async def admin_users(request: Request, db: Session = Depends(get_db)):
         ConsultantProfile.is_approved == True
     ).order_by(User.created_at.desc()).all()
     
+    from models import UserSubscription, UsagePlan
+    # Query all active subscriptions for users
+    active_subs = db.query(UserSubscription, UsagePlan).join(
+        UsagePlan, UserSubscription.plan_id == UsagePlan.id
+    ).filter(UserSubscription.status == "active").all()
+    
+    # Map user_id to active plan name
+    user_plan_map = {sub.user_id: plan.name for sub, plan in active_subs}
+    
     # Add stats for each user
     for u in users:
+        u.plan_name = user_plan_map.get(u.id, "Free (Default)")
         u.vitals_count = db.query(VitalsRecord).filter(VitalsRecord.user_id == u.id).count()
         u.appointments_count = db.query(Appointment).filter(Appointment.user_id == u.id).count()
         u.completed_appointments = db.query(Appointment).filter(
@@ -12075,6 +12507,21 @@ async def get_consultant_onboarding_data(request: Request, user_id: int, db: Ses
         db.add(p)
         db.commit()
         db.refresh(p)
+        
+    # Reconstruct consultant_type from specialization or wellness_category
+    import json as _json
+    ct_list = []
+    spec_lower = (p.specialization or "").lower()
+    if "mental" in spec_lower:
+        ct_list.append("Mental")
+    if "physical" in spec_lower:
+        ct_list.append("Physical")
+    if "professional" in spec_lower:
+        ct_list.append("Professional")
+    if not ct_list and p.wellness_category:
+        if p.wellness_category in ["Mental", "Physical", "Professional"]:
+            ct_list.append(p.wellness_category)
+
     return JSONResponse({"success": True, "profile": {
         "user_id": user_id, "name": user.name, "email": user.email,
         "phone": user.phone_number or "",
@@ -12100,7 +12547,7 @@ async def get_consultant_onboarding_data(request: Request, user_id: int, db: Ses
         "preferred_days":         p.preferred_days or "",
         "highest_qualification":  p.highest_qualification or "",
         "education_specialization": p.education or "",
-        "consultant_type":        p.consultant_type or "[]",
+        "consultant_type":        ct_list,
     }})
 
 
@@ -12119,8 +12566,25 @@ async def save_consultant_onboarding_data(request: Request, user_id: int, db: Se
         p = ConsultantProfile(user_id=user_id)
         db.add(p)
     data = await request.json()
+    
+    # Parse consultant_type checkboxes
+    import json as _json
+    ct_val = data.get("consultant_type") or "[]"
+    try:
+        ct_list = _json.loads(ct_val) if isinstance(ct_val, str) else ct_val
+    except Exception:
+        ct_list = []
+
     p.full_name              = data.get("full_name") or user.name
-    p.specialization         = data.get("specialization") or ""
+    
+    # Ensure selected categories are in the specialization field
+    spec = data.get("specialization") or ""
+    spec_parts = [part.strip() for part in spec.split(',') if part.strip()]
+    for ct in ct_list:
+        if not any(ct.lower() in part.lower() for part in spec_parts):
+            spec_parts.append(ct)
+    p.specialization = ", ".join(spec_parts)
+
     spec_lower = p.specialization.lower()
     cats = []
     if "mental" in spec_lower: cats.append("Mental")
@@ -12128,6 +12592,7 @@ async def save_consultant_onboarding_data(request: Request, user_id: int, db: Se
     if "professional" in spec_lower: cats.append("Professional")
     if cats:
         p.wellness_category = cats[0]
+
     p.bio                    = data.get("bio") or ""
     p.experience_years       = int(data.get("experience_years") or 0)
     p.consultation_fee       = float(data.get("consultation_fee") or 0)
@@ -12149,7 +12614,6 @@ async def save_consultant_onboarding_data(request: Request, user_id: int, db: Se
     p.preferred_days         = data.get("preferred_days") or ""
     p.highest_qualification  = data.get("highest_qualification") or ""
     p.education              = data.get("education_specialization") or ""
-    p.consultant_type        = data.get("consultant_type") or "[]"
     p.is_profile_completed   = True
     p.is_approved            = bool(data.get("approve", True))
     if data.get("full_name") and data["full_name"] != user.name:
@@ -12199,6 +12663,18 @@ async def get_user_profile(request: Request, user_id: int, db: Session = Depends
     if not user:
         return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
     
+    # Get active subscription plan
+    from models import UserSubscription, UsagePlan
+    active_sub = db.query(UserSubscription).filter(
+        UserSubscription.user_id == user_id,
+        UserSubscription.status == "active"
+    ).first()
+    plan_name = "Free (Default)"
+    if active_sub:
+        plan = db.query(UsagePlan).filter(UsagePlan.id == active_sub.plan_id).first()
+        if plan:
+            plan_name = plan.name
+
     # Get detailed stats
     vitals_count = db.query(VitalsRecord).filter(VitalsRecord.user_id == user_id).count()
     appointments_count = db.query(Appointment).filter(Appointment.user_id == user_id).count()
@@ -12222,7 +12698,8 @@ async def get_user_profile(request: Request, user_id: int, db: Session = Depends
             "appointments_count": appointments_count,
             "completed_appointments": completed_appointments,
             "chat_count": chat_count,
-            "chat_time_minutes": chat_time_minutes
+            "chat_time_minutes": chat_time_minutes,
+            "plan_name": plan_name
         }
     })
 
@@ -15011,6 +15488,7 @@ async def api_assistant_incomplete(request: Request, db: Session = Depends(get_d
     uid = _assistant_guard(request)
     if not uid:
         return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    
     profiles = (
         db.query(ConsultantProfile)
         .join(User, ConsultantProfile.user_id == User.id)
@@ -15019,10 +15497,12 @@ async def api_assistant_incomplete(request: Request, db: Session = Depends(get_d
         .all()
     )
     result = []
+    seen_user_ids = set()
     for p in profiles:
         u = p.user
         if not u:
             continue
+        seen_user_ids.add(u.id)
         fields = [p.full_name, p.city, p.gender, p.experience_years,
                   p.highest_qualification, p.bio, p.expertise_areas,
                   p.counselling_methods, p.preferred_time]
@@ -15031,6 +15511,26 @@ async def api_assistant_incomplete(request: Request, db: Session = Depends(get_d
         result.append({"profile_id": p.id, "user_id": u.id, "name": u.name,
                        "email": u.email, "created_at": u.created_at.isoformat() if u.created_at else None,
                        "completion_pct": pct})
+                       
+    no_profile_users = db.query(User).filter(
+        User.user_type == "consultant",
+        User.is_active == True,
+        ~db.query(ConsultantProfile).filter(
+            ConsultantProfile.user_id == User.id
+        ).exists()
+    ).all()
+    for u in no_profile_users:
+        if u.id not in seen_user_ids:
+            result.append({
+                "profile_id": None,
+                "user_id": u.id,
+                "name": u.name,
+                "email": u.email,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+                "completion_pct": 0
+            })
+            
+    result.sort(key=lambda x: x["created_at"] or "", reverse=True)
     return JSONResponse({"success": True, "consultants": result})
 
 

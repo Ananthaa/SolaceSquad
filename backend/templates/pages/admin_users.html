@@ -75,6 +75,9 @@
                                 Role</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Active Plan</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Joined</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -120,6 +123,17 @@
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
+                                {% if u.plan_name == 'Free (Default)' %}
+                                <span class="px-2.5 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                    {{ u.plan_name }}
+                                </span>
+                                {% else %}
+                                <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-green-50 text-green-700 border border-green-200">
+                                    {{ u.plan_name }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900">
                                     {{ u.created_at | format_local('%b %d, %Y') }}
                                 </div>
@@ -158,6 +172,10 @@
                             <td class="sticky right-0 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-right text-sm font-medium z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.03)]">
                                 <!-- Desktop Actions -->
                                 <div class="hidden sm:flex items-center justify-end gap-1.5">
+                                    <button onclick="changeUserEmail({{ u.id }}, '{{ u.email }}')"
+                                        class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-indigo-600 hover:text-indigo-900 shadow-sm transition" title="Change Primary Gmail">
+                                        <i data-lucide="mail" class="w-4 h-4 inline"></i>
+                                    </button>
                                     <button onclick="startImpersonate({{ u.id }})"
                                         class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-emerald-600 hover:text-emerald-900 shadow-sm transition" title="Book Consultation on Behalf">
                                         <i data-lucide="calendar-plus" class="w-4 h-4 inline"></i>
@@ -184,6 +202,9 @@
                                         <i data-lucide="more-vertical" class="w-4 h-4"></i>
                                     </button>
                                     <div class="hidden">
+                                        <button onclick="changeUserEmail({{ u.id }}, '{{ u.email }}')">
+                                            <i data-lucide="mail" class="w-4 h-4 inline mr-2"></i> Change Email
+                                        </button>
                                         <button onclick="startImpersonate({{ u.id }})">
                                             <i data-lucide="calendar-plus" class="w-4 h-4 inline mr-2"></i> Book Consultation
                                         </button>
@@ -398,6 +419,15 @@
                             <td class="sticky right-0 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-right text-sm font-medium z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.03)]">
                                 <!-- Desktop Actions -->
                                 <div class="hidden sm:flex items-center justify-end gap-1.5">
+                                    <button onclick="changeUserEmail({{ c.user_id }}, '{{ c.user.email }}')"
+                                        class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-indigo-600 hover:text-indigo-900 shadow-sm transition" title="Change Primary Gmail">
+                                        <i data-lucide="mail" class="w-4 h-4 inline"></i>
+                                    </button>
+                                    <button onclick="openOnboarding({{ c.user_id }}, '{{ c.user.name.replace("'", "\\'") }}')" 
+                                        class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-green-600 hover:text-green-900 shadow-sm transition"
+                                        title="Edit Profile & Name">
+                                        <i data-lucide="user-cog" class="w-4 h-4 inline"></i>
+                                    </button>
                                     <button onclick="editFee({{ c.id }})" class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-blue-600 hover:text-blue-900 shadow-sm transition"
                                         title="Edit Fee">
                                         <i data-lucide="edit" class="w-4 h-4 inline"></i>
@@ -419,6 +449,12 @@
                                         <i data-lucide="more-vertical" class="w-4 h-4"></i>
                                     </button>
                                     <div class="hidden">
+                                        <button onclick="changeUserEmail({{ c.user_id }}, '{{ c.user.email }}')">
+                                            <i data-lucide="mail" class="w-4 h-4 inline mr-2"></i> Change Email
+                                        </button>
+                                        <button onclick="openOnboarding({{ c.user_id }}, '{{ c.user.name.replace("'", "\\'") }}')">
+                                            <i data-lucide="user-cog" class="w-4 h-4 inline mr-2"></i> Edit Profile & Name
+                                        </button>
                                         <button onclick="editFee({{ c.id }})">
                                             <i data-lucide="edit" class="w-4 h-4 inline mr-2"></i> Edit Fee
                                         </button>
@@ -919,9 +955,21 @@
         modal.querySelectorAll(`input[name="${name}"]`).forEach(cb => cb.checked = false);
         if (!vals) return;
         try {
-            const arr = typeof vals === 'string' ? JSON.parse(vals) : vals;
+            let arr;
+            if (typeof vals === 'string') {
+                const trimmed = vals.trim();
+                if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                    arr = JSON.parse(trimmed);
+                } else {
+                    arr = trimmed.split(',').map(s => s.trim()).filter(Boolean);
+                }
+            } else {
+                arr = vals;
+            }
             arr.forEach(v => { const cb = modal.querySelector(`input[name="${name}"][value="${CSS.escape(v)}"]`); if (cb) cb.checked = true; });
-        } catch(e) {}
+        } catch(e) {
+            console.warn('Error parsing checkboxes for ' + name, e);
+        }
     }
     function _obRad(name, val) {
         if (!val) return;
@@ -1122,6 +1170,10 @@
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Joined:</span>
                                     <span class="font-medium">${new Date(user.created_at).toLocaleDateString()}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Active Plan:</span>
+                                    <span class="font-bold text-teal-700">${user.plan_name || 'Free (Default)'}</span>
                                 </div>
                                 <div class="flex justify-between">
                                     <span class="text-gray-600">Last Login:</span>
@@ -1346,6 +1398,61 @@
         }
     }
 
+    // Change user primary email
+    function changeUserEmail(userId, currentEmail) {
+        document.getElementById('change-email-user-id').value = userId;
+        document.getElementById('change-email-current').value = currentEmail;
+        document.getElementById('change-email-new').value = '';
+        
+        const modal = document.getElementById('change-email-modal');
+        const content = document.getElementById('change-email-modal-content');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function closeChangeEmailModal() {
+        const modal = document.getElementById('change-email-modal');
+        const content = document.getElementById('change-email-modal-content');
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }, 300);
+    }
+
+    async function submitChangeEmail(event) {
+        event.preventDefault();
+        const userId = document.getElementById('change-email-user-id').value;
+        const newEmail = document.getElementById('change-email-new').value.trim();
+        
+        if (!newEmail || !newEmail.includes('@')) {
+            alert('Please enter a valid email address.');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/admin/users/${userId}/change-email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: newEmail })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message || 'Email updated successfully!');
+                window.location.reload();
+            } else {
+                alert(`Error: ${data.error || 'Failed to update email'}`);
+            }
+        } catch (e) {
+            alert('Connection error. Please try again.');
+        }
+    }
+
     // Safe lucide helper — library is deferred so may not be ready yet
     function safeCreateIcons() {
         if (typeof lucide !== 'undefined') {
@@ -1358,6 +1465,42 @@
     // Initialize icons
     document.addEventListener('DOMContentLoaded', safeCreateIcons);
 </script>
+
+<!-- Change Email Modal -->
+<div id="change-email-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-100 transform transition-all duration-300 scale-95 opacity-0" id="change-email-modal-content">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <i data-lucide="mail" class="w-5 h-5 text-indigo-600"></i> Change Primary Gmail
+            </h3>
+            <button onclick="closeChangeEmailModal()" class="text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <p class="text-xs text-gray-500 mb-4">
+            Updating the email will change their login credential and **clear their Google ID connection**, allowing them to sign in or link with their new Gmail account on their next login.
+        </p>
+        <form id="change-email-form" onsubmit="submitChangeEmail(event)" class="space-y-4">
+            <input type="hidden" id="change-email-user-id">
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Current Email</label>
+                <input type="text" id="change-email-current" disabled class="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-xl text-sm text-gray-500">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">New Gmail / Email Address</label>
+                <input type="email" id="change-email-new" required class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-600" placeholder="new.email@gmail.com">
+            </div>
+            <div class="flex gap-2 justify-end pt-2">
+                <button type="button" onclick="closeChangeEmailModal()" class="px-4 py-2 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition">
+                    Update Email
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <style>
     .tab-button { transition: all 0.2s; }
