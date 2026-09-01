@@ -16,7 +16,7 @@ public class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         
         let urlString = url.absoluteString
         
-        // Intercept external and deep links (tel:, mailto:, upi:, whatsapp:)
+        // Intercept external native deep links (tel:, mailto:, upi:, whatsapp:, sms:)
         if !urlString.starts(with: "http://") && !urlString.starts(with: "https://") {
             if UIApplication.shared.canOpenURL(url) {
                 UIApplication.shared.open(url, options: [:], completionHandler: nil)
@@ -25,14 +25,21 @@ public class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
             return
         }
         
-        // Open third-party external links outside the SolaceSquad domain in Safari
-        if !urlString.contains("solacesquad") && !urlString.contains("run.app") && !urlString.contains("razorpay") {
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
-            decisionHandler(.cancel)
-            return
-        }
-        
+        // Allow all web URLs (including Razorpay, 3D secure banks, and SolaceSquad) to load in-app
         decisionHandler(.allow)
+    }
+    
+    // Handle window.open and target="_blank" popup windows seamlessly in the same WebView
+    public func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        if navigationAction.targetFrame == nil {
+            webView.load(navigationAction.request)
+        }
+        return nil
     }
     
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -46,7 +53,7 @@ public class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
                 window.webkit.messageHandlers.syncAppleHealth.postMessage({});
             }
         };
-        // Also alias AndroidBridge so shared web templates work automatically!
+        // Alias AndroidBridge so existing web templates work out-of-the-box!
         window.AndroidBridge = window.iOSBridge;
         """
         webView.evaluateJavaScript(bridgePolyfill, completionHandler: nil)

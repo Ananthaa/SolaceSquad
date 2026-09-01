@@ -7,18 +7,32 @@ public class RazorpayPaymentManager: NSObject {
     
     public func openCheckout(optionsJson: String) {
         guard let data = optionsJson.data(using: .utf8),
-              let options = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+              let _ = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             print("[RazorpayPaymentManager] Invalid options JSON")
             return
         }
         
-        DispatchQueue.main.async {
-            guard let rootVC = UIApplication.shared.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
-                return
-            }
-            
-            // Present payment overlay using RazorpayFramework if linked, or trigger Web bridge callback
-            print("[RazorpayPaymentManager] Initiating payment for order: \(options["order_id"] ?? "")")
+        DispatchQueue.main.async { [weak self] in
+            let escapedJson = optionsJson.replacingOccurrences(of: "\\", with: "\\\\")
+                                         .replacingOccurrences(of: "\"", with: "\\\"")
+                                         .replacingOccurrences(of: "\n", with: " ")
+                                         .replacingOccurrences(of: "\r", with: "")
+            let js = """
+            (function() {
+                try {
+                    var opts = JSON.parse("\(escapedJson)");
+                    if (typeof Razorpay !== 'undefined') {
+                        var rzp = new Razorpay(opts);
+                        rzp.open();
+                    } else {
+                        console.error('Razorpay script not found');
+                    }
+                } catch(e) {
+                    console.error('Failed to open Razorpay in iOS WebView', e);
+                }
+            })();
+            """
+            self?.activeWebView?.evaluateJavaScript(js, completionHandler: nil)
         }
     }
     

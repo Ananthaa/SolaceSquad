@@ -10,7 +10,7 @@ struct SolaceSquadApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                SolaceWebView(initialURL: URL(string: AppEnvironment.baseURL)!)
+                SolaceWebView(initialURL: URL(string: "\(AppEnvironment.baseURL)/login")!)
                     .ignoresSafeArea(.all, edges: .bottom)
                 
                 // Biometric security overlay if enabled and locked
