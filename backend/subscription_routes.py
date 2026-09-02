@@ -2736,7 +2736,7 @@ def register_subscription_routes(app, templates, get_db):
                      "limit_hit_message": "Google Fit sync is available on the White plan and above. You can still log workouts manually."},
                     {"feature_key": "thryveq_access",    "feature_name": "THRYVEQ Score Access",   "limit_value": 1,
                      "limit_hit_message": "Upgrade to the White plan to unlock weekly and monthly THRYVEQ scores."},
-                    {"feature_key": "free_consultation", "feature_name": "Free Consultation",     "limit_value": 1,
+                    {"feature_key": "free_consultation", "feature_name": "Free 15 mins consultations", "limit_value": 1,
                      "limit_hit_message": "Your complimentary 20-min consultation has been used. You can still book more at standard rates."},
                     {"feature_key": "ai_chat",           "feature_name": "Emora Chat Buddy",     "limit_value": 20,
                      "limit_first_week": 500, "limit_post_week": 20,
@@ -2769,7 +2769,7 @@ def register_subscription_routes(app, templates, get_db):
                     {"feature_key": "thryveq_access",    "feature_name": "THRYVEQ Score Access",   "limit_value": 7,
                      "limit_hit_message": "Upgrade to a higher plan to unlock your annual THRYVEQ score."},
                     # 1 free consultation lifetime slot
-                    {"feature_key": "free_consultation", "feature_name": "Free Consultation",     "limit_value": 1,
+                    {"feature_key": "free_consultation", "feature_name": "Free 15 mins consultations", "limit_value": 1,
                      "limit_hit_message": "Your complimentary consultation has been used. You can still book more at standard rates."},
                     {"feature_key": "ai_chat",           "feature_name": "Emora Chat Buddy",     "limit_value": 20,
                      "limit_first_week": 500, "limit_post_week": 20,
