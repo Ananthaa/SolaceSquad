@@ -995,7 +995,7 @@ async def download_user_data(request: Request, db: Session = Depends(get_db)):
                 "email": user.email,
                 "phone_number": user.phone_number,
                 "user_type": user.user_type,
-                "created_at": str(user.created_at),
+                "created_at": str(user.created_at) if user.created_at else None,
                 "timezone": user.timezone,
             },
             "consents": {
@@ -1006,23 +1006,27 @@ async def download_user_data(request: Request, db: Session = Depends(get_db)):
             },
             "vitals": [
                 {
-                    "recorded_at": str(v.recorded_at),
-                    "steps": v.steps,
+                    "timestamp": str(v.timestamp) if v.timestamp else None,
                     "heart_rate": v.heart_rate,
-                    "bp_sys": v.bp_sys,
-                    "bp_dia": v.bp_dia,
-                    "sleep_hours": v.sleep_hours,
-                    "source": v.source,
+                    "spo2": v.spo2,
+                    "respiratory_rate": v.respiratory_rate,
+                    "temperature": v.temperature,
+                    "bp_systolic": v.blood_pressure_systolic,
+                    "bp_diastolic": v.blood_pressure_diastolic,
+                    "health_score": v.health_score,
+                    "stress": v.stress,
+                    "method": v.method,
                 }
-                for v in user.vitals_records
+                for v in (user.vitals_records or [])
             ],
             "mood_entries": [
                 {
-                    "timestamp": str(m.timestamp),
-                    "score": m.score,
-                    "note": m.note,
+                    "timestamp": str(m.timestamp) if m.timestamp else None,
+                    "mood_rating": m.mood_rating,
+                    "emotional_wellness_score": m.emotional_wellness_score,
+                    "notes": m.notes,
                 }
-                for m in user.mood_entries
+                for m in (user.mood_entries or [])
             ]
         }
         
@@ -1038,6 +1042,93 @@ async def download_user_data(request: Request, db: Session = Depends(get_db)):
         )
         
         return JSONResponse(user_data)
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@app.get("/api/settings/download-vitals-csv")
+@app.get("/api/vitals/export-csv")
+async def download_vitals_csv(request: Request, db: Session = Depends(get_db)):
+    """Export all vitals scan records for the logged-in user as an Excel-compatible CSV."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=401)
+        
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+            
+        records = db.query(VitalsRecord).filter(
+            VitalsRecord.user_id == user_id
+        ).order_by(VitalsRecord.timestamp.desc()).all()
+        
+        import csv as _csv, io as _io
+        from fastapi.responses import Response as _CSVResponse
+        
+        output = _io.StringIO()
+        writer = _csv.writer(output)
+        
+        # Write CSV Header
+        writer.writerow([
+            "Timestamp (UTC)",
+            "Overall Health Score",
+            "Heart Rate (BPM)",
+            "Heart Rate Rating",
+            "Blood Oxygen SpO2 (%)",
+            "SpO2 Rating",
+            "Respiratory Rate (br/min)",
+            "Respiratory Rate Rating",
+            "Systolic Blood Pressure (mmHg)",
+            "Diastolic Blood Pressure (mmHg)",
+            "Blood Pressure Rating",
+            "Temperature (C)",
+            "Temperature (F)",
+            "Temperature Rating",
+            "Stress Level",
+            "Scan Method",
+            "Confidence (%)"
+        ])
+        
+        for r in records:
+            temp_c = r.temperature if r.temperature is not None else ""
+            temp_f = round((r.temperature * 9/5) + 32, 1) if (r.temperature is not None) else ""
+            writer.writerow([
+                r.timestamp.strftime("%Y-%m-%d %H:%M:%S") if r.timestamp else "",
+                r.health_score if r.health_score is not None else "",
+                r.heart_rate if r.heart_rate is not None else "",
+                r.hr_rating or "",
+                r.spo2 if r.spo2 is not None else "",
+                r.spo2_rating or "",
+                r.respiratory_rate if r.respiratory_rate is not None else "",
+                r.rr_rating or "",
+                r.blood_pressure_systolic if r.blood_pressure_systolic is not None else "",
+                r.blood_pressure_diastolic if r.blood_pressure_diastolic is not None else "",
+                r.bp_rating or "",
+                temp_c,
+                temp_f,
+                r.temp_rating or "",
+                r.stress if r.stress is not None else "",
+                r.method or "camera",
+                round(r.confidence * 100, 1) if r.confidence is not None else ""
+            ])
+            
+        AuditLogger.log_event(
+            db,
+            user_id=user_id,
+            event_type="vitals_exported_csv",
+            resource_type="user",
+            resource_id=str(user_id),
+            details=f"User exported {len(records)} vitals records as CSV.",
+            request=request
+        )
+        
+        filename = f"solacesquad_vitals_{datetime.utcnow().strftime('%Y-%m-%d')}.csv"
+        return _CSVResponse(
+            content=output.getvalue().encode("utf-8-sig"),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
     except Exception as e:
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
