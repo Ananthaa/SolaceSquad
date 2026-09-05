@@ -249,6 +249,14 @@ def google_callback(request: Request, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    # ── Enforce User-Only login for Mobile App ──────────────────────────────
+    ua = request.headers.get("user-agent", "")
+    is_mobile_app = "SolaceSquadApp" in ua or request.session.get("is_mobile_app") == "1"
+    if is_mobile_app and user.user_type != "user":
+        request.session.clear()
+        err_msg = "The mobile app is for user accounts only. Consultants and administrators, please sign in via www.solacesquad.com."
+        return RedirectResponse(f"/login?error={urllib.parse.quote(err_msg)}", status_code=303)
+
     # ── Set session (same keys as email/password login) ────────────────────────
     request.session["user_id"]   = user.id
     request.session["user_type"] = user.user_type

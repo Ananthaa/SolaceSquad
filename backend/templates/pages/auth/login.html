@@ -320,10 +320,11 @@
         verifyBtn.textContent = 'Verifying...';
 
         try {
+            const isMobileApp = window.AndroidBridge !== undefined || window.iOSBridge !== undefined || /SolaceSquadApp/i.test(navigator.userAgent);
             const res = await fetch('/api/auth/login-otp/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: phone, otp: otp })
+                body: JSON.stringify({ phone: phone, otp: otp, is_mobile_app: isMobileApp ? '1' : '0' })
             });
             const data = await res.json();
             
@@ -346,5 +347,23 @@
             verifyBtn.textContent = 'Verify & Sign In';
         }
     }
+
+    // Auto-attach is_mobile_app to all auth forms
+    document.addEventListener('DOMContentLoaded', function() {
+        const isMobileApp = window.AndroidBridge !== undefined || 
+                            window.iOSBridge !== undefined || 
+                            /SolaceSquadApp/i.test(navigator.userAgent);
+        if (isMobileApp) {
+            document.querySelectorAll('form').forEach(form => {
+                if (!form.querySelector('input[name="is_mobile_app"]')) {
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'is_mobile_app';
+                    hidden.value = '1';
+                    form.appendChild(hidden);
+                }
+            });
+        }
+    });
 </script>
 {% endblock %}

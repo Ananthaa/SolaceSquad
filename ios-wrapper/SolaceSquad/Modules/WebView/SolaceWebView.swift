@@ -17,6 +17,7 @@ public struct SolaceWebView: UIViewRepresentable {
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
+        config.applicationNameForUserAgent = "SolaceSquadApp/iOS"
         
         // Attach JavaScript Message Handler Bridge
         let userContentController = WKUserContentController()

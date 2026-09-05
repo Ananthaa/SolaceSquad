@@ -4769,6 +4769,21 @@ async def logout(request: Request):
     return RedirectResponse(url="/", status_code=303)
 
 
+def _is_mobile_app_request(request: Request, data: dict = None) -> bool:
+    """Detect if request originated from Android or iOS SolaceSquad wrapper app."""
+    ua = request.headers.get("user-agent", "")
+    if "SolaceSquadApp" in ua:
+        return True
+    if data:
+        if str(data.get("is_mobile_app", "")).lower() in ("1", "true"):
+            return True
+        if data.get("client_platform") in ("android", "ios"):
+            return True
+    if request.query_params.get("is_mobile_app") in ("1", "true"):
+        return True
+    return False
+
+
 @app.get("/login", response_class=HTMLResponse)
 async def login(request: Request):
     """Login page"""
@@ -4863,6 +4878,17 @@ async def login_post(request: Request, db: Session = Depends(get_db)):
                     "request": request,
                     "page_title": "Login - SolaceSquad",
                     "error": "Incorrect password"
+                }
+            )
+        
+        # Enforce User-Only login for Mobile App
+        if _is_mobile_app_request(request, form_data) and user.user_type != "user":
+            return templates.TemplateResponse(
+                "pages/auth/login.html",
+                {
+                    "request": request,
+                    "page_title": "Login - SolaceSquad",
+                    "error": "The mobile app is for user accounts only. Consultants and administrators, please sign in via the web portal at www.solacesquad.com."
                 }
             )
         
@@ -7033,6 +7059,13 @@ async def verify_login_otp_api(request: Request, db: Session = Depends(get_db)):
 
         if not user.is_active:
             return JSONResponse({"success": False, "error": "Account deactivated"}, status_code=403)
+
+        # Enforce User-Only login for Mobile App
+        if _is_mobile_app_request(request, data) and user.user_type != "user":
+            return JSONResponse({
+                "success": False, 
+                "error": "The mobile app is for user accounts only. Consultants and administrators, please sign in via www.solacesquad.com."
+            }, status_code=403)
 
         # Login user session
         if not user.first_login:
