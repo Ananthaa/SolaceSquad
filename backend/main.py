@@ -9403,11 +9403,24 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         try:
             from subscription_routes import check_feature_limit
             q = check_feature_limit(user_id, "ai_chat", db)
+            limit = q.get("limit", 20)
+            in_first_week = q.get("in_first_week", False)
+            pack_balance = q.get("pack_balance", 0)
+            daily_remaining = q.get("daily_remaining", 0)
+            if limit == -1:
+                total_remaining = -1
+            else:
+                total_remaining = daily_remaining if in_first_week else (daily_remaining + pack_balance)
+
             quota_info = {
-                "allowed":   q.get("allowed", True),
-                "remaining": q.get("remaining", -1),
-                "limit":     q.get("limit", 500),
-                "used":      q.get("used", 0),
+                "allowed":         q.get("allowed", True),
+                "remaining":       total_remaining,
+                "daily_remaining": daily_remaining,
+                "pack_balance":    pack_balance,
+                "limit":           limit,
+                "used":            q.get("used", 0),
+                "in_first_week":   in_first_week,
+                "message":         q.get("message", ""),
             }
         except Exception:
             pass
@@ -9444,14 +9457,25 @@ async def get_ai_chat_quota(request: Request, db: Session = Depends(get_db)):
     try:
         from subscription_routes import check_feature_limit
         q = check_feature_limit(int(user_id), "ai_chat", db)
+        limit = q.get("limit", 20)
+        in_first_week = q.get("in_first_week", False)
+        pack_balance = q.get("pack_balance", 0)
+        daily_remaining = q.get("daily_remaining", 0)
+        if limit == -1:
+            total_remaining = -1
+        else:
+            total_remaining = daily_remaining if in_first_week else (daily_remaining + pack_balance)
+
         return {
-            "success":       True,
-            "allowed":       q.get("allowed", True),
-            "remaining":     q.get("remaining", -1),
-            "limit":         q.get("limit", 500),
-            "used":          q.get("used", 0),
-            "in_first_week": q.get("in_first_week", False),
-            "message":       q.get("message", "")
+            "success":         True,
+            "allowed":         q.get("allowed", True),
+            "remaining":       total_remaining,
+            "daily_remaining": daily_remaining,
+            "pack_balance":    pack_balance,
+            "limit":           limit,
+            "used":            q.get("used", 0),
+            "in_first_week":   in_first_week,
+            "message":         q.get("message", "")
         }
     except Exception as e:
         return {"success": True, "allowed": True, "remaining": -1}

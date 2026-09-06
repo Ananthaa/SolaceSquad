@@ -4327,14 +4327,20 @@ function updateEmoraQuotaUI(quota) {
         badge.textContent = '💎 Unlimited';
         badge.title = 'Active plan with unlimited messages';
     } else if (quota.remaining !== undefined) {
-        badge.textContent = '💬 ' + quota.remaining + ' left';
+        if (quota.pack_balance && quota.pack_balance > 0 && !quota.in_first_week) {
+            badge.textContent = '💬 ' + quota.remaining + ' left (' + quota.daily_remaining + ' daily + ' + quota.pack_balance + ' pack)';
+        } else if (quota.in_first_week) {
+            badge.textContent = '💬 ' + quota.remaining + ' welcome msgs';
+        } else {
+            badge.textContent = '💬 ' + quota.remaining + ' / ' + quota.limit + ' today';
+        }
         badge.title = quota.remaining + ' of ' + quota.limit + ' messages remaining';
     }
 
     if (quota.allowed === false || quota.remaining === 0) {
         if (exhaustedBanner) exhaustedBanner.style.display = 'block';
         if (sendBtn) sendBtn.disabled = true;
-        if (input) input.placeholder = 'Message quota reached. Please upgrade to continue.';
+        if (input) input.placeholder = 'Daily message quota reached. Top up with an Emora pack to continue.';
     } else {
         if (exhaustedBanner) exhaustedBanner.style.display = 'none';
         if (sendBtn) sendBtn.disabled = false;
@@ -4432,6 +4438,12 @@ async function sendEmoraMessage() {
         
         if (data.matched_keyword) {
             responseHtml += '<div class="emora-match-badge">🏷️ Topic: <strong>' + escapeHtml(data.matched_keyword) + '</strong></div>';
+            // Automatically filter background consultants page to matched topic
+            currentCategoryFilter = 'all';
+            currentSearchQuery = data.matched_keyword;
+            var searchInput = document.getElementById('consultantSearchInput');
+            if (searchInput) searchInput.value = data.matched_keyword;
+            applyConsultantFilters();
         }
 
         // Formatted text
@@ -4564,10 +4576,11 @@ function openBookingFromEmora(cid, name, spec) {
 }
 
 function filterPageForKeyword(keyword) {
+    currentCategoryFilter = 'all';
     setQuickSearch(keyword);
-    var bar = document.getElementById('categoryFilterBar');
+    var bar = document.getElementById('categoryFilterBar') || document.getElementById('consultantSearchInput');
     if (bar) {
-        bar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        bar.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
 </script>

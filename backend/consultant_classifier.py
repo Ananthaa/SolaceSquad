@@ -260,15 +260,18 @@ CATEGORY_EMOJI = {"Mental": "🧠", "Physical": "💪", "Professional": "💼"}
 
 def get_recommended_consultants(category: str, db, limit: int = 3, tz_name: str = "Asia/Kolkata") -> list:
     """
-    Return up to `limit` approved+available consultants for a wellness category.
+    Return up to `limit` approved+active consultants for a wellness category.
     Falls back to all categories if none found for the specific one.
     """
-    from models import ConsultantProfile
+    from models import ConsultantProfile, User
 
     def _query(cat):
-        q = db.query(ConsultantProfile).filter(
-            ConsultantProfile.is_approved  == True,
-            ConsultantProfile.is_available == True,
+        q = db.query(ConsultantProfile).join(
+            User, User.id == ConsultantProfile.user_id
+        ).filter(
+            User.user_type == "consultant",
+            User.is_active == True,
+            ConsultantProfile.is_approved == True,
         )
         if cat:
             q = q.filter(ConsultantProfile.wellness_category == cat)
@@ -412,10 +415,62 @@ SEARCH_KEYWORD_TAXONOMY = [
 ]
 
 
+KEYWORD_SYNONYMS = {
+    "focus": ["ADHD", "Motivation & Goal Setting", "Work-related Stress"],
+    "focusing": ["ADHD", "Motivation & Goal Setting", "Work-related Stress"],
+    "sleepy": ["Sleep Problems", "Stress Management"],
+    "sleep": ["Sleep Problems"],
+    "insomnia": ["Sleep Problems"],
+    "tired": ["Burnout", "Stress Management", "Nutrition & Wellness"],
+    "exhausted": ["Burnout", "Stress Management"],
+    "burnout": ["Burnout", "Work-related Stress"],
+    "burnt out": ["Burnout", "Work-related Stress"],
+    "stressed": ["Stress", "Stress Management"],
+    "stress": ["Stress", "Stress Management"],
+    "anxious": ["Anxiety", "Anxiety & Panic Attacks"],
+    "anxiety": ["Anxiety", "Anxiety & Panic Attacks"],
+    "worried": ["Excessive Worry", "Anxiety & Panic Attacks"],
+    "worry": ["Excessive Worry", "Anxiety & Panic Attacks"],
+    "sad": ["Sadness", "Depression & Mood Disorders"],
+    "depressed": ["Depression", "Depression & Mood Disorders"],
+    "low": ["Feeling Low", "Depression & Mood Disorders"],
+    "breakup": ["Breakup", "Relationship Counselling"],
+    "partner": ["Relationship Problems", "Relationship Counselling"],
+    "relationship": ["Relationship Problems", "Relationship Counselling"],
+    "marriage": ["Relationship Problems", "Relationship Counselling"],
+    "sex": ["Sexual & Intimacy Issues", "Sexual & Intimacy Problems"],
+    "sexual": ["Sexual & Intimacy Issues", "Sexual & Intimacy Problems"],
+    "intimacy": ["Sexual & Intimacy Issues", "Sexual & Intimacy Problems"],
+    "diet": ["Nutrition", "Nutrition & Wellness"],
+    "food": ["Nutrition", "Nutrition & Wellness"],
+    "gut": ["Gut Health", "Nutrition & Wellness"],
+    "digestion": ["Digestive Wellness", "Nutrition & Wellness"],
+    "weight": ["Weight Management", "Nutrition & Wellness"],
+    "fat": ["Weight Management", "Nutrition & Wellness"],
+    "confidence": ["Confidence Issues", "Low Self-esteem"],
+    "esteem": ["Low Self-esteem"],
+    "anger": ["Anger Issues", "Anger Management"],
+    "angry": ["Anger Issues", "Anger Management"],
+    "trauma": ["Trauma", "Abuse & Trauma (including Childhood)"],
+    "grief": ["Grief, Bereavement & Loss", "Grief & Bereavement"],
+    "lost": ["Grief, Bereavement & Loss", "Career & Life Coaching"],
+    "career": ["Career Decisions", "Career & Life Coaching"],
+    "job": ["Workplace Problems", "Work-related Stress"],
+    "work": ["Work Stress", "Work-related Stress"],
+    "procrastination": ["Procrastination", "Motivation & Goal Setting"],
+    "lazy": ["Low Motivation", "Motivation & Goal Setting"],
+    "adhd": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)"],
+    "autism": ["Autism-related Challenges", "Neurodiversity (ADHD, Autism, etc.)"],
+    "lonely": ["Loneliness", "Depression & Mood Disorders"],
+    "alone": ["Social Isolation", "Depression & Mood Disorders"],
+    "panic": ["Panic Attacks", "Anxiety & Panic Attacks"],
+}
+
+
 def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_name: str = "Asia/Kolkata") -> dict:
     """
     Given a user message, extract matching keywords from SEARCH_KEYWORD_TAXONOMY,
-    query the DB for approved & available consultants, and rank them strictly based on
+    query the DB for approved & active consultants, and rank them strictly based on
     their database profile (expertise_areas, specialization, bio, rating, availability).
     """
     from models import ConsultantProfile, User
@@ -423,7 +478,6 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
 
     msg_lower = user_message.lower().strip()
 
-    # 1. Identify matched search terms and focus areas (exact terms first, then meaningful keyword tokens)
     STOP_TOKENS = {
         "wellness", "feeling", "managing", "issues", "problems", "related",
         "challenges", "general", "situation", "difficulties", "concerns", "problem"
@@ -433,7 +487,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
     matched_focus_areas = []
     matched_terms = []
 
-    # Check exact phrases first
+    # 1. Check exact taxonomy phrases first
     for item in SEARCH_KEYWORD_TAXONOMY:
         term_lower = item["term"].lower()
         if term_lower in msg_lower:
@@ -443,7 +497,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
                 if fa not in matched_focus_areas:
                     matched_focus_areas.append(fa)
 
-    # Check meaningful multi-word tokens
+    # 2. Check meaningful multi-word tokens
     for item in SEARCH_KEYWORD_TAXONOMY:
         if item["term"] in matched_terms:
             continue
@@ -456,31 +510,59 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
                 if fa not in matched_focus_areas:
                     matched_focus_areas.append(fa)
 
-    primary_keyword = matched_terms[0] if matched_terms else ""
+    # 3. Check colloquial synonyms (e.g., 'sleepy', 'focusing', 'partner', 'diet')
+    words = re.findall(r'\b\w+\b', msg_lower)
+    for word in words:
+        if word in KEYWORD_SYNONYMS:
+            for syn in KEYWORD_SYNONYMS[word]:
+                tax_item = next((it for it in SEARCH_KEYWORD_TAXONOMY if it["term"].lower() == syn.lower()), None)
+                if tax_item:
+                    if tax_item["term"] not in matched_terms:
+                        matched_terms.append(tax_item["term"])
+                    for fa in tax_item["focus_areas"]:
+                        if fa not in matched_focus_areas:
+                            matched_focus_areas.append(fa)
+                else:
+                    if syn not in matched_focus_areas:
+                        matched_focus_areas.append(syn)
+                    if not matched_terms:
+                        matched_terms.append(syn)
 
-    # Fallback to category signals if no specific keyword matched
+    # 4. Fallback to intent classification if nothing matched
     if not matched_focus_areas:
         intent = detect_intent(user_message)
         if intent.get("category") == "Mental":
             matched_focus_areas = ["Anxiety & Panic Attacks", "Stress Management", "Depression & Mood Disorders"]
-            primary_keyword = "Mental Wellbeing"
+            matched_terms = ["Mental Wellbeing"]
         elif intent.get("category") == "Physical":
             matched_focus_areas = ["Nutrition & Wellness", "Physical Fitness & Wellness"]
-            primary_keyword = "Physical Wellness & Nutrition"
+            matched_terms = ["Physical Wellness & Nutrition"]
         elif intent.get("category") == "Professional":
             matched_focus_areas = ["Work-related Stress", "Career & Life Coaching", "Work-life Balance"]
-            primary_keyword = "Career & Work Stress"
+            matched_terms = ["Career & Work Stress"]
         else:
-            primary_keyword = "General Wellbeing"
+            matched_focus_areas = ["Stress Management", "Career & Life Coaching"]
+            matched_terms = ["General Wellbeing"]
 
-    # 2. Query all approved & available consultants from database
+    primary_keyword = matched_terms[0] if matched_terms else (matched_focus_areas[0] if matched_focus_areas else "General Wellbeing")
+
+    # 5. Query all approved & active consultants from database
     consultants = db.query(ConsultantProfile).join(
         User, User.id == ConsultantProfile.user_id
     ).filter(
-        ConsultantProfile.is_approved == True,
-        ConsultantProfile.is_available == True,
-        User.is_active == True
+        User.user_type == "consultant",
+        User.is_active == True,
+        ConsultantProfile.is_approved == True
     ).all()
+
+    # Fallback if user_type condition is too strict
+    if not consultants:
+        consultants = db.query(ConsultantProfile).join(
+            User, User.id == ConsultantProfile.user_id
+        ).filter(
+            User.is_active == True,
+            ConsultantProfile.is_approved == True
+        ).all()
 
     scored = []
     for c in consultants:
@@ -533,7 +615,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
         is_sw = (
             "sexual" in eas_str or "intimacy" in eas_str or
             "sexual" in spec_lower or "intimacy" in spec_lower or
-            "sexual wellness" in bio_lower
+            "sexual wellness" in bio_lower or "sexual health" in bio_lower or "sexologist" in bio_lower or "sex therapy" in bio_lower
         )
 
         scored.append((score, {
