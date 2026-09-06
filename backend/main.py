@@ -4175,20 +4175,107 @@ async def admin_consultant_detail(profile_id: int, request: Request, db: Session
     if not admin or admin.user_type not in ("admin", "admin_assistant"):
         return RedirectResponse(url="/login", status_code=303)
 
-    profile = db.query(ConsultantProfile).filter(ConsultantProfile.id == profile_id).first()
+    profile = db.query(ConsultantProfile).filter(
+        (ConsultantProfile.id == profile_id) | (ConsultantProfile.user_id == profile_id)
+    ).first()
     if not profile:
         return RedirectResponse(url="/admin", status_code=303)
 
+    consultant_name = profile.user.name if profile.user else "Consultant"
     return templates.TemplateResponse(
         "pages/admin_consultant_detail.html",
         {
             "request": request,
-            "page_title": f"Application â€” {profile.user.name} | Admin",
+            "page_title": f"Application — {consultant_name} | Admin",
             "profile": profile,
             "admin": admin,
             "viewer_type": admin.user_type,
         },
     )
+
+
+@app.post("/api/admin/consultant/{profile_id}/upload-photo")
+async def admin_upload_consultant_photo(profile_id: int, request: Request, db: Session = Depends(get_db)):
+    """Admin / Assistant: Upload or replace profile photo for a consultant."""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type not in ("admin", "admin_assistant"):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+        
+    profile = db.query(ConsultantProfile).filter(
+        (ConsultantProfile.id == profile_id) | (ConsultantProfile.user_id == profile_id)
+    ).first()
+    if not profile:
+        return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
+        
+    try:
+        form = await request.form()
+        photo_file = form.get("photo")
+        if not photo_file or not hasattr(photo_file, "filename") or not photo_file.filename:
+            return JSONResponse({"success": False, "error": "No photo file provided"})
+            
+        photo_bytes = await photo_file.read()
+        from gcs_uploads import upload_profile_photo
+        url = upload_profile_photo(photo_bytes, photo_file.filename)
+        if not url:
+            return JSONResponse({"success": False, "error": "Failed to upload photo to storage"})
+            
+        profile.photo_url = url
+        db.commit()
+        
+        AuditLogger.log_event(
+            db,
+            user_id=admin.id,
+            event_type="admin_consultant_photo_upload",
+            resource_type="consultant_profile",
+            resource_id=str(profile.id),
+            details=f"Admin {admin.email} uploaded profile photo for consultant {profile.user.name if profile.user else profile.id}",
+            request=request
+        )
+        
+        return JSONResponse({
+            "success": True, 
+            "photo_url": url, 
+            "user_id": profile.user_id,
+            "message": "Consultant photo updated successfully!"
+        })
+    except Exception as e:
+        db.rollback()
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@app.delete("/api/admin/consultant/{profile_id}/delete-photo")
+async def admin_delete_consultant_photo(profile_id: int, request: Request, db: Session = Depends(get_db)):
+    """Admin / Assistant: Remove profile photo for a consultant."""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type not in ("admin", "admin_assistant"):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+        
+    profile = db.query(ConsultantProfile).filter(
+        (ConsultantProfile.id == profile_id) | (ConsultantProfile.user_id == profile_id)
+    ).first()
+    if not profile:
+        return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
+        
+    try:
+        profile.photo_url = None
+        db.commit()
+        
+        AuditLogger.log_event(
+            db,
+            user_id=admin.id,
+            event_type="admin_consultant_photo_deleted",
+            resource_type="consultant_profile",
+            resource_id=str(profile.id),
+            details=f"Admin {admin.email} removed profile photo for consultant {profile.user.name if profile.user else profile.id}",
+            request=request
+        )
+        
+        return JSONResponse({"success": True, "message": "Photo removed successfully"})
+    except Exception as e:
+        db.rollback()
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 
 @app.post("/api/admin/reject/{profile_id}")

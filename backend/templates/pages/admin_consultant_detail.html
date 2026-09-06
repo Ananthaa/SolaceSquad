@@ -203,17 +203,34 @@
 
     <!-- Header Card -->
     <div class="detail-card" style="display:flex; align-items:flex-start; gap:1.25rem; flex-wrap:wrap;">
-        {% if profile.photo_url %}
-        <img src="/api/profile-photo/{{ profile.user.id }}" class="photo-circle" alt="Photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div style="display:none;width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#134e4a,#0d9488);align-items:center;justify-content:center;color:#fff;font-size:1.75rem;font-weight:800;flex-shrink:0;">
-            {{ profile.user.name[:1].upper() }}
+        <div style="display:flex; flex-direction:column; align-items:center; gap:.5rem;">
+            <div id="photoContainer" style="position:relative; width:80px; height:80px;">
+                {% if profile.photo_url %}
+                <img id="consultantPhotoImg" src="/api/profile-photo/{{ profile.user.id }}" class="photo-circle" alt="Photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #0d9488;" onerror="this.style.display='none';document.getElementById('photoFallback').style.display='flex'">
+                <div id="photoFallback" style="display:none;width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#134e4a,#0d9488);align-items:center;justify-content:center;color:#fff;font-size:1.75rem;font-weight:800;flex-shrink:0;">
+                    {{ profile.user.name[:1].upper() }}
+                </div>
+                {% else %}
+                <img id="consultantPhotoImg" src="/api/profile-photo/{{ profile.user.id }}" class="photo-circle" alt="Photo" style="display:none;width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #0d9488;" onerror="this.style.display='none';document.getElementById('photoFallback').style.display='flex'">
+                <div id="photoFallback"
+                    style="width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg,#134e4a,#0d9488); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.75rem; font-weight:800; flex-shrink:0;">
+                    {{ profile.user.name[:1].upper() }}
+                </div>
+                {% endif %}
+            </div>
+            
+            <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+                <label for="adminPhotoUploadInput" id="uploadBtnLabel" style="cursor:pointer; background:#f0fdf4; color:#0f766e; border:1px solid #99f6e4; border-radius:6px; padding:4px 10px; font-size:0.75rem; font-weight:600; text-align:center; display:inline-flex; align-items:center; gap:4px; transition:0.2s; box-shadow:0 1px 2px rgba(0,0,0,0.05);" title="Upload or Change Consultant Photo">
+                    <span>📷</span> <span id="uploadBtnText">{% if profile.photo_url %}Change Photo{% else %}Upload Photo{% endif %}</span>
+                </label>
+                <input type="file" id="adminPhotoUploadInput" accept="image/jpeg,image/png,image/webp,image/jpg" style="display:none;" onchange="handleAdminPhotoUpload(event)">
+                
+                <button type="button" id="adminDeletePhotoBtn" onclick="handleAdminPhotoDelete()" style="{% if not profile.photo_url %}display:none;{% endif %} cursor:pointer; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; border-radius:4px; padding:2px 8px; font-size:0.7rem; font-weight:600; text-align:center;">
+                    🗑️ Remove
+                </button>
+                <span id="photoStatusMsg" style="font-size:0.72rem; color:#059669; font-weight:600; display:none; text-align:center;"></span>
+            </div>
         </div>
-        {% else %}
-        <div
-            style="width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg,#134e4a,#0d9488); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.75rem; font-weight:800; flex-shrink:0;">
-            {{ profile.user.name[:1].upper() }}
-        </div>
-        {% endif %}
         <div style="flex:1;">
             <h1 style="font-size:1.4rem; font-weight:800; color:#1f2937; margin:0;">{{ profile.user.name }}</h1>
             <div style="color:#6b7280; font-size:.875rem; margin-top:.15rem;">
@@ -520,4 +537,127 @@
     {% endif %}
 
 </div>
+
+<script>
+async function handleAdminPhotoUpload(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const btnText = document.getElementById('uploadBtnText');
+    const statusMsg = document.getElementById('photoStatusMsg');
+    const deleteBtn = document.getElementById('adminDeletePhotoBtn');
+    const photoImg = document.getElementById('consultantPhotoImg');
+    const fallback = document.getElementById('photoFallback');
+
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Photo size exceeds 5MB. Please choose a smaller image.');
+        event.target.value = '';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('photo', file);
+
+    const originalText = btnText ? btnText.innerText : 'Upload Photo';
+    if (btnText) btnText.innerText = 'Uploading...';
+    if (statusMsg) {
+        statusMsg.style.display = 'block';
+        statusMsg.style.color = '#0284c7';
+        statusMsg.innerText = 'Uploading photo...';
+    }
+
+    try {
+        const response = await fetch('/api/admin/consultant/{{ profile.id }}/upload-photo', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            if (statusMsg) {
+                statusMsg.style.color = '#059669';
+                statusMsg.innerText = '✓ Photo updated!';
+            }
+            if (btnText) btnText.innerText = 'Change Photo';
+            if (deleteBtn) deleteBtn.style.display = 'inline-block';
+
+            // Refresh preview with cache busting
+            const userId = result.user_id || '{{ profile.user.id }}';
+            const cacheBustUrl = '/api/profile-photo/' + userId + '?t=' + new Date().getTime();
+            if (photoImg) {
+                photoImg.src = cacheBustUrl;
+                photoImg.style.display = 'block';
+            }
+            if (fallback) fallback.style.display = 'none';
+
+            setTimeout(() => {
+                if (statusMsg) statusMsg.style.display = 'none';
+            }, 4000);
+        } else {
+            if (statusMsg) {
+                statusMsg.style.color = '#dc2626';
+                statusMsg.innerText = 'Upload failed: ' + (result.error || 'Server error');
+            }
+            if (btnText) btnText.innerText = originalText;
+        }
+    } catch (err) {
+        if (statusMsg) {
+            statusMsg.style.color = '#dc2626';
+            statusMsg.innerText = 'Upload error: ' + err.message;
+        }
+        if (btnText) btnText.innerText = originalText;
+    } finally {
+        event.target.value = '';
+    }
+}
+
+async function handleAdminPhotoDelete() {
+    if (!confirm('Are you sure you want to remove this consultant photo?')) return;
+
+    const btnText = document.getElementById('uploadBtnText');
+    const statusMsg = document.getElementById('photoStatusMsg');
+    const deleteBtn = document.getElementById('adminDeletePhotoBtn');
+    const photoImg = document.getElementById('consultantPhotoImg');
+    const fallback = document.getElementById('photoFallback');
+
+    if (statusMsg) {
+        statusMsg.style.display = 'block';
+        statusMsg.style.color = '#0284c7';
+        statusMsg.innerText = 'Removing photo...';
+    }
+
+    try {
+        const response = await fetch('/api/admin/consultant/{{ profile.id }}/delete-photo', {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            if (statusMsg) {
+                statusMsg.style.color = '#059669';
+                statusMsg.innerText = '✓ Photo removed!';
+            }
+            if (btnText) btnText.innerText = 'Upload Photo';
+            if (deleteBtn) deleteBtn.style.display = 'none';
+
+            if (photoImg) photoImg.style.display = 'none';
+            if (fallback) fallback.style.display = 'flex';
+
+            setTimeout(() => {
+                if (statusMsg) statusMsg.style.display = 'none';
+            }, 3000);
+        } else {
+            if (statusMsg) {
+                statusMsg.style.color = '#dc2626';
+                statusMsg.innerText = 'Failed: ' + (result.error || 'Server error');
+            }
+        }
+    } catch (err) {
+        if (statusMsg) {
+            statusMsg.style.color = '#dc2626';
+            statusMsg.innerText = 'Error: ' + err.message;
+        }
+    }
+}
+</script>
 {% endblock %}
