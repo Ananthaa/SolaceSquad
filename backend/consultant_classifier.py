@@ -74,14 +74,17 @@ def classify_consultant(profile) -> str:
 def bulk_classify(db) -> int:
     """Classify ALL consultants without a wellness_category. Returns count updated."""
     from models import ConsultantProfile
-    unclassified = db.query(ConsultantProfile).filter(
-        ConsultantProfile.wellness_category.is_(None)
-    ).all()
-    for p in unclassified:
-        p.wellness_category = classify_consultant(p)
-    if unclassified:
-        db.commit()
-    return len(unclassified)
+    try:
+        unclassified = db.query(ConsultantProfile).filter(
+            ConsultantProfile.wellness_category.is_(None)
+        ).all()
+        for p in unclassified:
+            p.wellness_category = classify_consultant(p)
+        if unclassified:
+            db.commit()
+        return len(unclassified)
+    except Exception:
+        return 0
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -173,83 +176,82 @@ def get_earliest_slot(consultant, db, tz_name: str = "Asia/Kolkata") -> str:
     Return human-readable earliest available slot in next 14 days (Local).
     Checks ConsultantSchedule vs existing Appointments status∈{scheduled,pending}.
     """
-    from models import Appointment
-    import timezone_utils
+    try:
+        from models import Appointment
+        import timezone_utils
 
-    now_utc = datetime.utcnow()
-    # Schedules are in IST. 
-    now_ist = timezone_utils.to_local(now_utc, "Asia/Kolkata")
-    today_ist = now_ist.date()
+        now_utc = datetime.utcnow()
+        now_ist = timezone_utils.to_local(now_utc, "Asia/Kolkata")
+        today_ist = now_ist.date()
 
-    active_slots = [s for s in (consultant.schedules or []) if s.is_active]
-    if not active_slots:
-        return "Availability on request"
+        active_slots = [s for s in (getattr(consultant, "schedules", None) or []) if getattr(s, "is_active", True)]
+        if not active_slots:
+            return "Availability on request"
 
-    future_cutoff_utc = now_utc + timedelta(days=14)
-    existing_appts = db.query(Appointment).filter(
-        Appointment.consultant_id == consultant.id,
-        Appointment.appointment_date >= now_utc,
-        Appointment.appointment_date <= future_cutoff_utc,
-        Appointment.status.in_(["scheduled", "pending"]),
-    ).all()
+        future_cutoff_utc = now_utc + timedelta(days=14)
+        existing_appts = db.query(Appointment).filter(
+            Appointment.consultant_id == consultant.id,
+            Appointment.appointment_date >= now_utc,
+            Appointment.appointment_date <= future_cutoff_utc,
+            Appointment.status.in_(["scheduled", "pending"]),
+        ).all()
 
-    # booked_slots: set of (weekday_int, "HH:MM") in IST
-    booked_slots = set()
-    for appt in existing_appts:
-        appt_ist = timezone_utils.to_local(appt.appointment_date, "Asia/Kolkata")
-        booked_slots.add((appt_ist.weekday(), appt_ist.strftime("%H:%M")))
-
-    for day_offset in range(14):
-        check_date = today_ist + timedelta(days=day_offset)
-        weekday = check_date.weekday()
-
-        day_slots = sorted(
-            [s for s in active_slots if s.day_of_week == weekday],
-            key=lambda s: s.start_time
-        )
-
-        for slot in day_slots:
-            slot_time_str = slot.start_time  # "HH:MM"
-            if (weekday, slot_time_str) in booked_slots:
-                continue
-
-            # If today, need at least 1 hour notice
-            if day_offset == 0:
+        # booked_slots: set of (weekday_int, "HH:MM") in IST
+        booked_slots = set()
+        for appt in existing_appts:
+            if appt.appointment_date:
                 try:
-                    sh, sm = map(int, slot_time_str.split(":"))
-                    slot_dt = datetime.combine(check_date, dtime(sh, sm))
-                    if slot_dt <= now_ist.replace(tzinfo=None) + timedelta(hours=1):
-                        continue
+                    appt_ist = timezone_utils.to_local(appt.appointment_date, "Asia/Kolkata")
+                    booked_slots.add((appt_ist.weekday(), appt_ist.strftime("%H:%M")))
                 except Exception:
                     pass
 
-            # Format
-            try:
-                sh, sm = map(int, slot_time_str.split(":"))
-                # Combine IST date with IST time
-                ist_dt = datetime.combine(check_date, dtime(sh, sm))
-                # Convert to target local timezone for the label
-                formatted = timezone_utils.format_dt_local(ist_dt, "%I:%M %p", tz_name, src_tz="Asia/Kolkata")
-            except Exception:
-                formatted = slot_time_str
+        for day_offset in range(14):
+            check_date = today_ist + timedelta(days=day_offset)
+            weekday = check_date.weekday()
 
-            # Label (Today/Tomorrow/Date)
-            if day_offset == 0:
-                # We should check if "Today" is still today in the target timezone
-                target_now = timezone_utils.get_now_local(tz_name)
-                # This is getting complicated, let's just use the target timezone's date formatting
-                label = "Today" 
-                # Actually, format_dt_local already handles the heavy lifting if we pass the right format
-                full_label = timezone_utils.format_dt_local(ist_dt, "%a, %d %b at %I:%M %p", tz_name, src_tz="Asia/Kolkata")
-                # If it's today in target timezone, we can simplify
-                if ist_dt.date() == timezone_utils.to_local(now_utc, "Asia/Kolkata").date(): # Simplification
-                     pass # keep full_label for now
-                return full_label
+            day_slots = sorted(
+                [s for s in active_slots if s.day_of_week == weekday],
+                key=lambda s: s.start_time
+            )
 
-            label = timezone_utils.format_dt_local(ist_dt, "%a, %d %b at %I:%M %p", tz_name, src_tz="Asia/Kolkata")
-            return label
+            for slot in day_slots:
+                slot_time_str = slot.start_time  # "HH:MM"
+                if (weekday, slot_time_str) in booked_slots:
+                    continue
 
-    return "Check availability on the platform"
+                # If today, need at least 1 hour notice
+                if day_offset == 0:
+                    try:
+                        sh, sm = map(int, slot_time_str.split(":"))
+                        slot_dt = datetime.combine(check_date, dtime(sh, sm))
+                        if slot_dt <= now_ist.replace(tzinfo=None) + timedelta(hours=1):
+                            continue
+                    except Exception:
+                        pass
+
+                # Format human readable time
+                try:
+                    sh, sm = map(int, slot_time_str.split(":"))
+                    ist_dt = datetime.combine(check_date, dtime(sh, sm))
+                    time_part = ist_dt.strftime("%I:%M %p")
+                    if day_offset == 0:
+                        return f"Today at {time_part}"
+                    elif day_offset == 1:
+                        return f"Tomorrow at {time_part}"
+                    else:
+                        return f"{ist_dt.strftime('%a, %d %b')} at {time_part}"
+                except Exception:
+                    if day_offset == 0:
+                        return f"Today at {slot_time_str}"
+                    elif day_offset == 1:
+                        return f"Tomorrow at {slot_time_str}"
+                    return f"{check_date.strftime('%a, %d %b')} at {slot_time_str}"
+
+        return "Check availability on the platform"
+    except Exception as _slot_err:
+        print(f"[EarliestSlot] non-fatal error: {_slot_err}")
+        return "Availability on request"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -564,72 +566,81 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
 
     scored = []
     for c, user in consultant_rows:
-        score = 0.0
-        # Parse consultant expertise areas
-        eas = []
-        if c.expertise_areas:
-            try:
-                eas = json.loads(c.expertise_areas) if isinstance(c.expertise_areas, str) else c.expertise_areas
-            except Exception:
-                eas = [str(c.expertise_areas)]
-        eas_lower = [str(a).lower() for a in eas]
-        eas_str = " ".join(eas_lower)
+        try:
+            score = 0.0
+            # Parse consultant expertise areas
+            eas = []
+            if getattr(c, "expertise_areas", None):
+                try:
+                    eas = json.loads(c.expertise_areas) if isinstance(c.expertise_areas, str) else c.expertise_areas
+                except Exception:
+                    eas = [str(c.expertise_areas)]
+            eas_lower = [str(a).lower() for a in eas if a]
+            eas_str = " ".join(eas_lower)
 
-        spec_lower = (c.specialization or "").lower()
-        bio_lower = (c.bio or "").lower()
+            spec_lower = (getattr(c, "specialization", "") or "").lower()
+            bio_lower = (getattr(c, "bio", "") or "").lower()
 
-        matched_areas_for_c = []
-        for fa in matched_focus_areas:
-            fa_lower = fa.lower()
-            if any(fa_lower in a or a in fa_lower for a in eas_lower):
-                score += 15.0
-                matched_areas_for_c.append(fa)
-            elif fa_lower in spec_lower:
-                score += 10.0
-                matched_areas_for_c.append(fa)
-            elif fa_lower in bio_lower:
-                score += 6.0
-                matched_areas_for_c.append(fa)
+            matched_areas_for_c = []
+            for fa in matched_focus_areas:
+                fa_lower = fa.lower()
+                if any(fa_lower in a or a in fa_lower for a in eas_lower):
+                    score += 15.0
+                    matched_areas_for_c.append(fa)
+                elif fa_lower in spec_lower:
+                    score += 10.0
+                    matched_areas_for_c.append(fa)
+                elif fa_lower in bio_lower:
+                    score += 6.0
+                    matched_areas_for_c.append(fa)
 
-        # Check matched terms in profile
-        for t in matched_terms:
-            t_lower = t.lower()
-            if t_lower in eas_str:
-                score += 8.0
-            if t_lower in spec_lower:
-                score += 6.0
-            if t_lower in bio_lower:
+            # Check matched terms in profile
+            for t in matched_terms:
+                t_lower = t.lower()
+                if t_lower in eas_str:
+                    score += 8.0
+                if t_lower in spec_lower:
+                    score += 6.0
+                if t_lower in bio_lower:
+                    score += 3.0
+
+            # Base rating and schedule bonus
+            score += float(getattr(c, "rating", 0.0) or 0.0) * 2.0
+            if getattr(c, "schedules", None):
                 score += 3.0
 
-        # Base rating and schedule bonus
-        score += float(c.rating or 0.0) * 2.0
-        if c.schedules:
-            score += 3.0
+            name = getattr(user, "name", None) or getattr(c, "full_name", None) or "Consultant"
+            earliest = get_earliest_slot(c, db, tz_name=tz_name)
 
-        name = user.name or c.full_name or "Consultant"
-        earliest = get_earliest_slot(c, db, tz_name=tz_name)
+            # Sexual wellness flag
+            is_sw = (
+                "sexual" in eas_str or "intimacy" in eas_str or
+                "sexual" in spec_lower or "intimacy" in spec_lower or
+                "sexual wellness" in bio_lower or "sexual health" in bio_lower or "sexologist" in bio_lower or "sex therapy" in bio_lower
+            )
 
-        # Sexual wellness flag
-        is_sw = (
-            "sexual" in eas_str or "intimacy" in eas_str or
-            "sexual" in spec_lower or "intimacy" in spec_lower or
-            "sexual wellness" in bio_lower or "sexual health" in bio_lower or "sexologist" in bio_lower or "sex therapy" in bio_lower
-        )
+            w_cat = "Mental"
+            try:
+                w_cat = getattr(c, "wellness_category", None) or "Mental"
+            except Exception:
+                w_cat = "Mental"
 
-        scored.append((score, {
-            "id":                     c.id,
-            "user_id":                user.id,
-            "name":                   name,
-            "specialization":         c.specialization or "Wellbeing Consultant",
-            "rating":                 float(c.rating or 0.0),
-            "experience_years":       c.experience_years or 2,
-            "hourly_rate":            c.consultation_fee or c.hourly_rate or 500,
-            "photo_url":              f"/api/profile-photo/{user.id}" if c.photo_url else "",
-            "wellness_category":      c.wellness_category or "Mental",
-            "earliest_slot":          earliest,
-            "matched_areas":          matched_areas_for_c or (eas[:2] if eas else [c.specialization or "General"]),
-            "offers_sexual_wellness": is_sw,
-        }))
+            scored.append((score, {
+                "id":                     c.id,
+                "user_id":                user.id,
+                "name":                   name,
+                "specialization":         getattr(c, "specialization", None) or "Wellbeing Consultant",
+                "rating":                 float(getattr(c, "rating", 0.0) or 0.0),
+                "experience_years":       getattr(c, "experience_years", 2) or 2,
+                "hourly_rate":            getattr(c, "consultation_fee", None) or getattr(c, "hourly_rate", 500) or 500,
+                "photo_url":              f"/api/profile-photo/{user.id}" if getattr(c, "photo_url", None) else "",
+                "wellness_category":      w_cat,
+                "earliest_slot":          earliest,
+                "matched_areas":          matched_areas_for_c or (eas[:2] if eas else [getattr(c, "specialization", "General")]),
+                "offers_sexual_wellness": is_sw,
+            }))
+        except Exception as _c_err:
+            print(f"[Matcher] error processing consultant {getattr(c, 'id', '?')}: {_c_err}")
 
     scored.sort(key=lambda x: x[0], reverse=True)
     top_consultants = [item[1] for item in scored[:limit]]

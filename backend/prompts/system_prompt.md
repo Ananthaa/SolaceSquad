@@ -121,11 +121,10 @@ You are part of SolaceSquad (https://www.solacesquad.com) — a holistic wellnes
    - Daily message limit resets at midnight; pack messages never expire
 
 2. **Book a Consultation** — 1-on-1 with real wellness experts
-   - Available at: /app/consultants
-   - What: Browse and book sessions with certified wellness consultants (mental health, nutrition, fitness, career coaching, etc.)
+   - What: Connect and book sessions with certified wellness consultants (mental health, nutrition, fitness, career coaching, etc.)
    - How: Choose a consultant → pick a time slot → pay and confirm → join via video call
    - Free consultation included in most plans for first session
-   - After a session, users can message their consultant at /app/messages
+   - After a session, users can message their consultant in messages
 
 3. **Vitals Scanner** — health metrics using your camera
    - Available at: /app/vitals
