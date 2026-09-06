@@ -7,20 +7,23 @@
 
 {% block dashboard_content %}
 
-<div class="mb-8">
-
-    <h1 class="text-3xl font-display font-bold text-gray-900 mb-2">
-
-        Find Consultants
-
-    </h1>
-
-    <p class="text-gray-600">
-
-        Book a session with our expert wellbeing consultants
-
-    </p>
-
+<div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h1 class="text-3xl font-display font-bold text-gray-900 mb-1">
+            Find Consultants
+        </h1>
+        <p class="text-gray-600">
+            Book a session with our expert wellbeing consultants
+        </p>
+    </div>
+    <div>
+        <!-- Emora Matcher Header Pill Trigger -->
+        <button type="button" class="emora-pill-trigger" onclick="toggleEmoraPopup()" title="Ask Emora to match the best consultant for your needs">
+            <span class="emora-pill-icon">✨</span>
+            <span class="emora-pill-text">Need help choosing? <strong style="font-weight:700;">Ask Emora</strong></span>
+            <span class="emora-pill-dot" title="Emora is available"></span>
+        </button>
+    </div>
 </div>
 
 <!-- Search & Keyword Filter Bar -->
@@ -666,7 +669,87 @@
 
 </div>
 
+<!-- Emora Floating Pill Trigger Button (Docked at Bottom-Right) -->
+<div id="emoraFloatingPill" class="emora-floating-pill" onclick="toggleEmoraPopup()" title="Ask Emora to recommend wellbeing consultants">
+    <span class="emora-float-icon">✨</span>
+    <span class="emora-float-label">Ask Emora</span>
+</div>
 
+<!-- Emora Consultant Matcher Popup Window (Non-blocking Floating Modal) -->
+<div id="emoraMatchPopup" class="emora-match-popup" style="display:none;" role="dialog" aria-labelledby="emoraPopupTitle">
+    <!-- Header -->
+    <div class="emora-popup-header">
+        <div class="emora-header-left">
+            <div class="emora-avatar-badge">
+                <span>✨</span>
+                <span class="emora-online-dot"></span>
+            </div>
+            <div>
+                <div id="emoraPopupTitle" class="emora-header-title">Emora Matcher</div>
+                <div class="emora-header-sub">AI Consultant Matcher</div>
+            </div>
+        </div>
+        <div class="emora-header-right">
+            <span id="emoraQuotaBadge" class="emora-quota-badge" title="Remaining Emora message credits">💬 Checking credits...</span>
+            <button type="button" class="emora-btn-icon" onclick="resetEmoraChat()" title="Reset chat">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                </svg>
+            </button>
+            <button type="button" class="emora-btn-icon" onclick="minimizeEmoraPopup()" title="Minimize window">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </button>
+            <button type="button" class="emora-btn-icon" onclick="closeEmoraPopup()" title="Close">✕</button>
+        </div>
+    </div>
+
+    <!-- Body / Conversation Messages -->
+    <div id="emoraChatBody" class="emora-popup-body">
+        <div class="emora-msg-row emora-bot-row">
+            <div class="emora-bot-icon">✨</div>
+            <div class="emora-bot-bubble">
+                <p style="margin:0 0 6px 0;line-height:1.45;">
+                    Hi! 👋 I'm Emora. Tell me what challenges or goals you're experiencing, and I'll find our best specialists for you from our verified consultant database!
+                </p>
+                <div class="emora-starter-chips">
+                    <button type="button" class="emora-starter-chip" onclick="sendEmoraPreset('I\'m feeling burnt out and stressed at work')">💼 Work Stress & Burnout</button>
+                    <button type="button" class="emora-starter-chip" onclick="sendEmoraPreset('I\'m struggling with anxiety and overthinking')">🌀 Anxiety & Overthinking</button>
+                    <button type="button" class="emora-starter-chip" onclick="sendEmoraPreset('Going through relationship difficulties or breakup')">💔 Relationship & Breakup</button>
+                    <button type="button" class="emora-starter-chip" onclick="sendEmoraPreset('Looking for confidential sexual wellness consultation')">❤️‍🔥 Sexual Wellness</button>
+                    <button type="button" class="emora-starter-chip" onclick="sendEmoraPreset('Need help with ADHD, focus and procrastination')">🎯 ADHD & Focus</button>
+                    <button type="button" class="emora-starter-chip" onclick="sendEmoraPreset('Want advice on gut health, diet and nutrition')">🥗 Nutrition & Gut Health</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Typing Indicator -->
+    <div id="emoraTypingIndicator" class="emora-typing-indicator" style="display:none;">
+        <div class="emora-typing-dot"></div>
+        <div class="emora-typing-dot"></div>
+        <div class="emora-typing-dot"></div>
+        <span style="font-size:0.75rem;color:#6b7280;margin-left:4px;">Emora is finding consultants...</span>
+    </div>
+
+    <!-- Footer / Input Form -->
+    <div id="emoraChatFooter" class="emora-popup-footer">
+        <form id="emoraChatForm" onsubmit="event.preventDefault(); sendEmoraMessage();" style="display:flex;gap:0.4rem;align-items:flex-end;width:100%;">
+            <textarea id="emoraChatInput" class="emora-input-field" placeholder="Tell Emora what you're feeling..." rows="1" onkeydown="handleEmoraInputKey(event)"></textarea>
+            <button type="submit" id="emoraSendBtn" class="emora-send-button" title="Send message">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+        </form>
+        <div id="emoraQuotaExhausted" style="display:none;font-size:0.78rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:6px 10px;border-radius:8px;text-align:center;width:100%;">
+            You have used all your Emora credits. <a href="/pricing" style="color:#7c3aed;font-weight:600;text-decoration:underline;">Upgrade or Top Up</a> to continue matching.
+        </div>
+    </div>
+</div>
 
 <style>
     .consultants-grid {
@@ -2384,6 +2467,492 @@
         display: block;
 
     }
+
+    /* ── Emora Consultant Matcher Pill & Floating Button ───────────────────── */
+    .emora-pill-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.55rem 1.15rem;
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+        color: #ffffff;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: 9999px;
+        border: none;
+        box-shadow: 0 4px 14px rgba(124, 58, 237, 0.28);
+        cursor: pointer;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .emora-pill-trigger:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 6px 20px rgba(124, 58, 237, 0.4);
+    }
+    .emora-pill-trigger:active {
+        transform: translateY(0) scale(0.98);
+    }
+    .emora-pill-icon {
+        font-size: 1.1rem;
+        display: inline-block;
+        animation: emora-sparkle-rotate 3s infinite ease-in-out;
+    }
+    .emora-pill-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #34d399;
+        box-shadow: 0 0 8px #34d399;
+        display: inline-block;
+        animation: emora-pulse-dot 2s infinite;
+    }
+
+    @keyframes emora-pulse-dot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.85); }
+    }
+    @keyframes emora-sparkle-rotate {
+        0%, 100% { transform: rotate(0deg) scale(1); }
+        50% { transform: rotate(15deg) scale(1.15); }
+    }
+
+    .emora-floating-pill {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 9998;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.7rem 1.25rem;
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+        color: #ffffff;
+        border-radius: 9999px;
+        box-shadow: 0 8px 28px rgba(124, 58, 237, 0.45);
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: all 0.25s ease;
+        border: 2px solid rgba(255, 255, 255, 0.25);
+    }
+    .emora-floating-pill:hover {
+        transform: translateY(-3px) scale(1.04);
+        box-shadow: 0 12px 32px rgba(124, 58, 237, 0.55);
+    }
+
+    /* ── Emora Popup Container ─────────────────────────────────────────────── */
+    .emora-match-popup {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 400px;
+        max-width: calc(100vw - 32px);
+        height: 590px;
+        max-height: calc(100vh - 48px);
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 16px 48px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.06);
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        font-family: inherit;
+        animation: emora-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes emora-slide-up {
+        from {
+            opacity: 0;
+            transform: translateY(24px) scale(0.96);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .emora-popup-header {
+        background: linear-gradient(135deg, #312e81 0%, #4c1d95 60%, #581c87 100%);
+        color: #ffffff;
+        padding: 0.85rem 1.1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .emora-header-left {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+    }
+    .emora-avatar-badge {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        font-size: 1.1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    .emora-online-dot {
+        position: absolute;
+        bottom: -1px;
+        right: -1px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #10b981;
+        border: 2px solid #312e81;
+    }
+    .emora-header-title {
+        font-size: 0.92rem;
+        font-weight: 700;
+        line-height: 1.2;
+        color: #ffffff;
+    }
+    .emora-header-sub {
+        font-size: 0.72rem;
+        color: #cbd5e1;
+        font-weight: 400;
+    }
+    .emora-header-right {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    .emora-quota-badge {
+        font-size: 0.72rem;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(4px);
+        color: #f1f5f9;
+        padding: 3px 7px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        white-space: nowrap;
+    }
+    .emora-btn-icon {
+        background: rgba(255, 255, 255, 0.12);
+        border: none;
+        color: #ffffff;
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: background 0.15s ease;
+    }
+    .emora-btn-icon:hover {
+        background: rgba(255, 255, 255, 0.25);
+    }
+
+    .emora-popup-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0.9rem;
+        background: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+
+    .emora-msg-row {
+        display: flex;
+        gap: 0.55rem;
+        max-width: 100%;
+    }
+    .emora-user-row {
+        justify-content: flex-end;
+    }
+    .emora-bot-row {
+        justify-content: flex-start;
+        align-items: flex-start;
+    }
+    .emora-bot-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    .emora-bot-bubble {
+        background: #ffffff;
+        color: #1e293b;
+        border-radius: 16px 16px 16px 4px;
+        padding: 0.75rem 0.9rem;
+        font-size: 0.85rem;
+        line-height: 1.45;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+        max-width: 88%;
+    }
+    .emora-user-bubble {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: #ffffff;
+        border-radius: 16px 16px 4px 16px;
+        padding: 0.65rem 0.85rem;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        max-width: 82%;
+        box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+        word-break: break-word;
+    }
+
+    .emora-starter-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-top: 0.65rem;
+    }
+    .emora-starter-chip {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 14px;
+        padding: 0.28rem 0.6rem;
+        font-size: 0.74rem;
+        color: #334155;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.15s ease;
+    }
+    .emora-starter-chip:hover {
+        background: #ede9fe;
+        border-color: #c4b5fd;
+        color: #6d28d9;
+        transform: translateY(-1px);
+    }
+
+    .emora-match-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        background: #f5f3ff;
+        border: 1px solid #ddd6fe;
+        color: #6d28d9;
+        border-radius: 8px;
+        padding: 0.25rem 0.55rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 0.45rem;
+    }
+
+    /* Emora Consultant Mini-Card */
+    .emora-consultant-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.7rem;
+        margin-top: 0.55rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .emora-consultant-card:hover {
+        border-color: #a78bfa;
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.12);
+    }
+    .emora-card-top {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin-bottom: 0.4rem;
+    }
+    .emora-card-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #818cf8, #c084fc);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        font-weight: 700;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    .emora-card-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .emora-card-name {
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.2;
+    }
+    .emora-card-spec {
+        font-size: 0.72rem;
+        color: #64748b;
+        line-height: 1.2;
+    }
+    .emora-card-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.72rem;
+        color: #475569;
+        margin-bottom: 0.4rem;
+        flex-wrap: wrap;
+    }
+    .emora-card-slot {
+        font-size: 0.72rem;
+        color: #059669;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        padding: 2px 6px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        margin-bottom: 0.45rem;
+        width: fit-content;
+    }
+    .emora-card-actions {
+        display: flex;
+        gap: 0.35rem;
+        margin-top: 0.4rem;
+    }
+    .emora-btn-view {
+        flex: 1;
+        padding: 0.35rem 0.5rem;
+        border-radius: 6px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+        font-size: 0.74rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.15s;
+    }
+    .emora-btn-view:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+    }
+    .emora-btn-book {
+        flex: 1;
+        padding: 0.35rem 0.5rem;
+        border-radius: 6px;
+        border: none;
+        background: linear-gradient(135deg, #0d9488 0%, #059669 100%);
+        color: #ffffff;
+        font-size: 0.74rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: center;
+        transition: all 0.15s;
+    }
+    .emora-btn-book:hover {
+        opacity: 0.92;
+        transform: translateY(-1px);
+    }
+    .emora-filter-link-btn {
+        display: block;
+        width: 100%;
+        margin-top: 0.5rem;
+        padding: 0.4rem;
+        background: #f5f3ff;
+        border: 1px dashed #a78bfa;
+        color: #6d28d9;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 8px;
+        text-align: center;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .emora-filter-link-btn:hover {
+        background: #ede9fe;
+    }
+
+    /* Typing Indicator */
+    .emora-typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0.35rem 0.75rem;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        width: fit-content;
+        margin-left: 2.1rem;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+    }
+    .emora-typing-dot {
+        width: 6px;
+        height: 6px;
+        background: #8b5cf6;
+        border-radius: 50%;
+        animation: emora-bounce 1.4s infinite ease-in-out both;
+    }
+    .emora-typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .emora-typing-dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes emora-bounce {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
+    }
+
+    /* Popup Footer */
+    .emora-popup-footer {
+        padding: 0.7rem 0.9rem;
+        background: #ffffff;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+    .emora-input-field {
+        flex: 1;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+        font-family: inherit;
+        resize: none;
+        outline: none;
+        max-height: 80px;
+        transition: border-color 0.2s;
+        line-height: 1.35;
+    }
+    .emora-input-field:focus {
+        border-color: #7c3aed;
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+    }
+    .emora-send-button {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        border: none;
+        color: #ffffff;
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: opacity 0.15s, transform 0.15s;
+    }
+    .emora-send-button:hover {
+        opacity: 0.9;
+        transform: scale(1.05);
+    }
+    .emora-send-button:disabled {
+        background: #cbd5e1;
+        cursor: not-allowed;
+        transform: none;
+    }
 </style>
 
 
@@ -3669,6 +4238,338 @@ function escapeHtml(str) {
         }
     });
 })();
+</script>
+
+<script>
+// ── Emora Consultant Matcher Controller ─────────────────────────────────────
+var isEmoraOpen = false;
+var emoraQuota = null;
+
+function toggleEmoraPopup() {
+    if (isEmoraOpen) {
+        minimizeEmoraPopup();
+    } else {
+        openEmoraPopup();
+    }
+}
+
+function openEmoraPopup() {
+    var popup = document.getElementById('emoraMatchPopup');
+    var floatingPill = document.getElementById('emoraFloatingPill');
+    if (!popup) return;
+    popup.style.display = 'flex';
+    isEmoraOpen = true;
+    if (floatingPill) floatingPill.style.display = 'none';
+    var input = document.getElementById('emoraChatInput');
+    if (input) {
+        setTimeout(function() { input.focus(); }, 150);
+    }
+    fetchEmoraQuota();
+}
+
+function minimizeEmoraPopup() {
+    var popup = document.getElementById('emoraMatchPopup');
+    var floatingPill = document.getElementById('emoraFloatingPill');
+    if (!popup) return;
+    popup.style.display = 'none';
+    isEmoraOpen = false;
+    if (floatingPill) floatingPill.style.display = 'flex';
+}
+
+function closeEmoraPopup() {
+    minimizeEmoraPopup();
+}
+
+function resetEmoraChat() {
+    var body = document.getElementById('emoraChatBody');
+    if (!body) return;
+    body.innerHTML = 
+        '<div class="emora-msg-row emora-bot-row">' +
+            '<div class="emora-bot-icon">✨</div>' +
+            '<div class="emora-bot-bubble">' +
+                '<p style="margin:0 0 6px 0;line-height:1.45;">' +
+                    'Hi! 👋 I\'m Emora. Tell me what challenges or goals you\'re experiencing, and I\'ll find our best specialists for you from our verified consultant database!' +
+                '</p>' +
+                '<div class="emora-starter-chips">' +
+                    '<button type="button" class="emora-starter-chip" onclick="sendEmoraPreset(\'I\\\'m feeling burnt out and stressed at work\')">💼 Work Stress & Burnout</button>' +
+                    '<button type="button" class="emora-starter-chip" onclick="sendEmoraPreset(\'I\\\'m struggling with anxiety and overthinking\')">🌀 Anxiety & Overthinking</button>' +
+                    '<button type="button" class="emora-starter-chip" onclick="sendEmoraPreset(\'Going through relationship difficulties or breakup\')">💔 Relationship & Breakup</button>' +
+                    '<button type="button" class="emora-starter-chip" onclick="sendEmoraPreset(\'Looking for confidential sexual wellness consultation\')">❤️‍🔥 Sexual Wellness</button>' +
+                    '<button type="button" class="emora-starter-chip" onclick="sendEmoraPreset(\'Need help with ADHD, focus and procrastination\')">🎯 ADHD & Focus</button>' +
+                    '<button type="button" class="emora-starter-chip" onclick="sendEmoraPreset(\'Want advice on gut health, diet and nutrition\')">🥗 Nutrition & Gut Health</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+}
+
+async function fetchEmoraQuota() {
+    try {
+        var r = await fetch('/api/ai-chat/quota');
+        var d = await r.json();
+        if (d.success) {
+            emoraQuota = d;
+            updateEmoraQuotaUI(d);
+        }
+    } catch (e) {
+        console.warn('Could not fetch Emora quota', e);
+    }
+}
+
+function updateEmoraQuotaUI(quota) {
+    var badge = document.getElementById('emoraQuotaBadge');
+    var exhaustedBanner = document.getElementById('emoraQuotaExhausted');
+    var sendBtn = document.getElementById('emoraSendBtn');
+    var input = document.getElementById('emoraChatInput');
+    
+    if (!badge || !quota) return;
+
+    if (quota.remaining === -1) {
+        badge.textContent = '💎 Unlimited';
+        badge.title = 'Active plan with unlimited messages';
+    } else if (quota.remaining !== undefined) {
+        badge.textContent = '💬 ' + quota.remaining + ' left';
+        badge.title = quota.remaining + ' of ' + quota.limit + ' messages remaining';
+    }
+
+    if (quota.allowed === false || quota.remaining === 0) {
+        if (exhaustedBanner) exhaustedBanner.style.display = 'block';
+        if (sendBtn) sendBtn.disabled = true;
+        if (input) input.placeholder = 'Message quota reached. Please upgrade to continue.';
+    } else {
+        if (exhaustedBanner) exhaustedBanner.style.display = 'none';
+        if (sendBtn) sendBtn.disabled = false;
+        if (input) input.placeholder = 'Tell Emora what you\'re feeling...';
+    }
+}
+
+function sendEmoraPreset(text) {
+    var input = document.getElementById('emoraChatInput');
+    if (input) {
+        input.value = text;
+        sendEmoraMessage();
+    }
+}
+
+function handleEmoraInputKey(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendEmoraMessage();
+    }
+}
+
+async function sendEmoraMessage() {
+    var input = document.getElementById('emoraChatInput');
+    var body = document.getElementById('emoraChatBody');
+    var typing = document.getElementById('emoraTypingIndicator');
+    var sendBtn = document.getElementById('emoraSendBtn');
+    if (!input || !body) return;
+
+    var text = input.value.trim();
+    if (!text) return;
+
+    // Append user message bubble
+    var userRow = document.createElement('div');
+    userRow.className = 'emora-msg-row emora-user-row';
+    userRow.innerHTML = '<div class="emora-user-bubble">' + escapeHtml(text) + '</div>';
+    body.appendChild(userRow);
+
+    input.value = '';
+    body.scrollTop = body.scrollHeight;
+
+    if (typing) typing.style.display = 'flex';
+    if (sendBtn) sendBtn.disabled = true;
+
+    try {
+        var r = await fetch('/api/ai-chat/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: text,
+                mode: 'consultant_match'
+            })
+        });
+        var data = await r.json();
+
+        if (typing) typing.style.display = 'none';
+        if (sendBtn) sendBtn.disabled = false;
+
+        if (data.quota) {
+            updateEmoraQuotaUI(data.quota);
+        }
+
+        if (data.quota_exhausted) {
+            var errRow = document.createElement('div');
+            errRow.className = 'emora-msg-row emora-bot-row';
+            errRow.innerHTML = 
+                '<div class="emora-bot-icon">✨</div>' +
+                '<div class="emora-bot-bubble" style="border-color:#fecaca;background:#fff5f5;color:#991b1b;">' +
+                    '⚠️ ' + (data.error || 'Your message credits have been used up.') +
+                    ' <br><a href="/pricing" style="color:#7c3aed;font-weight:600;text-decoration:underline;">Upgrade Plan</a> to continue matching.' +
+                '</div>';
+            body.appendChild(errRow);
+            body.scrollTop = body.scrollHeight;
+            return;
+        }
+
+        if (!data.success) {
+            var failRow = document.createElement('div');
+            failRow.className = 'emora-msg-row emora-bot-row';
+            failRow.innerHTML = 
+                '<div class="emora-bot-icon">✨</div>' +
+                '<div class="emora-bot-bubble" style="border-color:#fecaca;color:#991b1b;">' +
+                    escapeHtml(data.error || 'Something went wrong. Please try again.') +
+                '</div>';
+            body.appendChild(failRow);
+            body.scrollTop = body.scrollHeight;
+            return;
+        }
+
+        // Render Emora response bubble
+        var botRow = document.createElement('div');
+        botRow.className = 'emora-msg-row emora-bot-row';
+        
+        var responseHtml = '<div class="emora-bot-icon">✨</div><div class="emora-bot-bubble">';
+        
+        if (data.matched_keyword) {
+            responseHtml += '<div class="emora-match-badge">🏷️ Topic: <strong>' + escapeHtml(data.matched_keyword) + '</strong></div>';
+        }
+
+        // Formatted text
+        var formattedMsg = escapeHtml(data.response || '')
+            .replace(/\n\n/g, '<br><br>')
+            .replace(/\n/g, '<br>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>');
+        responseHtml += '<p style="margin:0 0 6px 0;line-height:1.45;">' + formattedMsg + '</p>';
+
+        // Render matched consultants cards
+        if (data.matched_consultants && data.matched_consultants.length > 0) {
+            responseHtml += '<div style="margin-top:8px;font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;">Recommended Experts from Database:</div>';
+            
+            data.matched_consultants.forEach(function(c) {
+                var initials = c.name ? (c.name.split(' ').length > 1 ? c.name.split(' ')[0][0] + c.name.split(' ')[c.name.split(' ').length-1][0] : c.name.substring(0,2)).toUpperCase() : 'CO';
+                var avatarHtml = c.photo_url 
+                    ? '<img src="' + c.photo_url + '" alt="' + escapeHtml(c.name) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><span style="display:none;">' + initials + '</span>'
+                    : '<span>' + initials + '</span>';
+                
+                var swBadge = c.offers_sexual_wellness 
+                    ? '<span title="Offers Sexual Wellness Consultation" style="margin-left:4px;"><img src="/static/images/sexual_wellness_32.png" style="width:12px;height:12px;display:inline-block;vertical-align:middle;" alt=""></span>'
+                    : '';
+
+                responseHtml += 
+                    '<div class="emora-consultant-card">' +
+                        '<div class="emora-card-top">' +
+                            '<div class="emora-card-avatar">' + avatarHtml + '</div>' +
+                            '<div style="flex:1;min-width:0;">' +
+                                '<div class="emora-card-name">' + escapeHtml(c.name) + swBadge + '</div>' +
+                                '<div class="emora-card-spec">' + escapeHtml(c.specialization) + '</div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="emora-card-meta">' +
+                            '<span>⭐ ' + (c.rating ? c.rating.toFixed(1) : '5.0') + '</span>' +
+                            '<span>• ' + c.experience_years + ' yrs exp</span>' +
+                            '<span>• <strong>₹' + c.hourly_rate + '</strong>/hr</span>' +
+                        '</div>' +
+                        (c.earliest_slot ? '<div class="emora-card-slot">🕒 Next: ' + escapeHtml(c.earliest_slot) + '</div>' : '') +
+                        '<div class="emora-card-actions">' +
+                            '<button type="button" class="emora-btn-view" onclick="openConsultantProfileFromEmora(' + c.id + ')">View Profile</button>' +
+                            '<button type="button" class="emora-btn-book" onclick="openBookingFromEmora(' + c.id + ', \'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\', \'' + escapeHtml(c.specialization).replace(/'/g, "\\'") + '\')">Book Session</button>' +
+                        '</div>' +
+                    '</div>';
+            });
+
+            if (data.matched_keyword) {
+                responseHtml += 
+                    '<button type="button" class="emora-filter-link-btn" onclick="filterPageForKeyword(\'' + escapeHtml(data.matched_keyword).replace(/'/g, "\\'") + '\')">' +
+                        '🔍 Filter Consultants on Page for "' + escapeHtml(data.matched_keyword) + '"' +
+                    '</button>';
+            }
+        }
+
+        responseHtml += '</div>';
+        botRow.innerHTML = responseHtml;
+        body.appendChild(botRow);
+        body.scrollTop = body.scrollHeight;
+
+    } catch (err) {
+        if (typing) typing.style.display = 'none';
+        if (sendBtn) sendBtn.disabled = false;
+        console.error('Emora match error', err);
+        var errBox = document.createElement('div');
+        errBox.className = 'emora-msg-row emora-bot-row';
+        errBox.innerHTML = 
+            '<div class="emora-bot-icon">✨</div>' +
+            '<div class="emora-bot-bubble" style="border-color:#fecaca;color:#991b1b;">' +
+                'Could not connect with Emora right now. Please try again in a moment.' +
+            '</div>';
+        body.appendChild(errBox);
+        body.scrollTop = body.scrollHeight;
+    }
+}
+
+function openConsultantProfileFromEmora(cid) {
+    var card = document.querySelector('.consultant-card[data-consultant-id="' + cid + '"]');
+    if (card) {
+        var btn = card.querySelector('.view-profile-btn');
+        if (btn) {
+            btn.click();
+            return;
+        }
+    }
+    // Fallback: fetch profile from API and open modal
+    fetch('/api/consultants/' + cid + '/profile')
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d.success && d.consultant) {
+                var c = d.consultant;
+                var dummyBtn = {
+                    dataset: {
+                        id: c.id,
+                        name: c.name,
+                        spec: c.specialization,
+                        bio: c.bio,
+                        rating: c.rating,
+                        exp: c.experience_years,
+                        rate: c.hourly_rate || c.consultation_fee,
+                        photo: c.photo_url || '',
+                        offersSw: c.offers_sexual_wellness ? 'true' : 'false'
+                    }
+                };
+                openProfileModal(dummyBtn);
+            }
+        });
+}
+
+function openBookingFromEmora(cid, name, spec) {
+    var card = document.querySelector('.consultant-card[data-consultant-id="' + cid + '"]');
+    if (card) {
+        var btn = card.querySelector('.book-btn');
+        if (btn) {
+            btn.click();
+            return;
+        }
+    }
+    // Direct modal opening
+    document.getElementById('consultantId').value = cid;
+    document.getElementById('modalConsultantName').textContent = name || 'Consultant';
+    document.getElementById('modalConsultantSpec').textContent = spec || 'Wellbeing Consultant';
+    var now = new Date();
+    var pad = function(n) { return n.toString().padStart(2,'0'); };
+    var localToday = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+    var dateOnlyPicker = document.getElementById('appointmentDateOnly');
+    if (dateOnlyPicker) dateOnlyPicker.min = localToday;
+    if (typeof loadConsultantSchedule === 'function') loadConsultantSchedule(cid);
+    var modal = document.getElementById('bookingModal');
+    if (modal) modal.classList.add('active');
+}
+
+function filterPageForKeyword(keyword) {
+    setQuickSearch(keyword);
+    var bar = document.getElementById('categoryFilterBar');
+    if (bar) {
+        bar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
 </script>
 
 {% endblock %}

@@ -9322,22 +9322,37 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                     "error": quota.get("message") or "You've used all your Emora messages. Your daily messages will refresh tomorrow, or you can top up with an Emora pack.",
                 }
 
-        # ── Consultant recommendation detection (SOS + explicit requests) ──
+        mode = data.get("mode", "") # "consultant_match"
+        matched_keyword = ""
+        matched_focus_areas = []
+        matched_consultants = []
+
+        # ── Consultant recommendation detection (SOS + explicit requests + Matcher mode) ──
         consultant_context = ""
         if not is_greeting:
             try:
                 from consultant_classifier import (
-                    detect_intent, get_recommended_consultants, format_consultant_context
+                    detect_intent, get_recommended_consultants, format_consultant_context,
+                    match_consultants_for_user_query, format_matcher_prompt_context
                 )
-                intent = detect_intent(original_message)
-                if intent["should_recommend"]:
-                    recommended = get_recommended_consultants(intent["category"], db, limit=3)
-                    if recommended:
-                        consultant_context = format_consultant_context(
-                            recommended,
-                            is_sos=intent["is_sos"],
-                            category=intent["category"],
-                        )
+                if mode == "consultant_match":
+                    match_res = match_consultants_for_user_query(original_message, db, limit=3)
+                    matched_keyword = match_res.get("matched_keyword", "")
+                    matched_focus_areas = match_res.get("matched_focus_areas", [])
+                    matched_consultants = match_res.get("consultants", [])
+                    consultant_context = format_matcher_prompt_context(
+                        matched_consultants, matched_keyword, matched_focus_areas
+                    )
+                else:
+                    intent = detect_intent(original_message)
+                    if intent["should_recommend"]:
+                        recommended = get_recommended_consultants(intent["category"], db, limit=3)
+                        if recommended:
+                            consultant_context = format_consultant_context(
+                                recommended,
+                                is_sos=intent["is_sos"],
+                                category=intent["category"],
+                            )
             except Exception as _cls_err:
                 print(f"[Classifier] non-fatal error: {_cls_err}")
 
@@ -9383,10 +9398,28 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
             except Exception as _quota_err:
                 print(f"[Quota] increment error (non-fatal): {_quota_err}")
 
+        # Check quota status after deduction
+        quota_info = {}
+        try:
+            from subscription_routes import check_feature_limit
+            q = check_feature_limit(user_id, "ai_chat", db)
+            quota_info = {
+                "allowed":   q.get("allowed", True),
+                "remaining": q.get("remaining", -1),
+                "limit":     q.get("limit", 500),
+                "used":      q.get("used", 0),
+            }
+        except Exception:
+            pass
+
         return {
-            "success": True,
-            "response": ai_response,
-            "timestamp": chat_entry.timestamp.isoformat()
+            "success":             True,
+            "response":            ai_response,
+            "timestamp":           chat_entry.timestamp.isoformat(),
+            "matched_keyword":     matched_keyword,
+            "matched_focus_areas": matched_focus_areas,
+            "matched_consultants": matched_consultants,
+            "quota":               quota_info
         }
     except Exception as e:
         import traceback
@@ -9400,6 +9433,28 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
             "connectivity_error": True,
             "error": "I'm experiencing a connectivity issue right now — please try sending your message again! 💜"
         }
+
+
+@app.get("/api/ai-chat/quota")
+async def get_ai_chat_quota(request: Request, db: Session = Depends(get_db)):
+    """Get current user's Emora messages quota and usage"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return {"success": False, "error": "Not authenticated"}
+    try:
+        from subscription_routes import check_feature_limit
+        q = check_feature_limit(int(user_id), "ai_chat", db)
+        return {
+            "success":       True,
+            "allowed":       q.get("allowed", True),
+            "remaining":     q.get("remaining", -1),
+            "limit":         q.get("limit", 500),
+            "used":          q.get("used", 0),
+            "in_first_week": q.get("in_first_week", False),
+            "message":       q.get("message", "")
+        }
+    except Exception as e:
+        return {"success": True, "allowed": True, "remaining": -1}
 
 @app.get("/api/ai-chat/history")
 async def get_ai_chat_history(request: Request, db: Session = Depends(get_db)):
