@@ -41,6 +41,11 @@
         style="padding:0.4rem 1.1rem;border-radius:2rem;border:1.5px solid #e2e8f0;background:#fff;color:#374151;font-weight:600;font-size:0.85rem;cursor:pointer;transition:all 0.2s;">
         &#127919; Professional Wellbeing
     </button>
+    <button onclick="filterCategory('Sexual')" id="filter-Sexual"
+        style="padding:0.4rem 1.1rem;border-radius:2rem;border:1.5px solid #e2e8f0;background:#fff;color:#374151;font-weight:600;font-size:0.85rem;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;">
+        <img src="/static/images/sexual_wellness_32.png" alt="" style="width:16px;height:16px;object-fit:contain;display:inline-block;">
+        <span>Sexual Wellness</span>
+    </button>
 </div>
 
 <div class="consultants-grid">
@@ -51,19 +56,27 @@
 
     <div class="consultant-card {% if not consultant.is_available_now %}consultant-unavailable{% endif %}"
         data-consultant-id="{{ consultant.id }}"
-        data-category="{{ consultant.wellness_category }}">
+        data-category="{{ consultant.wellness_category }}"
+        data-offers-sw="{{ 'true' if consultant.offers_sexual_wellness else 'false' }}">
 
         <div class="consultant-header">
 
-            <div class="consultant-avatar" style="position:relative;overflow:hidden;">
-                {% if consultant.photo_url %}
-                <img src="{{ consultant.photo_url }}"
-                     alt="{{ consultant.name }}"
-                     style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;"
-                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-                <span style="display:none;position:relative;z-index:1;">{{ consultant.name[0] }}{{ consultant.name.split()[-1][0] if consultant.name.split()|length > 1 else consultant.name[1] }}</span>
-                {% else %}
-                <span style="position:relative;z-index:1;">{{ consultant.name[0] }}{{ consultant.name.split()[-1][0] if consultant.name.split()|length > 1 else consultant.name[1] }}</span>
+            <div class="consultant-avatar-wrap" style="position:relative;flex-shrink:0;">
+                <div class="consultant-avatar" style="position:relative;overflow:hidden;">
+                    {% if consultant.photo_url %}
+                    <img src="{{ consultant.photo_url }}"
+                         alt="{{ consultant.name }}"
+                         style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                    <span style="display:none;position:relative;z-index:1;">{{ consultant.name[0] }}{{ consultant.name.split()[-1][0] if consultant.name.split()|length > 1 else consultant.name[1] }}</span>
+                    {% else %}
+                    <span style="position:relative;z-index:1;">{{ consultant.name[0] }}{{ consultant.name.split()[-1][0] if consultant.name.split()|length > 1 else consultant.name[1] }}</span>
+                    {% endif %}
+                </div>
+                {% if consultant.offers_sexual_wellness %}
+                <div class="sw-avatar-badge" title="Offers Sexual Wellness Consultation">
+                    <img src="/static/images/sexual_wellness_32.png" alt="Sexual Wellness" style="width:16px;height:16px;object-fit:contain;display:block;">
+                </div>
                 {% endif %}
             </div>
 
@@ -81,13 +94,19 @@
 
                 <p class="consultant-specialization">{{ consultant.specialization }}</p>
 
-                {% if consultant.wellness_categories %}
-                <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.35rem;">
+                <div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.35rem;align-items:center;">
+                    {% if consultant.wellness_categories %}
                     {% for wcat in consultant.wellness_categories %}
                     <span class="wellness-badge wellness-badge--{{ wcat | lower }}">{{ wcat }} Wellbeing</span>
                     {% endfor %}
+                    {% endif %}
+                    {% if consultant.offers_sexual_wellness %}
+                    <span class="wellness-badge wellness-badge--sexual" title="Specialises in Sexual Wellness & Intimacy">
+                        <img src="/static/images/sexual_wellness_32.png" alt="" style="width:13px;height:13px;object-fit:contain;vertical-align:middle;display:inline-block;">
+                        <span>Sexual Wellness</span>
+                    </span>
+                    {% endif %}
                 </div>
-                {% endif %}
 
             </div>
 
@@ -142,7 +161,8 @@
                 data-rating="{{ '%.1f'|format(consultant.rating) }}"
                 data-exp="{{ consultant.experience_years }}"
                 data-rate="{{ consultant.hourly_rate }}"
-                data-photo="{{ consultant.photo_url }}">
+                data-photo="{{ consultant.photo_url }}"
+                data-offers-sw="{{ 'true' if consultant.offers_sexual_wellness else 'false' }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>
@@ -250,7 +270,13 @@
         <div class="pm-identity">
             <h2 id="pmName" class="pm-name"></h2>
             <p id="pmSpec" class="pm-spec"></p>
-            <div class="pm-pills">
+            <div id="pmSwBadge" style="display:none;margin-top:0.4rem;">
+                <span class="wellness-badge wellness-badge--sexual" style="padding:0.25rem 0.75rem;font-size:0.78rem;display:inline-flex;align-items:center;gap:6px;">
+                    <img src="/static/images/sexual_wellness_32.png" alt="" style="width:16px;height:16px;object-fit:contain;">
+                    <span>Offers Sexual Wellness Consultation</span>
+                </span>
+            </div>
+            <div class="pm-pills" style="margin-top:0.5rem;">
                 <span id="pmExp" class="pm-pill pm-pill--blue"></span>
                 <span id="pmRate" class="pm-pill pm-pill--green"></span>
             </div>
@@ -705,6 +731,27 @@
     .wellness-badge--mental    { background: #ede9fe; color: #5b21b6; }
     .wellness-badge--physical  { background: #dcfce7; color: #166534; }
     .wellness-badge--professional { background: #fef9c3; color: #854d0e; }
+    .wellness-badge--sexual    { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
+
+    .sw-avatar-badge {
+        position: absolute;
+        bottom: -2px;
+        right: -3px;
+        width: 24px;
+        height: 24px;
+        background: #ffffff;
+        border: 1.5px solid #f43f5e;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(225, 29, 72, 0.35);
+        z-index: 2;
+        transition: transform 0.2s ease;
+    }
+    .sw-avatar-badge:hover {
+        transform: scale(1.15);
+    }
 
 
 
@@ -2886,6 +2933,12 @@
                 document.getElementById('pmExp').textContent   = exp + ' yrs experience';
                 document.getElementById('pmRate').textContent  = '\u20B9' + rate + '/hour';
 
+                var offersSw = btn.dataset.offersSw === 'true';
+                var swBadge = document.getElementById('pmSwBadge');
+                if (swBadge) {
+                    swBadge.style.display = offersSw ? 'block' : 'none';
+                }
+
                 // Initial stars from card data
                 document.getElementById('pmStars').innerHTML   = makeStars(rating, 16);
                 document.getElementById('pmRatingVal').textContent = rating.toFixed(1);
@@ -3114,13 +3167,19 @@ function selectSlotFromSuggestion(time, date) {
 function filterCategory(cat) {
     var cards = document.querySelectorAll('.consultant-card');
     cards.forEach(function(card) {
-        var cats = card.dataset.category ? card.dataset.category.split(' ') : [];
-        card.style.display = (cat === 'all' || cats.includes(cat)) ? '' : 'none';
+        if (cat === 'all') {
+            card.style.display = '';
+        } else if (cat === 'Sexual') {
+            card.style.display = (card.dataset.offersSw === 'true') ? '' : 'none';
+        } else {
+            var cats = card.dataset.category ? card.dataset.category.split(' ') : [];
+            card.style.display = cats.includes(cat) ? '' : 'none';
+        }
     });
-    ['all','Mental','Physical','Professional'].forEach(function(c) {
+    ['all','Mental','Physical','Professional','Sexual'].forEach(function(c) {
         var btn = document.getElementById('filter-' + c);
         if (!btn) return;
-        var activeColors = {'all':'#1e40af','Mental':'#5b21b6','Physical':'#166534','Professional':'#854d0e'};
+        var activeColors = {'all':'#1e40af','Mental':'#5b21b6','Physical':'#166534','Professional':'#854d0e','Sexual':'#be123c'};
         if (c === cat) {
             btn.style.background = activeColors[c] || '#1e40af';
             btn.style.color = '#fff';

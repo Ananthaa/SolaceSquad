@@ -7766,23 +7766,44 @@ async def list_consultants(request: Request, db: Session = Depends(get_db)):
         if not langs_list:
             langs_list = ["English"]
 
+        # Parse expertise areas & detect Sexual Wellness consultation
+        exp_areas_list = []
+        if profile.expertise_areas:
+            try:
+                if isinstance(profile.expertise_areas, list):
+                    exp_areas_list = [str(x) for x in profile.expertise_areas]
+                else:
+                    parsed_eas = _json.loads(profile.expertise_areas)
+                    exp_areas_list = [str(x) for x in parsed_eas] if isinstance(parsed_eas, list) else [str(parsed_eas)]
+            except Exception:
+                exp_areas_list = [str(profile.expertise_areas)]
+
+        exp_text = " ".join(exp_areas_list).lower()
+        bio_text = (profile.bio or "").lower()
+        offers_sexual_wellness = bool(
+            "sexual" in exp_text or "intimacy" in exp_text
+            or "sexual" in spec or "intimacy" in spec or "sexolog" in spec
+            or "sexual wellness" in bio_text or "sexual health" in bio_text or "sex therapy" in bio_text or "sexologist" in bio_text
+        )
+
         consultant_list.append({
-            "id":                profile.id,
-            "user_id":           user.id,
-            "name":              user.name,
-            "specialization":    profile.specialization or "General Wellbeing",
-            "bio":               profile.bio or "Experienced wellbeing consultant",
-            "experience_years":  profile.experience_years,
-            "rating":            float(profile.rating) if profile.rating is not None else 0.0,
-            "hourly_rate":       profile.consultation_fee or profile.hourly_rate or 500,
-            "is_available_now":  is_available_now,
-            "has_schedule":      len(schedules) > 0,
-            "photo_url":         f"/api/profile-photo/{user.id}" if profile.photo_url else "",
-            "wellness_category": " ".join(cats),
-            "wellness_categories": cats,
-            "languages":         langs_list,
-            "is_active":         user.is_active,
-            "is_approved":       profile.is_approved,
+            "id":                     profile.id,
+            "user_id":                user.id,
+            "name":                   user.name,
+            "specialization":         profile.specialization or "General Wellbeing",
+            "bio":                    profile.bio or "Experienced wellbeing consultant",
+            "experience_years":       profile.experience_years,
+            "rating":                 float(profile.rating) if profile.rating is not None else 0.0,
+            "hourly_rate":            profile.consultation_fee or profile.hourly_rate or 500,
+            "is_available_now":       is_available_now,
+            "has_schedule":           len(schedules) > 0,
+            "photo_url":              f"/api/profile-photo/{user.id}" if profile.photo_url else "",
+            "wellness_category":      " ".join(cats),
+            "wellness_categories":    cats,
+            "offers_sexual_wellness": offers_sexual_wellness,
+            "languages":              langs_list,
+            "is_active":              user.is_active,
+            "is_approved":            profile.is_approved,
         })
 
     from models import Appointment
