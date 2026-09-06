@@ -679,30 +679,34 @@
 <div id="emoraMatchPopup" class="emora-match-popup" style="display:none;" role="dialog" aria-labelledby="emoraPopupTitle">
     <!-- Header -->
     <div class="emora-popup-header">
-        <div class="emora-header-left">
-            <div class="emora-avatar-badge">
-                <span>✨</span>
-                <span class="emora-online-dot"></span>
+        <div class="emora-header-top-row">
+            <div class="emora-header-left">
+                <div class="emora-avatar-badge">
+                    <span>✨</span>
+                    <span class="emora-online-dot"></span>
+                </div>
+                <div>
+                    <div id="emoraPopupTitle" class="emora-header-title">Emora Matcher</div>
+                    <div class="emora-header-sub">AI Consultant Matcher</div>
+                </div>
             </div>
-            <div>
-                <div id="emoraPopupTitle" class="emora-header-title">Emora Matcher</div>
-                <div class="emora-header-sub">AI Consultant Matcher</div>
+            <div class="emora-header-right">
+                <button type="button" class="emora-btn-icon" onclick="resetEmoraChat()" title="Reset chat">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                </button>
+                <button type="button" class="emora-btn-icon" onclick="minimizeEmoraPopup()" title="Minimize window">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+                <button type="button" class="emora-btn-icon" onclick="closeEmoraPopup()" title="Close">✕</button>
             </div>
         </div>
-        <div class="emora-header-right">
+        <div class="emora-header-bottom-row">
             <span id="emoraQuotaBadge" class="emora-quota-badge" title="Remaining Emora message credits">💬 Checking credits...</span>
-            <button type="button" class="emora-btn-icon" onclick="resetEmoraChat()" title="Reset chat">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                    <path d="M3 3v5h5"/>
-                </svg>
-            </button>
-            <button type="button" class="emora-btn-icon" onclick="minimizeEmoraPopup()" title="Minimize window">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-            </button>
-            <button type="button" class="emora-btn-icon" onclick="closeEmoraPopup()" title="Close">✕</button>
         </div>
     </div>
 
@@ -2573,11 +2577,22 @@
     .emora-popup-header {
         background: linear-gradient(135deg, #312e81 0%, #4c1d95 60%, #581c87 100%);
         color: #ffffff;
-        padding: 0.85rem 1.1rem;
+        padding: 0.75rem 1rem 0.65rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .emora-header-top-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        width: 100%;
+    }
+    .emora-header-bottom-row {
+        display: flex;
+        align-items: center;
+        width: 100%;
     }
     .emora-header-left {
         display: flex;
@@ -2595,6 +2610,7 @@
         position: relative;
         font-size: 1.1rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        flex-shrink: 0;
     }
     .emora-online-dot {
         position: absolute;
@@ -2607,20 +2623,23 @@
         border: 2px solid #312e81;
     }
     .emora-header-title {
-        font-size: 0.92rem;
+        font-size: 0.95rem;
         font-weight: 700;
         line-height: 1.2;
         color: #ffffff;
+        white-space: nowrap;
     }
     .emora-header-sub {
         font-size: 0.72rem;
         color: #cbd5e1;
         font-weight: 400;
+        white-space: nowrap;
     }
     .emora-header-right {
         display: flex;
         align-items: center;
         gap: 0.35rem;
+        flex-shrink: 0;
     }
     .emora-quota-badge {
         font-size: 0.72rem;
@@ -2628,10 +2647,13 @@
         background: rgba(255, 255, 255, 0.15);
         backdrop-filter: blur(4px);
         color: #f1f5f9;
-        padding: 3px 7px;
+        padding: 3px 8px;
         border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.25);
         white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
     }
     .emora-btn-icon {
         background: rgba(255, 255, 255, 0.12);

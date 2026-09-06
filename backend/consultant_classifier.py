@@ -415,28 +415,86 @@ SEARCH_KEYWORD_TAXONOMY = [
 ]
 
 
+# Common multi-word phrase patterns mapped directly to canonical terms and focus areas
+PHRASE_SYNONYMS = {
+    # Concentration & Focus
+    "lack of concentration": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "loss of concentration": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "poor concentration": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "cannot concentrate": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "cant concentrate": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "hard to concentrate": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "trouble concentrating": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "difficulty concentrating": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "lack of focus": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "focus issue": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "focus issues": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "trouble focusing": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "difficulty focusing": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "attention issue": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "attention issues": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    "attention span": ("ADHD & Focus", ["Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"]),
+    # Confidence & Esteem
+    "lack of confidence": ("Lack of Confidence", ["Low Self-esteem", "Career & Life Coaching"]),
+    "low confidence": ("Lack of Confidence", ["Low Self-esteem", "Career & Life Coaching"]),
+    "self confidence": ("Lack of Confidence", ["Low Self-esteem", "Career & Life Coaching"]),
+    "self-confidence": ("Lack of Confidence", ["Low Self-esteem", "Career & Life Coaching"]),
+    "low self esteem": ("Low Self-esteem", ["Low Self-esteem"]),
+    "low self-esteem": ("Low Self-esteem", ["Low Self-esteem"]),
+    # Motivation & Procrastination
+    "lack of motivation": ("Low Motivation", ["Motivation & Goal Setting"]),
+    "low motivation": ("Low Motivation", ["Motivation & Goal Setting"]),
+    "no motivation": ("Low Motivation", ["Motivation & Goal Setting"]),
+    # Sleep
+    "lack of sleep": ("Sleep Problems", ["Anxiety & Panic Attacks", "Stress Management"]),
+    "trouble sleeping": ("Sleep Problems", ["Anxiety & Panic Attacks", "Stress Management"]),
+    "can't sleep": ("Sleep Problems", ["Anxiety & Panic Attacks", "Stress Management"]),
+    "cannot sleep": ("Sleep Problems", ["Anxiety & Panic Attacks", "Stress Management"]),
+    # Energy / Burnout
+    "lack of energy": ("Burnout", ["Stress Management", "Nutrition & Wellness"]),
+    "low energy": ("Burnout", ["Stress Management", "Nutrition & Wellness"]),
+    # Relationships
+    "toxic relationship": ("Relationship Problems", ["Relationship Counselling"]),
+    "relationship issue": ("Relationship Problems", ["Relationship Counselling"]),
+    "relationship issues": ("Relationship Problems", ["Relationship Counselling"]),
+}
+
 KEYWORD_SYNONYMS = {
-    "focus": ["ADHD", "Motivation & Goal Setting", "Work-related Stress"],
-    "focusing": ["ADHD", "Motivation & Goal Setting", "Work-related Stress"],
+    "focus": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"],
+    "focusing": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"],
+    "concentration": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"],
+    "concentrate": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"],
+    "concentrating": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"],
+    "distracted": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"],
+    "distraction": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"],
+    "distractions": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"],
+    "attention": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)", "Motivation & Goal Setting"],
+    "adhd": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)"],
+    "autism": ["Autism-related Challenges", "Neurodiversity (ADHD, Autism, etc.)"],
     "sleepy": ["Sleep Problems", "Stress Management"],
     "sleep": ["Sleep Problems"],
     "insomnia": ["Sleep Problems"],
     "tired": ["Burnout", "Stress Management", "Nutrition & Wellness"],
     "exhausted": ["Burnout", "Stress Management"],
     "burnout": ["Burnout", "Work-related Stress"],
-    "burnt out": ["Burnout", "Work-related Stress"],
+    "burnt": ["Burnout", "Work-related Stress"],
     "stressed": ["Stress", "Stress Management"],
     "stress": ["Stress", "Stress Management"],
     "anxious": ["Anxiety", "Anxiety & Panic Attacks"],
     "anxiety": ["Anxiety", "Anxiety & Panic Attacks"],
     "worried": ["Excessive Worry", "Anxiety & Panic Attacks"],
     "worry": ["Excessive Worry", "Anxiety & Panic Attacks"],
+    "overthinking": ["Overthinking", "Anxiety & Panic Attacks", "Stress Management"],
     "sad": ["Sadness", "Depression & Mood Disorders"],
+    "sadness": ["Sadness", "Depression & Mood Disorders"],
     "depressed": ["Depression", "Depression & Mood Disorders"],
+    "depression": ["Depression", "Depression & Mood Disorders"],
     "low": ["Feeling Low", "Depression & Mood Disorders"],
     "breakup": ["Breakup", "Relationship Counselling"],
+    "divorce": ["Separation", "Relationship Counselling"],
     "partner": ["Relationship Problems", "Relationship Counselling"],
     "relationship": ["Relationship Problems", "Relationship Counselling"],
+    "relationships": ["Relationship Problems", "Relationship Counselling"],
     "marriage": ["Relationship Problems", "Relationship Counselling"],
     "sex": ["Sexual & Intimacy Issues", "Sexual & Intimacy Problems"],
     "sexual": ["Sexual & Intimacy Issues", "Sexual & Intimacy Problems"],
@@ -453,15 +511,16 @@ KEYWORD_SYNONYMS = {
     "angry": ["Anger Issues", "Anger Management"],
     "trauma": ["Trauma", "Abuse & Trauma (including Childhood)"],
     "grief": ["Grief, Bereavement & Loss", "Grief & Bereavement"],
+    "loss": ["Grief, Bereavement & Loss", "Grief & Bereavement"],
     "lost": ["Grief, Bereavement & Loss", "Career & Life Coaching"],
     "career": ["Career Decisions", "Career & Life Coaching"],
     "job": ["Workplace Problems", "Work-related Stress"],
     "work": ["Work Stress", "Work-related Stress"],
     "procrastination": ["Procrastination", "Motivation & Goal Setting"],
+    "procrastinating": ["Procrastination", "Motivation & Goal Setting"],
     "lazy": ["Low Motivation", "Motivation & Goal Setting"],
-    "adhd": ["ADHD", "Neurodiversity (ADHD, Autism, etc.)"],
-    "autism": ["Autism-related Challenges", "Neurodiversity (ADHD, Autism, etc.)"],
     "lonely": ["Loneliness", "Depression & Mood Disorders"],
+    "loneliness": ["Loneliness", "Depression & Mood Disorders"],
     "alone": ["Social Isolation", "Depression & Mood Disorders"],
     "panic": ["Panic Attacks", "Anxiety & Panic Attacks"],
 }
@@ -479,38 +538,38 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
     msg_lower = user_message.lower().strip()
 
     STOP_TOKENS = {
-        "wellness", "feeling", "managing", "issues", "problems", "related",
-        "challenges", "general", "situation", "difficulties", "concerns", "problem"
+        "lack", "loss", "having", "trouble", "facing", "feeling", "issues", "problems",
+        "related", "challenges", "general", "situation", "difficulties", "concerns",
+        "problem", "difficult", "past", "help", "need", "life", "time", "managing",
+        "management", "wellness", "issue", "poor", "hard", "high", "offlate", "lately",
+        "often", "always", "some", "very", "much", "want", "find", "looking", "good"
     }
 
     matched_items = []
     matched_focus_areas = []
     matched_terms = []
 
-    # 1. Check exact taxonomy phrases first
+    # 1. Check Phrase Synonyms first (e.g. 'lack of concentration', 'focus issue', 'lack of sleep')
+    for phrase, (canon_term, focus_list) in PHRASE_SYNONYMS.items():
+        if phrase in msg_lower:
+            if canon_term not in matched_terms:
+                matched_terms.append(canon_term)
+            for fa in focus_list:
+                if fa not in matched_focus_areas:
+                    matched_focus_areas.append(fa)
+
+    # 2. Check exact taxonomy phrases
     for item in SEARCH_KEYWORD_TAXONOMY:
         term_lower = item["term"].lower()
         if term_lower in msg_lower:
             matched_items.append(item)
-            matched_terms.append(item["term"])
+            if item["term"] not in matched_terms:
+                matched_terms.append(item["term"])
             for fa in item["focus_areas"]:
                 if fa not in matched_focus_areas:
                     matched_focus_areas.append(fa)
 
-    # 2. Check meaningful multi-word tokens
-    for item in SEARCH_KEYWORD_TAXONOMY:
-        if item["term"] in matched_terms:
-            continue
-        term_lower = item["term"].lower()
-        tokens = [t for t in re.split(r'[\s&,/()-]+', term_lower) if len(t) > 3 and t not in STOP_TOKENS]
-        if tokens and any(re.search(r'\b' + re.escape(t) + r'\b', msg_lower) for t in tokens):
-            matched_items.append(item)
-            matched_terms.append(item["term"])
-            for fa in item["focus_areas"]:
-                if fa not in matched_focus_areas:
-                    matched_focus_areas.append(fa)
-
-    # 3. Check colloquial synonyms (e.g., 'sleepy', 'focusing', 'partner', 'diet')
+    # 3. Check colloquial synonyms (e.g., 'concentration', 'focus', 'sleepy', 'partner', 'diet')
     words = re.findall(r'\b\w+\b', msg_lower)
     for word in words:
         if word in KEYWORD_SYNONYMS:
@@ -525,10 +584,23 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
                 else:
                     if syn not in matched_focus_areas:
                         matched_focus_areas.append(syn)
-                    if not matched_terms:
+                    if syn not in matched_terms:
                         matched_terms.append(syn)
 
-    # 4. Fallback to intent classification if nothing matched
+    # 4. Check meaningful single-word tokens from taxonomy only if nothing matched yet
+    if not matched_terms:
+        for item in SEARCH_KEYWORD_TAXONOMY:
+            term_lower = item["term"].lower()
+            tokens = [t for t in re.split(r'[\s&,/()-]+', term_lower) if len(t) > 3 and t not in STOP_TOKENS]
+            if tokens and any(re.search(r'\b' + re.escape(t) + r'\b', msg_lower) for t in tokens):
+                matched_items.append(item)
+                if item["term"] not in matched_terms:
+                    matched_terms.append(item["term"])
+                for fa in item["focus_areas"]:
+                    if fa not in matched_focus_areas:
+                        matched_focus_areas.append(fa)
+
+    # 5. Fallback to intent classification if nothing matched
     if not matched_focus_areas:
         intent = detect_intent(user_message)
         if intent.get("category") == "Mental":
@@ -546,7 +618,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
 
     primary_keyword = matched_terms[0] if matched_terms else (matched_focus_areas[0] if matched_focus_areas else "General Wellbeing")
 
-    # 5. Query all approved & active consultants from database
+    # 6. Query all approved & active consultants from database
     consultant_rows = db.query(ConsultantProfile, User).join(
         User, User.id == ConsultantProfile.user_id
     ).filter(
@@ -667,7 +739,7 @@ def format_matcher_prompt_context(consultants: list, matched_keyword: str, focus
     lines = [
         f"[CONSULTANT_MATCHER_RECOMMENDATION]\n"
         f"The user is looking for help regarding: '{matched_keyword}' (Focus Areas: {', '.join(focus_areas)}).\n"
-        f"You have matched these real SolaceSquad consultants from our database (their recommendation cards are already filtered and presented below to the user):\n"
+        f"You have matched these real SolaceSquad consultants from our database (their recommendation cards are already filtered and presented directly below your message to the user):\n"
     ]
     for c in consultants:
         areas_text = ", ".join(c.get("matched_areas", [])) or c["specialization"]
@@ -675,12 +747,12 @@ def format_matcher_prompt_context(consultants: list, matched_keyword: str, focus
             f"  • {c['name']} ({c['specialization']}, {c['experience_years']} yrs exp, ⭐ {c['rating']:.1f}) — Next available: {c['earliest_slot']} (Fee: ₹{c['hourly_rate']}/hr). Expertise: {areas_text}"
         )
     lines.append(
-        f"\nCRITICAL INSTRUCTIONS FOR EMORA:\n"
+        f"\nCRITICAL INSTRUCTIONS FOR EMORA IN MATCHER MODE:\n"
         f"1. You are talking to the user DIRECTLY ON the Find Consultants page. NEVER tell them to 'go to /app/consultants', 'visit the consultants section', or navigate anywhere.\n"
-        f"2. Acknowledge and validate the user's specific feelings in 1-2 empathetic, warm sentences.\n"
-        f"3. Mention 1-2 of the matched consultants ABOVE BY EXACT NAME (do not invent any other names!), explaining briefly why their expertise fits what the user is experiencing.\n"
-        f"4. Tell them they can view their profile or click 'Book Session' directly on their cards shown below.\n"
-        f"5. Keep your total response concise (2-4 sentences max), warm, and natural.\n"
+        f"2. Acknowledge and validate what they are experiencing (e.g., {matched_keyword}) in 1 warm, empathetic sentence.\n"
+        f"3. Do NOT conduct grounding exercises or live therapy techniques (such as 5-4-3-2-1 sensory grounding or breathing exercises). Instead, focus directly on introducing 1-2 matched consultants from the list above BY EXACT NAME, explaining briefly how their specific expertise can support them.\n"
+        f"4. Direct them to their cards shown right below to view their profile or click 'Book Session'.\n"
+        f"5. Keep your response concise (2-4 sentences max), warm, and supportive.\n"
         f"[END_CONSULTANT_MATCHER_RECOMMENDATION]"
     )
     return "\n".join(lines)
