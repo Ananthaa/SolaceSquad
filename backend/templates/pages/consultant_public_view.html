@@ -64,8 +64,13 @@
             <!-- Header with Avatar -->
             <div class="px-4 py-5 sm:px-6 flex items-center bg-gray-50 border-b border-gray-200">
                 <div
-                    class="flex-shrink-0 h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl font-bold shadow-inner">
+                    class="flex-shrink-0 h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-2xl font-bold shadow-inner overflow-hidden border-2 border-teal-600/30">
+                    {% if profile.photo_url %}
+                    <img src="/api/profile-photo/{{ user.id }}" alt="{{ profile.full_name or user.name }}" class="h-16 w-16 rounded-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                    <span style="display:none;">{{ user.name[:2].upper() }}</span>
+                    {% else %}
                     {{ user.name[:2].upper() }}
+                    {% endif %}
                 </div>
                 <div class="ml-4">
                     <h1 class="text-2xl font-bold text-gray-900">{{ user.name }}</h1>

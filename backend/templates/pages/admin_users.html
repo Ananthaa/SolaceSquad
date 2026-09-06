@@ -337,13 +337,21 @@
                             <td class="px-6 py-4" style="min-width: 280px;">
                                 <div class="flex items-center">
                                     <div
-                                        class="flex-shrink-0 h-10 w-10 rounded-full bg-secondary-100 flex items-center justify-center">
+                                        class="flex-shrink-0 h-10 w-10 rounded-full bg-secondary-100 flex items-center justify-center overflow-hidden border border-teal-600/30">
+                                        {% if c.photo_url %}
+                                        <img src="/api/profile-photo/{{ c.user_id }}" class="h-10 w-10 rounded-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                        <span style="display:none;" class="text-secondary-600 font-semibold text-sm">
+                                            {{ c.user.name[:2].upper() }}
+                                        </span>
+                                        {% else %}
                                         <span class="text-secondary-600 font-semibold text-sm">
                                             {{ c.user.name[:2].upper() }}
                                         </span>
+                                        {% endif %}
                                     </div>
                                     <div class="ml-4">
-                                        <div class="text-sm font-medium text-gray-900 consultant-name">{{ c.user.name }}
+                                        <div class="text-sm font-medium text-gray-900 consultant-name">
+                                            <a href="/admin/consultant/{{ c.id }}" class="hover:text-teal-700 hover:underline font-bold" title="View Application & Manage Photo">{{ c.user.name }}</a>
                                         </div>
                                         <div class="text-sm text-gray-500 consultant-email">
                                             {{ c.user.email }}
@@ -419,6 +427,10 @@
                             <td class="sticky right-0 bg-white group-hover:bg-gray-50 px-6 py-4 whitespace-nowrap text-right text-sm font-medium z-10 shadow-[-4px_0_8px_rgba(0,0,0,0.03)]">
                                 <!-- Desktop Actions -->
                                 <div class="hidden sm:flex items-center justify-end gap-1.5">
+                                    <a href="/admin/consultant/{{ c.id }}"
+                                        class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-teal-600 hover:text-teal-900 shadow-sm transition" title="View Full Application & Upload Photo">
+                                        <i data-lucide="eye" class="w-4 h-4 inline"></i>
+                                    </a>
                                     <button onclick="changeUserEmail({{ c.user_id }}, '{{ c.user.email }}')"
                                         class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-indigo-600 hover:text-indigo-900 shadow-sm transition" title="Change Primary Gmail">
                                         <i data-lucide="mail" class="w-4 h-4 inline"></i>
@@ -449,6 +461,9 @@
                                         <i data-lucide="more-vertical" class="w-4 h-4"></i>
                                     </button>
                                     <div class="hidden">
+                                        <a href="/admin/consultant/{{ c.id }}" class="flex items-center px-4 py-2 text-sm text-teal-700 hover:bg-gray-100">
+                                            <i data-lucide="eye" class="w-4 h-4 inline mr-2"></i> View Application & Photo
+                                        </a>
                                         <button onclick="changeUserEmail({{ c.user_id }}, '{{ c.user.email }}')">
                                             <i data-lucide="mail" class="w-4 h-4 inline mr-2"></i> Change Email
                                         </button>
@@ -537,6 +552,32 @@
         </div>
         <div class="overflow-y-auto flex-1 p-6" style="background:linear-gradient(135deg,#f0fdf4 0%,#fff 50%,#eff6ff 100%);">
             <input type="hidden" id="obUserId">
+
+            <!-- Profile Photo Section -->
+            <div class="ob-card" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; background:#fff; border-left:4px solid #0d9488;">
+                <div style="display:flex; align-items:center; gap:1rem;">
+                    <div style="position:relative; width:64px; height:64px; flex-shrink:0;">
+                        <img id="obPhotoImg" src="" alt="Photo" style="display:none; width:64px; height:64px; border-radius:50%; object-fit:cover; border:2px solid #0d9488;">
+                        <div id="obPhotoFallback" style="width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg,#134e4a,#0d9488); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.4rem; font-weight:800;">
+                            ?
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-weight:700; color:#1f2937; font-size:0.95rem;">Consultant Photo</div>
+                        <div style="font-size:0.75rem; color:#6b7280;">Upload a clear professional photo (JPG, PNG, WEBP, max 5MB)</div>
+                        <span id="obPhotoMsg" style="font-size:0.75rem; color:#059669; font-weight:600; display:none; margin-top:2px;"></span>
+                    </div>
+                </div>
+                <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <label for="obPhotoUploadInput" style="cursor:pointer; background:#0f766e; color:#fff; border-radius:6px; padding:6px 12px; font-size:0.8rem; font-weight:600; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 2px rgba(0,0,0,0.05); margin:0;">
+                        <span>📷</span> <span id="obUploadBtnText">Upload Photo</span>
+                    </label>
+                    <input type="file" id="obPhotoUploadInput" accept="image/jpeg,image/png,image/webp,image/jpg" style="display:none;" onchange="handleModalPhotoUpload(event)">
+                    <button type="button" id="obDeletePhotoBtn" onclick="handleModalPhotoDelete()" style="display:none; cursor:pointer; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; border-radius:6px; padding:6px 10px; font-size:0.8rem; font-weight:600;">
+                        🗑️ Remove
+                    </button>
+                </div>
+            </div>
 
             <!-- S1: Personal Details -->
             <div class="ob-card">
@@ -997,6 +1038,22 @@
         document.getElementById('obApprove').checked = true;
         // Reset all checkboxes + radios inside modal
         document.getElementById('onboardingModal').querySelectorAll('input[type=checkbox]:not(#obApprove), input[type=radio]').forEach(i => i.checked = false);
+
+        // Reset photo preview
+        const photoImg = document.getElementById('obPhotoImg');
+        const photoFallback = document.getElementById('obPhotoFallback');
+        const deleteBtn = document.getElementById('obDeletePhotoBtn');
+        const uploadBtnText = document.getElementById('obUploadBtnText');
+        const msgEl = document.getElementById('obPhotoMsg');
+        if (msgEl) msgEl.style.display = 'none';
+        if (photoImg) photoImg.style.display = 'none';
+        if (photoFallback) {
+            photoFallback.style.display = 'flex';
+            photoFallback.textContent = (name || '?').substring(0, 2).toUpperCase();
+        }
+        if (deleteBtn) deleteBtn.style.display = 'none';
+        if (uploadBtnText) uploadBtnText.innerText = 'Upload Photo';
+
         document.getElementById('onboardingModal').showModal();
         safeCreateIcons();
         try {
@@ -1024,8 +1081,146 @@
                 _obCbs('ob_langs', p.languages);
                 _obCbs('ob_audience', p.target_audience);
                 _obCbs('ob_con_type', p.consultant_type);
+
+                // Update photo if exists
+                if (p.photo_url) {
+                    if (photoImg) {
+                        photoImg.src = `/api/profile-photo/${userId}?t=${Date.now()}`;
+                        photoImg.style.display = 'block';
+                    }
+                    if (photoFallback) photoFallback.style.display = 'none';
+                    if (deleteBtn) deleteBtn.style.display = 'inline-block';
+                    if (uploadBtnText) uploadBtnText.innerText = 'Change Photo';
+                }
             }
         } catch(e) { console.warn('Could not load profile:', e); }
+    }
+
+    async function handleModalPhotoUpload(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        const userId = document.getElementById('obUserId').value;
+        if (!userId) return;
+
+        const btnText = document.getElementById('obUploadBtnText');
+        const msgEl = document.getElementById('obPhotoMsg');
+        const deleteBtn = document.getElementById('obDeletePhotoBtn');
+        const photoImg = document.getElementById('obPhotoImg');
+        const fallback = document.getElementById('obPhotoFallback');
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Photo size exceeds 5MB. Please choose a smaller image.');
+            event.target.value = '';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('photo', file);
+
+        const originalText = btnText ? btnText.innerText : 'Upload Photo';
+        if (btnText) btnText.innerText = 'Uploading...';
+        if (msgEl) {
+            msgEl.style.display = 'block';
+            msgEl.style.color = '#0284c7';
+            msgEl.innerText = 'Uploading photo...';
+        }
+
+        try {
+            const response = await fetch(`/api/admin/consultant/${userId}/upload-photo`, {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                if (msgEl) {
+                    msgEl.style.color = '#059669';
+                    msgEl.innerText = '✓ Photo updated successfully!';
+                }
+                if (btnText) btnText.innerText = 'Change Photo';
+                if (deleteBtn) deleteBtn.style.display = 'inline-block';
+
+                if (photoImg) {
+                    photoImg.src = `/api/profile-photo/${userId}?t=${Date.now()}`;
+                    photoImg.style.display = 'block';
+                }
+                if (fallback) fallback.style.display = 'none';
+
+                // Update row in table live
+                const rowImg = document.querySelector(`tr[data-user-id="${userId}"] img`);
+                if (rowImg) rowImg.src = `/api/profile-photo/${userId}?t=${Date.now()}`;
+
+                setTimeout(() => {
+                    if (msgEl) msgEl.style.display = 'none';
+                }, 4000);
+            } else {
+                if (msgEl) {
+                    msgEl.style.color = '#dc2626';
+                    msgEl.innerText = 'Upload failed: ' + (result.error || 'Server error');
+                }
+                if (btnText) btnText.innerText = originalText;
+            }
+        } catch (err) {
+            if (msgEl) {
+                msgEl.style.color = '#dc2626';
+                msgEl.innerText = 'Upload error: ' + err.message;
+            }
+            if (btnText) btnText.innerText = originalText;
+        } finally {
+            event.target.value = '';
+        }
+    }
+
+    async function handleModalPhotoDelete() {
+        const userId = document.getElementById('obUserId').value;
+        if (!userId) return;
+        if (!confirm('Are you sure you want to remove this consultant photo?')) return;
+
+        const btnText = document.getElementById('obUploadBtnText');
+        const msgEl = document.getElementById('obPhotoMsg');
+        const deleteBtn = document.getElementById('obDeletePhotoBtn');
+        const photoImg = document.getElementById('obPhotoImg');
+        const fallback = document.getElementById('obPhotoFallback');
+
+        if (msgEl) {
+            msgEl.style.display = 'block';
+            msgEl.style.color = '#0284c7';
+            msgEl.innerText = 'Removing photo...';
+        }
+
+        try {
+            const response = await fetch(`/api/admin/consultant/${userId}/delete-photo`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                if (msgEl) {
+                    msgEl.style.color = '#059669';
+                    msgEl.innerText = '✓ Photo removed!';
+                }
+                if (btnText) btnText.innerText = 'Upload Photo';
+                if (deleteBtn) deleteBtn.style.display = 'none';
+
+                if (photoImg) photoImg.style.display = 'none';
+                if (fallback) fallback.style.display = 'flex';
+
+                setTimeout(() => {
+                    if (msgEl) msgEl.style.display = 'none';
+                }, 3000);
+            } else {
+                if (msgEl) {
+                    msgEl.style.color = '#dc2626';
+                    msgEl.innerText = 'Failed: ' + (result.error || 'Server error');
+                }
+            }
+        } catch (err) {
+            if (msgEl) {
+                msgEl.style.color = '#dc2626';
+                msgEl.innerText = 'Error: ' + err.message;
+            }
+        }
     }
 
     async function saveOnboarding() {
@@ -1129,12 +1324,14 @@
                 content.innerHTML = `
                     <div class="space-y-6">
                         <div class="flex items-center space-x-4">
-                            <div class="h-20 w-20 rounded-full bg-primary-100 flex items-center justify-center">
-                                <span class="text-primary-600 font-bold text-2xl">${user.name.substring(0, 2).toUpperCase()}</span>
+                            <div class="h-20 w-20 rounded-full bg-primary-100 flex items-center justify-center overflow-hidden border-2 border-teal-600/30 relative">
+                                <img src="/api/profile-photo/${user.id}" class="h-20 w-20 rounded-full object-cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                                <span style="display:none;" class="text-primary-600 font-bold text-2xl">${user.name.substring(0, 2).toUpperCase()}</span>
                             </div>
                             <div>
                                 <h4 class="text-xl font-bold text-gray-900">${user.name}</h4>
                                 <p class="text-gray-600">${user.email}</p>
+                                ${user.user_type === 'consultant' ? `<a href="/admin/consultant/${user.id}" target="_blank" class="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline mt-1"><span>📷 Manage Photo & Full Profile ↗</span></a>` : ''}
                             </div>
                         </div>
                         

@@ -12734,6 +12734,8 @@ async def get_consultant_onboarding_data(request: Request, user_id: int, db: Ses
             ct_list.append(p.wellness_category)
 
     return JSONResponse({"success": True, "profile": {
+        "id": p.id,
+        "photo_url": p.photo_url,
         "user_id": user_id, "name": user.name, "email": user.email,
         "phone": user.phone_number or "",
         "full_name":              p.full_name or user.name,
