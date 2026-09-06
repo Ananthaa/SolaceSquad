@@ -648,15 +648,17 @@ def format_matcher_prompt_context(consultants: list, matched_keyword: str, focus
     if not consultants:
         return (
             f"[CONSULTANT_MATCHER_RECOMMENDATION]\n"
-            f"The user is asking about: '{matched_keyword}'.\n"
-            f"No specific consultant was matched. Express warmth and empathy, and invite them to browse all consultants at /app/consultants.\n"
+            f"The user is asking: '{matched_keyword}'.\n"
+            f"You are currently assisting them directly on the Find Consultants page.\n"
+            f"DO NOT tell them to visit '/app/consultants' or go to any link.\n"
+            f"Warmly ask them 1 short question about what they are experiencing so you can filter the best experts for them.\n"
             f"[END_CONSULTANT_MATCHER_RECOMMENDATION]"
         )
 
     lines = [
         f"[CONSULTANT_MATCHER_RECOMMENDATION]\n"
         f"The user is looking for help regarding: '{matched_keyword}' (Focus Areas: {', '.join(focus_areas)}).\n"
-        f"You have matched these real SolaceSquad consultants from our database:\n"
+        f"You have matched these real SolaceSquad consultants from our database (their recommendation cards are already filtered and presented below to the user):\n"
     ]
     for c in consultants:
         areas_text = ", ".join(c.get("matched_areas", [])) or c["specialization"]
@@ -664,11 +666,12 @@ def format_matcher_prompt_context(consultants: list, matched_keyword: str, focus
             f"  • {c['name']} ({c['specialization']}, {c['experience_years']} yrs exp, ⭐ {c['rating']:.1f}) — Next available: {c['earliest_slot']} (Fee: ₹{c['hourly_rate']}/hr). Expertise: {areas_text}"
         )
     lines.append(
-        f"\nInstructions for Emora:\n"
-        f"1. Acknowledge and validate the user's specific feelings in 1-2 empathetic, warm sentences.\n"
-        f"2. Mention 1-2 of the matched consultants above by name, explaining briefly why their expertise fits what the user is experiencing.\n"
-        f"3. Invite them to view their profile or click the booking / filter buttons shown below.\n"
-        f"4. Keep your total response concise (2-4 sentences max), warm, and natural.\n"
+        f"\nCRITICAL INSTRUCTIONS FOR EMORA:\n"
+        f"1. You are talking to the user DIRECTLY ON the Find Consultants page. NEVER tell them to 'go to /app/consultants', 'visit the consultants section', or navigate anywhere.\n"
+        f"2. Acknowledge and validate the user's specific feelings in 1-2 empathetic, warm sentences.\n"
+        f"3. Mention 1-2 of the matched consultants above by name, explaining briefly why their expertise fits what the user is experiencing.\n"
+        f"4. Tell them they can view their profile or click 'Book Session' directly on their cards shown below.\n"
+        f"5. Keep your total response concise (2-4 sentences max), warm, and natural.\n"
         f"[END_CONSULTANT_MATCHER_RECOMMENDATION]"
     )
     return "\n".join(lines)

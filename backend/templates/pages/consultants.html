@@ -3988,12 +3988,20 @@ var SEARCH_KEYWORD_MAP = [
 
 var currentCategoryFilter = 'all';
 var currentSearchQuery = '';
+var currentMatchedConsultantIds = [];
 
 function normalizeStr(s) {
     return (s || '').toLowerCase().trim();
 }
 
 function cardMatchesSearch(card, query) {
+    var cid = parseInt(card.dataset.consultantId || '0');
+    
+    // If Emora explicitly matched specific consultant IDs, filter to those IDs
+    if (currentMatchedConsultantIds && currentMatchedConsultantIds.length > 0) {
+        return currentMatchedConsultantIds.includes(cid);
+    }
+
     if (!query) return true;
     var q = normalizeStr(query);
     if (!q) return true;
@@ -4107,17 +4115,19 @@ function applyConsultantFilters() {
     // Update clear button visibility
     var clearBtn = document.getElementById('consultantSearchClear');
     if (clearBtn) {
-        clearBtn.style.display = currentSearchQuery ? 'flex' : 'none';
+        clearBtn.style.display = (currentSearchQuery || currentMatchedConsultantIds.length > 0) ? 'flex' : 'none';
     }
 
     // Active Search / Filter Summary
     var summaryEl = document.getElementById('searchActiveSummary');
     var summaryText = document.getElementById('searchSummaryText');
     if (summaryEl && summaryText) {
-        if (currentSearchQuery || currentCategoryFilter !== 'all') {
+        if (currentMatchedConsultantIds.length > 0 || currentSearchQuery || currentCategoryFilter !== 'all') {
             summaryEl.style.display = 'flex';
             var parts = [];
-            if (currentSearchQuery) {
+            if (currentMatchedConsultantIds.length > 0) {
+                parts.push('✨ Matched by Emora for: <strong>"' + escapeHtml(currentSearchQuery || 'Your Needs') + '"</strong>');
+            } else if (currentSearchQuery) {
                 parts.push('Keyword: <strong>"' + escapeHtml(currentSearchQuery) + '"</strong>');
             }
             if (currentCategoryFilter !== 'all') {
@@ -4150,6 +4160,7 @@ function filterCategory(cat) {
 }
 
 function setQuickSearch(term) {
+    currentMatchedConsultantIds = [];
     var searchInput = document.getElementById('consultantSearchInput');
     if (currentSearchQuery.toLowerCase() === term.toLowerCase()) {
         currentSearchQuery = '';
@@ -4164,6 +4175,7 @@ function setQuickSearch(term) {
 
 function clearConsultantSearch() {
     currentSearchQuery = '';
+    currentMatchedConsultantIds = [];
     var searchInput = document.getElementById('consultantSearchInput');
     if (searchInput) {
         searchInput.value = '';
@@ -4176,6 +4188,7 @@ function clearConsultantSearch() {
 function resetAllConsultantFilters() {
     currentSearchQuery = '';
     currentCategoryFilter = 'all';
+    currentMatchedConsultantIds = [];
     var searchInput = document.getElementById('consultantSearchInput');
     if (searchInput) searchInput.value = '';
     hideKeywordDropdown();
@@ -4438,12 +4451,6 @@ async function sendEmoraMessage() {
         
         if (data.matched_keyword) {
             responseHtml += '<div class="emora-match-badge">🏷️ Topic: <strong>' + escapeHtml(data.matched_keyword) + '</strong></div>';
-            // Automatically filter background consultants page to matched topic
-            currentCategoryFilter = 'all';
-            currentSearchQuery = data.matched_keyword;
-            var searchInput = document.getElementById('consultantSearchInput');
-            if (searchInput) searchInput.value = data.matched_keyword;
-            applyConsultantFilters();
         }
 
         // Formatted text
@@ -4454,8 +4461,15 @@ async function sendEmoraMessage() {
             .replace(/\*(.*?)\*/g, '<em>$1</em>');
         responseHtml += '<p style="margin:0 0 6px 0;line-height:1.45;">' + formattedMsg + '</p>';
 
-        // Render matched consultants cards
+        // Render matched consultants cards & sync background page filter
         if (data.matched_consultants && data.matched_consultants.length > 0) {
+            currentMatchedConsultantIds = data.matched_consultants.map(function(c) { return parseInt(c.id); });
+            currentCategoryFilter = 'all';
+            currentSearchQuery = data.matched_keyword || '';
+            var searchInput = document.getElementById('consultantSearchInput');
+            if (searchInput && data.matched_keyword) searchInput.value = data.matched_keyword;
+            applyConsultantFilters();
+
             responseHtml += '<div style="margin-top:8px;font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;">Recommended Experts from Database:</div>';
             
             data.matched_consultants.forEach(function(c) {
