@@ -126,6 +126,25 @@
         border: 3px solid #0d9488;
     }
 
+    .btn-save {
+        padding: .55rem 1.25rem;
+        background: #1e40af;
+        color: #fff;
+        border: none;
+        border-radius: .5rem;
+        font-weight: 700;
+        font-size: .875rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+        transition: background 0.15s;
+    }
+
+    .btn-save:hover {
+        background: #1d4ed8;
+    }
+
     .btn-approve {
         padding: .55rem 1.25rem;
         background: linear-gradient(135deg, #0f766e, #0d9488);
@@ -177,41 +196,61 @@
             </svg>
             Back
         </a>
-        <div style="display:flex; align-items:center; gap:.5rem; flex:1; justify-content:center;">
+        <div style="display:flex; align-items:center; gap:.5rem; flex:1; justify-content:center; flex-wrap:wrap;">
             <span style="font-weight:700; color:#1f2937; font-size:1rem;">{{ profile.user.name }}</span>
             <span style="font-size:.75rem; color:#6b7280;">— Application Review</span>
+            {% if profile.is_approved %}
+            <span style="font-size:.75rem; color:#166534; font-weight:700; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:9999px; padding:.15rem .6rem;">✓ Approved</span>
+            {% else %}
+            <span style="font-size:.75rem; color:#9a3412; font-weight:700; background:#fff7ed; border:1px solid #fed7aa; border-radius:9999px; padding:.15rem .6rem;">⏳ Pending Review</span>
+            {% endif %}
         </div>
-        {% if viewer_type != 'admin_assistant' %}
-        <div style="display:flex; gap:.5rem;">
-            <form action="/api/admin/reject/{{ profile.id }}" method="POST"
-                onsubmit="return confirm('Reject this application?');">
-                <button class="btn-reject" type="submit">✗ Reject</button>
-            </form>
-            <form action="/api/admin/approve/{{ profile.id }}" method="POST"
-                style="display:flex; align-items:center; gap:.5rem;">
-                <input type="number" name="hourly_rate" placeholder="₹/hr rate" step="50" min="0"
-                    value="{{ profile.hourly_rate or '' }}"
+        
+        <div style="display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;">
+            <!-- Save Button & Rate Input -->
+            <div style="display:flex; align-items:center; gap:.4rem;">
+                <input type="number" id="topHourlyRate" name="hourly_rate" placeholder="₹/hr rate" step="50" min="0"
+                    value="{{ profile.hourly_rate or profile.consultation_fee or '' }}"
                     style="width:110px; padding:.45rem .6rem; border:1px solid #d1d5db; border-radius:.4rem; font-size:.8rem;"
-                    required>
-                <button class="btn-approve" type="submit">✓ Approve</button>
-            </form>
+                    title="Consultation Rate (₹/hr)">
+                <button type="button" class="btn-save" onclick="handleAdminSaveAll('top')" id="topSaveBtn" title="Save Rate and Changes">
+                    💾 Save
+                </button>
+            </div>
+
+            {% if viewer_type != 'admin_assistant' %}
+                {% if not profile.is_approved %}
+                <form action="/api/admin/approve/{{ profile.id }}" method="POST"
+                    style="display:flex; align-items:center; gap:.5rem;"
+                    onsubmit="document.getElementById('approveRateHidden').value = document.getElementById('topHourlyRate').value;">
+                    <input type="hidden" name="hourly_rate" id="approveRateHidden" value="{{ profile.hourly_rate or '' }}">
+                    <button class="btn-approve" type="submit">✓ Approve</button>
+                </form>
+                {% endif %}
+                <form action="/api/admin/reject/{{ profile.id }}" method="POST"
+                    onsubmit="return confirm('Reject / purge this application?');">
+                    <button class="btn-reject" type="submit">✗ Reject</button>
+                </form>
+            {% else %}
+                <span style="font-size:.8rem;color:#6b7280;padding:.4rem .9rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:.5rem;">&#128274; Assistant View</span>
+            {% endif %}
         </div>
-        {% else %}
-        <span style="font-size:.8rem;color:#6b7280;padding:.4rem .9rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:.5rem;">&#128274; Only Admin can Approve</span>
-        {% endif %}
     </div>
+
+    <!-- Alert / Toast Banner -->
+    <div id="globalSaveAlert" style="display:none; margin-bottom:1.25rem; padding:.75rem 1.25rem; border-radius:.6rem; font-weight:600; font-size:.875rem;"></div>
 
     <!-- Header Card -->
     <div class="detail-card" style="display:flex; align-items:flex-start; gap:1.25rem; flex-wrap:wrap;">
         <div style="display:flex; flex-direction:column; align-items:center; gap:.5rem;">
             <div id="photoContainer" style="position:relative; width:80px; height:80px;">
                 {% if profile.photo_url %}
-                <img id="consultantPhotoImg" src="/api/profile-photo/{{ profile.user.id }}" class="photo-circle" alt="Photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #0d9488;" onerror="this.style.display='none';document.getElementById('photoFallback').style.display='flex'">
+                <img id="consultantPhotoImg" src="/api/profile-photo/{{ profile.user.id }}?t={{ profile.user.id }}" class="photo-circle" alt="Photo" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #0d9488;" onerror="this.style.display='none';document.getElementById('photoFallback').style.display='flex'">
                 <div id="photoFallback" style="display:none;width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#134e4a,#0d9488);align-items:center;justify-content:center;color:#fff;font-size:1.75rem;font-weight:800;flex-shrink:0;">
                     {{ profile.user.name[:1].upper() }}
                 </div>
                 {% else %}
-                <img id="consultantPhotoImg" src="/api/profile-photo/{{ profile.user.id }}" class="photo-circle" alt="Photo" style="display:none;width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #0d9488;" onerror="this.style.display='none';document.getElementById('photoFallback').style.display='flex'">
+                <img id="consultantPhotoImg" src="/api/profile-photo/{{ profile.user.id }}?t={{ profile.user.id }}" class="photo-circle" alt="Photo" style="display:none;width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #0d9488;" onerror="this.style.display='none';document.getElementById('photoFallback').style.display='flex'">
                 <div id="photoFallback"
                     style="width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg,#134e4a,#0d9488); display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.75rem; font-weight:800; flex-shrink:0;">
                     {{ profile.user.name[:1].upper() }}
@@ -223,7 +262,7 @@
                 <label for="adminPhotoUploadInput" id="uploadBtnLabel" style="cursor:pointer; background:#f0fdf4; color:#0f766e; border:1px solid #99f6e4; border-radius:6px; padding:4px 10px; font-size:0.75rem; font-weight:600; text-align:center; display:inline-flex; align-items:center; gap:4px; transition:0.2s; box-shadow:0 1px 2px rgba(0,0,0,0.05);" title="Upload or Change Consultant Photo">
                     <span>📷</span> <span id="uploadBtnText">{% if profile.photo_url %}Change Photo{% else %}Upload Photo{% endif %}</span>
                 </label>
-                <input type="file" id="adminPhotoUploadInput" accept="image/jpeg,image/png,image/webp,image/jpg" style="display:none;" onchange="handleAdminPhotoUpload(event)">
+                <input type="file" id="adminPhotoUploadInput" accept="image/jpeg,image/png,image/webp,image/jpg" style="display:none;" onchange="handleAdminPhotoSelect(event)">
                 
                 <button type="button" id="adminDeletePhotoBtn" onclick="handleAdminPhotoDelete()" style="{% if not profile.photo_url %}display:none;{% endif %} cursor:pointer; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; border-radius:4px; padding:2px 8px; font-size:0.7rem; font-weight:600; text-align:center;">
                     🗑️ Remove
@@ -511,43 +550,40 @@
         {% endif %}
     </div>
 
-    <!-- Bottom Approve/Reject -->
-    {% if viewer_type != 'admin_assistant' %}
-    <div style="display:flex; gap:.75rem; justify-content:flex-end; margin-top:1.5rem;">
-        <form action="/api/admin/reject/{{ profile.id }}" method="POST"
-            onsubmit="return confirm('Reject this application?');">
-            <button class="btn-reject" type="submit" style="padding:.7rem 2rem;">✗ Reject Application</button>
-        </form>
-        <form action="/api/admin/approve/{{ profile.id }}" method="POST"
-            style="display:flex; align-items:center; gap:.5rem;">
-            <input type="number" name="hourly_rate" placeholder="₹/hr rate" step="50" min="0"
-                value="{{ profile.hourly_rate or '' }}"
-                style="width:130px; padding:.6rem .8rem; border:1px solid #d1d5db; border-radius:.4rem; font-size:.875rem;"
-                required>
-            <button class="btn-approve" type="submit" style="padding:.7rem 2rem;">✓ Approve Application</button>
-        </form>
-    </div>
-    {% else %}
-    <div style="display:flex; justify-content:flex-end; margin-top:1.5rem;">
+    <!-- Bottom Actions Bar -->
+    <div style="display:flex; gap:.75rem; justify-content:flex-end; align-items:center; margin-top:1.5rem; flex-wrap:wrap;">
+        <button type="button" class="btn-save" onclick="handleAdminSaveAll('bottom')" id="bottomSaveBtn" style="padding:.7rem 2rem;">
+            💾 Save Changes
+        </button>
+        {% if viewer_type != 'admin_assistant' %}
+            {% if not profile.is_approved %}
+            <form action="/api/admin/approve/{{ profile.id }}" method="POST"
+                style="display:flex; align-items:center; gap:.5rem;"
+                onsubmit="document.getElementById('approveRateHiddenBottom').value = document.getElementById('topHourlyRate').value;">
+                <input type="hidden" name="hourly_rate" id="approveRateHiddenBottom" value="{{ profile.hourly_rate or '' }}">
+                <button class="btn-approve" type="submit" style="padding:.7rem 2rem;">✓ Approve Application</button>
+            </form>
+            {% endif %}
+            <form action="/api/admin/reject/{{ profile.id }}" method="POST"
+                onsubmit="return confirm('Reject / purge this application?');">
+                <button class="btn-reject" type="submit" style="padding:.7rem 2rem;">✗ Reject Application</button>
+            </form>
+        {% else %}
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:.6rem;padding:.75rem 1.25rem;font-size:.875rem;color:#166534;font-weight:600;display:flex;align-items:center;gap:.5rem;">
             <span>✅</span>
             <span>Form saved — pending Admin approval</span>
         </div>
+        {% endif %}
     </div>
-    {% endif %}
 
 </div>
 
 <script>
-async function handleAdminPhotoUpload(event) {
+let stagedPhotoFile = null;
+
+function handleAdminPhotoSelect(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
-
-    const btnText = document.getElementById('uploadBtnText');
-    const statusMsg = document.getElementById('photoStatusMsg');
-    const deleteBtn = document.getElementById('adminDeletePhotoBtn');
-    const photoImg = document.getElementById('consultantPhotoImg');
-    const fallback = document.getElementById('photoFallback');
 
     if (file.size > 5 * 1024 * 1024) {
         alert('Photo size exceeds 5MB. Please choose a smaller image.');
@@ -555,59 +591,109 @@ async function handleAdminPhotoUpload(event) {
         return;
     }
 
-    const formData = new FormData();
-    formData.append('photo', file);
+    stagedPhotoFile = file;
 
-    const originalText = btnText ? btnText.innerText : 'Upload Photo';
-    if (btnText) btnText.innerText = 'Uploading...';
+    // Instant local preview
+    const photoImg = document.getElementById('consultantPhotoImg');
+    const fallback = document.getElementById('photoFallback');
+    const btnText = document.getElementById('uploadBtnText');
+    const statusMsg = document.getElementById('photoStatusMsg');
+    const deleteBtn = document.getElementById('adminDeletePhotoBtn');
+
+    const objectUrl = URL.createObjectURL(file);
+    if (photoImg) {
+        photoImg.src = objectUrl;
+        photoImg.style.display = 'block';
+    }
+    if (fallback) fallback.style.display = 'none';
+    if (btnText) btnText.innerText = 'Change Photo';
+    if (deleteBtn) deleteBtn.style.display = 'inline-block';
+
     if (statusMsg) {
         statusMsg.style.display = 'block';
         statusMsg.style.color = '#0284c7';
-        statusMsg.innerText = 'Uploading photo...';
+        statusMsg.innerText = 'Photo selected — saving...';
+    }
+
+    // Immediately trigger save
+    handleAdminSaveAll('auto');
+}
+
+async function handleAdminSaveAll(triggerSource) {
+    const topSaveBtn = document.getElementById('topSaveBtn');
+    const bottomSaveBtn = document.getElementById('bottomSaveBtn');
+    const rateInput = document.getElementById('topHourlyRate');
+    const alertBox = document.getElementById('globalSaveAlert');
+    const statusMsg = document.getElementById('photoStatusMsg');
+    const photoImg = document.getElementById('consultantPhotoImg');
+    const fallback = document.getElementById('photoFallback');
+
+    if (topSaveBtn) { topSaveBtn.disabled = true; topSaveBtn.innerText = 'Saving...'; }
+    if (bottomSaveBtn) { bottomSaveBtn.disabled = true; bottomSaveBtn.innerText = 'Saving...'; }
+
+    const formData = new FormData();
+    if (rateInput && rateInput.value) {
+        formData.append('hourly_rate', rateInput.value);
+    }
+    if (stagedPhotoFile) {
+        formData.append('photo', stagedPhotoFile);
     }
 
     try {
-        const response = await fetch('/api/admin/consultant/{{ profile.id }}/upload-photo', {
+        const response = await fetch('/api/admin/consultant/{{ profile.id }}/save', {
             method: 'POST',
             body: formData
         });
         const result = await response.json();
 
         if (response.ok && result.success) {
+            stagedPhotoFile = null;
+            if (alertBox) {
+                alertBox.style.display = 'block';
+                alertBox.style.background = '#f0fdf4';
+                alertBox.style.color = '#166534';
+                alertBox.style.border = '1px solid #bbf7d0';
+                alertBox.innerText = '✓ ' + (result.message || 'Changes saved successfully!');
+            }
             if (statusMsg) {
+                statusMsg.style.display = 'block';
                 statusMsg.style.color = '#059669';
-                statusMsg.innerText = '✓ Photo updated!';
+                statusMsg.innerText = '✓ Saved!';
             }
-            if (btnText) btnText.innerText = 'Change Photo';
-            if (deleteBtn) deleteBtn.style.display = 'inline-block';
 
-            // Refresh preview with cache busting
+            // Update photo src with cache busting
             const userId = result.user_id || '{{ profile.user.id }}';
-            const cacheBustUrl = '/api/profile-photo/' + userId + '?t=' + new Date().getTime();
-            if (photoImg) {
-                photoImg.src = cacheBustUrl;
+            const cacheBusted = '/api/profile-photo/' + userId + '?t=' + Date.now();
+            if (photoImg && result.photo_url) {
+                photoImg.src = cacheBusted;
                 photoImg.style.display = 'block';
+                if (fallback) fallback.style.display = 'none';
             }
-            if (fallback) fallback.style.display = 'none';
 
             setTimeout(() => {
+                if (alertBox) alertBox.style.display = 'none';
                 if (statusMsg) statusMsg.style.display = 'none';
-            }, 4000);
+            }, 5000);
         } else {
-            if (statusMsg) {
-                statusMsg.style.color = '#dc2626';
-                statusMsg.innerText = 'Upload failed: ' + (result.error || 'Server error');
+            if (alertBox) {
+                alertBox.style.display = 'block';
+                alertBox.style.background = '#fef2f2';
+                alertBox.style.color = '#991b1b';
+                alertBox.style.border = '1px solid #fecaca';
+                alertBox.innerText = 'Error: ' + (result.error || 'Failed to save changes');
             }
-            if (btnText) btnText.innerText = originalText;
         }
     } catch (err) {
-        if (statusMsg) {
-            statusMsg.style.color = '#dc2626';
-            statusMsg.innerText = 'Upload error: ' + err.message;
+        if (alertBox) {
+            alertBox.style.display = 'block';
+            alertBox.style.background = '#fef2f2';
+            alertBox.style.color = '#991b1b';
+            alertBox.style.border = '1px solid #fecaca';
+            alertBox.innerText = 'Save error: ' + err.message;
         }
-        if (btnText) btnText.innerText = originalText;
     } finally {
-        event.target.value = '';
+        if (topSaveBtn) { topSaveBtn.disabled = false; topSaveBtn.innerText = '💾 Save'; }
+        if (bottomSaveBtn) { bottomSaveBtn.disabled = false; bottomSaveBtn.innerText = '💾 Save Changes'; }
     }
 }
 
@@ -619,6 +705,9 @@ async function handleAdminPhotoDelete() {
     const deleteBtn = document.getElementById('adminDeletePhotoBtn');
     const photoImg = document.getElementById('consultantPhotoImg');
     const fallback = document.getElementById('photoFallback');
+    const alertBox = document.getElementById('globalSaveAlert');
+
+    stagedPhotoFile = null;
 
     if (statusMsg) {
         statusMsg.style.display = 'block';
@@ -637,6 +726,13 @@ async function handleAdminPhotoDelete() {
                 statusMsg.style.color = '#059669';
                 statusMsg.innerText = '✓ Photo removed!';
             }
+            if (alertBox) {
+                alertBox.style.display = 'block';
+                alertBox.style.background = '#f0fdf4';
+                alertBox.style.color = '#166534';
+                alertBox.style.border = '1px solid #bbf7d0';
+                alertBox.innerText = '✓ Photo removed successfully!';
+            }
             if (btnText) btnText.innerText = 'Upload Photo';
             if (deleteBtn) deleteBtn.style.display = 'none';
 
@@ -645,6 +741,7 @@ async function handleAdminPhotoDelete() {
 
             setTimeout(() => {
                 if (statusMsg) statusMsg.style.display = 'none';
+                if (alertBox) alertBox.style.display = 'none';
             }, 3000);
         } else {
             if (statusMsg) {

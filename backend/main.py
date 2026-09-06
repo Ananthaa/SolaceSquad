@@ -4278,6 +4278,69 @@ async def admin_delete_consultant_photo(profile_id: int, request: Request, db: S
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 
+@app.post("/api/admin/consultant/{profile_id}/save")
+async def admin_save_consultant_details(profile_id: int, request: Request, db: Session = Depends(get_db)):
+    """Admin / Assistant: Save changes (hourly rate, photo, details) for a consultant."""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type not in ("admin", "admin_assistant"):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    profile = db.query(ConsultantProfile).filter(
+        (ConsultantProfile.id == profile_id) | (ConsultantProfile.user_id == profile_id)
+    ).first()
+    if not profile:
+        return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
+
+    try:
+        form = await request.form()
+        
+        # 1. Update hourly rate / fee
+        rate_val = form.get("hourly_rate")
+        if rate_val is not None and str(rate_val).strip():
+            try:
+                rate_f = float(rate_val)
+                profile.hourly_rate = rate_f
+                profile.consultation_fee = rate_f
+            except ValueError:
+                pass
+                
+        # 2. Update photo if uploaded
+        photo_file = form.get("photo")
+        if photo_file and hasattr(photo_file, "filename") and photo_file.filename:
+            photo_bytes = await photo_file.read()
+            if photo_bytes:
+                from gcs_uploads import upload_profile_photo
+                url = upload_profile_photo(photo_bytes, photo_file.filename)
+                if url:
+                    profile.photo_url = url
+                    
+        # 3. Commit changes
+        db.commit()
+        db.refresh(profile)
+
+        AuditLogger.log_event(
+            db,
+            user_id=admin.id,
+            event_type="admin_consultant_profile_saved",
+            resource_type="consultant_profile",
+            resource_id=str(profile.id),
+            details=f"Admin {admin.email} saved profile for consultant {profile.user.name if profile.user else profile.id}",
+            request=request
+        )
+
+        return JSONResponse({
+            "success": True,
+            "message": "Consultant details saved successfully!",
+            "photo_url": profile.photo_url,
+            "hourly_rate": profile.hourly_rate or profile.consultation_fee or 0,
+            "user_id": profile.user_id
+        })
+    except Exception as e:
+        db.rollback()
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
 @app.post("/api/admin/reject/{profile_id}")
 async def reject_consultant(profile_id: int, request: Request, db: Session = Depends(get_db)):
     """Admin: reject a consultant application and purge all related data."""
@@ -9414,7 +9477,11 @@ async def serve_profile_photo(user_id: int, db: Session = Depends(get_db)):
         return BinaryResponse(
             content=img_bytes,
             media_type=content_type,
-            headers={"Cache-Control": "public, max-age=86400"},  # cache 24h
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
         )
     except HTTPException:
         raise
