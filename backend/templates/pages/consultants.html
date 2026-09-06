@@ -678,35 +678,39 @@
 <!-- Emora Consultant Matcher Popup Window (Non-blocking Floating Modal) -->
 <div id="emoraMatchPopup" class="emora-match-popup" style="display:none;" role="dialog" aria-labelledby="emoraPopupTitle">
     <!-- Header -->
-    <div class="emora-popup-header">
-        <div class="emora-header-top-row">
-            <div class="emora-header-left">
-                <div class="emora-avatar-badge">
+    <div class="emora-popup-header" style="background: linear-gradient(135deg, #312e81 0%, #4c1d95 60%, #581c87 100%); color: #ffffff; padding: 0.75rem 1rem 0.65rem 1rem; display: flex; flex-direction: column; gap: 0.45rem; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); width: 100%; box-sizing: border-box;">
+        <!-- Row 1: Left (Avatar + Title + Subtitle), Right (Action Buttons) -->
+        <div class="emora-header-top-row" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 0.5rem;">
+            <div class="emora-header-left" style="display: flex; align-items: center; gap: 0.65rem; min-width: 0; flex: 1;">
+                <div class="emora-avatar-badge" style="width: 36px; height: 36px; min-width: 36px; border-radius: 50%; background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%); display: flex; align-items: center; justify-content: center; position: relative; font-size: 1.15rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); flex-shrink: 0;">
                     <span>✨</span>
-                    <span class="emora-online-dot"></span>
+                    <span class="emora-online-dot" style="position: absolute; bottom: -1px; right: -1px; width: 9px; height: 9px; border-radius: 50%; background: #10b981; border: 2px solid #312e81;"></span>
                 </div>
-                <div>
-                    <div id="emoraPopupTitle" class="emora-header-title">Emora Matcher</div>
-                    <div class="emora-header-sub">AI Consultant Matcher</div>
+                <div style="display: flex; flex-direction: column; min-width: 0;">
+                    <div id="emoraPopupTitle" class="emora-header-title" style="font-size: 1rem; font-weight: 700; line-height: 1.2; color: #ffffff; white-space: nowrap;">Emora Matcher</div>
+                    <div class="emora-header-sub" style="font-size: 0.72rem; color: #cbd5e1; font-weight: 400; white-space: nowrap;">AI Consultant Matcher</div>
                 </div>
             </div>
-            <div class="emora-header-right">
-                <button type="button" class="emora-btn-icon" onclick="resetEmoraChat()" title="Reset chat">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="emora-header-right" style="display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0;">
+                <button type="button" class="emora-btn-icon" onclick="resetEmoraChat()" title="Reset chat" style="background: rgba(255, 255, 255, 0.14); border: none; color: #ffffff; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
                         <path d="M3 3v5h5"/>
                     </svg>
                 </button>
-                <button type="button" class="emora-btn-icon" onclick="minimizeEmoraPopup()" title="Minimize window">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" class="emora-btn-icon" onclick="minimizeEmoraPopup()" title="Minimize window" style="background: rgba(255, 255, 255, 0.14); border: none; color: #ffffff; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                 </button>
-                <button type="button" class="emora-btn-icon" onclick="closeEmoraPopup()" title="Close">✕</button>
+                <button type="button" class="emora-btn-icon" onclick="closeEmoraPopup()" title="Close" style="background: rgba(255, 255, 255, 0.14); border: none; color: #ffffff; width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.95rem; line-height: 1;">✕</button>
             </div>
         </div>
-        <div class="emora-header-bottom-row">
-            <span id="emoraQuotaBadge" class="emora-quota-badge" title="Remaining Emora message credits">💬 Checking credits...</span>
+
+        <!-- Row 2: Message credits on its own dedicated full-width line -->
+        <div class="emora-header-bottom-row" style="display: flex; align-items: center; justify-content: space-between; width: 100%; padding-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.12); margin-top: 1px;">
+            <span id="emoraQuotaBadge" class="emora-quota-badge" style="font-size: 0.72rem; font-weight: 600; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(4px); color: #f1f5f9; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.25); white-space: nowrap; display: inline-flex; align-items: center; gap: 0.25rem;" title="Remaining Emora message credits">💬 Checking credits...</span>
+            <a href="/pricing" style="font-size: 0.7rem; color: #cbd5e1; text-decoration: underline; font-weight: 500;" target="_blank">Top Up</a>
         </div>
     </div>
 
@@ -4361,17 +4365,21 @@ function updateEmoraQuotaUI(quota) {
     if (!badge || !quota) return;
 
     if (quota.remaining === -1) {
-        badge.textContent = '💎 Unlimited';
+        badge.textContent = '💎 Unlimited messages';
         badge.title = 'Active plan with unlimited messages';
     } else if (quota.remaining !== undefined) {
+        var remFormatted = Number(quota.remaining).toLocaleString();
+        var dailyRemFormatted = Number(quota.daily_remaining || 0).toLocaleString();
+        var packFormatted = Number(quota.pack_balance || 0).toLocaleString();
+        
         if (quota.pack_balance && quota.pack_balance > 0 && !quota.in_first_week) {
-            badge.textContent = '💬 ' + quota.remaining + ' left (' + quota.daily_remaining + ' daily + ' + quota.pack_balance + ' pack)';
+            badge.textContent = '💬 ' + remFormatted + ' msgs left (' + dailyRemFormatted + ' daily + ' + packFormatted + ' pack)';
         } else if (quota.in_first_week) {
-            badge.textContent = '💬 ' + quota.remaining + ' welcome msgs';
+            badge.textContent = '💬 ' + remFormatted + ' welcome messages left';
         } else {
-            badge.textContent = '💬 ' + quota.remaining + ' / ' + quota.limit + ' today';
+            badge.textContent = '💬 ' + remFormatted + ' / ' + quota.limit + ' messages today';
         }
-        badge.title = quota.remaining + ' of ' + quota.limit + ' messages remaining';
+        badge.title = remFormatted + ' messages remaining';
     }
 
     if (quota.allowed === false || quota.remaining === 0) {
