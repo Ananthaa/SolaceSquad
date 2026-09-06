@@ -7801,6 +7801,7 @@ async def list_consultants(request: Request, db: Session = Depends(get_db)):
             "wellness_category":      " ".join(cats),
             "wellness_categories":    cats,
             "offers_sexual_wellness": offers_sexual_wellness,
+            "expertise_areas":        exp_areas_list,
             "languages":              langs_list,
             "is_active":              user.is_active,
             "is_approved":            profile.is_approved,

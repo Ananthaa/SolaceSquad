@@ -23,6 +23,49 @@
 
 </div>
 
+<!-- Search & Keyword Filter Bar -->
+<div class="search-filter-container" style="margin-bottom:1.5rem;">
+    <!-- Main Search Input -->
+    <div style="position:relative;max-width:760px;margin-bottom:0.75rem;">
+        <div class="search-input-box">
+            <span class="search-input-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </span>
+            <input type="text" id="consultantSearchInput"
+                placeholder="Search by concern, symptom, specialty, or consultant name (e.g. Anxiety, Burnout, Sleep, ADHD)..."
+                autocomplete="off"
+            />
+            <button id="consultantSearchClear" type="button" class="search-clear-btn" onclick="clearConsultantSearch()" title="Clear search" style="display:none;">✕</button>
+        </div>
+
+        <!-- Autocomplete / Quick Suggestion Dropdown -->
+        <div id="searchKeywordDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 10px 25px rgba(0,0,0,0.1);z-index:50;max-height:260px;overflow-y:auto;"></div>
+    </div>
+
+    <!-- Quick Concern Tags / Filter Chips -->
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:0.4rem;margin-bottom:1rem;">
+        <span style="font-size:0.75rem;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em;margin-right:0.25rem;">Popular:</span>
+        {% for tag in [
+            "Anxiety", "Stress", "Depression", "Relationship", "Breakup", "Burnout",
+            "ADHD", "Sexual Wellness", "Sleep Problems", "Trauma", "Grief",
+            "Weight Management", "Gut Health", "Self-Esteem", "Anger Issues"
+        ] %}
+        <button type="button" class="quick-topic-chip" onclick="setQuickSearch('{{ tag }}')">
+            {{ tag }}
+        </button>
+        {% endfor %}
+    </div>
+
+    <!-- Active Search Filter Summary -->
+    <div id="searchActiveSummary" style="display:none;align-items:center;justify-content:space-between;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:0.45rem 0.9rem;margin-bottom:1rem;font-size:0.85rem;color:#1e40af;">
+        <div id="searchSummaryText"></div>
+        <button type="button" onclick="clearConsultantSearch()" style="background:none;border:none;color:#2563eb;font-weight:600;font-size:0.8rem;cursor:pointer;text-decoration:underline;padding:0;">Clear filter</button>
+    </div>
+</div>
+
 <!-- Wellness Category Filter Tabs -->
 <div id="categoryFilterBar" style="display:flex;flex-wrap:wrap;gap:0.6rem;margin-bottom:1.5rem;">
     <button onclick="filterCategory('all')" id="filter-all"
@@ -57,7 +100,12 @@
     <div class="consultant-card {% if not consultant.is_available_now %}consultant-unavailable{% endif %}"
         data-consultant-id="{{ consultant.id }}"
         data-category="{{ consultant.wellness_category }}"
-        data-offers-sw="{{ 'true' if consultant.offers_sexual_wellness else 'false' }}">
+        data-offers-sw="{{ 'true' if consultant.offers_sexual_wellness else 'false' }}"
+        data-name="{{ (consultant.name or '') | lower }}"
+        data-spec="{{ (consultant.specialization or '') | lower }}"
+        data-bio="{{ (consultant.bio or '') | lower }}"
+        data-languages="{{ (consultant.languages or []) | join(' ') | lower }}"
+        data-expertise="{{ (consultant.expertise_areas or []) | join(' || ') | lower }}">
 
         <div class="consultant-header">
 
@@ -231,6 +279,18 @@
     </div>
 
     {% endfor %}
+
+    <!-- Dynamic Search No-Results State -->
+    <div id="noSearchResultsState" style="display:none;grid-column:1/-1;background:#ffffff;border:1.5px dashed #cbd5e1;border-radius:16px;padding:3rem 1.5rem;text-align:center;margin:1rem 0;">
+        <div style="font-size:2.5rem;margin-bottom:0.75rem;">🔍</div>
+        <h3 style="font-size:1.2rem;font-weight:700;color:#1e293b;margin:0 0 0.5rem 0;">No matching consultants found</h3>
+        <p id="noSearchResultsMsg" style="color:#64748b;font-size:0.9rem;max-width:480px;margin:0 auto 1.25rem auto;">
+            We couldn't find any consultants matching your current search. Try a different keyword, category, or reset filters.
+        </p>
+        <button type="button" onclick="resetAllConsultantFilters()" style="padding:0.5rem 1.25rem;background:#2563eb;color:#ffffff;border:none;border-radius:8px;font-weight:600;font-size:0.875rem;cursor:pointer;box-shadow:0 2px 4px rgba(37,99,235,0.2);">
+            View All Consultants
+        </button>
+    </div>
 
     {% else %}
 
@@ -751,6 +811,121 @@
     }
     .sw-avatar-badge:hover {
         transform: scale(1.15);
+    }
+
+    /* ── Search & Keyword Filter Styles ── */
+    .search-filter-container {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 1.25rem 1.25rem 0.85rem 1.25rem;
+    }
+    .search-input-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+    .search-input-box input {
+        width: 100%;
+        padding: 0.8rem 2.8rem 0.8rem 2.85rem;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        background: #ffffff;
+        color: #1e293b;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    .search-input-box input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+        background: #ffffff;
+    }
+    .search-input-icon {
+        position: absolute;
+        left: 1rem;
+        color: #64748b;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+    }
+    .search-clear-btn {
+        position: absolute;
+        right: 0.85rem;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #e2e8f0;
+        border: none;
+        color: #475569;
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s ease;
+        z-index: 2;
+    }
+    .search-clear-btn:hover {
+        background: #cbd5e1;
+        color: #0f172a;
+    }
+    .quick-topic-chip {
+        padding: 0.28rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 500;
+        background: #ffffff;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+        cursor: pointer;
+        transition: all 0.18s ease;
+        user-select: none;
+        white-space: nowrap;
+    }
+    .quick-topic-chip:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+        color: #1e293b;
+    }
+    .quick-topic-chip.active {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #ffffff;
+        font-weight: 600;
+        box-shadow: 0 2px 6px rgba(37,99,235,0.25);
+    }
+    .keyword-dropdown-item {
+        padding: 0.6rem 1rem;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.15s ease;
+    }
+    .keyword-dropdown-item:last-child {
+        border-bottom: none;
+    }
+    .keyword-dropdown-item:hover, .keyword-dropdown-item.selected {
+        background: #f8fafc;
+    }
+    .keyword-item-term {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.88rem;
+    }
+    .keyword-item-focus {
+        font-size: 0.76rem;
+        color: #64748b;
+        background: #f1f5f9;
+        padding: 2px 8px;
+        border-radius: 6px;
     }
 
 
@@ -3163,24 +3338,184 @@ function selectSlotFromSuggestion(time, date) {
 
 
 <script>
-// ── Wellness Category Filter ─────────────────────────────────────────────────
-function filterCategory(cat) {
-    var cards = document.querySelectorAll('.consultant-card');
-    cards.forEach(function(card) {
-        if (cat === 'all') {
-            card.style.display = '';
-        } else if (cat === 'Sexual') {
-            card.style.display = (card.dataset.offersSw === 'true') ? '' : 'none';
-        } else {
-            var cats = card.dataset.category ? card.dataset.category.split(' ') : [];
-            card.style.display = cats.includes(cat) ? '' : 'none';
+// ── Consultant Keyword Search & Filter Engine ────────────────────────────────
+var SEARCH_KEYWORD_MAP = [
+    { keyid: 1,  term: "Anxiety",                     focusAreas: ["Anxiety & Panic Attacks"] },
+    { keyid: 2,  term: "Panic Attacks",               focusAreas: ["Anxiety & Panic Attacks"] },
+    { keyid: 3,  term: "Overthinking",                focusAreas: ["Anxiety & Panic Attacks", "Stress Management"] },
+    { keyid: 4,  term: "Excessive Worry",             focusAreas: ["Anxiety & Panic Attacks", "Stress Management"] },
+    { keyid: 5,  term: "Stress",                      focusAreas: ["Stress Management"] },
+    { keyid: 6,  term: "Feeling Overwhelmed",         focusAreas: ["Stress Management"] },
+    { keyid: 7,  term: "Feeling Low",                 focusAreas: ["Depression & Mood Disorders"] },
+    { keyid: 8,  term: "Sadness",                     focusAreas: ["Depression & Mood Disorders"] },
+    { keyid: 9,  term: "Emotionally Drained",         focusAreas: ["Depression & Mood Disorders"] },
+    { keyid: 10, term: "Depression",                  focusAreas: ["Depression & Mood Disorders"] },
+    { keyid: 11, term: "Mood Problems",               focusAreas: ["Depression & Mood Disorders"] },
+    { keyid: 12, term: "Anger Issues",                focusAreas: ["Anger Management"] },
+    { keyid: 13, term: "Emotional Regulation",        focusAreas: ["Anger Management"] },
+    { keyid: 14, term: "Low Self-esteem",             focusAreas: ["Low Self-esteem"] },
+    { keyid: 15, term: "Lack of Confidence",          focusAreas: ["Low Self-esteem", "Career & Life Coaching"] },
+    { keyid: 16, term: "Body Image Issues",           focusAreas: ["Body Image Issues", "Nutrition & Wellness"] },
+    { keyid: 17, term: "Trauma",                      focusAreas: ["Abuse & Trauma (including Childhood)", "Abuse & Trauma"] },
+    { keyid: 18, term: "Difficult Past Experiences",  focusAreas: ["Abuse & Trauma (including Childhood)", "Abuse & Trauma"] },
+    { keyid: 19, term: "Grief, Bereavement & Loss",   focusAreas: ["Grief & Bereavement"] },
+    { keyid: 20, term: "Crisis Situation",            focusAreas: ["Crisis Intervention"] },
+    { keyid: 21, term: "Severe Emotional Distress",   focusAreas: ["Crisis Intervention"] },
+    { keyid: 22, term: "Procrastination",             focusAreas: ["Motivation & Goal Setting"] },
+    { keyid: 23, term: "Low Motivation",              focusAreas: ["Motivation & Goal Setting"] },
+    { keyid: 24, term: "Feeling Stuck",               focusAreas: ["Motivation & Goal Setting"] },
+    { keyid: 25, term: "Sleep Problems",              focusAreas: ["Anxiety & Panic Attacks", "Stress Management"] },
+    { keyid: 26, term: "Mindfulness",                 focusAreas: ["Mindfulness & Meditation"] },
+    { keyid: 27, term: "Managing Thoughts & Emotions", focusAreas: ["Mindfulness & Meditation"] },
+    { keyid: 28, term: "Addiction",                   focusAreas: ["Addiction & Substance Use"] },
+    { keyid: 29, term: "Substance Use",               focusAreas: ["Addiction & Substance Use"] },
+    { keyid: 30, term: "Relationship Problems",       focusAreas: ["Relationship Counselling"] },
+    { keyid: 31, term: "Breakup",                     focusAreas: ["Relationship Counselling"] },
+    { keyid: 32, term: "Separation",                  focusAreas: ["Relationship Counselling"] },
+    { keyid: 33, term: "Family Problems & Conflicts", focusAreas: ["Family Issues / Conflicts"] },
+    { keyid: 34, term: "Parenting Challenges",        focusAreas: ["Parenting Challenges"] },
+    { keyid: 35, term: "Sexual & Intimacy Issues",    focusAreas: ["Sexual & Intimacy Problems"] },
+    { keyid: 36, term: "LGBTQIA+",                    focusAreas: ["LGBTQIA+ Affirmative Counselling"] },
+    { keyid: 37, term: "Neurodiversity",              focusAreas: ["Neurodiversity (ADHD, Autism, etc.)"] },
+    { keyid: 38, term: "ADHD",                        focusAreas: ["Neurodiversity (ADHD, Autism, etc.)"] },
+    { keyid: 39, term: "Autism-related Challenges",   focusAreas: ["Neurodiversity (ADHD, Autism, etc.)"] },
+    { keyid: 40, term: "Personality-related Difficulties", focusAreas: ["Personality Disorders"] },
+    { keyid: 41, term: "Work Stress",                 focusAreas: ["Work-related Stress"] },
+    { keyid: 42, term: "Burnout",                     focusAreas: ["Work-related Stress"] },
+    { keyid: 43, term: "Work-Life Balance",           focusAreas: ["Work-life Balance"] },
+    { keyid: 44, term: "Career Decisions",            focusAreas: ["Career & Life Coaching"] },
+    { keyid: 45, term: "Workplace Problems",          focusAreas: ["Career & Life Coaching", "Work-related Stress"] },
+    { keyid: 46, term: "Career Growth",               focusAreas: ["Career & Life Coaching", "Work-related Stress"] },
+    { keyid: 47, term: "Academic Pressure",           focusAreas: ["Stress Management"] },
+    { keyid: 48, term: "Exam Stress",                 focusAreas: ["Stress Management"] },
+    { keyid: 49, term: "Performance Anxiety",         focusAreas: ["Anxiety & Panic Attacks", "Career & Life Coaching"] },
+    { keyid: 50, term: "Goal Setting",                focusAreas: ["Motivation & Goal Setting"] },
+    { keyid: 51, term: "Personal Growth",             focusAreas: ["Motivation & Goal Setting"] },
+    { keyid: 52, term: "Life Transitions",            focusAreas: ["Stress Management"] },
+    { keyid: 53, term: "Life Changes",                focusAreas: ["Stress Management"] },
+    { keyid: 54, term: "Gut Health",                  focusAreas: ["Nutrition & Wellness"] },
+    { keyid: 55, term: "Digestive Wellness",          focusAreas: ["Nutrition & Wellness"] },
+    { keyid: 56, term: "Weight Management",           focusAreas: ["Nutrition & Wellness"] },
+    { keyid: 57, term: "Weight Loss",                 focusAreas: ["Nutrition & Wellness"] },
+    { keyid: 58, term: "Nutrition",                   focusAreas: ["Nutrition & Wellness"] },
+    { keyid: 59, term: "Physical Fitness",            focusAreas: ["Physical Fitness & Wellness"] },
+    { keyid: 60, term: "Yoga",                        focusAreas: ["Physical Fitness & Wellness", "Mindfulness & Meditation"] },
+    { keyid: 61, term: "Meditation",                  focusAreas: ["Mindfulness & Meditation"] },
+    { keyid: 62, term: "General Physical Wellness",   focusAreas: ["Physical Fitness & Wellness"] },
+    { keyid: 63, term: "Loneliness",                  focusAreas: ["Depression & Mood Disorders"] },
+    { keyid: 64, term: "Social Isolation",            focusAreas: ["Depression & Mood Disorders"] },
+    { keyid: 65, term: "Emotional Exhaustion",        focusAreas: ["Stress Management", "Work-related Stress"] },
+    { keyid: 66, term: "Fear & Phobias",              focusAreas: ["Anxiety & Panic Attacks"] },
+    { keyid: 67, term: "Obsessive Thoughts",          focusAreas: ["Depression & Mood Disorders"] },
+    { keyid: 68, term: "Compulsive Behaviour",        focusAreas: ["Depression & Mood Disorders"] },
+    { keyid: 69, term: "Eating-related Concerns",     focusAreas: ["Nutrition & Wellness", "Body Image Issues"] },
+    { keyid: 70, term: "Emotional Eating",            focusAreas: ["Nutrition & Wellness", "Body Image Issues"] },
+    { keyid: 71, term: "Confidence Issues",           focusAreas: ["Low Self-esteem", "Career & Life Coaching"] },
+    { keyid: 72, term: "Communication Problem",       focusAreas: ["Low Self-esteem", "Career & Life Coaching"] },
+    { keyid: 73, term: "Assertiveness",               focusAreas: ["Low Self-esteem", "Career & Life Coaching"] },
+    { keyid: 74, term: "Purpose of Life",             focusAreas: ["Career & Life Coaching"] },
+    { keyid: 75, term: "Life Direction",              focusAreas: ["Career & Life Coaching"] }
+];
+
+var currentCategoryFilter = 'all';
+var currentSearchQuery = '';
+
+function normalizeStr(s) {
+    return (s || '').toLowerCase().trim();
+}
+
+function cardMatchesSearch(card, query) {
+    if (!query) return true;
+    var q = normalizeStr(query);
+    if (!q) return true;
+
+    var name = normalizeStr(card.dataset.name);
+    var spec = normalizeStr(card.dataset.spec);
+    var bio = normalizeStr(card.dataset.bio);
+    var langs = normalizeStr(card.dataset.languages);
+    var category = normalizeStr(card.dataset.category);
+    var expertise = normalizeStr(card.dataset.expertise);
+
+    // 1. Direct field match
+    if (name.includes(q) || spec.includes(q) || bio.includes(q) || langs.includes(q) || category.includes(q) || expertise.includes(q)) {
+        return true;
+    }
+
+    // 2. Keyword Mapping Match (checks if query matches any search term, and consultant has that focus area)
+    var matchingFocusAreas = [];
+    SEARCH_KEYWORD_MAP.forEach(function(item) {
+        var termLower = item.term.toLowerCase();
+        if (termLower.includes(q) || q.includes(termLower)) {
+            item.focusAreas.forEach(function(fa) {
+                var faNorm = fa.toLowerCase();
+                if (!matchingFocusAreas.includes(faNorm)) {
+                    matchingFocusAreas.push(faNorm);
+                }
+            });
         }
     });
+
+    for (var i = 0; i < matchingFocusAreas.length; i++) {
+        var fa = matchingFocusAreas[i];
+        if (expertise.includes(fa) || spec.includes(fa) || bio.includes(fa)) {
+            return true;
+        }
+        // Sub-token match for broader matching (e.g., 'trauma', 'adhd', 'bereavement')
+        var tokens = fa.split(/[\s&\/\(\),]+/);
+        for (var t = 0; t < tokens.length; t++) {
+            var tok = tokens[t].trim();
+            if (tok.length >= 4 && (expertise.includes(tok) || spec.includes(tok) || bio.includes(tok))) {
+                return true;
+            }
+        }
+    }
+
+    // 3. Multi-token individual query matching
+    var queryTokens = q.split(/\s+/).filter(function(t) { return t.length > 1; });
+    if (queryTokens.length > 1) {
+        var allTokensMatch = queryTokens.every(function(t) {
+            return name.includes(t) || spec.includes(t) || bio.includes(t) || langs.includes(t) || expertise.includes(t);
+        });
+        if (allTokensMatch) return true;
+    }
+
+    return false;
+}
+
+function applyConsultantFilters() {
+    var cards = document.querySelectorAll('.consultant-card');
+    var visibleCount = 0;
+    var totalCount = cards.length;
+
+    cards.forEach(function(card) {
+        // Category check
+        var categoryMatch = false;
+        if (currentCategoryFilter === 'all') {
+            categoryMatch = true;
+        } else if (currentCategoryFilter === 'Sexual') {
+            categoryMatch = (card.dataset.offersSw === 'true');
+        } else {
+            var cats = card.dataset.category ? card.dataset.category.split(' ') : [];
+            categoryMatch = cats.includes(currentCategoryFilter);
+        }
+
+        // Search check
+        var searchMatch = cardMatchesSearch(card, currentSearchQuery);
+
+        if (categoryMatch && searchMatch) {
+            card.style.display = '';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    // Category button styles
     ['all','Mental','Physical','Professional','Sexual'].forEach(function(c) {
         var btn = document.getElementById('filter-' + c);
         if (!btn) return;
         var activeColors = {'all':'#1e40af','Mental':'#5b21b6','Physical':'#166534','Professional':'#854d0e','Sexual':'#be123c'};
-        if (c === cat) {
+        if (c === currentCategoryFilter) {
             btn.style.background = activeColors[c] || '#1e40af';
             btn.style.color = '#fff';
             btn.style.border = '1.5px solid ' + (activeColors[c] || '#1e40af');
@@ -3190,7 +3525,150 @@ function filterCategory(cat) {
             btn.style.border = '1.5px solid #e2e8f0';
         }
     });
+
+    // Quick tags active state
+    document.querySelectorAll('.quick-topic-chip').forEach(function(chip) {
+        if (currentSearchQuery && chip.textContent.trim().toLowerCase() === currentSearchQuery.toLowerCase()) {
+            chip.classList.add('active');
+        } else {
+            chip.classList.remove('active');
+        }
+    });
+
+    // Update clear button visibility
+    var clearBtn = document.getElementById('consultantSearchClear');
+    if (clearBtn) {
+        clearBtn.style.display = currentSearchQuery ? 'flex' : 'none';
+    }
+
+    // Active Search / Filter Summary
+    var summaryEl = document.getElementById('searchActiveSummary');
+    var summaryText = document.getElementById('searchSummaryText');
+    if (summaryEl && summaryText) {
+        if (currentSearchQuery || currentCategoryFilter !== 'all') {
+            summaryEl.style.display = 'flex';
+            var parts = [];
+            if (currentSearchQuery) {
+                parts.push('Keyword: <strong>"' + escapeHtml(currentSearchQuery) + '"</strong>');
+            }
+            if (currentCategoryFilter !== 'all') {
+                parts.push('Category: <strong>' + escapeHtml(currentCategoryFilter) + ' Wellbeing</strong>');
+            }
+            summaryText.innerHTML = 'Showing <strong>' + visibleCount + '</strong> of ' + totalCount + ' consultants (' + parts.join(' &bull; ') + ')';
+        } else {
+            summaryEl.style.display = 'none';
+        }
+    }
+
+    // Dynamic Empty State
+    var emptyState = document.getElementById('noSearchResultsState');
+    if (emptyState) {
+        emptyState.style.display = (visibleCount === 0 && totalCount > 0) ? 'block' : 'none';
+        var msgEl = document.getElementById('noSearchResultsMsg');
+        if (msgEl) {
+            if (currentSearchQuery) {
+                msgEl.textContent = 'No consultants matched "' + currentSearchQuery + '". Try another concern keyword or click Reset All Filters.';
+            } else {
+                msgEl.textContent = 'No consultants found for this filter. Click Reset All Filters to view all consultants.';
+            }
+        }
+    }
 }
+
+function filterCategory(cat) {
+    currentCategoryFilter = cat;
+    applyConsultantFilters();
+}
+
+function setQuickSearch(term) {
+    var searchInput = document.getElementById('consultantSearchInput');
+    if (currentSearchQuery.toLowerCase() === term.toLowerCase()) {
+        currentSearchQuery = '';
+        if (searchInput) searchInput.value = '';
+    } else {
+        currentSearchQuery = term;
+        if (searchInput) searchInput.value = term;
+    }
+    hideKeywordDropdown();
+    applyConsultantFilters();
+}
+
+function clearConsultantSearch() {
+    currentSearchQuery = '';
+    var searchInput = document.getElementById('consultantSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+    }
+    hideKeywordDropdown();
+    applyConsultantFilters();
+}
+
+function resetAllConsultantFilters() {
+    currentSearchQuery = '';
+    currentCategoryFilter = 'all';
+    var searchInput = document.getElementById('consultantSearchInput');
+    if (searchInput) searchInput.value = '';
+    hideKeywordDropdown();
+    applyConsultantFilters();
+}
+
+function hideKeywordDropdown() {
+    var dd = document.getElementById('searchKeywordDropdown');
+    if (dd) dd.style.display = 'none';
+}
+
+function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// Attach Search Input Event Listeners
+(function initConsultantSearch() {
+    var searchInput = document.getElementById('consultantSearchInput');
+    var dropdown = document.getElementById('searchKeywordDropdown');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', function() {
+        currentSearchQuery = this.value.trim();
+        applyConsultantFilters();
+
+        // Autocomplete suggestions
+        var q = currentSearchQuery.toLowerCase();
+        if (q.length >= 2) {
+            var matches = SEARCH_KEYWORD_MAP.filter(function(item) {
+                return item.term.toLowerCase().includes(q) || item.focusAreas.some(function(fa) { return fa.toLowerCase().includes(q); });
+            }).slice(0, 6);
+
+            if (matches.length > 0 && dropdown) {
+                dropdown.innerHTML = matches.map(function(m) {
+                    return '<div class="keyword-dropdown-item" onclick="setQuickSearch(\'' + m.term.replace(/'/g, "\\'") + '\')">' +
+                        '<span class="keyword-item-term">' + escapeHtml(m.term) + '</span>' +
+                        '<span class="keyword-item-focus">' + escapeHtml(m.focusAreas.join(' / ')) + '</span>' +
+                    '</div>';
+                }).join('');
+                dropdown.style.display = 'block';
+            } else if (dropdown) {
+                dropdown.style.display = 'none';
+            }
+        } else if (dropdown) {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideKeywordDropdown();
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (dropdown && !dropdown.contains(e.target) && e.target !== searchInput) {
+            dropdown.style.display = 'none';
+        }
+    });
+})();
 </script>
 
 {% endblock %}
