@@ -266,7 +266,7 @@ def get_recommended_consultants(category: str, db, limit: int = 3, tz_name: str 
     from models import ConsultantProfile, User
 
     def _query(cat):
-        q = db.query(ConsultantProfile).join(
+        q = db.query(ConsultantProfile, User).join(
             User, User.id == ConsultantProfile.user_id
         ).filter(
             User.user_type == "consultant",
@@ -277,16 +277,14 @@ def get_recommended_consultants(category: str, db, limit: int = 3, tz_name: str 
             q = q.filter(ConsultantProfile.wellness_category == cat)
         return q.order_by(ConsultantProfile.rating.desc()).limit(limit * 2).all()
 
-    consultants = _query(category)
+    consultant_rows = _query(category)
     # Fallback: if none in the specific category, return best across all
-    if not consultants and category:
-        consultants = _query(None)
+    if not consultant_rows and category:
+        consultant_rows = _query(None)
 
     results = []
-    for c in consultants:
-        name = (c.full_name
-                or (c.user.name if c.user else None)
-                or "Our Consultant")
+    for c, user in consultant_rows:
+        name = user.name or c.full_name or "Our Consultant"
         earliest = get_earliest_slot(c, db, tz_name=tz_name)
         results.append({
             "name":          name,
@@ -319,10 +317,10 @@ def format_consultant_context(consultants: list, is_sos: bool, category: str) ->
 
     lines = [
         f"[CONSULTANT_RECOMMENDATION: {urgency_note} "
-        f"Mention 1–3 of these real SolaceSquad consultants by name in your response. "
+        f"Mention 1–2 of these real SolaceSquad consultants by their exact names below. "
+        f"NEVER invent or make up any names not in this list. "
         f"Keep it conversational — do NOT use a robotic numbered list. "
-        f"Always include their earliest availability and end with an invitation to "
-        f"book at /app/consultants]"
+        f"Include their earliest availability and warmly encourage them to connect with them.]"
     ]
     for c in consultants:
         lines.append(
@@ -547,7 +545,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
     primary_keyword = matched_terms[0] if matched_terms else (matched_focus_areas[0] if matched_focus_areas else "General Wellbeing")
 
     # 5. Query all approved & active consultants from database
-    consultants = db.query(ConsultantProfile).join(
+    consultant_rows = db.query(ConsultantProfile, User).join(
         User, User.id == ConsultantProfile.user_id
     ).filter(
         User.user_type == "consultant",
@@ -556,8 +554,8 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
     ).all()
 
     # Fallback if user_type condition is too strict
-    if not consultants:
-        consultants = db.query(ConsultantProfile).join(
+    if not consultant_rows:
+        consultant_rows = db.query(ConsultantProfile, User).join(
             User, User.id == ConsultantProfile.user_id
         ).filter(
             User.is_active == True,
@@ -565,7 +563,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
         ).all()
 
     scored = []
-    for c in consultants:
+    for c, user in consultant_rows:
         score = 0.0
         # Parse consultant expertise areas
         eas = []
@@ -608,7 +606,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
         if c.schedules:
             score += 3.0
 
-        name = c.user.name if c.user else (c.full_name or "Consultant")
+        name = user.name or c.full_name or "Consultant"
         earliest = get_earliest_slot(c, db, tz_name=tz_name)
 
         # Sexual wellness flag
@@ -620,13 +618,13 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
 
         scored.append((score, {
             "id":                     c.id,
-            "user_id":                c.user_id,
+            "user_id":                user.id,
             "name":                   name,
             "specialization":         c.specialization or "Wellbeing Consultant",
             "rating":                 float(c.rating or 0.0),
             "experience_years":       c.experience_years or 2,
             "hourly_rate":            c.consultation_fee or c.hourly_rate or 500,
-            "photo_url":              f"/api/profile-photo/{c.user_id}" if c.photo_url else "",
+            "photo_url":              f"/api/profile-photo/{user.id}" if c.photo_url else "",
             "wellness_category":      c.wellness_category or "Mental",
             "earliest_slot":          earliest,
             "matched_areas":          matched_areas_for_c or (eas[:2] if eas else [c.specialization or "General"]),
@@ -650,7 +648,7 @@ def format_matcher_prompt_context(consultants: list, matched_keyword: str, focus
             f"[CONSULTANT_MATCHER_RECOMMENDATION]\n"
             f"The user is asking: '{matched_keyword}'.\n"
             f"You are currently assisting them directly on the Find Consultants page.\n"
-            f"DO NOT tell them to visit '/app/consultants' or go to any link.\n"
+            f"CRITICAL: DO NOT tell them to visit '/app/consultants' or go to any link.\n"
             f"Warmly ask them 1 short question about what they are experiencing so you can filter the best experts for them.\n"
             f"[END_CONSULTANT_MATCHER_RECOMMENDATION]"
         )
@@ -669,7 +667,7 @@ def format_matcher_prompt_context(consultants: list, matched_keyword: str, focus
         f"\nCRITICAL INSTRUCTIONS FOR EMORA:\n"
         f"1. You are talking to the user DIRECTLY ON the Find Consultants page. NEVER tell them to 'go to /app/consultants', 'visit the consultants section', or navigate anywhere.\n"
         f"2. Acknowledge and validate the user's specific feelings in 1-2 empathetic, warm sentences.\n"
-        f"3. Mention 1-2 of the matched consultants above by name, explaining briefly why their expertise fits what the user is experiencing.\n"
+        f"3. Mention 1-2 of the matched consultants ABOVE BY EXACT NAME (do not invent any other names!), explaining briefly why their expertise fits what the user is experiencing.\n"
         f"4. Tell them they can view their profile or click 'Book Session' directly on their cards shown below.\n"
         f"5. Keep your total response concise (2-4 sentences max), warm, and natural.\n"
         f"[END_CONSULTANT_MATCHER_RECOMMENDATION]"

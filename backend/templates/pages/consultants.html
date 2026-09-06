@@ -4294,6 +4294,8 @@ function closeEmoraPopup() {
 }
 
 function resetEmoraChat() {
+    currentMatchedConsultantIds = [];
+    applyConsultantFilters();
     var body = document.getElementById('emoraChatBody');
     if (!body) return;
     body.innerHTML = 
