@@ -553,15 +553,27 @@ FOCUS_AREA_CATEGORY_MAP = {
 
 SUPPORTED_LANGUAGES = {
     "kannada": "Kannada",
+    "kanada": "Kannada",
+    "kannad": "Kannada",
+    "kannda": "Kannada",
     "hindi": "Hindi",
+    "hind": "Hindi",
     "tamil": "Tamil",
+    "tamizh": "Tamil",
     "telugu": "Telugu",
+    "telegu": "Telugu",
     "malayalam": "Malayalam",
+    "malyalam": "Malayalam",
+    "malayali": "Malayalam",
     "english": "English",
     "marathi": "Marathi",
+    "marati": "Marathi",
     "bengali": "Bengali",
+    "bangla": "Bengali",
     "gujarati": "Gujarati",
+    "gujrati": "Gujarati",
     "punjabi": "Punjabi",
+    "panjabi": "Punjabi",
     "odia": "Odia",
     "oriya": "Odia",
     "urdu": "Urdu",
@@ -728,15 +740,25 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
         # Parse consultant languages
         langs = []
         if getattr(c, "languages", None):
+            raw_l = c.languages
             try:
-                if isinstance(c.languages, list):
-                    langs = [str(l) for l in c.languages]
-                elif isinstance(c.languages, str) and c.languages.strip().startswith("["):
-                    langs = json.loads(c.languages)
-                elif isinstance(c.languages, str):
-                    langs = [l.strip() for l in c.languages.split(",") if l.strip()]
+                if isinstance(raw_l, list):
+                    langs = [str(l) for l in raw_l]
+                elif isinstance(raw_l, str):
+                    raw_str = raw_l.strip()
+                    if raw_str.startswith("["):
+                        try:
+                            langs = json.loads(raw_str)
+                        except Exception:
+                            try:
+                                import ast
+                                langs = ast.literal_eval(raw_str)
+                            except Exception:
+                                langs = [w for w in re.findall(r'[a-zA-Z]+', raw_str) if w.lower() not in ['true', 'false', 'none']]
+                    else:
+                        langs = [l.strip() for l in raw_str.split(",") if l.strip()]
             except Exception:
-                langs = [str(c.languages)]
+                langs = [str(raw_l)]
         if not langs:
             langs = ["English"]
         langs_lower = [str(l).lower() for l in langs]
@@ -797,8 +819,11 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
         # Check language match boolean
         has_lang = True
         if matched_languages:
+            langs_unified = " ".join(langs_lower)
             has_lang = any(
-                req_l.lower() in langs_lower or any(req_l.lower() in l for l in langs_lower)
+                req_l.lower() in langs_lower
+                or req_l.lower() in langs_unified
+                or any(req_l.lower() in l for l in langs_lower)
                 for req_l in matched_languages
             )
 

@@ -4007,6 +4007,7 @@ var SEARCH_KEYWORD_MAP = [
 var currentCategoryFilter = 'all';
 var currentSearchQuery = '';
 var currentMatchedConsultantIds = [];
+var currentMatchedLanguages = [];
 
 function normalizeStr(s) {
     return (s || '').toLowerCase().trim();
@@ -4181,7 +4182,12 @@ function applyConsultantFilters() {
             summaryEl.style.display = 'flex';
             var parts = [];
             if (currentMatchedConsultantIds.length > 0) {
-                parts.push('✨ Matched by Emora for: <strong>"' + escapeHtml(currentSearchQuery || 'Your Needs') + '"</strong>');
+                var labelParts = [];
+                if (currentSearchQuery) labelParts.push(currentSearchQuery);
+                if (currentMatchedLanguages && currentMatchedLanguages.length > 0) {
+                    labelParts.push('Language: ' + currentMatchedLanguages.join(', '));
+                }
+                parts.push('✨ Matched by Emora for: <strong>"' + escapeHtml(labelParts.join(' &bull; ') || 'Your Needs') + '"</strong>');
             } else if (currentSearchQuery) {
                 parts.push('Keyword: <strong>"' + escapeHtml(currentSearchQuery) + '"</strong>');
             }
@@ -4216,6 +4222,7 @@ function filterCategory(cat) {
 
 function setQuickSearch(term) {
     currentMatchedConsultantIds = [];
+    currentMatchedLanguages = [];
     var searchInput = document.getElementById('consultantSearchInput');
     if (currentSearchQuery.toLowerCase() === term.toLowerCase()) {
         currentSearchQuery = '';
@@ -4231,6 +4238,7 @@ function setQuickSearch(term) {
 function clearConsultantSearch() {
     currentSearchQuery = '';
     currentMatchedConsultantIds = [];
+    currentMatchedLanguages = [];
     var searchInput = document.getElementById('consultantSearchInput');
     if (searchInput) {
         searchInput.value = '';
@@ -4244,6 +4252,7 @@ function resetAllConsultantFilters() {
     currentSearchQuery = '';
     currentCategoryFilter = 'all';
     currentMatchedConsultantIds = [];
+    currentMatchedLanguages = [];
     var searchInput = document.getElementById('consultantSearchInput');
     if (searchInput) searchInput.value = '';
     hideKeywordDropdown();
@@ -4528,10 +4537,17 @@ async function sendEmoraMessage() {
         // Render matched consultants cards & sync background page filter
         if (data.matched_consultants && data.matched_consultants.length > 0) {
             currentMatchedConsultantIds = data.matched_consultants.map(function(c) { return parseInt(c.id); });
+            currentMatchedLanguages = data.matched_languages || [];
             currentCategoryFilter = 'all';
             currentSearchQuery = data.matched_keyword || '';
             var searchInput = document.getElementById('consultantSearchInput');
-            if (searchInput && data.matched_keyword) searchInput.value = data.matched_keyword;
+            if (searchInput && data.matched_keyword) {
+                var searchDisplay = data.matched_keyword;
+                if (data.matched_languages && data.matched_languages.length > 0) {
+                    searchDisplay += ' (' + data.matched_languages.join(', ') + ')';
+                }
+                searchInput.value = searchDisplay;
+            }
             applyConsultantFilters();
 
             responseHtml += '<div style="margin-top:8px;font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;">Recommended Experts from Database:</div>';

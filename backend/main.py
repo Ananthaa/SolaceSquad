@@ -7826,7 +7826,8 @@ async def list_consultants(request: Request, db: Session = Depends(get_db)):
             "consultants":    consultant_list,
             "is_first_consultation": is_first_consultation,
             "is_impersonating": request.session.get("impersonate_user_id") is not None,
-        }
+        },
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
     )
 
 
