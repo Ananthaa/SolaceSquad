@@ -4539,7 +4539,9 @@ async function sendEmoraMessage() {
 
         // Render matched consultants cards & sync background page filter
         if (data.matched_consultants && data.matched_consultants.length > 0) {
-            currentMatchedConsultantIds = data.matched_consultants.map(function(c) { return parseInt(c.id); });
+            currentMatchedConsultantIds = (data.all_matched_ids && data.all_matched_ids.length > 0) 
+                ? data.all_matched_ids.map(Number) 
+                : data.matched_consultants.map(function(c) { return parseInt(c.id); });
             currentMatchedLanguages = data.matched_languages || [];
             currentCategoryFilter = 'all';
             currentSearchQuery = data.matched_keyword || '';
@@ -4577,8 +4579,7 @@ async function sendEmoraMessage() {
                             '</div>' +
                         '</div>' +
                         '<div class="emora-card-meta">' +
-                            '<span>⭐ ' + (c.rating ? c.rating.toFixed(1) : '5.0') + '</span>' +
-                            '<span>• ' + c.experience_years + ' yrs exp</span>' +
+                            '<span>' + c.experience_years + ' yrs exp</span>' +
                             '<span>• <strong>₹' + c.hourly_rate + '</strong>/hr</span>' +
                         '</div>' +
                         (langsText ? '<div style="font-size:0.75rem;color:#475569;margin-top:2px;">🗣️ Speaks: ' + escapeHtml(langsText) + '</div>' : '') +

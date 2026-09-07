@@ -901,6 +901,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
 
     # Sort remaining candidates strictly by score descending
     evaluated_candidates.sort(key=lambda x: x["score"], reverse=True)
+    all_matched_ids = [item["data"]["id"] for item in evaluated_candidates]
     top_consultants = [item["data"] for item in evaluated_candidates[:limit]]
 
     return {
@@ -909,6 +910,8 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
         "matched_languages":   matched_languages,
         "matched_gender":      matched_gender,
         "language_matched":    language_matched,
+        "all_matched_ids":     all_matched_ids,
+        "total_matches":       len(all_matched_ids),
         "consultants":         top_consultants,
     }
 
@@ -953,7 +956,7 @@ def format_matcher_prompt_context(
         areas_text = ", ".join(c.get("matched_areas", [])) or c["specialization"]
         langs_text = ", ".join(c.get("languages", []))
         lines.append(
-            f"  • {c['name']} ({c['specialization']}, {c['experience_years']} yrs exp, ⭐ {c['rating']:.1f}) — Next available: {c['earliest_slot']} (Fee: ₹{c['hourly_rate']}/hr). Speaks: {langs_text}. Expertise: {areas_text}"
+            f"  • {c['name']} ({c['specialization']}, {c['experience_years']} yrs exp) — Next available: {c['earliest_slot']} (Fee: ₹{c['hourly_rate']}/hr). Speaks: {langs_text}. Expertise: {areas_text}"
         )
     lines.append(
         f"\nCRITICAL INSTRUCTIONS FOR EMORA IN MATCHER MODE:\n"

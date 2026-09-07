@@ -9330,6 +9330,8 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         matched_gender = None
         language_matched = True
         matched_consultants = []
+        all_matched_ids = []
+        total_matches = 0
 
         # ── Consultant recommendation detection (SOS + explicit requests + Matcher mode) ──
         consultant_context = ""
@@ -9347,6 +9349,8 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                     matched_gender = match_res.get("matched_gender", None)
                     language_matched = match_res.get("language_matched", True)
                     matched_consultants = match_res.get("consultants", [])
+                    all_matched_ids = match_res.get("all_matched_ids", [])
+                    total_matches = match_res.get("total_matches", len(matched_consultants))
                     consultant_context = format_matcher_prompt_context(
                         matched_consultants,
                         matched_keyword,
@@ -9447,6 +9451,8 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
             "matched_gender":      matched_gender,
             "language_matched":    language_matched,
             "matched_consultants": matched_consultants,
+            "all_matched_ids":     all_matched_ids,
+            "total_matches":       total_matches,
             "quota":               quota_info
         }
     except Exception as e:
