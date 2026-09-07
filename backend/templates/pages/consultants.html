@@ -4180,21 +4180,24 @@ function applyConsultantFilters() {
     if (summaryEl && summaryText) {
         if (currentMatchedConsultantIds.length > 0 || currentSearchQuery || currentCategoryFilter !== 'all') {
             summaryEl.style.display = 'flex';
-            var parts = [];
+            var consultantWord = (visibleCount === 1) ? 'consultant offers consultations' : 'consultants offer consultations';
+            
             if (currentMatchedConsultantIds.length > 0) {
-                var labelParts = [];
-                if (currentSearchQuery) labelParts.push(currentSearchQuery);
+                var topicAndLang = currentSearchQuery || 'Your Needs';
                 if (currentMatchedLanguages && currentMatchedLanguages.length > 0) {
-                    labelParts.push('Language: ' + currentMatchedLanguages.join(', '));
+                    topicAndLang += ' (' + currentMatchedLanguages.join(', ') + ')';
                 }
-                parts.push('✨ Matched by Emora for: <strong>"' + escapeHtml(labelParts.join(' &bull; ') || 'Your Needs') + '"</strong>');
-            } else if (currentSearchQuery) {
-                parts.push('Keyword: <strong>"' + escapeHtml(currentSearchQuery) + '"</strong>');
+                summaryText.innerHTML = 'We have <strong>' + visibleCount + '</strong> ' + consultantWord + ' matching your criteria (✨ Matched by Emora for <strong>"' + escapeHtml(topicAndLang) + '"</strong>)';
+            } else {
+                var parts = [];
+                if (currentSearchQuery) {
+                    parts.push('Keyword: <strong>"' + escapeHtml(currentSearchQuery) + '"</strong>');
+                }
+                if (currentCategoryFilter !== 'all') {
+                    parts.push('Category: <strong>' + escapeHtml(currentCategoryFilter) + ' Wellbeing</strong>');
+                }
+                summaryText.innerHTML = 'We have <strong>' + visibleCount + '</strong> ' + consultantWord + ' matching your criteria (' + parts.join(' &bull; ') + ')';
             }
-            if (currentCategoryFilter !== 'all') {
-                parts.push('Category: <strong>' + escapeHtml(currentCategoryFilter) + ' Wellbeing</strong>');
-            }
-            summaryText.innerHTML = 'Showing <strong>' + visibleCount + '</strong> of ' + totalCount + ' consultants (' + parts.join(' &bull; ') + ')';
         } else {
             summaryEl.style.display = 'none';
         }
