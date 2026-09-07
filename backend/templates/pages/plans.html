@@ -841,6 +841,17 @@
       },
     };
 
+    if (window.AndroidBridge && typeof window.AndroidBridge.openRazorpay === 'function') {
+      window.handleNativeRazorpaySuccess = function(resp) {
+        options.handler(resp);
+      };
+      window.handleNativeRazorpayError = function(code, desc) {
+        showError('Payment cancelled or failed: ' + (desc || ''));
+      };
+      window.AndroidBridge.openRazorpay(JSON.stringify(options));
+      return;
+    }
+
     try {
       const rzp = new window.Razorpay(options);
       rzp.on('payment.failed', function(resp) {
@@ -1170,6 +1181,17 @@
         }
       }
     };
+
+    if (window.AndroidBridge && typeof window.AndroidBridge.openRazorpay === 'function') {
+      window.handleNativeRazorpaySuccess = function(resp) {
+        options.handler(resp);
+      };
+      window.handleNativeRazorpayError = function(code, desc) {
+        showError('Payment cancelled or failed: ' + (desc || ''));
+      };
+      window.AndroidBridge.openRazorpay(JSON.stringify(options));
+      return;
+    }
 
     try {
       const rzp = new window.Razorpay(options);

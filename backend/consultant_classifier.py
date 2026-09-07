@@ -551,11 +551,49 @@ FOCUS_AREA_CATEGORY_MAP = {
 }
 
 
+SUPPORTED_LANGUAGES = {
+    "kannada": "Kannada",
+    "hindi": "Hindi",
+    "tamil": "Tamil",
+    "telugu": "Telugu",
+    "malayalam": "Malayalam",
+    "english": "English",
+    "marathi": "Marathi",
+    "bengali": "Bengali",
+    "gujarati": "Gujarati",
+    "punjabi": "Punjabi",
+    "odia": "Odia",
+    "oriya": "Odia",
+    "urdu": "Urdu",
+    "assamese": "Assamese",
+    "bhojpuri": "Bhojpuri",
+    "konkani": "Konkani",
+    "sanskrit": "Sanskrit",
+    "french": "French",
+    "german": "German",
+    "spanish": "Spanish",
+}
+
+GENDER_PATTERNS = {
+    "female": "Female",
+    "woman": "Female",
+    "women": "Female",
+    "lady": "Female",
+    "male": "Male",
+    "man": "Male",
+    "men": "Male",
+    "guy": "Male",
+}
+
+
 def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_name: str = "Asia/Kolkata") -> dict:
     """
-    Given a user message, extract matching keywords from SEARCH_KEYWORD_TAXONOMY,
-    query the DB for approved & active consultants, and rank them strictly based on
-    their database profile (expertise_areas, specialization, bio, rating, availability).
+    Given a user message, extract multi-dimensional filters:
+      1. Matching topics / focus areas from SEARCH_KEYWORD_TAXONOMY & synonyms
+      2. Requested language preferences (e.g., Kannada, Hindi, Tamil, English)
+      3. Requested gender preferences (e.g., Female, Male)
+    Query the DB for approved & active consultants and rank them strictly based on
+    their database profile (expertise_areas, languages, specialization, bio, rating, availability).
     """
     from models import ConsultantProfile, User
     import re
@@ -570,11 +608,25 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
         "often", "always", "some", "very", "much", "want", "find", "looking", "good"
     }
 
+    # 1. Extract requested languages
+    matched_languages = []
+    for lang_key, canon_lang in SUPPORTED_LANGUAGES.items():
+        if re.search(r'\b' + re.escape(lang_key) + r'\b', msg_lower):
+            if canon_lang not in matched_languages:
+                matched_languages.append(canon_lang)
+
+    # 2. Extract requested gender
+    matched_gender = None
+    for g_key, canon_g in GENDER_PATTERNS.items():
+        if re.search(r'\b' + re.escape(g_key) + r'\b', msg_lower):
+            matched_gender = canon_g
+            break
+
     matched_items = []
     matched_focus_areas = []
     matched_terms = []
 
-    # 1. Check Phrase Synonyms first (e.g. 'lack of concentration', 'focus issue', 'lack of sleep')
+    # 3. Check Phrase Synonyms first (e.g. 'lack of concentration', 'focus issue', 'lack of sleep')
     for phrase, (canon_term, focus_list) in PHRASE_SYNONYMS.items():
         if phrase in msg_lower:
             if canon_term not in matched_terms:
@@ -583,7 +635,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
                 if fa not in matched_focus_areas:
                     matched_focus_areas.append(fa)
 
-    # 2. Check exact taxonomy phrases
+    # 4. Check exact taxonomy phrases
     for item in SEARCH_KEYWORD_TAXONOMY:
         term_lower = item["term"].lower()
         if term_lower in msg_lower:
@@ -594,7 +646,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
                 if fa not in matched_focus_areas:
                     matched_focus_areas.append(fa)
 
-    # 3. Check colloquial synonyms (e.g., 'concentration', 'focus', 'sleepy', 'partner', 'diet')
+    # 5. Check colloquial synonyms (e.g., 'concentration', 'focus', 'sleepy', 'partner', 'diet')
     words = re.findall(r'\b\w+\b', msg_lower)
     for word in words:
         if word in KEYWORD_SYNONYMS:
@@ -612,7 +664,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
                     if syn not in matched_terms:
                         matched_terms.append(syn)
 
-    # 4. Check meaningful single-word tokens from taxonomy only if nothing matched yet
+    # 6. Check meaningful single-word tokens from taxonomy only if nothing matched yet
     if not matched_terms:
         for item in SEARCH_KEYWORD_TAXONOMY:
             term_lower = item["term"].lower()
@@ -625,7 +677,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
                     if fa not in matched_focus_areas:
                         matched_focus_areas.append(fa)
 
-    # 5. Fallback to intent classification if nothing matched
+    # 7. Fallback to intent classification if nothing matched
     if not matched_focus_areas:
         intent = detect_intent(user_message)
         if intent.get("category") == "Mental":
@@ -644,7 +696,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
     primary_keyword = matched_terms[0] if matched_terms else (matched_focus_areas[0] if matched_focus_areas else "General Wellbeing")
     target_categories = {FOCUS_AREA_CATEGORY_MAP.get(fa, "Mental") for fa in matched_focus_areas} if matched_focus_areas else set()
 
-    # 6. Query all approved & active consultants from database
+    # 8. Query all approved & active consultants from database
     consultant_rows = db.query(ConsultantProfile, User).join(
         User, User.id == ConsultantProfile.user_id
     ).filter(
@@ -662,90 +714,119 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
             ConsultantProfile.is_approved == True
         ).all()
 
-    scored = []
-    for c, user in consultant_rows:
-        try:
-            # Parse consultant expertise areas
-            eas = []
-            if getattr(c, "expertise_areas", None):
-                try:
-                    eas = json.loads(c.expertise_areas) if isinstance(c.expertise_areas, str) else c.expertise_areas
-                except Exception:
-                    eas = [str(c.expertise_areas)]
-            eas_lower = [str(a).lower() for a in eas if a]
-            eas_str = " ".join(eas_lower)
-
-            spec_lower = (getattr(c, "specialization", "") or "").lower()
-            bio_lower = (getattr(c, "bio", "") or "").lower()
-
-            w_cat = "Mental"
+    def evaluate_consultant(c, user):
+        # Parse consultant expertise areas
+        eas = []
+        if getattr(c, "expertise_areas", None):
             try:
-                w_cat = getattr(c, "wellness_category", None) or classify_consultant(c)
+                eas = json.loads(c.expertise_areas) if isinstance(c.expertise_areas, str) and c.expertise_areas.startswith("[") else [str(c.expertise_areas)]
             except Exception:
-                w_cat = "Mental"
+                eas = [str(c.expertise_areas)]
+        eas_lower = [str(a).lower() for a in eas if a]
+        eas_str = " ".join(eas_lower)
 
-            # Check category mismatch:
-            # Pure Physical queries (e.g. Gut/Diet/Nutrition) must not match pure Professional coaches
-            if target_categories == {"Physical"} and w_cat == "Professional":
-                if not any(k in eas_str or k in spec_lower or k in bio_lower for k in ["nutrition", "diet", "gut", "fitness", "physio"]):
-                    continue
-            # Pure Professional queries must not match pure Physical consultants with no career coaching
-            elif target_categories == {"Professional"} and w_cat == "Physical":
-                if not any(k in eas_str or k in spec_lower or k in bio_lower for k in ["career", "leadership", "executive", "workplace"]):
-                    continue
+        # Parse consultant languages
+        langs = []
+        if getattr(c, "languages", None):
+            try:
+                if isinstance(c.languages, list):
+                    langs = [str(l) for l in c.languages]
+                elif isinstance(c.languages, str) and c.languages.strip().startswith("["):
+                    langs = json.loads(c.languages)
+                elif isinstance(c.languages, str):
+                    langs = [l.strip() for l in c.languages.split(",") if l.strip()]
+            except Exception:
+                langs = [str(c.languages)]
+        if not langs:
+            langs = ["English"]
+        langs_lower = [str(l).lower() for l in langs]
+        langs_str = ", ".join(langs)
 
-            relevance_score = 0.0
-            matched_areas_for_c = []
-            for fa in matched_focus_areas:
-                fa_lower = fa.lower()
-                if any(fa_lower in a or a in fa_lower for a in eas_lower):
-                    relevance_score += 25.0
-                    matched_areas_for_c.append(fa)
-                elif fa_lower in spec_lower:
-                    relevance_score += 18.0
-                    matched_areas_for_c.append(fa)
-                elif fa_lower in bio_lower:
-                    relevance_score += 10.0
-                    matched_areas_for_c.append(fa)
+        spec_lower = (getattr(c, "specialization", "") or "").lower()
+        bio_lower = (getattr(c, "bio", "") or "").lower()
 
-            # Check matched specific terms in profile
-            for t in matched_terms:
-                t_lower = t.lower()
-                if t_lower in eas_str:
-                    relevance_score += 15.0
-                    if t not in matched_areas_for_c:
-                        matched_areas_for_c.append(t)
-                elif t_lower in spec_lower:
-                    relevance_score += 12.0
-                    if t not in matched_areas_for_c:
-                        matched_areas_for_c.append(t)
-                elif t_lower in bio_lower:
-                    relevance_score += 6.0
+        w_cat = "Mental"
+        try:
+            w_cat = getattr(c, "wellness_category", None) or classify_consultant(c)
+        except Exception:
+            w_cat = "Mental"
 
-            # Category match bonus
-            if target_categories and w_cat in target_categories:
+        # Check category mismatch
+        if target_categories == {"Physical"} and w_cat == "Professional":
+            if not any(k in eas_str or k in spec_lower or k in bio_lower for k in ["nutrition", "diet", "gut", "fitness", "physio"]):
+                return None
+        elif target_categories == {"Professional"} and w_cat == "Physical":
+            if not any(k in eas_str or k in spec_lower or k in bio_lower for k in ["career", "leadership", "executive", "workplace"]):
+                return None
+
+        relevance_score = 0.0
+        matched_areas_for_c = []
+        for fa in matched_focus_areas:
+            fa_lower = fa.lower()
+            if any(fa_lower in a or a in fa_lower for a in eas_lower):
+                relevance_score += 25.0
+                matched_areas_for_c.append(fa)
+            elif fa_lower in spec_lower:
+                relevance_score += 18.0
+                matched_areas_for_c.append(fa)
+            elif fa_lower in bio_lower:
                 relevance_score += 10.0
+                matched_areas_for_c.append(fa)
 
-            # ONLY consultants with genuine positive topic relevance should be recommended
-            if relevance_score <= 0.0:
-                continue
+        # Check matched specific terms in profile
+        for t in matched_terms:
+            t_lower = t.lower()
+            if t_lower in eas_str:
+                relevance_score += 15.0
+                if t not in matched_areas_for_c:
+                    matched_areas_for_c.append(t)
+            elif t_lower in spec_lower:
+                relevance_score += 12.0
+                if t not in matched_areas_for_c:
+                    matched_areas_for_c.append(t)
+            elif t_lower in bio_lower:
+                relevance_score += 6.0
 
-            # Add rating and schedule bonuses
-            total_score = relevance_score + (float(getattr(c, "rating", 0.0) or 0.0) * 2.0)
-            if getattr(c, "schedules", None):
-                total_score += 3.0
+        # Category match bonus
+        if target_categories and w_cat in target_categories:
+            relevance_score += 10.0
 
-            name = getattr(user, "name", None) or getattr(c, "full_name", None) or "Consultant"
-            earliest = get_earliest_slot(c, db, tz_name=tz_name)
+        if relevance_score <= 0.0:
+            return None
 
-            # Sexual wellness flag
-            is_sw = (
-                "sexual" in eas_str or "intimacy" in eas_str or
-                "sexual" in spec_lower or "intimacy" in spec_lower or
-                "sexual wellness" in bio_lower or "sexual health" in bio_lower or "sexologist" in bio_lower or "sex therapy" in bio_lower
+        # Check language match boolean
+        has_lang = True
+        if matched_languages:
+            has_lang = any(
+                req_l.lower() in langs_lower or any(req_l.lower() in l for l in langs_lower)
+                for req_l in matched_languages
             )
 
-            scored.append((total_score, {
+        # Check gender match boolean
+        has_gender = True
+        if matched_gender:
+            c_gender = (getattr(c, "gender", "") or "").lower()
+            has_gender = (c_gender == matched_gender.lower())
+
+        total_score = relevance_score + (float(getattr(c, "rating", 0.0) or 0.0) * 2.0)
+        if getattr(c, "schedules", None):
+            total_score += 3.0
+
+        name = getattr(user, "name", None) or getattr(c, "full_name", None) or "Consultant"
+        earliest = get_earliest_slot(c, db, tz_name=tz_name)
+
+        # Sexual wellness flag
+        is_sw = (
+            "sexual" in eas_str or "intimacy" in eas_str or
+            "sexual" in spec_lower or "intimacy" in spec_lower or
+            "sexual wellness" in bio_lower or "sexual health" in bio_lower or "sexologist" in bio_lower or "sex therapy" in bio_lower
+        )
+
+        return {
+            "score":                  total_score,
+            "has_requested_lang":     has_lang,
+            "has_requested_gender":   has_gender,
+            "data": {
                 "id":                     c.id,
                 "user_id":                user.id,
                 "name":                   name,
@@ -755,52 +836,118 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
                 "hourly_rate":            getattr(c, "consultation_fee", None) or getattr(c, "hourly_rate", 500) or 500,
                 "photo_url":              f"/api/profile-photo/{user.id}" if getattr(c, "photo_url", None) else "",
                 "wellness_category":      w_cat,
+                "languages":              langs,
+                "languages_str":          langs_str,
                 "earliest_slot":          earliest,
                 "matched_areas":          matched_areas_for_c or (eas[:2] if eas else [getattr(c, "specialization", "General")]),
                 "offers_sexual_wellness": is_sw,
-            }))
+                "has_requested_lang":     has_lang,
+            }
+        }
+
+    # Evaluate all consultants for topic matching
+    evaluated_candidates = []
+    for c, user in consultant_rows:
+        try:
+            res = evaluate_consultant(c, user)
+            if res:
+                evaluated_candidates.append(res)
         except Exception as _c_err:
             print(f"[Matcher] error processing consultant {getattr(c, 'id', '?')}: {_c_err}")
 
-    scored.sort(key=lambda x: x[0], reverse=True)
-    top_consultants = [item[1] for item in scored[:limit]]
+    # Step 1: Filter by language condition (STRICT AND CONDITION)
+    language_matched = True
+    if matched_languages:
+        lang_filtered = [item for item in evaluated_candidates if item["has_requested_lang"]]
+        if lang_filtered:
+            # STRICT MATCH: Only keep consultants who speak the requested language!
+            evaluated_candidates = lang_filtered
+            language_matched = True
+        else:
+            # No consultant in DB speaks the requested language for this topic -> fallback to topic experts
+            language_matched = False
+
+    # Step 2: Filter by gender condition (STRICT AND CONDITION)
+    if matched_gender:
+        gender_filtered = [item for item in evaluated_candidates if item["has_requested_gender"]]
+        if gender_filtered:
+            # STRICT MATCH: Only keep consultants matching requested gender!
+            evaluated_candidates = gender_filtered
+
+    # Sort remaining candidates strictly by score descending
+    evaluated_candidates.sort(key=lambda x: x["score"], reverse=True)
+    top_consultants = [item["data"] for item in evaluated_candidates[:limit]]
 
     return {
         "matched_keyword":     primary_keyword,
         "matched_focus_areas": matched_focus_areas,
+        "matched_languages":   matched_languages,
+        "matched_gender":      matched_gender,
+        "language_matched":    language_matched,
         "consultants":         top_consultants,
     }
 
 
-def format_matcher_prompt_context(consultants: list, matched_keyword: str, focus_areas: list) -> str:
-    """Build context for Emora in consultant matcher mode."""
+def format_matcher_prompt_context(
+    consultants: list,
+    matched_keyword: str,
+    focus_areas: list,
+    matched_languages: list = None,
+    matched_gender: str = None,
+    language_matched: bool = True
+) -> str:
+    """Build context for Emora in consultant matcher mode with multi-filter awareness."""
+    matched_languages = matched_languages or []
     if not consultants:
+        lang_clause = f" speaking {', '.join(matched_languages)}" if matched_languages else ""
+        gender_clause = f" ({matched_gender})" if matched_gender else ""
         return (
             f"[CONSULTANT_MATCHER_RECOMMENDATION]\n"
-            f"The user is asking: '{matched_keyword}'.\n"
+            f"The user is looking for help regarding: '{matched_keyword}'{lang_clause}{gender_clause}.\n"
             f"You are currently assisting them directly on the Find Consultants page.\n"
             f"CRITICAL: DO NOT tell them to visit '/app/consultants' or go to any link.\n"
-            f"Warmly ask them 1 short question about what they are experiencing so you can filter the best experts for them.\n"
+            f"Warmly ask them 1 short question about what specific support they are looking for so you can help find the right expert.\n"
             f"[END_CONSULTANT_MATCHER_RECOMMENDATION]"
         )
 
+    lang_note = ""
+    if matched_languages:
+        if language_matched:
+            lang_note = f" Requested Language: {', '.join(matched_languages)} (CONFIRMED: All matched consultants speak {', '.join(matched_languages)}!)."
+        else:
+            lang_note = f" Requested Language: {', '.join(matched_languages)} (NOTE: None of our {matched_keyword} specialists currently list {', '.join(matched_languages)} on their profile. Matched experts converse in English/Hindi)."
+
+    gender_note = f" Requested Gender: {matched_gender}." if matched_gender else ""
+
     lines = [
         f"[CONSULTANT_MATCHER_RECOMMENDATION]\n"
-        f"The user is looking for help regarding: '{matched_keyword}' (Focus Areas: {', '.join(focus_areas)}).\n"
+        f"The user is looking for help regarding: '{matched_keyword}' (Focus Areas: {', '.join(focus_areas)}).{lang_note}{gender_note}\n"
         f"You have matched these real SolaceSquad consultants from our database (their recommendation cards are already filtered and presented directly below your message to the user):\n"
     ]
     for c in consultants:
         areas_text = ", ".join(c.get("matched_areas", [])) or c["specialization"]
+        langs_text = ", ".join(c.get("languages", []))
         lines.append(
-            f"  • {c['name']} ({c['specialization']}, {c['experience_years']} yrs exp, ⭐ {c['rating']:.1f}) — Next available: {c['earliest_slot']} (Fee: ₹{c['hourly_rate']}/hr). Expertise: {areas_text}"
+            f"  • {c['name']} ({c['specialization']}, {c['experience_years']} yrs exp, ⭐ {c['rating']:.1f}) — Next available: {c['earliest_slot']} (Fee: ₹{c['hourly_rate']}/hr). Speaks: {langs_text}. Expertise: {areas_text}"
         )
     lines.append(
         f"\nCRITICAL INSTRUCTIONS FOR EMORA IN MATCHER MODE:\n"
         f"1. You are talking to the user DIRECTLY ON the Find Consultants page. NEVER tell them to 'go to /app/consultants', 'visit the consultants section', or navigate anywhere.\n"
-        f"2. Acknowledge and validate what they are experiencing (e.g., {matched_keyword}) in 1 warm, empathetic sentence.\n"
-        f"3. Do NOT conduct grounding exercises or live therapy techniques (such as 5-4-3-2-1 sensory grounding or breathing exercises). Instead, focus directly on introducing 1-2 matched consultants from the list above BY EXACT NAME, explaining briefly how their specific expertise can support them.\n"
-        f"4. Direct them to their cards shown right below to view their profile or click 'Book Session'.\n"
-        f"5. Keep your response concise (2-4 sentences max), warm, and supportive.\n"
+        f"2. DO NOT conduct grounding exercises, breathing exercises, or live sensory therapy techniques (e.g. 5-4-3-2-1 grounding or 'tell me 3 things you hear'). Your sole role is to introduce the matched expert(s).\n"
+        f"3. Acknowledge and validate what they are experiencing (e.g., {matched_keyword}) in 1 warm, empathetic sentence.\n"
+    )
+
+    names_list = ", ".join(c["name"] for c in consultants)
+    if matched_languages and language_matched:
+        lines.append(f"4. Explicitly confirm to the user that {names_list} speaks {', '.join(matched_languages)} as requested, and introduce them BY EXACT NAME explaining briefly how their expertise can support them.\n")
+    elif matched_languages and not language_matched:
+        lines.append(f"4. Transparently let the user know that while our {matched_keyword} specialists currently converse in {consultants[0].get('languages_str', 'English/Hindi')}, introduce {names_list} BY EXACT NAME as our top verified specialists for this concern.\n")
+    else:
+        lines.append(f"4. Introduce {names_list} BY EXACT NAME, explaining briefly how their specific expertise can support them.\n")
+
+    lines.append(
+        f"5. Direct them to the card(s) shown right below to view their profile or click 'Book Session'.\n"
+        f"6. Keep your response concise (2-4 sentences max), warm, and supportive.\n"
         f"[END_CONSULTANT_MATCHER_RECOMMENDATION]"
     )
     return "\n".join(lines)

@@ -30,6 +30,12 @@ self.addEventListener('fetch', event => {
     const req = event.request;
     const url = req.url;
 
+    // Only handle GET requests (caching is only defined for GET/HEAD)
+    if (req.method !== 'GET') {
+        event.respondWith(fetch(req));
+        return;
+    }
+
     // Auth & API routes: always go to network, never serve from cache
     if (isAuthRoute(url)) {
         event.respondWith(fetch(req));

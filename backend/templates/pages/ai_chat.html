@@ -876,6 +876,17 @@
                     }
                 }
             };
+            if (window.AndroidBridge && typeof window.AndroidBridge.openRazorpay === 'function') {
+                window.handleNativeRazorpaySuccess = function(resp) {
+                    options.handler(resp);
+                };
+                window.handleNativeRazorpayError = function(code, desc) {
+                    _showToast('❌ Payment failed: ' + (desc || 'Unknown error'));
+                };
+                window.AndroidBridge.openRazorpay(JSON.stringify(options));
+                return;
+            }
+
             try {
                 var rzp = new window.Razorpay(options);
                 rzp.on('payment.failed', function(r) {

@@ -4031,16 +4031,41 @@ function cardMatchesSearch(card, query) {
     var category = normalizeStr(card.dataset.category);
     var expertise = normalizeStr(card.dataset.expertise);
 
+    // 0. Strict Language Constraint in Search Bar
+    var supportedLangs = ['kannada', 'hindi', 'tamil', 'telugu', 'malayalam', 'english', 'marathi', 'bengali', 'gujarati', 'punjabi', 'odia', 'urdu'];
+    var queryLangs = supportedLangs.filter(function(l) {
+        var rx = new RegExp('\\b' + l + '\\b', 'i');
+        return rx.test(q);
+    });
+    if (queryLangs.length > 0) {
+        var hasAllQueryLangs = queryLangs.every(function(l) {
+            return langs.includes(l);
+        });
+        if (!hasAllQueryLangs) {
+            return false;
+        }
+    }
+
     // 1. Direct field match
     if (name.includes(q) || spec.includes(q) || bio.includes(q) || langs.includes(q) || category.includes(q) || expertise.includes(q)) {
         return true;
+    }
+
+    // Strip language tokens from query to match remaining clinical concern keywords
+    var clinicalQuery = q;
+    queryLangs.forEach(function(l) {
+        clinicalQuery = clinicalQuery.replace(new RegExp('\\b' + l + '\\b', 'gi'), ' ').replace(/\s+/g, ' ').trim();
+    });
+
+    if (!clinicalQuery) {
+        return true; // Query was purely a language filter and matched
     }
 
     // 2. Keyword Mapping Match (checks if query matches any search term, and consultant has that focus area)
     var matchingFocusAreas = [];
     SEARCH_KEYWORD_MAP.forEach(function(item) {
         var termLower = item.term.toLowerCase();
-        if (termLower.includes(q) || q.includes(termLower)) {
+        if (termLower.includes(clinicalQuery) || clinicalQuery.includes(termLower)) {
             item.focusAreas.forEach(function(fa) {
                 var faNorm = fa.toLowerCase();
                 if (!matchingFocusAreas.includes(faNorm)) {
@@ -4066,8 +4091,8 @@ function cardMatchesSearch(card, query) {
     }
 
     // 3. Multi-token individual query matching
-    var queryTokens = q.split(/\s+/).filter(function(t) { return t.length > 1; });
-    if (queryTokens.length > 1) {
+    var queryTokens = clinicalQuery.split(/\s+/).filter(function(t) { return t.length > 1; });
+    if (queryTokens.length > 0) {
         var allTokensMatch = queryTokens.every(function(t) {
             return name.includes(t) || spec.includes(t) || bio.includes(t) || langs.includes(t) || expertise.includes(t);
         });
@@ -4083,6 +4108,18 @@ function applyConsultantFilters() {
     var totalCount = cards.length;
 
     cards.forEach(function(card) {
+        // If exact IDs were matched by Emora Matcher, filter strictly by matched IDs
+        if (currentMatchedConsultantIds && currentMatchedConsultantIds.length > 0) {
+            var cid = parseInt(card.dataset.consultantId);
+            if (currentMatchedConsultantIds.includes(cid)) {
+                card.style.display = '';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
+            return;
+        }
+
         // Category check
         var categoryMatch = false;
         if (currentCategoryFilter === 'all') {
@@ -4462,11 +4499,22 @@ async function sendEmoraMessage() {
         // Render Emora response bubble
         var botRow = document.createElement('div');
         botRow.className = 'emora-msg-row emora-bot-row';
-        
         var responseHtml = '<div class="emora-bot-icon">✨</div><div class="emora-bot-bubble">';
-        
+
+        var badgesHtml = '';
         if (data.matched_keyword) {
-            responseHtml += '<div class="emora-match-badge">🏷️ Topic: <strong>' + escapeHtml(data.matched_keyword) + '</strong></div>';
+            badgesHtml += '<div class="emora-match-badge" style="margin-right:6px;">🏷️ Topic: <strong>' + escapeHtml(data.matched_keyword) + '</strong></div>';
+        }
+        if (data.matched_languages && data.matched_languages.length > 0) {
+            var langStr = data.matched_languages.join(', ');
+            var langBadgeStyle = data.language_matched !== false 
+                ? 'background:#f0fdf4;border-color:#bbf7d0;color:#166534;' 
+                : 'background:#fffbeb;border-color:#fde68a;color:#92400e;';
+            var langIcon = data.language_matched !== false ? '🗣️ Language:' : '🗣️ Requested Language:';
+            badgesHtml += '<div class="emora-match-badge" style="' + langBadgeStyle + '">' + langIcon + ' <strong>' + escapeHtml(langStr) + '</strong></div>';
+        }
+        if (badgesHtml) {
+            responseHtml += '<div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:4px;">' + badgesHtml + '</div>';
         }
 
         // Formatted text
@@ -4498,6 +4546,8 @@ async function sendEmoraMessage() {
                     ? '<span title="Offers Sexual Wellness Consultation" style="margin-left:4px;"><img src="/static/images/sexual_wellness_32.png" style="width:12px;height:12px;display:inline-block;vertical-align:middle;" alt=""></span>'
                     : '';
 
+                var langsText = c.languages_str || (c.languages && c.languages.length ? c.languages.join(', ') : '');
+
                 responseHtml += 
                     '<div class="emora-consultant-card">' +
                         '<div class="emora-card-top">' +
@@ -4512,6 +4562,7 @@ async function sendEmoraMessage() {
                             '<span>• ' + c.experience_years + ' yrs exp</span>' +
                             '<span>• <strong>₹' + c.hourly_rate + '</strong>/hr</span>' +
                         '</div>' +
+                        (langsText ? '<div style="font-size:0.75rem;color:#475569;margin-top:2px;">🗣️ Speaks: ' + escapeHtml(langsText) + '</div>' : '') +
                         (c.earliest_slot ? '<div class="emora-card-slot">🕒 Next: ' + escapeHtml(c.earliest_slot) + '</div>' : '') +
                         '<div class="emora-card-actions">' +
                             '<button type="button" class="emora-btn-view" onclick="openConsultantProfileFromEmora(' + c.id + ')">View Profile</button>' +

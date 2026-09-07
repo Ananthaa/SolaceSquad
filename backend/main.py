@@ -9325,6 +9325,9 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         mode = data.get("mode", "") # "consultant_match"
         matched_keyword = ""
         matched_focus_areas = []
+        matched_languages = []
+        matched_gender = None
+        language_matched = True
         matched_consultants = []
 
         # ── Consultant recommendation detection (SOS + explicit requests + Matcher mode) ──
@@ -9339,9 +9342,17 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                     match_res = match_consultants_for_user_query(original_message, db, limit=3)
                     matched_keyword = match_res.get("matched_keyword", "")
                     matched_focus_areas = match_res.get("matched_focus_areas", [])
+                    matched_languages = match_res.get("matched_languages", [])
+                    matched_gender = match_res.get("matched_gender", None)
+                    language_matched = match_res.get("language_matched", True)
                     matched_consultants = match_res.get("consultants", [])
                     consultant_context = format_matcher_prompt_context(
-                        matched_consultants, matched_keyword, matched_focus_areas
+                        matched_consultants,
+                        matched_keyword,
+                        matched_focus_areas,
+                        matched_languages=matched_languages,
+                        matched_gender=matched_gender,
+                        language_matched=language_matched
                     )
                 else:
                     intent = detect_intent(original_message)
@@ -9431,6 +9442,9 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
             "timestamp":           chat_entry.timestamp.isoformat(),
             "matched_keyword":     matched_keyword,
             "matched_focus_areas": matched_focus_areas,
+            "matched_languages":   matched_languages,
+            "matched_gender":      matched_gender,
+            "language_matched":    language_matched,
             "matched_consultants": matched_consultants,
             "quota":               quota_info
         }

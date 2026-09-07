@@ -968,6 +968,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             "consultant_name": profile.full_name or "Consultant",
             "user_name": user.name if user else "",
             "user_email": user.email if user else "",
+            "user_phone": user.phone_number if user else "",
             "appointment_date": appointment_date,
             "duration": eff_duration,
             "hourly_rate": fee,          # for display: "₹X/hr" in description
