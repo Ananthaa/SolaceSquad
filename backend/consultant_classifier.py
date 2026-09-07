@@ -175,6 +175,7 @@ def get_earliest_slot(consultant, db, tz_name: str = "Asia/Kolkata") -> str:
     """
     Return human-readable earliest available slot in next 14 days (Local).
     Checks ConsultantSchedule vs existing Appointments status∈{scheduled,pending}.
+    Enforces minimum 24-hour advance booking for paid appointments.
     """
     try:
         from models import Appointment
@@ -188,6 +189,9 @@ def get_earliest_slot(consultant, db, tz_name: str = "Asia/Kolkata") -> str:
         if not active_slots:
             return "Availability on request"
 
+        # Paid consultants require at least 24 hours advance notice
+        min_booking_ist = now_ist.replace(tzinfo=None) + timedelta(hours=24)
+
         future_cutoff_utc = now_utc + timedelta(days=14)
         existing_appts = db.query(Appointment).filter(
             Appointment.consultant_id == consultant.id,
@@ -196,17 +200,18 @@ def get_earliest_slot(consultant, db, tz_name: str = "Asia/Kolkata") -> str:
             Appointment.status.in_(["scheduled", "pending"]),
         ).all()
 
-        # booked_slots: set of (weekday_int, "HH:MM") in IST
+        # booked_slots: set of (date, "HH:MM") in IST
         booked_slots = set()
         for appt in existing_appts:
             if appt.appointment_date:
                 try:
                     appt_ist = timezone_utils.to_local(appt.appointment_date, "Asia/Kolkata")
-                    booked_slots.add((appt_ist.weekday(), appt_ist.strftime("%H:%M")))
+                    booked_slots.add((appt_ist.date(), appt_ist.strftime("%H:%M")))
                 except Exception:
                     pass
 
-        for day_offset in range(14):
+        # Start search from day_offset = 1 (Tomorrow) up to 14 days ahead
+        for day_offset in range(1, 15):
             check_date = today_ist + timedelta(days=day_offset)
             weekday = check_date.weekday()
 
@@ -217,34 +222,24 @@ def get_earliest_slot(consultant, db, tz_name: str = "Asia/Kolkata") -> str:
 
             for slot in day_slots:
                 slot_time_str = slot.start_time  # "HH:MM"
-                if (weekday, slot_time_str) in booked_slots:
+                if (check_date, slot_time_str) in booked_slots:
                     continue
 
-                # If today, need at least 1 hour notice
-                if day_offset == 0:
-                    try:
-                        sh, sm = map(int, slot_time_str.split(":"))
-                        slot_dt = datetime.combine(check_date, dtime(sh, sm))
-                        if slot_dt <= now_ist.replace(tzinfo=None) + timedelta(hours=1):
-                            continue
-                    except Exception:
-                        pass
-
-                # Format human readable time
                 try:
                     sh, sm = map(int, slot_time_str.split(":"))
-                    ist_dt = datetime.combine(check_date, dtime(sh, sm))
-                    time_part = ist_dt.strftime("%I:%M %p")
-                    if day_offset == 0:
-                        return f"Today at {time_part}"
-                    elif day_offset == 1:
+                    slot_dt = datetime.combine(check_date, dtime(sh, sm))
+                    if slot_dt < min_booking_ist:
+                        continue
+
+                    time_part = slot_dt.strftime("%I:%M %p")
+                    days_diff = (check_date - today_ist).days
+                    if days_diff == 1:
                         return f"Tomorrow at {time_part}"
                     else:
-                        return f"{ist_dt.strftime('%a, %d %b')} at {time_part}"
+                        return f"{slot_dt.strftime('%a, %d %b')} at {time_part}"
                 except Exception:
-                    if day_offset == 0:
-                        return f"Today at {slot_time_str}"
-                    elif day_offset == 1:
+                    days_diff = (check_date - today_ist).days
+                    if days_diff == 1:
                         return f"Tomorrow at {slot_time_str}"
                     return f"{check_date.strftime('%a, %d %b')} at {slot_time_str}"
 
@@ -526,6 +521,36 @@ KEYWORD_SYNONYMS = {
 }
 
 
+FOCUS_AREA_CATEGORY_MAP = {
+    # Physical
+    "Nutrition & Wellness": "Physical",
+    "Physical Fitness & Wellness": "Physical",
+    "Body Image Issues": "Physical",
+    # Professional
+    "Work-related Stress": "Professional",
+    "Work-life Balance": "Professional",
+    "Career & Life Coaching": "Professional",
+    # Mental (Default for other focus areas)
+    "Anxiety & Panic Attacks": "Mental",
+    "Stress Management": "Mental",
+    "Depression & Mood Disorders": "Mental",
+    "Anger Management": "Mental",
+    "Low Self-esteem": "Mental",
+    "Abuse & Trauma (including Childhood)": "Mental",
+    "Grief & Bereavement": "Mental",
+    "Crisis Intervention": "Mental",
+    "Mindfulness & Meditation": "Mental",
+    "Addiction & Substance Use": "Mental",
+    "Relationship Counselling": "Mental",
+    "Family Issues / Conflicts": "Mental",
+    "Parenting Challenges": "Mental",
+    "Sexual & Intimacy Problems": "Mental",
+    "LGBTQIA+ Affirmative Counselling": "Mental",
+    "Neurodiversity (ADHD, Autism, etc.)": "Mental",
+    "Personality Disorders": "Mental",
+}
+
+
 def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_name: str = "Asia/Kolkata") -> dict:
     """
     Given a user message, extract matching keywords from SEARCH_KEYWORD_TAXONOMY,
@@ -617,6 +642,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
             matched_terms = ["General Wellbeing"]
 
     primary_keyword = matched_terms[0] if matched_terms else (matched_focus_areas[0] if matched_focus_areas else "General Wellbeing")
+    target_categories = {FOCUS_AREA_CATEGORY_MAP.get(fa, "Mental") for fa in matched_focus_areas} if matched_focus_areas else set()
 
     # 6. Query all approved & active consultants from database
     consultant_rows = db.query(ConsultantProfile, User).join(
@@ -639,7 +665,6 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
     scored = []
     for c, user in consultant_rows:
         try:
-            score = 0.0
             # Parse consultant expertise areas
             eas = []
             if getattr(c, "expertise_areas", None):
@@ -653,33 +678,62 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
             spec_lower = (getattr(c, "specialization", "") or "").lower()
             bio_lower = (getattr(c, "bio", "") or "").lower()
 
+            w_cat = "Mental"
+            try:
+                w_cat = getattr(c, "wellness_category", None) or classify_consultant(c)
+            except Exception:
+                w_cat = "Mental"
+
+            # Check category mismatch:
+            # Pure Physical queries (e.g. Gut/Diet/Nutrition) must not match pure Professional coaches
+            if target_categories == {"Physical"} and w_cat == "Professional":
+                if not any(k in eas_str or k in spec_lower or k in bio_lower for k in ["nutrition", "diet", "gut", "fitness", "physio"]):
+                    continue
+            # Pure Professional queries must not match pure Physical consultants with no career coaching
+            elif target_categories == {"Professional"} and w_cat == "Physical":
+                if not any(k in eas_str or k in spec_lower or k in bio_lower for k in ["career", "leadership", "executive", "workplace"]):
+                    continue
+
+            relevance_score = 0.0
             matched_areas_for_c = []
             for fa in matched_focus_areas:
                 fa_lower = fa.lower()
                 if any(fa_lower in a or a in fa_lower for a in eas_lower):
-                    score += 15.0
+                    relevance_score += 25.0
                     matched_areas_for_c.append(fa)
                 elif fa_lower in spec_lower:
-                    score += 10.0
+                    relevance_score += 18.0
                     matched_areas_for_c.append(fa)
                 elif fa_lower in bio_lower:
-                    score += 6.0
+                    relevance_score += 10.0
                     matched_areas_for_c.append(fa)
 
-            # Check matched terms in profile
+            # Check matched specific terms in profile
             for t in matched_terms:
                 t_lower = t.lower()
                 if t_lower in eas_str:
-                    score += 8.0
-                if t_lower in spec_lower:
-                    score += 6.0
-                if t_lower in bio_lower:
-                    score += 3.0
+                    relevance_score += 15.0
+                    if t not in matched_areas_for_c:
+                        matched_areas_for_c.append(t)
+                elif t_lower in spec_lower:
+                    relevance_score += 12.0
+                    if t not in matched_areas_for_c:
+                        matched_areas_for_c.append(t)
+                elif t_lower in bio_lower:
+                    relevance_score += 6.0
 
-            # Base rating and schedule bonus
-            score += float(getattr(c, "rating", 0.0) or 0.0) * 2.0
+            # Category match bonus
+            if target_categories and w_cat in target_categories:
+                relevance_score += 10.0
+
+            # ONLY consultants with genuine positive topic relevance should be recommended
+            if relevance_score <= 0.0:
+                continue
+
+            # Add rating and schedule bonuses
+            total_score = relevance_score + (float(getattr(c, "rating", 0.0) or 0.0) * 2.0)
             if getattr(c, "schedules", None):
-                score += 3.0
+                total_score += 3.0
 
             name = getattr(user, "name", None) or getattr(c, "full_name", None) or "Consultant"
             earliest = get_earliest_slot(c, db, tz_name=tz_name)
@@ -691,13 +745,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
                 "sexual wellness" in bio_lower or "sexual health" in bio_lower or "sexologist" in bio_lower or "sex therapy" in bio_lower
             )
 
-            w_cat = "Mental"
-            try:
-                w_cat = getattr(c, "wellness_category", None) or "Mental"
-            except Exception:
-                w_cat = "Mental"
-
-            scored.append((score, {
+            scored.append((total_score, {
                 "id":                     c.id,
                 "user_id":                user.id,
                 "name":                   name,
