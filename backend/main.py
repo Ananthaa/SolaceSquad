@@ -9182,7 +9182,7 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         action = form.get("action", "") # e.g. "confirm_match"
         pending_query = form.get("pending_query", "")
 
-        matcher_stage = "idle" # "clarifying", "needs_confirmation", "matched"
+        matcher_stage = "idle" # "greeting", "conversational", "clarifying", "problem_understood_ask_lang", "matched"
         is_confirmation_pending = False
         matched_keyword = ""
         matched_focus_areas = []
@@ -9198,17 +9198,39 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
             from consultant_classifier import (
                 detect_intent, get_recommended_consultants, format_consultant_context,
                 match_consultants_for_user_query, format_matcher_prompt_context,
-                is_affirmative_confirmation, is_vague_query,
-                format_clarification_prompt_context, format_problem_summary_and_confirm_context
+                is_greeting_message, is_meta_or_conversational_remark,
+                extract_language_preference, is_affirmative_confirmation, is_vague_query,
+                format_matcher_greeting_context, format_matcher_conversational_context,
+                format_clarification_prompt_context, format_problem_understood_and_ask_language_context
             )
-            if mode == "consultant_match":
-                is_confirm = (action == "confirm_match") or (bool(pending_query) and is_affirmative_confirmation(transcript))
+            from sarvam_voice import detect_text_language
 
-                if is_confirm:
+            if mode == "consultant_match":
+                langs_in_msg = extract_language_preference(transcript)
+                is_affirmative = is_affirmative_confirmation(transcript)
+                is_greeting = is_greeting_message(transcript)
+                is_meta = is_meta_or_conversational_remark(transcript)
+
+                if is_greeting:
+                    consultant_context = format_matcher_greeting_context(user_display_name)
+                    matcher_stage = "greeting"
+                    is_confirmation_pending = False
+                elif is_meta:
+                    consultant_context = format_matcher_conversational_context(transcript, user_display_name)
+                    matcher_stage = "conversational"
+                    is_confirmation_pending = False
+                elif (action == "confirm_match") or (bool(pending_query) and (is_affirmative or bool(langs_in_msg))):
                     target_query = pending_query or transcript
+                    chosen_lang = (langs_in_msg[0] if langs_in_msg and langs_in_msg != ["Any"] else None) or stt_detected_lang
                     match_res = match_consultants_for_user_query(
-                        target_query, db, limit=3, detected_language=stt_detected_lang
+                        target_query, db, limit=3, detected_language=chosen_lang
                     )
+                    if langs_in_msg == ["Any"]:
+                        match_res["matched_languages"] = []
+                        match_res["language_matched"] = True
+                    elif chosen_lang and chosen_lang not in match_res.get("matched_languages", []):
+                        match_res["matched_languages"] = [chosen_lang]
+
                     matched_keyword = match_res.get("matched_keyword", "")
                     matched_focus_areas = match_res.get("matched_focus_areas", [])
                     matched_languages = match_res.get("matched_languages", [])
@@ -9240,17 +9262,18 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
                     matched_languages = match_res.get("matched_languages", [])
                     matched_gender = match_res.get("matched_gender", None)
                     language_matched = match_res.get("language_matched", True)
+                    category = match_res.get("consultants", [{}])[0].get("wellness_category", "Physical") if match_res.get("consultants") else "Physical"
+                    
                     matched_consultants = []
                     all_matched_ids = []
                     total_matches = 0
-                    consultant_context = format_problem_summary_and_confirm_context(
+                    consultant_context = format_problem_understood_and_ask_language_context(
                         transcript,
                         matched_keyword,
                         matched_focus_areas,
-                        matched_languages=matched_languages,
-                        matched_gender=matched_gender
+                        category=category
                     )
-                    matcher_stage = "needs_confirmation"
+                    matcher_stage = "problem_understood_ask_lang"
                     is_confirmation_pending = True
                     pending_query = transcript
             else:
@@ -9286,11 +9309,18 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         ai_text = _re.sub(r"\[user[\u2019']?s?\s*name\]", user_display_name, ai_text, flags=_re.IGNORECASE)
 
         # Extract language tag from Emora's response or use identified language
-        detected_lang = stt_detected_lang or language or "en-IN"
-        lang_match = _re.search(r'\[LANG:\s*([a-z]{2}-IN)\]', ai_text, flags=_re.IGNORECASE)
-        if lang_match:
-            detected_lang = lang_match.group(1)
-            ai_text = ai_text.replace(lang_match.group(0), "").strip()
+        from sarvam_voice import detect_text_language
+        text_script_lang, _ = detect_text_language(transcript)
+        if text_script_lang and text_script_lang != "en-IN":
+            detected_lang = text_script_lang
+        elif stt_detected_lang and stt_detected_lang != "unknown":
+            detected_lang = stt_detected_lang
+        elif language and language != "unknown":
+            detected_lang = language
+        else:
+            detected_lang = "en-IN"
+
+        ai_text = _re.sub(r'\[LANG:\s*[a-z]{2}-IN\]', '', ai_text, flags=_re.IGNORECASE).strip()
 
         # ── 4. Text → Speech (strip URLs/markdown so Emora doesn't read out links) ─
         speech_text = to_speech_text(ai_text)   # voice-friendly version
@@ -9340,7 +9370,7 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
             "is_confirmation_pending": is_confirmation_pending,
             "pending_query":           pending_query,
             "audio_b64":               audio_b64,
-            "language":                language,
+            "language":                detected_lang,
             "detected_language":       detected_lang,
             "matched_keyword":         matched_keyword,
             "matched_focus_areas":     matched_focus_areas,
@@ -9446,14 +9476,26 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         except Exception:
             pass
 
-        # -- Message handling --
-        original_message = message
-        
+        mode = data.get("mode", "") # "consultant_match"
+        action = data.get("action", "") # e.g. "confirm_match"
+        pending_query = data.get("pending_query", "")
+
+        matcher_stage = "idle" # "greeting", "conversational", "clarifying", "problem_understood_ask_lang", "matched"
+        is_confirmation_pending = False
+        matched_keyword = ""
+        matched_focus_areas = []
+        matched_languages = []
+        matched_gender = None
+        language_matched = True
+        matched_consultants = []
+        all_matched_ids = []
+        total_matches = 0
+        consultant_context = ""
+
         # Identify system greetings OR simple user greetings
         user_msg_lower = message.lower().strip()
         is_user_greeting = user_msg_lower in ["hi", "hello", "hey", "hi emora", "hello emora"]
         is_system_greeting = message.startswith("__GREET__:")
-        
         is_greeting = is_system_greeting or is_user_greeting
 
         # Detect one-shot recommendation preference-gathering (these are free — no quota deduction)
@@ -9469,7 +9511,120 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
             any(kw in user_msg_lower for kw in _RECO_KEYWORDS)
         )
 
-        if is_system_greeting:
+        # ── Consultant recommendation detection (SOS + explicit requests + Matcher mode) ──
+        try:
+            from consultant_classifier import (
+                detect_intent, get_recommended_consultants, format_consultant_context,
+                match_consultants_for_user_query, format_matcher_prompt_context,
+                is_greeting_message, is_meta_or_conversational_remark,
+                extract_language_preference, is_affirmative_confirmation, is_vague_query,
+                format_matcher_greeting_context, format_matcher_conversational_context,
+                format_clarification_prompt_context, format_problem_understood_and_ask_language_context
+            )
+            from sarvam_voice import detect_text_language
+            auto_lang_code, auto_lang_name = detect_text_language(original_message)
+
+            if mode == "consultant_match":
+                langs_in_msg = extract_language_preference(original_message)
+                is_affirmative = is_affirmative_confirmation(original_message)
+                is_m_greeting = is_greeting_message(original_message) or is_system_greeting
+                is_m_meta = is_meta_or_conversational_remark(original_message)
+
+                if is_m_greeting:
+                    is_greeting = True
+                    consultant_context = format_matcher_greeting_context(user_display_name)
+                    matcher_stage = "greeting"
+                    is_confirmation_pending = False
+                elif is_m_meta:
+                    consultant_context = format_matcher_conversational_context(original_message, user_display_name)
+                    matcher_stage = "conversational"
+                    is_confirmation_pending = False
+                elif (action == "confirm_match") or (bool(pending_query) and (is_affirmative or bool(langs_in_msg))):
+                    target_query = pending_query or original_message
+                    chosen_lang = (langs_in_msg[0] if langs_in_msg and langs_in_msg != ["Any"] else None) or auto_lang_name
+                    match_res = match_consultants_for_user_query(
+                        target_query, db, limit=3, detected_language=chosen_lang
+                    )
+                    if langs_in_msg == ["Any"]:
+                        match_res["matched_languages"] = []
+                        match_res["language_matched"] = True
+                    elif chosen_lang and chosen_lang not in match_res.get("matched_languages", []):
+                        match_res["matched_languages"] = [chosen_lang]
+
+                    matched_keyword = match_res.get("matched_keyword", "")
+                    matched_focus_areas = match_res.get("matched_focus_areas", [])
+                    matched_languages = match_res.get("matched_languages", [])
+                    matched_gender = match_res.get("matched_gender", None)
+                    language_matched = match_res.get("language_matched", True)
+                    matched_consultants = match_res.get("consultants", [])
+                    all_matched_ids = match_res.get("all_matched_ids", [])
+                    total_matches = match_res.get("total_matches", len(matched_consultants))
+                    consultant_context = format_matcher_prompt_context(
+                        matched_consultants,
+                        matched_keyword,
+                        matched_focus_areas,
+                        matched_languages=matched_languages,
+                        matched_gender=matched_gender,
+                        language_matched=language_matched
+                    )
+                    matcher_stage = "matched"
+                    is_confirmation_pending = False
+                elif is_vague_query(original_message):
+                    consultant_context = format_clarification_prompt_context(original_message)
+                    matcher_stage = "clarifying"
+                    is_confirmation_pending = False
+                else:
+                    match_res = match_consultants_for_user_query(
+                        original_message, db, limit=3, detected_language=auto_lang_name
+                    )
+                    matched_keyword = match_res.get("matched_keyword", "")
+                    matched_focus_areas = match_res.get("matched_focus_areas", [])
+                    matched_languages = match_res.get("matched_languages", [])
+                    matched_gender = match_res.get("matched_gender", None)
+                    language_matched = match_res.get("language_matched", True)
+                    category = match_res.get("consultants", [{}])[0].get("wellness_category", "Physical") if match_res.get("consultants") else "Physical"
+
+                    matched_consultants = []
+                    all_matched_ids = []
+                    total_matches = 0
+                    consultant_context = format_problem_understood_and_ask_language_context(
+                        original_message,
+                        matched_keyword,
+                        matched_focus_areas,
+                        category=category
+                    )
+                    matcher_stage = "problem_understood_ask_lang"
+                    is_confirmation_pending = True
+                    pending_query = original_message
+            else:
+                if not is_greeting:
+                    intent = detect_intent(original_message)
+                    if intent["should_recommend"]:
+                        recommended = get_recommended_consultants(intent["category"], db, limit=3)
+                        if recommended:
+                            consultant_context = format_consultant_context(
+                                recommended,
+                                is_sos=intent["is_sos"],
+                                category=intent["category"],
+                            )
+        except Exception as _cls_err:
+            print(f"[Classifier] non-fatal error: {_cls_err}")
+
+        # ── Quota gate (skip for greeting auto-messages) ─────────────────────
+        if not is_greeting and not is_pref_gather:
+            from subscription_routes import check_feature_limit
+            quota = check_feature_limit(user_id, "ai_chat", db)
+            if not quota["allowed"]:
+                return {
+                    "success": False,
+                    "quota_exhausted": True,
+                    "error": quota.get("message") or "You've used all your Emora messages. Your daily messages will refresh tomorrow, or you can top up with an Emora pack.",
+                }
+
+        # ── Prompt construction ──────────────────────────────────────────────
+        if mode == "consultant_match":
+            message = f"[CONTEXT: {user_context_note}\n{consultant_context}] {original_message}"
+        elif is_system_greeting:
             name = message.split("__GREET__:", 1)[-1].strip() or user_display_name
             message = (
                 f"[CONTEXT: {user_context_note}] "
@@ -9484,115 +9639,10 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                 f"Be casual and friendly."
             )
         else:
-            if user_context_note:
+            if consultant_context:
+                message = f"{consultant_context}\n\n{message}"
+            if user_context_note and f"[CONTEXT:" not in message:
                 message = f"[CONTEXT: {user_context_note}] {message}"
-
-        # ── Quota gate (skip for greeting auto-messages) ─────────────────────
-        if not is_greeting and not is_pref_gather:
-            from subscription_routes import check_feature_limit
-            quota = check_feature_limit(user_id, "ai_chat", db)
-            if not quota["allowed"]:
-                return {
-                    "success": False,
-                    "quota_exhausted": True,
-                    "error": quota.get("message") or "You've used all your Emora messages. Your daily messages will refresh tomorrow, or you can top up with an Emora pack.",
-                }
-
-        mode = data.get("mode", "") # "consultant_match"
-        action = data.get("action", "") # e.g. "confirm_match"
-        pending_query = data.get("pending_query", "")
-
-        matcher_stage = "idle" # "clarifying", "needs_confirmation", "matched"
-        is_confirmation_pending = False
-        matched_keyword = ""
-        matched_focus_areas = []
-        matched_languages = []
-        matched_gender = None
-        language_matched = True
-        matched_consultants = []
-        all_matched_ids = []
-        total_matches = 0
-
-        # ── Consultant recommendation detection (SOS + explicit requests + Matcher mode) ──
-        consultant_context = ""
-        if not is_greeting:
-            try:
-                from consultant_classifier import (
-                    detect_intent, get_recommended_consultants, format_consultant_context,
-                    match_consultants_for_user_query, format_matcher_prompt_context,
-                    is_affirmative_confirmation, is_vague_query,
-                    format_clarification_prompt_context, format_problem_summary_and_confirm_context
-                )
-                from sarvam_voice import detect_text_language
-                auto_lang_code, auto_lang_name = detect_text_language(original_message)
-
-                if mode == "consultant_match":
-                    is_confirm = (action == "confirm_match") or (bool(pending_query) and is_affirmative_confirmation(original_message)) or (is_affirmative_confirmation(original_message) and len(conversation_history) > 0)
-
-                    if is_confirm:
-                        target_query = pending_query or (conversation_history[-2]["content"] if len(conversation_history) >= 2 else original_message)
-                        match_res = match_consultants_for_user_query(
-                            target_query, db, limit=3, detected_language=auto_lang_name
-                        )
-                        matched_keyword = match_res.get("matched_keyword", "")
-                        matched_focus_areas = match_res.get("matched_focus_areas", [])
-                        matched_languages = match_res.get("matched_languages", [])
-                        matched_gender = match_res.get("matched_gender", None)
-                        language_matched = match_res.get("language_matched", True)
-                        matched_consultants = match_res.get("consultants", [])
-                        all_matched_ids = match_res.get("all_matched_ids", [])
-                        total_matches = match_res.get("total_matches", len(matched_consultants))
-                        consultant_context = format_matcher_prompt_context(
-                            matched_consultants,
-                            matched_keyword,
-                            matched_focus_areas,
-                            matched_languages=matched_languages,
-                            matched_gender=matched_gender,
-                            language_matched=language_matched
-                        )
-                        matcher_stage = "matched"
-                        is_confirmation_pending = False
-                    elif is_vague_query(original_message):
-                        consultant_context = format_clarification_prompt_context(original_message)
-                        matcher_stage = "clarifying"
-                        is_confirmation_pending = False
-                    else:
-                        match_res = match_consultants_for_user_query(
-                            original_message, db, limit=3, detected_language=auto_lang_name
-                        )
-                        matched_keyword = match_res.get("matched_keyword", "")
-                        matched_focus_areas = match_res.get("matched_focus_areas", [])
-                        matched_languages = match_res.get("matched_languages", [])
-                        matched_gender = match_res.get("matched_gender", None)
-                        language_matched = match_res.get("language_matched", True)
-                        matched_consultants = []
-                        all_matched_ids = []
-                        total_matches = 0
-                        consultant_context = format_problem_summary_and_confirm_context(
-                            original_message,
-                            matched_keyword,
-                            matched_focus_areas,
-                            matched_languages=matched_languages,
-                            matched_gender=matched_gender
-                        )
-                        matcher_stage = "needs_confirmation"
-                        is_confirmation_pending = True
-                        pending_query = original_message
-                else:
-                    intent = detect_intent(original_message)
-                    if intent["should_recommend"]:
-                        recommended = get_recommended_consultants(intent["category"], db, limit=3)
-                        if recommended:
-                            consultant_context = format_consultant_context(
-                                recommended,
-                                is_sos=intent["is_sos"],
-                                category=intent["category"],
-                            )
-            except Exception as _cls_err:
-                print(f"[Classifier] non-fatal error: {_cls_err}")
-
-        if consultant_context:
-            message = f"{consultant_context}\n\n{message}"
 
         # Get AI response using Gemini API
         from gemini_chat import gemini_chat
@@ -9610,15 +9660,17 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         )
         print(f"[Emora] name_in_response: display_name={user_display_name!r}, chat_name={_chat_name!r}")
 
-        # ── Detect language code from AI response or text detector ───────────
+        # ── Detect language code from text detector (NEVER allow Gemini hallucination to override Latin text) ──
         from sarvam_voice import detect_text_language, to_speech_text, tts
-        detected_lang_code, _ = detect_text_language(original_message)
-        lang_match = _re.search(r'\[LANG:\s*([a-z]{2}-IN)\]', ai_response, flags=_re.IGNORECASE)
-        if lang_match:
-            detected_lang_code = lang_match.group(1)
-            ai_response = _re.sub(r'\[LANG:\s*[a-z]{2}-IN\]', '', ai_response, flags=_re.IGNORECASE).strip()
+        text_script_lang, _ = detect_text_language(original_message)
+        if text_script_lang and text_script_lang != "en-IN":
+            detected_lang_code = text_script_lang
+        elif auto_lang_code and auto_lang_code != "en-IN":
+            detected_lang_code = auto_lang_code
         else:
-            ai_response = _re.sub(r'\[LANG:\s*[a-z]{2}-IN\]', '', ai_response, flags=_re.IGNORECASE).strip()
+            detected_lang_code = "en-IN"
+
+        ai_response = _re.sub(r'\[LANG:\s*[a-z]{2}-IN\]', '', ai_response, flags=_re.IGNORECASE).strip()
 
         # Generate audio for Green and Blue plans if in consultant match mode
         audio_b64 = ""

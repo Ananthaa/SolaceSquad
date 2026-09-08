@@ -959,6 +959,50 @@ def match_consultants_for_user_query(
     }
 
 
+def is_greeting_message(message: str) -> bool:
+    """Check if the user's message is a greeting."""
+    if not message:
+        return False
+    msg_clean = message.lower().strip()
+    greeting_patterns = [
+        r'^(hi|hello|hey|hey there|greetings|good morning|good evening|good afternoon|namaste|vanakkam|namaskara|namaskaram|hola|hi emora|hello emora|hey emora|heyy|hiii|hii)$'
+    ]
+    return any(re.search(pat, msg_clean) for pat in greeting_patterns)
+
+
+def is_meta_or_conversational_remark(message: str) -> bool:
+    """Check if the user's message is a conversational meta-question or feedback."""
+    if not message:
+        return False
+    msg_clean = message.lower().strip()
+    meta_patterns = [
+        r'\b(how did (u|you) guess|why did (u|you) (say|think|guess)|how do (u|you) know)\b',
+        r'\b(i just said hi|i only said hi|i just said hello|i only said hello)\b',
+        r'\b(who are (u|you)|what are (u|you)|what can (u|you) do|what do (u|you) do)\b',
+        r'\b(what is this|how does this work|tell me about yourself)\b',
+        r'\b(i didn\'?t ask (for )?that|that\'?s not what i (meant|said|asked))\b',
+        r'\b(never mind|nevermind|nothing|cancel)\b'
+    ]
+    return any(re.search(pat, msg_clean) for pat in meta_patterns)
+
+
+def extract_language_preference(message: str) -> list:
+    """Extract language preference from user message or return ['Any'] if no preference."""
+    if not message:
+        return []
+    msg_clean = message.lower().strip()
+
+    if re.search(r'\b(any|anyone|any language|all|all languages|no preference|either|any is fine|no language preference)\b', msg_clean):
+        return ["Any"]
+
+    matched = []
+    for lang_code, canonical_name in SUPPORTED_LANGUAGES.items():
+        if re.search(r'\b' + re.escape(lang_code.lower()) + r'\b', msg_clean):
+            if canonical_name not in matched:
+                matched.append(canonical_name)
+    return matched
+
+
 def is_affirmative_confirmation(message: str) -> bool:
     """Check if the user's message is an affirmative confirmation to find consultants."""
     if not message:
@@ -969,7 +1013,7 @@ def is_affirmative_confirmation(message: str) -> bool:
     english_patterns = [
         r'\b(yes|yeah|yep|yup|sure|ok|okay|please|definitely|absolutely|certainly|indeed)\b',
         r'\b(yes\s+please|please\s+do|please\s+find|find\s+consultants?|find\s+doctors?|find\s+experts?|find\s+specialists?)\b',
-        r'\b(show\s+them|show\s+consultants?|show\s+experts?|show\s+doctors?|show\s+recommendations?)\b',
+        r'\b(show\s+them|show\s+consultants?|show\s+experts?|show\s+doctors?|show\s+recommendations?|show\s+matching)\b',
         r'\b(go\s+ahead|sounds\s+good|that\s+works|proceed|let\'?s\s+do\s+it|recommend\s+them|recommend\s+someone)\b',
         r'\b(yes\s+i\s+would|yes\s+i\s+want|i\s+want\s+to\s+see|show\s+me)\b'
     ]
@@ -1003,8 +1047,10 @@ def is_vague_query(message: str) -> bool:
         return True
     msg_clean = message.lower().strip()
 
+    if is_greeting_message(message) or is_meta_or_conversational_remark(message):
+        return True
+
     vague_patterns = [
-        r'^(hi|hello|hey|hey emora|greetings|good morning|good evening|good afternoon|namaste|hola)$',
         r'^(help|help me|i need help|please help|can you help|i need someone|i have a problem|i have problem)$',
         r'^(not feeling good|i feel bad|feeling sad|i am sad|i am sick|i am unwell)$',
         r'^(i am confused|confused|need advice|tell me what to do|what should i do)$',
@@ -1032,6 +1078,36 @@ def is_vague_query(message: str) -> bool:
     return False
 
 
+def format_matcher_greeting_context(user_display_name: str) -> str:
+    """Build context when user greets Emora Matcher."""
+    name_str = f" {user_display_name}" if user_display_name and user_display_name != "there" else ""
+    return (
+        f"[CONSULTANT_MATCHER_GREETING]\n"
+        f"The user opened the chat or greeted you.\n"
+        f"INSTRUCTIONS FOR EMORA:\n"
+        f"1. Greet them warmly in 1 short sentence (e.g. 'Hi{name_str}! I am Emora, your wellness guide.').\n"
+        f"2. Ask them what specific health, wellness, nutrition, or life challenge they are looking for consultation support with today so you can understand and help match them with the right specialist.\n"
+        f"3. STRICTLY DO NOT guess any wellness topic (do not assume General Wellbeing or mental stress).\n"
+        f"4. STRICTLY DO NOT conduct grounding exercises or breathing techniques.\n"
+        f"5. Keep your response short (1-2 sentences max).\n"
+        f"[END_CONSULTANT_MATCHER_GREETING]"
+    )
+
+
+def format_matcher_conversational_context(user_message: str, user_display_name: str) -> str:
+    """Build context when user makes a conversational / meta remark."""
+    return (
+        f"[CONSULTANT_MATCHER_CONVERSATION]\n"
+        f"The user said: '{user_message}'.\n"
+        f"INSTRUCTIONS FOR EMORA:\n"
+        f"1. Acknowledge what they said with warm, natural conversation in 1 sentence.\n"
+        f"2. Gently invite them to share what issue or concern they would like consultation support with today.\n"
+        f"3. STRICTLY DO NOT guess any topic, do not conduct grounding exercises or therapy techniques.\n"
+        f"4. Keep your response short (1-2 sentences max).\n"
+        f"[END_CONSULTANT_MATCHER_CONVERSATION]"
+    )
+
+
 def format_clarification_prompt_context(user_message: str) -> str:
     """Build context for Emora to ask gentle clarifying questions when user need is vague."""
     return (
@@ -1040,36 +1116,33 @@ def format_clarification_prompt_context(user_message: str) -> str:
         f"Their query is brief or general, so their specific wellness area is not fully clear yet.\n"
         f"INSTRUCTIONS FOR EMORA:\n"
         f"1. Acknowledge them warmly and empathetically in 1 sentence (e.g., 'I am right here with you').\n"
-        f"2. Ask 1-2 gentle, focused clarifying questions to understand what they are experiencing (e.g. asking if they are facing physical health/nutrition issues, mental stress or anxiety, sleep challenges, or work/relationship concerns, and if they have a preferred language).\n"
-        f"3. DO NOT recommend specific consultants or show names yet.\n"
-        f"4. Keep your response short (2-3 sentences max).\n"
+        f"2. Ask 1-2 gentle, focused clarifying questions to understand what they are experiencing (e.g. asking if they are facing physical health/nutrition issues, mental stress or anxiety, sleep challenges, or work/relationship concerns).\n"
+        f"3. STRICTLY DO NOT conduct grounding exercises or suggest 5-4-3-2-1 sensory therapy techniques.\n"
+        f"4. DO NOT recommend specific consultants or show names yet.\n"
+        f"5. Keep your response short (2-3 sentences max).\n"
         f"[END_CONSULTANT_MATCHER_CLARIFICATION]"
     )
 
 
-def format_problem_summary_and_confirm_context(
+def format_problem_understood_and_ask_language_context(
     user_message: str,
     matched_keyword: str,
     focus_areas: list,
-    matched_languages: list = None,
-    matched_gender: str = None
+    category: str = "Physical"
 ) -> str:
-    """Build context for Emora to summarize the user's problem and ask if they'd like consultant recommendations."""
-    matched_languages = matched_languages or []
-    lang_desc = f" in {', '.join(matched_languages)}" if matched_languages else ""
-    gender_desc = f" ({matched_gender})" if matched_gender else ""
-    
+    """Build context for Emora to describe the problem & consultation type and ask language preferences."""
     return (
-        f"[CONSULTANT_MATCHER_SUMMARY_AND_CONFIRM]\n"
-        f"The user shared their concern: '{user_message}'.\n"
-        f"Identified Topic: '{matched_keyword}' (Focus Areas: {', '.join(focus_areas)}){lang_desc}{gender_desc}.\n"
+        f"[CONSULTANT_MATCHER_PROBLEM_UNDERSTOOD]\n"
+        f"The user described their issue: '{user_message}'.\n"
+        f"Identified Consultation Type: '{matched_keyword}' ({category} Wellbeing, Focus Areas: {', '.join(focus_areas)}).\n"
         f"INSTRUCTIONS FOR EMORA:\n"
-        f"1. Explain and summarize the problem the user shared with genuine warmth and empathy in 1-2 sentences, showing you truly heard and understood what they are dealing with.\n"
-        f"2. Directly ask if they would like you to find and recommend our top verified specialists for '{matched_keyword}'{lang_desc}.\n"
-        f"3. Example structure: 'It sounds like you have been dealing with [summary of specific symptoms/stress/diet]... Would you like me to find and recommend our top verified consultants specializing in [Topic]{lang_desc} for you?'\n"
-        f"4. DO NOT list individual consultant names yet (the system will show the matching cards right after they confirm).\n"
-        f"5. Keep the response concise, caring, and conversational (2-3 sentences max).\n"
-        f"[END_CONSULTANT_MATCHER_SUMMARY_AND_CONFIRM]"
+        f"1. Explain and summarize the problem the user shared with genuine warmth and empathy in 1 sentence, and state that a consultation with a '{matched_keyword}' specialist is recommended for this.\n"
+        f"2. Ask the user what language they prefer their consultant to speak (e.g., English, Hindi, Kannada, Tamil, Telugu, etc.).\n"
+        f"3. Example structure: 'It sounds like you are experiencing [summary of symptoms/challenge]. For this, a consultation with a {matched_keyword} specialist would be ideal. Do you have any preference for the language your consultant speaks (e.g. English, Kannada, Hindi)?'\n"
+        f"4. STRICTLY DO NOT conduct grounding exercises, breathing exercises, or suggest 5-4-3-2-1 techniques.\n"
+        f"5. DO NOT list individual consultant names yet.\n"
+        f"6. Keep the response concise, caring, and conversational (2-3 sentences max).\n"
+        f"[END_CONSULTANT_MATCHER_PROBLEM_UNDERSTOOD]"
     )
 
 
