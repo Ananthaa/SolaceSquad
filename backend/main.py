@@ -9179,6 +9179,11 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
             pass   # keep the session fallback
 
         mode = form.get("mode", "") # "consultant_match"
+        action = form.get("action", "") # e.g. "confirm_match"
+        pending_query = form.get("pending_query", "")
+
+        matcher_stage = "idle" # "clarifying", "needs_confirmation", "matched"
+        is_confirmation_pending = False
         matched_keyword = ""
         matched_focus_areas = []
         matched_languages = []
@@ -9192,28 +9197,62 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         try:
             from consultant_classifier import (
                 detect_intent, get_recommended_consultants, format_consultant_context,
-                match_consultants_for_user_query, format_matcher_prompt_context
+                match_consultants_for_user_query, format_matcher_prompt_context,
+                is_affirmative_confirmation, is_vague_query,
+                format_clarification_prompt_context, format_problem_summary_and_confirm_context
             )
             if mode == "consultant_match":
-                match_res = match_consultants_for_user_query(
-                    transcript, db, limit=3, detected_language=stt_detected_lang
-                )
-                matched_keyword = match_res.get("matched_keyword", "")
-                matched_focus_areas = match_res.get("matched_focus_areas", [])
-                matched_languages = match_res.get("matched_languages", [])
-                matched_gender = match_res.get("matched_gender", None)
-                language_matched = match_res.get("language_matched", True)
-                matched_consultants = match_res.get("consultants", [])
-                all_matched_ids = match_res.get("all_matched_ids", [])
-                total_matches = match_res.get("total_matches", len(matched_consultants))
-                consultant_context = format_matcher_prompt_context(
-                    matched_consultants,
-                    matched_keyword,
-                    matched_focus_areas,
-                    matched_languages=matched_languages,
-                    matched_gender=matched_gender,
-                    language_matched=language_matched
-                )
+                is_confirm = (action == "confirm_match") or (bool(pending_query) and is_affirmative_confirmation(transcript))
+
+                if is_confirm:
+                    target_query = pending_query or transcript
+                    match_res = match_consultants_for_user_query(
+                        target_query, db, limit=3, detected_language=stt_detected_lang
+                    )
+                    matched_keyword = match_res.get("matched_keyword", "")
+                    matched_focus_areas = match_res.get("matched_focus_areas", [])
+                    matched_languages = match_res.get("matched_languages", [])
+                    matched_gender = match_res.get("matched_gender", None)
+                    language_matched = match_res.get("language_matched", True)
+                    matched_consultants = match_res.get("consultants", [])
+                    all_matched_ids = match_res.get("all_matched_ids", [])
+                    total_matches = match_res.get("total_matches", len(matched_consultants))
+                    consultant_context = format_matcher_prompt_context(
+                        matched_consultants,
+                        matched_keyword,
+                        matched_focus_areas,
+                        matched_languages=matched_languages,
+                        matched_gender=matched_gender,
+                        language_matched=language_matched
+                    )
+                    matcher_stage = "matched"
+                    is_confirmation_pending = False
+                elif is_vague_query(transcript):
+                    consultant_context = format_clarification_prompt_context(transcript)
+                    matcher_stage = "clarifying"
+                    is_confirmation_pending = False
+                else:
+                    match_res = match_consultants_for_user_query(
+                        transcript, db, limit=3, detected_language=stt_detected_lang
+                    )
+                    matched_keyword = match_res.get("matched_keyword", "")
+                    matched_focus_areas = match_res.get("matched_focus_areas", [])
+                    matched_languages = match_res.get("matched_languages", [])
+                    matched_gender = match_res.get("matched_gender", None)
+                    language_matched = match_res.get("language_matched", True)
+                    matched_consultants = []
+                    all_matched_ids = []
+                    total_matches = 0
+                    consultant_context = format_problem_summary_and_confirm_context(
+                        transcript,
+                        matched_keyword,
+                        matched_focus_areas,
+                        matched_languages=matched_languages,
+                        matched_gender=matched_gender
+                    )
+                    matcher_stage = "needs_confirmation"
+                    is_confirmation_pending = True
+                    pending_query = transcript
             else:
                 intent = detect_intent(transcript)
                 if intent["should_recommend"]:
@@ -9290,24 +9329,28 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         except Exception:
             pass
 
-        print(f"[Voice Emora] user={user_id}, lang={language}, detected_lang={detected_lang}, transcript={transcript!r}, tts_bytes={len(audio_out)}")
+        print(f"[Voice Emora] user={user_id}, lang={language}, detected_lang={detected_lang}, stage={matcher_stage}, transcript={transcript!r}, tts_bytes={len(audio_out)}")
 
         return JSONResponse({
-            "success":             True,
-            "transcript":          transcript,
-            "response":            ai_text,
-            "reply_text":          ai_text,
-            "audio_b64":           audio_b64,
-            "language":            language,
-            "matched_keyword":     matched_keyword,
-            "matched_focus_areas": matched_focus_areas,
-            "matched_languages":   matched_languages,
-            "matched_gender":      matched_gender,
-            "language_matched":    language_matched,
-            "matched_consultants": matched_consultants,
-            "all_matched_ids":     all_matched_ids,
-            "total_matches":       total_matches,
-            "quota":               quota_info,
+            "success":                 True,
+            "transcript":              transcript,
+            "response":                ai_text,
+            "reply_text":              ai_text,
+            "stage":                   matcher_stage,
+            "is_confirmation_pending": is_confirmation_pending,
+            "pending_query":           pending_query,
+            "audio_b64":               audio_b64,
+            "language":                language,
+            "detected_language":       detected_lang,
+            "matched_keyword":         matched_keyword,
+            "matched_focus_areas":     matched_focus_areas,
+            "matched_languages":       matched_languages,
+            "matched_gender":          matched_gender,
+            "language_matched":        language_matched,
+            "matched_consultants":     matched_consultants,
+            "all_matched_ids":         all_matched_ids,
+            "total_matches":           total_matches,
+            "quota":                   quota_info,
         })
 
     except Exception as e:
@@ -9456,6 +9499,11 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                 }
 
         mode = data.get("mode", "") # "consultant_match"
+        action = data.get("action", "") # e.g. "confirm_match"
+        pending_query = data.get("pending_query", "")
+
+        matcher_stage = "idle" # "clarifying", "needs_confirmation", "matched"
+        is_confirmation_pending = False
         matched_keyword = ""
         matched_focus_areas = []
         matched_languages = []
@@ -9471,31 +9519,65 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
             try:
                 from consultant_classifier import (
                     detect_intent, get_recommended_consultants, format_consultant_context,
-                    match_consultants_for_user_query, format_matcher_prompt_context
+                    match_consultants_for_user_query, format_matcher_prompt_context,
+                    is_affirmative_confirmation, is_vague_query,
+                    format_clarification_prompt_context, format_problem_summary_and_confirm_context
                 )
                 from sarvam_voice import detect_text_language
                 auto_lang_code, auto_lang_name = detect_text_language(original_message)
 
                 if mode == "consultant_match":
-                    match_res = match_consultants_for_user_query(
-                        original_message, db, limit=3, detected_language=auto_lang_name
-                    )
-                    matched_keyword = match_res.get("matched_keyword", "")
-                    matched_focus_areas = match_res.get("matched_focus_areas", [])
-                    matched_languages = match_res.get("matched_languages", [])
-                    matched_gender = match_res.get("matched_gender", None)
-                    language_matched = match_res.get("language_matched", True)
-                    matched_consultants = match_res.get("consultants", [])
-                    all_matched_ids = match_res.get("all_matched_ids", [])
-                    total_matches = match_res.get("total_matches", len(matched_consultants))
-                    consultant_context = format_matcher_prompt_context(
-                        matched_consultants,
-                        matched_keyword,
-                        matched_focus_areas,
-                        matched_languages=matched_languages,
-                        matched_gender=matched_gender,
-                        language_matched=language_matched
-                    )
+                    is_confirm = (action == "confirm_match") or (bool(pending_query) and is_affirmative_confirmation(original_message)) or (is_affirmative_confirmation(original_message) and len(conversation_history) > 0)
+
+                    if is_confirm:
+                        target_query = pending_query or (conversation_history[-2]["content"] if len(conversation_history) >= 2 else original_message)
+                        match_res = match_consultants_for_user_query(
+                            target_query, db, limit=3, detected_language=auto_lang_name
+                        )
+                        matched_keyword = match_res.get("matched_keyword", "")
+                        matched_focus_areas = match_res.get("matched_focus_areas", [])
+                        matched_languages = match_res.get("matched_languages", [])
+                        matched_gender = match_res.get("matched_gender", None)
+                        language_matched = match_res.get("language_matched", True)
+                        matched_consultants = match_res.get("consultants", [])
+                        all_matched_ids = match_res.get("all_matched_ids", [])
+                        total_matches = match_res.get("total_matches", len(matched_consultants))
+                        consultant_context = format_matcher_prompt_context(
+                            matched_consultants,
+                            matched_keyword,
+                            matched_focus_areas,
+                            matched_languages=matched_languages,
+                            matched_gender=matched_gender,
+                            language_matched=language_matched
+                        )
+                        matcher_stage = "matched"
+                        is_confirmation_pending = False
+                    elif is_vague_query(original_message):
+                        consultant_context = format_clarification_prompt_context(original_message)
+                        matcher_stage = "clarifying"
+                        is_confirmation_pending = False
+                    else:
+                        match_res = match_consultants_for_user_query(
+                            original_message, db, limit=3, detected_language=auto_lang_name
+                        )
+                        matched_keyword = match_res.get("matched_keyword", "")
+                        matched_focus_areas = match_res.get("matched_focus_areas", [])
+                        matched_languages = match_res.get("matched_languages", [])
+                        matched_gender = match_res.get("matched_gender", None)
+                        language_matched = match_res.get("language_matched", True)
+                        matched_consultants = []
+                        all_matched_ids = []
+                        total_matches = 0
+                        consultant_context = format_problem_summary_and_confirm_context(
+                            original_message,
+                            matched_keyword,
+                            matched_focus_areas,
+                            matched_languages=matched_languages,
+                            matched_gender=matched_gender
+                        )
+                        matcher_stage = "needs_confirmation"
+                        is_confirmation_pending = True
+                        pending_query = original_message
                 else:
                     intent = detect_intent(original_message)
                     if intent["should_recommend"]:
@@ -9599,21 +9681,25 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
             pass
 
         return {
-            "success":             True,
-            "response":            ai_response,
-            "audio_b64":           audio_b64,
-            "language":            detected_lang_code,
-            "detected_language":   detected_lang_code,
-            "timestamp":           chat_entry.timestamp.isoformat(),
-            "matched_keyword":     matched_keyword,
-            "matched_focus_areas": matched_focus_areas,
-            "matched_languages":   matched_languages,
-            "matched_gender":      matched_gender,
-            "language_matched":    language_matched,
-            "matched_consultants": matched_consultants,
-            "all_matched_ids":     all_matched_ids,
-            "total_matches":       total_matches,
-            "quota":               quota_info
+            "success":                 True,
+            "response":                ai_response,
+            "reply_text":              ai_response,
+            "stage":                   matcher_stage,
+            "is_confirmation_pending": is_confirmation_pending,
+            "pending_query":           pending_query,
+            "audio_b64":               audio_b64,
+            "language":                detected_lang_code,
+            "detected_language":       detected_lang_code,
+            "timestamp":               chat_entry.timestamp.isoformat(),
+            "matched_keyword":         matched_keyword,
+            "matched_focus_areas":     matched_focus_areas,
+            "matched_languages":       matched_languages,
+            "matched_gender":          matched_gender,
+            "language_matched":        language_matched,
+            "matched_consultants":     matched_consultants,
+            "all_matched_ids":         all_matched_ids,
+            "total_matches":           total_matches,
+            "quota":                   quota_info
         }
     except Exception as e:
         import traceback

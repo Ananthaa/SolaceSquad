@@ -10,6 +10,7 @@ Provides:
 """
 from datetime import datetime, timedelta, date, time as dtime
 import json
+import re
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. KEYWORD MAPS FOR AUTO-CLASSIFICATION
@@ -958,6 +959,120 @@ def match_consultants_for_user_query(
     }
 
 
+def is_affirmative_confirmation(message: str) -> bool:
+    """Check if the user's message is an affirmative confirmation to find consultants."""
+    if not message:
+        return False
+    msg_clean = message.lower().strip()
+    
+    # English affirmative tokens & phrases
+    english_patterns = [
+        r'\b(yes|yeah|yep|yup|sure|ok|okay|please|definitely|absolutely|certainly|indeed)\b',
+        r'\b(yes\s+please|please\s+do|please\s+find|find\s+consultants?|find\s+doctors?|find\s+experts?|find\s+specialists?)\b',
+        r'\b(show\s+them|show\s+consultants?|show\s+experts?|show\s+doctors?|show\s+recommendations?)\b',
+        r'\b(go\s+ahead|sounds\s+good|that\s+works|proceed|let\'?s\s+do\s+it|recommend\s+them|recommend\s+someone)\b',
+        r'\b(yes\s+i\s+would|yes\s+i\s+want|i\s+want\s+to\s+see|show\s+me)\b'
+    ]
+    for pat in english_patterns:
+        if re.search(pat, msg_clean):
+            return True
+
+    # Indic script affirmatives
+    indic_affirmatives = [
+        "ಹೌದು", "ದಯವಿಟ್ಟು ಹುಡುಕಿ", "ಸರಿ", "ಖಂಡಿತ", "ಹುಡುಕಿ", "ತೋರಿಸಿ", # Kannada
+        "हाँ", "हां", "ज़रूर", "जरूर", "दिखाइए", "ढूंढिए", "कृपया", "हां जी", "बिल्कुल", # Hindi
+        "అవును", "ఖచ్చితంగా", "చూపించండి", "వెతకండి", "సరే", # Telugu
+        "ஆம்", "சரி", "கண்டிப்பாக", "தேடுங்கள்", "காட்டுங்கள்", # Tamil
+        "അതെ", "ശരി", "തീർച്ചയായും", "കാണിക്കൂ", # Malayalam
+        "হ্যাঁ", "অবশ্যই", "খুঁজুন", "দেখান", # Bengali
+        "हो", "नक्कीच", "शोधा", "दाखवा", # Marathi
+        "હા", "ચોક્કસ", "શોધો", "બતાવો", # Gujarati
+        "ਹਾਂ", "ਜ਼ਰੂਰ", "ਲੱਭੋ", "ਦਿਖਾਓ", # Punjabi
+        "ହଁ", "ନିଶ୍ଚୟ", "ଖୋଜନ୍ତୁ", # Odia
+    ]
+    for ind in indic_affirmatives:
+        if ind in msg_clean:
+            return True
+
+    return False
+
+
+def is_vague_query(message: str) -> bool:
+    """Check if the user's message is too vague, short, or generic without a specific focus area."""
+    if not message:
+        return True
+    msg_clean = message.lower().strip()
+
+    vague_patterns = [
+        r'^(hi|hello|hey|hey emora|greetings|good morning|good evening|good afternoon|namaste|hola)$',
+        r'^(help|help me|i need help|please help|can you help|i need someone|i have a problem|i have problem)$',
+        r'^(not feeling good|i feel bad|feeling sad|i am sad|i am sick|i am unwell)$',
+        r'^(i am confused|confused|need advice|tell me what to do|what should i do)$',
+        r'^(suggest someone|find someone|recommend someone|need doctor|need consultant)$'
+    ]
+    for pat in vague_patterns:
+        if re.search(pat, msg_clean):
+            return True
+
+    # Check if any explicit domain taxonomy term or phrase synonym is in the message
+    for phrase in PHRASE_SYNONYMS:
+        if phrase in msg_clean:
+            return False
+    for item in SEARCH_KEYWORD_TAXONOMY:
+        if item["term"].lower() in msg_clean:
+            return False
+    for word in re.findall(r'\b\w+\b', msg_clean):
+        if word in KEYWORD_SYNONYMS:
+            return False
+
+    tokens = [t for t in re.findall(r'\w+', msg_clean) if len(t) > 2]
+    if len(tokens) <= 2:
+        return True
+
+    return False
+
+
+def format_clarification_prompt_context(user_message: str) -> str:
+    """Build context for Emora to ask gentle clarifying questions when user need is vague."""
+    return (
+        f"[CONSULTANT_MATCHER_CLARIFICATION]\n"
+        f"The user messaged: '{user_message}'.\n"
+        f"Their query is brief or general, so their specific wellness area is not fully clear yet.\n"
+        f"INSTRUCTIONS FOR EMORA:\n"
+        f"1. Acknowledge them warmly and empathetically in 1 sentence (e.g., 'I am right here with you').\n"
+        f"2. Ask 1-2 gentle, focused clarifying questions to understand what they are experiencing (e.g. asking if they are facing physical health/nutrition issues, mental stress or anxiety, sleep challenges, or work/relationship concerns, and if they have a preferred language).\n"
+        f"3. DO NOT recommend specific consultants or show names yet.\n"
+        f"4. Keep your response short (2-3 sentences max).\n"
+        f"[END_CONSULTANT_MATCHER_CLARIFICATION]"
+    )
+
+
+def format_problem_summary_and_confirm_context(
+    user_message: str,
+    matched_keyword: str,
+    focus_areas: list,
+    matched_languages: list = None,
+    matched_gender: str = None
+) -> str:
+    """Build context for Emora to summarize the user's problem and ask if they'd like consultant recommendations."""
+    matched_languages = matched_languages or []
+    lang_desc = f" in {', '.join(matched_languages)}" if matched_languages else ""
+    gender_desc = f" ({matched_gender})" if matched_gender else ""
+    
+    return (
+        f"[CONSULTANT_MATCHER_SUMMARY_AND_CONFIRM]\n"
+        f"The user shared their concern: '{user_message}'.\n"
+        f"Identified Topic: '{matched_keyword}' (Focus Areas: {', '.join(focus_areas)}){lang_desc}{gender_desc}.\n"
+        f"INSTRUCTIONS FOR EMORA:\n"
+        f"1. Explain and summarize the problem the user shared with genuine warmth and empathy in 1-2 sentences, showing you truly heard and understood what they are dealing with.\n"
+        f"2. Directly ask if they would like you to find and recommend our top verified specialists for '{matched_keyword}'{lang_desc}.\n"
+        f"3. Example structure: 'It sounds like you have been dealing with [summary of specific symptoms/stress/diet]... Would you like me to find and recommend our top verified consultants specializing in [Topic]{lang_desc} for you?'\n"
+        f"4. DO NOT list individual consultant names yet (the system will show the matching cards right after they confirm).\n"
+        f"5. Keep the response concise, caring, and conversational (2-3 sentences max).\n"
+        f"[END_CONSULTANT_MATCHER_SUMMARY_AND_CONFIRM]"
+    )
+
+
 def format_matcher_prompt_context(
     consultants: list,
     matched_keyword: str,
@@ -976,7 +1091,7 @@ def format_matcher_prompt_context(
             f"The user is looking for help regarding: '{matched_keyword}'{lang_clause}{gender_clause}.\n"
             f"You are currently assisting them directly on the Find Consultants page.\n"
             f"CRITICAL: DO NOT tell them to visit '/app/consultants' or go to any link.\n"
-            f"Warmly ask them 1 short question about what specific support they are looking for so you can help find the right expert.\n"
+            f"Warmly explain that we currently don't have consultants matching all these exact criteria, but ask them what other support they are looking for.\n"
             f"[END_CONSULTANT_MATCHER_RECOMMENDATION]"
         )
 
@@ -988,10 +1103,11 @@ def format_matcher_prompt_context(
             lang_note = f" Requested Language: {', '.join(matched_languages)} (NOTE: None of our {matched_keyword} specialists currently list {', '.join(matched_languages)} on their profile. Matched experts converse in English/Hindi)."
 
     gender_note = f" Requested Gender: {matched_gender}." if matched_gender else ""
+    criteria_tag = f"{matched_keyword} ({', '.join(matched_languages)})" if matched_languages else matched_keyword
 
     lines = [
         f"[CONSULTANT_MATCHER_RECOMMENDATION]\n"
-        f"The user is looking for help regarding: '{matched_keyword}' (Focus Areas: {', '.join(focus_areas)}).{lang_note}{gender_note}\n"
+        f"The user confirmed they want consultant recommendations for: '{matched_keyword}' (Focus Areas: {', '.join(focus_areas)}).{lang_note}{gender_note}\n"
         f"You have matched these real SolaceSquad consultants from our database (their recommendation cards are already filtered and presented directly below your message to the user):\n"
     ]
     for c in consultants:
@@ -1003,13 +1119,13 @@ def format_matcher_prompt_context(
     lines.append(
         f"\nCRITICAL INSTRUCTIONS FOR EMORA IN MATCHER MODE:\n"
         f"1. You are talking to the user DIRECTLY ON the Find Consultants page. NEVER tell them to 'go to /app/consultants', 'visit the consultants section', or navigate anywhere.\n"
-        f"2. DO NOT conduct grounding exercises, breathing exercises, or live sensory therapy techniques (e.g. 5-4-3-2-1 grounding or 'tell me 3 things you hear'). Your sole role is to introduce the matched expert(s).\n"
-        f"3. Acknowledge and validate what they are experiencing (e.g., {matched_keyword}) in 1 warm, empathetic sentence.\n"
+        f"2. DO NOT conduct grounding exercises, breathing exercises, or live sensory therapy techniques. Your sole role is to introduce the matched expert(s).\n"
+        f"3. Phrase your opening explicitly as: \"We have {len(consultants)} consultants offering consultations matching your criteria (Matched by Emora for '{criteria_tag}').\"\n"
     )
 
     names_list = ", ".join(c["name"] for c in consultants)
     if matched_languages and language_matched:
-        lines.append(f"4. Explicitly confirm to the user that {names_list} speaks {', '.join(matched_languages)} as requested, and introduce them BY EXACT NAME explaining briefly how their expertise can support them.\n")
+        lines.append(f"4. Explicitly confirm that {names_list} speaks {', '.join(matched_languages)} as requested, and introduce them BY EXACT NAME explaining briefly how their expertise can support them.\n")
     elif matched_languages and not language_matched:
         lines.append(f"4. Transparently let the user know that while our {matched_keyword} specialists currently converse in {consultants[0].get('languages_str', 'English/Hindi')}, introduce {names_list} BY EXACT NAME as our top verified specialists for this concern.\n")
     else:
@@ -1021,4 +1137,5 @@ def format_matcher_prompt_context(
         f"[END_CONSULTANT_MATCHER_RECOMMENDATION]"
     )
     return "\n".join(lines)
+
 

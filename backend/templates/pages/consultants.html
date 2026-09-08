@@ -4637,6 +4637,14 @@ function stopEmoraVoiceRecord() {
     _emoraMediaRecorder.stop();
 }
 
+var _emoraMatcherPendingState = {
+    pendingQuery: '',
+    pendingKeyword: '',
+    pendingLanguages: [],
+    pendingGender: null,
+    isPendingConfirmation: false
+};
+
 async function sendEmoraVoiceToMatcher(blob) {
     var body = document.getElementById('emoraChatBody');
     var typing = document.getElementById('emoraTypingIndicator');
@@ -4647,7 +4655,7 @@ async function sendEmoraVoiceToMatcher(blob) {
     var lang = (langEl && langEl.value) ? langEl.value : 'en-IN';
 
     if (typing) {
-        if (typingText) typingText.textContent = 'Emora is listening & finding consultants...';
+        if (typingText) typingText.textContent = 'Emora is listening & processing...';
         typing.style.display = 'flex';
     }
     if (mb) mb.disabled = true;
@@ -4657,6 +4665,9 @@ async function sendEmoraVoiceToMatcher(blob) {
     formData.append('audio', blob, 'emora_match_voice.webm');
     formData.append('language', lang);
     formData.append('mode', 'consultant_match');
+    if (_emoraMatcherPendingState.isPendingConfirmation && _emoraMatcherPendingState.pendingQuery) {
+        formData.append('pending_query', _emoraMatcherPendingState.pendingQuery);
+    }
 
     try {
         var r = await fetch('/api/ai-chat/voice', {
@@ -4796,6 +4807,56 @@ function handleEmoraInputKey(event) {
     }
 }
 
+async function confirmEmoraMatch(pendingQuery) {
+    var body = document.getElementById('emoraChatBody');
+    var typing = document.getElementById('emoraTypingIndicator');
+    var typingText = document.getElementById('emoraTypingText');
+    var sendBtn = document.getElementById('emoraSendBtn');
+    if (!body) return;
+
+    var targetQuery = pendingQuery || _emoraMatcherPendingState.pendingQuery || '';
+
+    // Hide any existing confirmation button bars so only one stays active
+    document.querySelectorAll('.emora-confirm-actions').forEach(function(el) {
+        el.style.display = 'none';
+    });
+
+    var userRow = document.createElement('div');
+    userRow.className = 'emora-msg-row emora-user-row';
+    userRow.innerHTML = '<div class="emora-user-bubble">✨ Yes, please find matching consultants.</div>';
+    body.appendChild(userRow);
+    body.scrollTop = body.scrollHeight;
+
+    if (typing) {
+        if (typingText) typingText.textContent = 'Emora is finding matching consultants...';
+        typing.style.display = 'flex';
+    }
+    if (sendBtn) sendBtn.disabled = true;
+
+    try {
+        var r = await fetch('/api/ai-chat/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: 'Yes, please find and recommend matching consultants.',
+                mode: 'consultant_match',
+                action: 'confirm_match',
+                pending_query: targetQuery
+            })
+        });
+        var data = await r.json();
+
+        if (typing) typing.style.display = 'none';
+        if (sendBtn) sendBtn.disabled = false;
+
+        renderEmoraBotResponse(data, body);
+    } catch (err) {
+        if (typing) typing.style.display = 'none';
+        if (sendBtn) sendBtn.disabled = false;
+        console.error('Confirm match error', err);
+    }
+}
+
 async function sendEmoraMessage() {
     var input = document.getElementById('emoraChatInput');
     var body = document.getElementById('emoraChatBody');
@@ -4817,19 +4878,24 @@ async function sendEmoraMessage() {
     body.scrollTop = body.scrollHeight;
 
     if (typing) {
-        if (typingText) typingText.textContent = 'Emora is finding consultants...';
+        if (typingText) typingText.textContent = 'Emora is listening & processing...';
         typing.style.display = 'flex';
     }
     if (sendBtn) sendBtn.disabled = true;
+
+    var payload = {
+        message: text,
+        mode: 'consultant_match'
+    };
+    if (_emoraMatcherPendingState.isPendingConfirmation && _emoraMatcherPendingState.pendingQuery) {
+        payload.pending_query = _emoraMatcherPendingState.pendingQuery;
+    }
 
     try {
         var r = await fetch('/api/ai-chat/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                message: text,
-                mode: 'consultant_match'
-            })
+            body: JSON.stringify(payload)
         });
         var data = await r.json();
 
@@ -4919,6 +4985,21 @@ function renderEmoraBotResponse(data, body) {
         return;
     }
 
+    // Update pending confirmation state
+    if (data.stage === 'needs_confirmation' || data.is_confirmation_pending) {
+        _emoraMatcherPendingState = {
+            pendingQuery: data.pending_query || data.matched_keyword || '',
+            pendingKeyword: data.matched_keyword || '',
+            pendingLanguages: data.matched_languages || [],
+            pendingGender: data.matched_gender || null,
+            isPendingConfirmation: true
+        };
+    } else if (data.stage === 'matched') {
+        _emoraMatcherPendingState.isPendingConfirmation = false;
+    } else if (data.stage === 'clarifying') {
+        _emoraMatcherPendingState.isPendingConfirmation = false;
+    }
+
     // Render Emora response bubble
     var botRow = document.createElement('div');
     botRow.className = 'emora-msg-row emora-bot-row';
@@ -4958,7 +5039,21 @@ function renderEmoraBotResponse(data, body) {
         '</button>' +
     '</div>';
 
-    // Render matched consultants cards & sync background page filter
+    // If confirmation is needed, render interactive confirmation buttons
+    if ((data.stage === 'needs_confirmation' || data.is_confirmation_pending) && (!data.matched_consultants || data.matched_consultants.length === 0)) {
+        var pendingQueryEnc = encodeURIComponent(data.pending_query || data.matched_keyword || '');
+        responseHtml += 
+            '<div class="emora-confirm-actions" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">' +
+                '<button type="button" class="emora-confirm-btn" onclick="confirmEmoraMatch(decodeURIComponent(\'' + pendingQueryEnc + '\'))" style="background:linear-gradient(135deg, #7c3aed, #4f46e5);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;box-shadow:0 2px 6px rgba(124,58,237,0.25);transition:all 0.15s ease;display:inline-flex;align-items:center;gap:4px;">' +
+                    '✨ Yes, Find Matching Consultants' +
+                '</button>' +
+                '<button type="button" onclick="var inp=document.getElementById(\'emoraChatInput\');if(inp){inp.focus();inp.placeholder=\'Add more details (e.g. fee, experience, language)...\';}" style="background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:8px;padding:6px 10px;font-size:0.75rem;font-weight:600;cursor:pointer;">' +
+                    '💬 Add Details' +
+                '</button>' +
+            '</div>';
+    }
+
+    // Render matched consultants cards & sync background page filter ONLY when consultants are returned on confirmation
     if (data.matched_consultants && data.matched_consultants.length > 0) {
         currentMatchedConsultantIds = (data.all_matched_ids && data.all_matched_ids.length > 0) 
             ? data.all_matched_ids.map(Number) 
