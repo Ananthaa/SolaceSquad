@@ -200,11 +200,28 @@
         </div>
 
         <!-- Listening indicator (shown while recording) -->
-        <div id="voiceListeningBar" style="display:none;align-items:center;gap:8px;padding:6px 12px;
-             background:#fff0f0;border-radius:8px;margin-bottom:6px;border:1px solid #fca5a5;">
-            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#dc2626;
-                         animation:micPulse 0.8s ease-in-out infinite;"></span>
-            <span style="font-size:0.8rem;color:#dc2626;font-weight:600;">Listening… release the button when done</span>
+        <div id="voiceListeningBar" style="display:none;align-items:center;justify-content:space-between;gap:8px;padding:8px 14px;
+             background:#fff0f0;border-radius:12px;margin-bottom:8px;border:1px solid #fca5a5;">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#dc2626;
+                             animation:micPulse 0.8s ease-in-out infinite;"></span>
+                <span style="font-size:0.8rem;color:#dc2626;font-weight:600;">Listening… tap mic to send</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <select id="voiceLangSelect" onchange="localStorage.setItem('emora_voice_lang', this.value)" style="font-size:0.75rem;padding:3px 6px;border-radius:6px;border:1px solid #fca5a5;background:#fff;color:#991b1b;font-weight:600;cursor:pointer;">
+                    <option value="en-IN" selected>English (India)</option>
+                    <option value="hi-IN">Hindi (हिंदी)</option>
+                    <option value="kn-IN">Kannada (ಕನ್ನಡ)</option>
+                    <option value="te-IN">Telugu (తెలుగు)</option>
+                    <option value="ta-IN">Tamil (தமிழ்)</option>
+                    <option value="mr-IN">Marathi (मराठी)</option>
+                    <option value="bn-IN">Bengali (বাংলা)</option>
+                    <option value="ml-IN">Malayalam (മലയാളം)</option>
+                    <option value="gu-IN">Gujarati (ગુજરાતી)</option>
+                    <option value="pa-IN">Punjabi (ਪੰਜਾਬੀ)</option>
+                </select>
+                <button type="button" onclick="stopVoiceRecord()" style="padding:3px 8px;font-size:0.75rem;background:#dc2626;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">Send</button>
+            </div>
         </div>
 
         <!-- Chat Input -->
@@ -214,16 +231,15 @@
                     class="flex-1 px-5 py-3.5 border border-gray-300 rounded-full focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500 text-sm"
                     onkeypress="if(event.key==='Enter') sendMessage()" autocomplete="off" disabled>
                 <!-- Mic button with plan-gate tooltip -->
-                <div id="micWrapper" style="position:relative;flex-shrink:0;" title="Hold to speak">
+                <div id="micWrapper" style="position:relative;flex-shrink:0;" title="Tap to speak">
                   <button id="micButton" disabled
                       style="width:48px;height:48px;border-radius:9999px;border:none;cursor:pointer;
                              background:#f0fdf4;color:#0d9488;display:flex;align-items:center;
                              justify-content:center;transition:all 0.2s;"
-                      onmousedown="startVoiceRecord()" onmouseup="stopVoiceRecord()"
-                      ontouchstart="startVoiceRecord()" ontouchend="stopVoiceRecord()">
+                      onclick="toggleVoiceRecord(event)">
                       <i data-lucide="mic" class="w-5 h-5" id="micIcon"></i>
                   </button>
-                  <!-- Lock overlay shown for Free plan users -->
+                  <!-- Lock overlay shown for Free and White plan users -->
                   <div id="micLockBadge" style="display:none;position:absolute;inset:0;
                        border-radius:9999px;background:rgba(107,114,128,0.15);cursor:pointer;
                        align-items:center;justify-content:center;"
@@ -234,8 +250,8 @@
                   <div id="micUpgradeTooltip" style="display:none;position:absolute;bottom:56px;
                        left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;
                        font-size:0.7rem;font-weight:600;padding:6px 10px;border-radius:8px;
-                       white-space:nowrap;z-index:999;pointer-events:none;">
-                      🎙️ Upgrade to White plan to unlock Voice Emora
+                       white-space:nowrap;z-index:999;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.25);">
+                      🎙️ Upgrade to Green or Blue plan to unlock Voice Emora
                       <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);
                            width:8px;height:8px;background:#1f2937;clip-path:polygon(0 0,100% 0,50% 100%);"></div>
                   </div>
@@ -965,6 +981,11 @@
     function initVoice() {
         _micBtn  = document.getElementById('micButton');
         _micIcon = document.getElementById('micIcon');
+        var langEl = document.getElementById('voiceLangSelect');
+        var savedLang = localStorage.getItem('emora_voice_lang');
+        if (langEl && savedLang) {
+            langEl.value = savedLang;
+        }
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     }
 
@@ -983,7 +1004,7 @@
         });
     }
 
-    // ── Apply voice plan gate: lock mic for Free plan users ────────────────
+    // ── Apply voice plan gate: lock mic for users NOT on Green or Blue plan ────────────────
     var _voicePlanChecked = false;
     function _applyVoicePlanGate() {
         if (_voicePlanChecked) return;
@@ -992,7 +1013,7 @@
             .then(function(r) { return r.json(); })
             .then(function(d) {
                 var planName = ((d.plan_name || d.plan || '')).toLowerCase().trim();
-                var voicePlans = ['white', 'green', 'blue'];
+                var voicePlans = ['green', 'blue'];
                 var hasVoice = voicePlans.some(function(p) { return planName.indexOf(p) !== -1; });
                 var mb   = document.getElementById('micButton');
                 var lock = document.getElementById('micLockBadge');
@@ -1007,9 +1028,10 @@
                 }
             })
             .catch(function() {
-                // On error, default to enabling mic (fail open)
                 var mb = document.getElementById('micButton');
-                if (mb) mb.disabled = false;
+                var lock = document.getElementById('micLockBadge');
+                if (mb)   { mb.disabled = true; mb.style.opacity = '0.5'; }
+                if (lock) lock.style.display = 'flex';
             });
     }
 
@@ -1017,7 +1039,16 @@
         var tip = document.getElementById('micUpgradeTooltip');
         if (!tip) return;
         tip.style.display = 'block';
-        setTimeout(function() { tip.style.display = 'none'; }, 3000);
+        setTimeout(function() { tip.style.display = 'none'; }, 3500);
+    };
+
+    window.toggleVoiceRecord = function (e) {
+        if (e) e.preventDefault();
+        if (_isRecording) {
+            stopVoiceRecord();
+        } else {
+            startVoiceRecord();
+        }
     };
 
     // ── Start Recording ───────────────────────────────────────────────────────
@@ -1045,8 +1076,11 @@
                 var lb = document.getElementById('voiceListeningBar');
                 if (lb) lb.style.display = 'flex';
             })
-            .catch(function () {
-                appendVoiceError('Microphone access denied. Please allow mic in browser settings.');
+            .catch(function (err) {
+                console.error('[Voice Emora] mic error:', err);
+                if (typeof window.appendMessage === 'function') {
+                    window.appendMessage('🎙️ Microphone access was not granted. Please allow microphone permission in your browser settings.', false, true);
+                }
             });
     };
 
@@ -1091,7 +1125,18 @@
                     window.appendMessage('🎙️ ' + data.transcript, true, true);
                     window.appendMessage(data.reply_text, false, true);
                     window.tickMsgUsed();
+                    if (data.quota && typeof window.updateQuotaDisplay === 'function') {
+                        window.updateQuotaDisplay(data.quota);
+                    }
                     if (data.audio_b64) playEmoraAudio(data.audio_b64);
+                } else if (data.voice_not_available) {
+                    window.appendMessage('🎙️ ' + data.error, false, true);
+                    var mb   = document.getElementById('micButton');
+                    var lock = document.getElementById('micLockBadge');
+                    if (mb)   { mb.disabled = true; mb.style.opacity = '0.5'; }
+                    if (lock) lock.style.display = 'flex';
+                } else if (data.quota_exhausted) {
+                    window.appendMessage('⚠️ ' + (data.error || 'Daily message quota reached.'), false, true);
                 } else {
                     window.appendMessage('🎙️ ' + (data.error || 'Could not process. Please try again.'), false, true);
                 }

@@ -9123,23 +9123,22 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
     if not user_id:
         return JSONResponse({"success": False, "error": "Not authenticated"}, status_code=401)
 
-    # ── Plan gate: Voice is available on White, Green and Blue plans only ─────
+    # ── Plan gate: Voice is available on Green and Blue plans only ─────
     try:
         from subscription_routes import get_active_subscription
         active_sub = get_active_subscription(user_id, db)
         plan_name = ""
         if active_sub and active_sub.plan:
             plan_name = (active_sub.plan.name or "").strip().lower()
-        voice_allowed_plans = {"white", "green", "blue"}
-        if plan_name not in voice_allowed_plans:
+        voice_allowed_plans = {"green", "blue"}
+        if not any(p in plan_name for p in voice_allowed_plans):
             return JSONResponse({
                 "success": False,
                 "voice_not_available": True,
-                "error": "Voice Emora is available on White, Green and Blue plans. Upgrade your plan to unlock this feature!"
+                "error": "Voice Emora is available exclusively on Green and Blue plans. Upgrade your plan to unlock Voice Emora!"
             }, status_code=403)
     except Exception as _plan_err:
         print(f"[Voice] Plan gate check error (non-fatal, allowing): {_plan_err}")
-
 
     try:
         form       = await request.form()
@@ -9148,6 +9147,16 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
 
         if not audio_file:
             return JSONResponse({"success": False, "error": "No audio provided"}, status_code=400)
+
+        # Check quota limit before processing voice
+        from subscription_routes import check_feature_limit, increment_feature_usage
+        q = check_feature_limit(user_id, "ai_chat", db)
+        if not q.get("allowed", True):
+            return JSONResponse({
+                "success": False,
+                "quota_exhausted": True,
+                "error": q.get("message", "You have reached your daily message limit.")
+            }, status_code=429)
 
         audio_bytes = await audio_file.read()
 
@@ -9192,7 +9201,7 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         ai_text = _re.sub(r"\[user[\u2019']?s?\s*name\]", user_display_name, ai_text, flags=_re.IGNORECASE)
 
         # Extract language tag from Emora's response
-        detected_lang = "en-IN"
+        detected_lang = language or "en-IN"
         lang_match = _re.search(r'\[LANG:\s*([a-z]{2}-IN)\]', ai_text, flags=_re.IGNORECASE)
         if lang_match:
             detected_lang = lang_match.group(1)
@@ -9204,9 +9213,37 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         audio_out   = tts(speech_text, language=detected_lang)
         audio_b64   = _b64.b64encode(audio_out).decode() if audio_out else ""
 
-        # ── 5. Persist to chat history ────────────────────────────────────────
-        db.add(AIChatHistory(user_id=user_id, message=transcript, response=ai_text))
+        # ── 5. Persist to chat history & deduct quota ─────────────────────────
+        chat_entry = AIChatHistory(user_id=user_id, message=transcript, response=ai_text)
+        db.add(chat_entry)
         db.commit()
+        db.refresh(chat_entry)
+
+        try:
+            increment_feature_usage(user_id, "ai_chat", db)
+        except Exception as _q_err:
+            print(f"[Voice Quota] increment error: {_q_err}")
+
+        quota_info = {}
+        try:
+            q_after = check_feature_limit(user_id, "ai_chat", db)
+            limit = q_after.get("limit", 20)
+            in_first_week = q_after.get("in_first_week", False)
+            pack_balance = q_after.get("pack_balance", 0)
+            daily_remaining = q_after.get("daily_remaining", 0)
+            total_remaining = -1 if limit == -1 else (daily_remaining if in_first_week else (daily_remaining + pack_balance))
+            quota_info = {
+                "allowed":         q_after.get("allowed", True),
+                "remaining":       total_remaining,
+                "daily_remaining": daily_remaining,
+                "pack_balance":    pack_balance,
+                "limit":           limit,
+                "used":            q_after.get("used", 0),
+                "in_first_week":   in_first_week,
+                "message":         q_after.get("message", ""),
+            }
+        except Exception:
+            pass
 
         print(f"[Voice Emora] user={user_id}, lang={language}, transcript={transcript!r}, tts_bytes={len(audio_out)}")
 
@@ -9216,6 +9253,7 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
             "reply_text": ai_text,
             "audio_b64":  audio_b64,
             "language":   language,
+            "quota":      quota_info,
         })
 
     except Exception as e:
