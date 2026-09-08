@@ -726,18 +726,63 @@
         </div>
     </div>
 
+    <!-- Voice Listening Bar (shown while recording) -->
+    <div id="emoraVoiceListeningBar" style="display:none;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;background:#fff0f0;border-radius:8px;margin:0 12px 6px 12px;border:1px solid #fca5a5;">
+        <div style="display:flex;align-items:center;gap:6px;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#dc2626;animation:emoraMicPulse 0.8s ease-in-out infinite;"></span>
+            <span style="font-size:0.75rem;color:#dc2626;font-weight:600;">Listening… tap mic to send</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+            <select id="emoraVoiceLangSelect" onchange="localStorage.setItem('emora_voice_lang', this.value)" style="font-size:0.7rem;padding:2px 4px;border-radius:4px;border:1px solid #fca5a5;background:#fff;color:#991b1b;font-weight:600;cursor:pointer;">
+                <option value="en-IN" selected>English (IN)</option>
+                <option value="hi-IN">Hindi (हिंदी)</option>
+                <option value="kn-IN">Kannada (ಕನ್ನಡ)</option>
+                <option value="te-IN">Telugu (తెలుగు)</option>
+                <option value="ta-IN">Tamil (தமிழ்)</option>
+                <option value="mr-IN">Marathi (मराठी)</option>
+                <option value="bn-IN">Bengali (বাংলা)</option>
+                <option value="ml-IN">Malayalam (മലയാളം)</option>
+                <option value="gu-IN">Gujarati (ગુજરાતી)</option>
+                <option value="pa-IN">Punjabi (ਪੰਜਾਬੀ)</option>
+            </select>
+            <button type="button" onclick="stopEmoraVoiceRecord()" style="padding:2px 6px;font-size:0.7rem;background:#dc2626;color:#fff;border:none;border-radius:4px;font-weight:700;cursor:pointer;">Send</button>
+        </div>
+    </div>
+
     <!-- Typing Indicator -->
     <div id="emoraTypingIndicator" class="emora-typing-indicator" style="display:none;">
         <div class="emora-typing-dot"></div>
         <div class="emora-typing-dot"></div>
         <div class="emora-typing-dot"></div>
-        <span style="font-size:0.75rem;color:#6b7280;margin-left:4px;">Emora is finding consultants...</span>
+        <span id="emoraTypingText" style="font-size:0.75rem;color:#6b7280;margin-left:4px;">Emora is finding consultants...</span>
     </div>
 
     <!-- Footer / Input Form -->
     <div id="emoraChatFooter" class="emora-popup-footer">
         <form id="emoraChatForm" onsubmit="event.preventDefault(); sendEmoraMessage();" style="display:flex;gap:0.4rem;align-items:flex-end;width:100%;">
             <textarea id="emoraChatInput" class="emora-input-field" placeholder="Tell Emora what you're feeling..." rows="1" onkeydown="handleEmoraInputKey(event)"></textarea>
+            
+            <!-- Voice Mic Button with plan-gate tooltip -->
+            <div id="emoraMicWrapper" style="position:relative;flex-shrink:0;" title="Tap to speak">
+                <button type="button" id="emoraMicBtn" class="emora-mic-btn" onclick="toggleEmoraVoiceRecord(event)" style="width:34px;height:34px;border-radius:9px;border:none;background:#f0fdf4;color:#0d9488;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;" title="Speak to Emora">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="emoraMicIcon">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                    </svg>
+                </button>
+                <!-- Lock badge for Free & White plans -->
+                <div id="emoraMicLockBadge" style="display:none;position:absolute;inset:0;border-radius:9px;background:rgba(107,114,128,0.25);cursor:pointer;align-items:center;justify-content:center;" onclick="_showEmoraMicUpgradeTooltip()">
+                    <span style="font-size:0.75rem;">🔒</span>
+                </div>
+                <!-- Upgrade tooltip -->
+                <div id="emoraMicUpgradeTooltip" style="display:none;position:absolute;bottom:44px;right:0;background:#1f2937;color:#fff;font-size:0.7rem;font-weight:600;padding:6px 10px;border-radius:8px;white-space:nowrap;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.25);pointer-events:none;">
+                    🎙️ Upgrade to Green or Blue plan to unlock Voice Emora
+                    <div style="position:absolute;bottom:-4px;right:12px;width:8px;height:8px;background:#1f2937;clip-path:polygon(0 0,100% 0,50% 100%);"></div>
+                </div>
+            </div>
+
             <button type="submit" id="emoraSendBtn" class="emora-send-button" title="Send message">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -2971,6 +3016,19 @@
         cursor: not-allowed;
         transform: none;
     }
+    .emora-mic-btn:hover {
+        opacity: 0.9;
+        transform: scale(1.05);
+    }
+    .emora-mic-btn:disabled {
+        cursor: not-allowed;
+        transform: none;
+    }
+    @keyframes emoraMicPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.18); opacity: 0.75; }
+        100% { transform: scale(1); }
+    }
 </style>
 
 
@@ -4324,6 +4382,11 @@ function escapeHtml(str) {
 // ── Emora Consultant Matcher Controller ─────────────────────────────────────
 var isEmoraOpen = false;
 var emoraQuota = null;
+var _emoraMediaRecorder = null;
+var _emoraAudioChunks = [];
+var _isEmoraVoiceRecording = false;
+var _emoraMatcherAudio = null;
+var _emoraVoicePlanChecked = false;
 
 function toggleEmoraPopup() {
     if (isEmoraOpen) {
@@ -4345,12 +4408,17 @@ function openEmoraPopup() {
         setTimeout(function() { input.focus(); }, 150);
     }
     fetchEmoraQuota();
+    initEmoraVoice();
+    applyEmoraVoicePlanGate();
 }
 
 function minimizeEmoraPopup() {
     var popup = document.getElementById('emoraMatchPopup');
     var floatingPill = document.getElementById('emoraFloatingPill');
     if (!popup) return;
+    if (_isEmoraVoiceRecording) {
+        stopEmoraVoiceRecord();
+    }
     popup.style.display = 'none';
     isEmoraOpen = false;
     if (floatingPill) floatingPill.style.display = 'flex';
@@ -4426,6 +4494,202 @@ function updateEmoraQuotaUI(quota) {
     }
 }
 
+// ── Voice Plan Gate & Initialization ─────────────────────────────────────────
+function initEmoraVoice() {
+    var langEl = document.getElementById('emoraVoiceLangSelect');
+    var savedLang = localStorage.getItem('emora_voice_lang');
+    if (langEl && savedLang) {
+        langEl.value = savedLang;
+    }
+}
+
+function applyEmoraVoicePlanGate() {
+    if (_emoraVoicePlanChecked) return;
+    _emoraVoicePlanChecked = true;
+    fetch('/api/plans/my-usage', { credentials: 'include' })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            var planName = ((d.plan_name || d.plan || '')).toLowerCase().trim();
+            var voicePlans = ['green', 'blue'];
+            var hasVoice = voicePlans.some(function(p) { return planName.indexOf(p) !== -1; });
+            var mb = document.getElementById('emoraMicBtn');
+            var lock = document.getElementById('emoraMicLockBadge');
+            if (hasVoice) {
+                if (mb) { mb.disabled = false; mb.style.opacity = '1'; }
+                if (lock) lock.style.display = 'none';
+            } else {
+                if (mb) { mb.disabled = true; mb.style.opacity = '0.5'; }
+                if (lock) lock.style.display = 'flex';
+            }
+        })
+        .catch(function() {
+            var mb = document.getElementById('emoraMicBtn');
+            var lock = document.getElementById('emoraMicLockBadge');
+            if (mb) { mb.disabled = true; mb.style.opacity = '0.5'; }
+            if (lock) lock.style.display = 'flex';
+        });
+}
+
+function _showEmoraMicUpgradeTooltip() {
+    var tip = document.getElementById('emoraMicUpgradeTooltip');
+    if (!tip) return;
+    tip.style.display = 'block';
+    setTimeout(function() { tip.style.display = 'none'; }, 3500);
+}
+
+function toggleEmoraVoiceRecord(e) {
+    if (e) e.preventDefault();
+    if (_isEmoraVoiceRecording) {
+        stopEmoraVoiceRecord();
+    } else {
+        startEmoraVoiceRecord();
+    }
+}
+
+function startEmoraVoiceRecord() {
+    var mb = document.getElementById('emoraMicBtn');
+    if (_isEmoraVoiceRecording || !mb || mb.disabled) return;
+
+    if (!_emoraMatcherAudio) _emoraMatcherAudio = new Audio();
+    _emoraMatcherAudio.src = 'data:audio/mp3;base64,';
+    _emoraMatcherAudio.play().catch(function() {});
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(stream) {
+            _emoraAudioChunks = [];
+            _isEmoraVoiceRecording = true;
+            _emoraMediaRecorder = new MediaRecorder(stream);
+            _emoraMediaRecorder.ondataavailable = function(e) {
+                if (e.data.size > 0) _emoraAudioChunks.push(e.data);
+            };
+            _emoraMediaRecorder.start(100);
+
+            mb.style.background = '#fee2e2';
+            mb.style.color = '#dc2626';
+            mb.style.animation = 'emoraMicPulse 0.8s ease-in-out infinite';
+            var lb = document.getElementById('emoraVoiceListeningBar');
+            if (lb) lb.style.display = 'flex';
+        })
+        .catch(function(err) {
+            console.error('[Emora Matcher Voice] mic error:', err);
+            var body = document.getElementById('emoraChatBody');
+            if (body) {
+                var errRow = document.createElement('div');
+                errRow.className = 'emora-msg-row emora-bot-row';
+                errRow.innerHTML = 
+                    '<div class="emora-bot-icon">✨</div>' +
+                    '<div class="emora-bot-bubble" style="border-color:#fecaca;color:#991b1b;">' +
+                        '🎙️ Microphone access was not granted. Please allow microphone permission in your browser settings.' +
+                    '</div>';
+                body.appendChild(errRow);
+                body.scrollTop = body.scrollHeight;
+            }
+        });
+}
+
+function stopEmoraVoiceRecord() {
+    if (!_isEmoraVoiceRecording || !_emoraMediaRecorder) return;
+    _isEmoraVoiceRecording = false;
+    var lb = document.getElementById('emoraVoiceListeningBar');
+    if (lb) lb.style.display = 'none';
+
+    var mb = document.getElementById('emoraMicBtn');
+    if (mb) {
+        mb.style.background = '#f0fdf4';
+        mb.style.color = '#0d9488';
+        mb.style.animation = 'none';
+    }
+
+    _emoraMediaRecorder.onstop = function() {
+        var blob = new Blob(_emoraAudioChunks, { type: 'audio/webm' });
+        _emoraMediaRecorder.stream.getTracks().forEach(function(t) { t.stop(); });
+        sendEmoraVoiceToMatcher(blob);
+    };
+    _emoraMediaRecorder.stop();
+}
+
+async function sendEmoraVoiceToMatcher(blob) {
+    var body = document.getElementById('emoraChatBody');
+    var typing = document.getElementById('emoraTypingIndicator');
+    var typingText = document.getElementById('emoraTypingText');
+    var mb = document.getElementById('emoraMicBtn');
+    var sendBtn = document.getElementById('emoraSendBtn');
+    var langEl = document.getElementById('emoraVoiceLangSelect');
+    var lang = (langEl && langEl.value) ? langEl.value : 'en-IN';
+
+    if (typing) {
+        if (typingText) typingText.textContent = 'Emora is listening & finding consultants...';
+        typing.style.display = 'flex';
+    }
+    if (mb) mb.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
+
+    var formData = new FormData();
+    formData.append('audio', blob, 'emora_match_voice.webm');
+    formData.append('language', lang);
+    formData.append('mode', 'consultant_match');
+
+    try {
+        var r = await fetch('/api/ai-chat/voice', {
+            method: 'POST',
+            body: formData
+        });
+        var data = await r.json();
+
+        if (typing) {
+            typing.style.display = 'none';
+            if (typingText) typingText.textContent = 'Emora is finding consultants...';
+        }
+        if (mb) mb.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+
+        if (data.transcript && body) {
+            var userRow = document.createElement('div');
+            userRow.className = 'emora-msg-row emora-user-row';
+            userRow.innerHTML = '<div class="emora-user-bubble">🎙️ ' + escapeHtml(data.transcript) + '</div>';
+            body.appendChild(userRow);
+            body.scrollTop = body.scrollHeight;
+        }
+
+        renderEmoraBotResponse(data, body);
+
+        if (data.success && data.audio_b64) {
+            playEmoraMatcherAudio(data.audio_b64);
+        }
+
+    } catch (err) {
+        if (typing) {
+            typing.style.display = 'none';
+            if (typingText) typingText.textContent = 'Emora is finding consultants...';
+        }
+        if (mb) mb.disabled = false;
+        if (sendBtn) sendBtn.disabled = false;
+        console.error('Emora voice match error', err);
+        if (body) {
+            var errBox = document.createElement('div');
+            errBox.className = 'emora-msg-row emora-bot-row';
+            errBox.innerHTML = 
+                '<div class="emora-bot-icon">✨</div>' +
+                '<div class="emora-bot-bubble" style="border-color:#fecaca;color:#991b1b;">' +
+                    '🎙️ Voice processing failed. Please try typing or speak again.' +
+                '</div>';
+            body.appendChild(errBox);
+            body.scrollTop = body.scrollHeight;
+        }
+    }
+}
+
+function playEmoraMatcherAudio(base64Audio) {
+    if (!base64Audio) return;
+    try {
+        if (!_emoraMatcherAudio) _emoraMatcherAudio = new Audio();
+        _emoraMatcherAudio.src = 'data:audio/mpeg;base64,' + base64Audio;
+        _emoraMatcherAudio.play().catch(function(e) { console.warn('[Voice Emora Matcher] play error:', e); });
+    } catch (e) {
+        console.warn('[Voice Emora Matcher] Audio play error:', e);
+    }
+}
+
 function sendEmoraPreset(text) {
     var input = document.getElementById('emoraChatInput');
     if (input) {
@@ -4445,6 +4709,7 @@ async function sendEmoraMessage() {
     var input = document.getElementById('emoraChatInput');
     var body = document.getElementById('emoraChatBody');
     var typing = document.getElementById('emoraTypingIndicator');
+    var typingText = document.getElementById('emoraTypingText');
     var sendBtn = document.getElementById('emoraSendBtn');
     if (!input || !body) return;
 
@@ -4460,7 +4725,10 @@ async function sendEmoraMessage() {
     input.value = '';
     body.scrollTop = body.scrollHeight;
 
-    if (typing) typing.style.display = 'flex';
+    if (typing) {
+        if (typingText) typingText.textContent = 'Emora is finding consultants...';
+        typing.style.display = 'flex';
+    }
     if (sendBtn) sendBtn.disabled = true;
 
     try {
@@ -4477,132 +4745,7 @@ async function sendEmoraMessage() {
         if (typing) typing.style.display = 'none';
         if (sendBtn) sendBtn.disabled = false;
 
-        if (data.quota) {
-            updateEmoraQuotaUI(data.quota);
-        }
-
-        if (data.quota_exhausted) {
-            var errRow = document.createElement('div');
-            errRow.className = 'emora-msg-row emora-bot-row';
-            errRow.innerHTML = 
-                '<div class="emora-bot-icon">✨</div>' +
-                '<div class="emora-bot-bubble" style="border-color:#fecaca;background:#fff5f5;color:#991b1b;">' +
-                    '⚠️ ' + (data.error || 'Your message credits have been used up.') +
-                    ' <br><a href="/pricing" style="color:#7c3aed;font-weight:600;text-decoration:underline;">Upgrade Plan</a> to continue matching.' +
-                '</div>';
-            body.appendChild(errRow);
-            body.scrollTop = body.scrollHeight;
-            return;
-        }
-
-        if (!data.success) {
-            var failRow = document.createElement('div');
-            failRow.className = 'emora-msg-row emora-bot-row';
-            failRow.innerHTML = 
-                '<div class="emora-bot-icon">✨</div>' +
-                '<div class="emora-bot-bubble" style="border-color:#fecaca;color:#991b1b;">' +
-                    escapeHtml(data.error || 'Something went wrong. Please try again.') +
-                '</div>';
-            body.appendChild(failRow);
-            body.scrollTop = body.scrollHeight;
-            return;
-        }
-
-        // Render Emora response bubble
-        var botRow = document.createElement('div');
-        botRow.className = 'emora-msg-row emora-bot-row';
-        var responseHtml = '<div class="emora-bot-icon">✨</div><div class="emora-bot-bubble">';
-
-        var badgesHtml = '';
-        if (data.matched_keyword) {
-            badgesHtml += '<div class="emora-match-badge" style="margin-right:6px;">🏷️ Topic: <strong>' + escapeHtml(data.matched_keyword) + '</strong></div>';
-        }
-        if (data.matched_languages && data.matched_languages.length > 0) {
-            var langStr = data.matched_languages.join(', ');
-            var langBadgeStyle = data.language_matched !== false 
-                ? 'background:#f0fdf4;border-color:#bbf7d0;color:#166534;' 
-                : 'background:#fffbeb;border-color:#fde68a;color:#92400e;';
-            var langIcon = data.language_matched !== false ? '🗣️ Language:' : '🗣️ Requested Language:';
-            badgesHtml += '<div class="emora-match-badge" style="' + langBadgeStyle + '">' + langIcon + ' <strong>' + escapeHtml(langStr) + '</strong></div>';
-        }
-        if (badgesHtml) {
-            responseHtml += '<div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:4px;">' + badgesHtml + '</div>';
-        }
-
-        // Formatted text
-        var formattedMsg = escapeHtml(data.response || '')
-            .replace(/\n\n/g, '<br><br>')
-            .replace(/\n/g, '<br>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>');
-        responseHtml += '<p style="margin:0 0 6px 0;line-height:1.45;">' + formattedMsg + '</p>';
-
-        // Render matched consultants cards & sync background page filter
-        if (data.matched_consultants && data.matched_consultants.length > 0) {
-            currentMatchedConsultantIds = (data.all_matched_ids && data.all_matched_ids.length > 0) 
-                ? data.all_matched_ids.map(Number) 
-                : data.matched_consultants.map(function(c) { return parseInt(c.id); });
-            currentMatchedLanguages = data.matched_languages || [];
-            currentCategoryFilter = 'all';
-            currentSearchQuery = data.matched_keyword || '';
-            var searchInput = document.getElementById('consultantSearchInput');
-            if (searchInput && data.matched_keyword) {
-                var searchDisplay = data.matched_keyword;
-                if (data.matched_languages && data.matched_languages.length > 0) {
-                    searchDisplay += ' (' + data.matched_languages.join(', ') + ')';
-                }
-                searchInput.value = searchDisplay;
-            }
-            applyConsultantFilters();
-
-            responseHtml += '<div style="margin-top:8px;font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;">Recommended Experts from Database:</div>';
-            
-            data.matched_consultants.forEach(function(c) {
-                var initials = c.name ? (c.name.split(' ').length > 1 ? c.name.split(' ')[0][0] + c.name.split(' ')[c.name.split(' ').length-1][0] : c.name.substring(0,2)).toUpperCase() : 'CO';
-                var avatarHtml = c.photo_url 
-                    ? '<img src="' + c.photo_url + '" alt="' + escapeHtml(c.name) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><span style="display:none;">' + initials + '</span>'
-                    : '<span>' + initials + '</span>';
-                
-                var swBadge = c.offers_sexual_wellness 
-                    ? '<span title="Offers Sexual Wellness Consultation" style="margin-left:4px;"><img src="/static/images/sexual_wellness_32.png" style="width:12px;height:12px;display:inline-block;vertical-align:middle;" alt=""></span>'
-                    : '';
-
-                var langsText = c.languages_str || (c.languages && c.languages.length ? c.languages.join(', ') : '');
-
-                responseHtml += 
-                    '<div class="emora-consultant-card">' +
-                        '<div class="emora-card-top">' +
-                            '<div class="emora-card-avatar">' + avatarHtml + '</div>' +
-                            '<div style="flex:1;min-width:0;">' +
-                                '<div class="emora-card-name">' + escapeHtml(c.name) + swBadge + '</div>' +
-                                '<div class="emora-card-spec">' + escapeHtml(c.specialization) + '</div>' +
-                            '</div>' +
-                        '</div>' +
-                        '<div class="emora-card-meta">' +
-                            '<span>' + c.experience_years + ' yrs exp</span>' +
-                            '<span>• <strong>₹' + c.hourly_rate + '</strong>/hr</span>' +
-                        '</div>' +
-                        (langsText ? '<div style="font-size:0.75rem;color:#475569;margin-top:2px;">🗣️ Speaks: ' + escapeHtml(langsText) + '</div>' : '') +
-                        (c.earliest_slot ? '<div class="emora-card-slot">🕒 Next: ' + escapeHtml(c.earliest_slot) + '</div>' : '') +
-                        '<div class="emora-card-actions">' +
-                            '<button type="button" class="emora-btn-view" onclick="openConsultantProfileFromEmora(' + c.id + ')">View Profile</button>' +
-                            '<button type="button" class="emora-btn-book" onclick="openBookingFromEmora(' + c.id + ', \'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\', \'' + escapeHtml(c.specialization).replace(/'/g, "\\'") + '\')">Book Session</button>' +
-                        '</div>' +
-                    '</div>';
-            });
-
-            if (data.matched_keyword) {
-                responseHtml += 
-                    '<button type="button" class="emora-filter-link-btn" onclick="filterPageForKeyword(\'' + escapeHtml(data.matched_keyword).replace(/'/g, "\\'") + '\')">' +
-                        '🔍 Filter Consultants on Page for "' + escapeHtml(data.matched_keyword) + '"' +
-                    '</button>';
-            }
-        }
-
-        responseHtml += '</div>';
-        botRow.innerHTML = responseHtml;
-        body.appendChild(botRow);
-        body.scrollTop = body.scrollHeight;
+        renderEmoraBotResponse(data, body);
 
     } catch (err) {
         if (typing) typing.style.display = 'none';
@@ -4618,6 +4761,155 @@ async function sendEmoraMessage() {
         body.appendChild(errBox);
         body.scrollTop = body.scrollHeight;
     }
+}
+
+function renderEmoraBotResponse(data, body) {
+    if (!data || !body) return;
+
+    if (data.quota) {
+        updateEmoraQuotaUI(data.quota);
+    }
+
+    if (data.quota_exhausted) {
+        var errRow = document.createElement('div');
+        errRow.className = 'emora-msg-row emora-bot-row';
+        errRow.innerHTML = 
+            '<div class="emora-bot-icon">✨</div>' +
+            '<div class="emora-bot-bubble" style="border-color:#fecaca;background:#fff5f5;color:#991b1b;">' +
+                '⚠️ ' + (data.error || 'Your message credits have been used up.') +
+                ' <br><a href="/pricing" style="color:#7c3aed;font-weight:600;text-decoration:underline;">Upgrade Plan</a> to continue matching.' +
+            '</div>';
+        body.appendChild(errRow);
+        body.scrollTop = body.scrollHeight;
+        return;
+    }
+
+    if (data.voice_not_available) {
+        var vaRow = document.createElement('div');
+        vaRow.className = 'emora-msg-row emora-bot-row';
+        vaRow.innerHTML = 
+            '<div class="emora-bot-icon">✨</div>' +
+            '<div class="emora-bot-bubble" style="border-color:#fecaca;background:#fff5f5;color:#991b1b;">' +
+                '🎙️ ' + escapeHtml(data.error || 'Voice Emora is available on Green and Blue plans.') +
+                ' <br><a href="/pricing" style="color:#7c3aed;font-weight:600;text-decoration:underline;">Upgrade to Green or Blue Plan</a> to unlock Voice Emora.' +
+            '</div>';
+        body.appendChild(vaRow);
+        body.scrollTop = body.scrollHeight;
+        var mb = document.getElementById('emoraMicBtn');
+        var lock = document.getElementById('emoraMicLockBadge');
+        if (mb) { mb.disabled = true; mb.style.opacity = '0.5'; }
+        if (lock) lock.style.display = 'flex';
+        return;
+    }
+
+    if (!data.success) {
+        var failRow = document.createElement('div');
+        failRow.className = 'emora-msg-row emora-bot-row';
+        failRow.innerHTML = 
+            '<div class="emora-bot-icon">✨</div>' +
+            '<div class="emora-bot-bubble" style="border-color:#fecaca;color:#991b1b;">' +
+                escapeHtml(data.error || 'Something went wrong. Please try again.') +
+            '</div>';
+        body.appendChild(failRow);
+        body.scrollTop = body.scrollHeight;
+        return;
+    }
+
+    // Render Emora response bubble
+    var botRow = document.createElement('div');
+    botRow.className = 'emora-msg-row emora-bot-row';
+    var responseHtml = '<div class="emora-bot-icon">✨</div><div class="emora-bot-bubble">';
+
+    var badgesHtml = '';
+    if (data.matched_keyword) {
+        badgesHtml += '<div class="emora-match-badge" style="margin-right:6px;">🏷️ Topic: <strong>' + escapeHtml(data.matched_keyword) + '</strong></div>';
+    }
+    if (data.matched_languages && data.matched_languages.length > 0) {
+        var langStr = data.matched_languages.join(', ');
+        var langBadgeStyle = data.language_matched !== false 
+            ? 'background:#f0fdf4;border-color:#bbf7d0;color:#166534;' 
+            : 'background:#fffbeb;border-color:#fde68a;color:#92400e;';
+        var langIcon = data.language_matched !== false ? '🗣️ Language:' : '🗣️ Requested Language:';
+        badgesHtml += '<div class="emora-match-badge" style="' + langBadgeStyle + '">' + langIcon + ' <strong>' + escapeHtml(langStr) + '</strong></div>';
+    }
+    if (badgesHtml) {
+        responseHtml += '<div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:4px;">' + badgesHtml + '</div>';
+    }
+
+    // Formatted text
+    var formattedMsg = escapeHtml(data.response || data.reply_text || '')
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+    responseHtml += '<p style="margin:0 0 6px 0;line-height:1.45;">' + formattedMsg + '</p>';
+
+    // Render matched consultants cards & sync background page filter
+    if (data.matched_consultants && data.matched_consultants.length > 0) {
+        currentMatchedConsultantIds = (data.all_matched_ids && data.all_matched_ids.length > 0) 
+            ? data.all_matched_ids.map(Number) 
+            : data.matched_consultants.map(function(c) { return parseInt(c.id); });
+        currentMatchedLanguages = data.matched_languages || [];
+        currentCategoryFilter = 'all';
+        currentSearchQuery = data.matched_keyword || '';
+        var searchInput = document.getElementById('consultantSearchInput');
+        if (searchInput && data.matched_keyword) {
+            var searchDisplay = data.matched_keyword;
+            if (data.matched_languages && data.matched_languages.length > 0) {
+                searchDisplay += ' (' + data.matched_languages.join(', ') + ')';
+            }
+            searchInput.value = searchDisplay;
+        }
+        applyConsultantFilters();
+
+        responseHtml += '<div style="margin-top:8px;font-size:0.75rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;">Recommended Experts from Database:</div>';
+        
+        data.matched_consultants.forEach(function(c) {
+            var initials = c.name ? (c.name.split(' ').length > 1 ? c.name.split(' ')[0][0] + c.name.split(' ')[c.name.split(' ').length-1][0] : c.name.substring(0,2)).toUpperCase() : 'CO';
+            var avatarHtml = c.photo_url 
+                ? '<img src="' + c.photo_url + '" alt="' + escapeHtml(c.name) + '" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><span style="display:none;">' + initials + '</span>'
+                : '<span>' + initials + '</span>';
+            
+            var swBadge = c.offers_sexual_wellness 
+                ? '<span title="Offers Sexual Wellness Consultation" style="margin-left:4px;"><img src="/static/images/sexual_wellness_32.png" style="width:12px;height:12px;display:inline-block;vertical-align:middle;" alt=""></span>'
+                : '';
+
+            var langsText = c.languages_str || (c.languages && c.languages.length ? c.languages.join(', ') : '');
+
+            responseHtml += 
+                '<div class="emora-consultant-card">' +
+                    '<div class="emora-card-top">' +
+                        '<div class="emora-card-avatar">' + avatarHtml + '</div>' +
+                        '<div style="flex:1;min-width:0;">' +
+                            '<div class="emora-card-name">' + escapeHtml(c.name) + swBadge + '</div>' +
+                            '<div class="emora-card-spec">' + escapeHtml(c.specialization) + '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="emora-card-meta">' +
+                        '<span>' + c.experience_years + ' yrs exp</span>' +
+                        '<span>• <strong>₹' + c.hourly_rate + '</strong>/hr</span>' +
+                    '</div>' +
+                    (langsText ? '<div style="font-size:0.75rem;color:#475569;margin-top:2px;">🗣️ Speaks: ' + escapeHtml(langsText) + '</div>' : '') +
+                    (c.earliest_slot ? '<div class="emora-card-slot">🕒 Next: ' + escapeHtml(c.earliest_slot) + '</div>' : '') +
+                    '<div class="emora-card-actions">' +
+                        '<button type="button" class="emora-btn-view" onclick="openConsultantProfileFromEmora(' + c.id + ')">View Profile</button>' +
+                        '<button type="button" class="emora-btn-book" onclick="openBookingFromEmora(' + c.id + ', \'' + escapeHtml(c.name).replace(/'/g, "\\'") + '\', \'' + escapeHtml(c.specialization).replace(/'/g, "\\'") + '\')">Book Session</button>' +
+                    '</div>' +
+                '</div>';
+        });
+
+        if (data.matched_keyword) {
+            responseHtml += 
+                '<button type="button" class="emora-filter-link-btn" onclick="filterPageForKeyword(\'' + escapeHtml(data.matched_keyword).replace(/'/g, "\\'") + '\')">' +
+                    '🔍 Filter Consultants on Page for "' + escapeHtml(data.matched_keyword) + '"' +
+                '</button>';
+        }
+    }
+
+    responseHtml += '</div>';
+    botRow.innerHTML = responseHtml;
+    body.appendChild(botRow);
+    body.scrollTop = body.scrollHeight;
 }
 
 function openConsultantProfileFromEmora(cid) {
@@ -4684,6 +4976,11 @@ function filterPageForKeyword(keyword) {
         bar.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
+
+window.addEventListener('DOMContentLoaded', function() {
+    initEmoraVoice();
+    applyEmoraVoicePlanGate();
+});
 </script>
 
 {% endblock %}

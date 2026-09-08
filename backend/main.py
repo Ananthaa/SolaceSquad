@@ -9169,8 +9169,7 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
                 "error": "I'm having a little trouble hearing you clearly — could you try speaking again? 😊"
             })
 
-        # ── 2. Fetch user context (preferred name) ────────────────────────────
-        # preferred_name lives on UserProfile, not User — match the pattern in ai_chat_page
+        # ── 2. Fetch user context & consultant matching ──────────────────────
         user_display_name = request.session.get("user_name", "friend").split()[0]
         try:
             profile = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
@@ -9179,9 +9178,54 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         except Exception:
             pass   # keep the session fallback
 
+        mode = form.get("mode", "") # "consultant_match"
+        matched_keyword = ""
+        matched_focus_areas = []
+        matched_languages = []
+        matched_gender = None
+        language_matched = True
+        matched_consultants = []
+        all_matched_ids = []
+        total_matches = 0
+
+        consultant_context = ""
+        try:
+            from consultant_classifier import (
+                detect_intent, get_recommended_consultants, format_consultant_context,
+                match_consultants_for_user_query, format_matcher_prompt_context
+            )
+            if mode == "consultant_match":
+                match_res = match_consultants_for_user_query(transcript, db, limit=3)
+                matched_keyword = match_res.get("matched_keyword", "")
+                matched_focus_areas = match_res.get("matched_focus_areas", [])
+                matched_languages = match_res.get("matched_languages", [])
+                matched_gender = match_res.get("matched_gender", None)
+                language_matched = match_res.get("language_matched", True)
+                matched_consultants = match_res.get("consultants", [])
+                all_matched_ids = match_res.get("all_matched_ids", [])
+                total_matches = match_res.get("total_matches", len(matched_consultants))
+                consultant_context = format_matcher_prompt_context(
+                    matched_consultants,
+                    matched_keyword,
+                    matched_focus_areas,
+                    matched_languages=matched_languages,
+                    matched_gender=matched_gender,
+                    language_matched=language_matched
+                )
+            else:
+                intent = detect_intent(transcript)
+                if intent["should_recommend"]:
+                    rec_consultants = get_recommended_consultants(intent["category"], db, limit=3)
+                    if rec_consultants:
+                        consultant_context = format_consultant_context(
+                            rec_consultants, intent["is_sos"], intent["category"]
+                        )
+        except Exception as _c_err:
+            print(f"[Voice Consultant Classifier] error (non-fatal): {_c_err}")
+
         # ── 3. Emora text response (reuse existing Gemini pipeline) ───────────
         from gemini_chat import gemini_chat
-        enriched_msg = f"[CONTEXT: The user's name is {user_display_name}.] {transcript}"
+        enriched_msg = f"[CONTEXT: The user's name is {user_display_name}.{consultant_context}] {transcript}"
 
         # Fetch recent history — gemini_chat expects {"content":..., "is_user":bool}
         history_rows = db.query(AIChatHistory)\
@@ -9248,12 +9292,21 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         print(f"[Voice Emora] user={user_id}, lang={language}, transcript={transcript!r}, tts_bytes={len(audio_out)}")
 
         return JSONResponse({
-            "success":    True,
-            "transcript": transcript,
-            "reply_text": ai_text,
-            "audio_b64":  audio_b64,
-            "language":   language,
-            "quota":      quota_info,
+            "success":             True,
+            "transcript":          transcript,
+            "response":            ai_text,
+            "reply_text":          ai_text,
+            "audio_b64":           audio_b64,
+            "language":            language,
+            "matched_keyword":     matched_keyword,
+            "matched_focus_areas": matched_focus_areas,
+            "matched_languages":   matched_languages,
+            "matched_gender":      matched_gender,
+            "language_matched":    language_matched,
+            "matched_consultants": matched_consultants,
+            "all_matched_ids":     all_matched_ids,
+            "total_matches":       total_matches,
+            "quota":               quota_info,
         })
 
     except Exception as e:
