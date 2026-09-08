@@ -272,7 +272,7 @@ def get_recommended_consultants(category: str, db, limit: int = 3, tz_name: str 
         )
         if cat:
             q = q.filter(ConsultantProfile.wellness_category == cat)
-        return q.order_by(ConsultantProfile.rating.desc()).limit(limit * 2).all()
+        return q.order_by(ConsultantProfile.rating.desc(), ConsultantProfile.experience_years.desc()).limit(limit * 2).all()
 
     consultant_rows = _query(category)
     # Fallback: if none in the specific category, return best across all
@@ -634,6 +634,10 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
             matched_gender = canon_g
             break
 
+    # 3. Detect experience or budget/pricing preference cues in query
+    is_exp_requested = bool(re.search(r'\b(experienced|senior|veteran|seasoned|years of exp|expert|specialist)\b', msg_lower))
+    is_budget_requested = bool(re.search(r'\b(affordable|budget|cheap|low cost|economical|inexpensive|pocket friendly|reasonable fee|low fee|low rate|price)\b', msg_lower))
+
     matched_items = []
     matched_focus_areas = []
     matched_terms = []
@@ -833,9 +837,23 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
             c_gender = (getattr(c, "gender", "") or "").lower()
             has_gender = (c_gender == matched_gender.lower())
 
-        total_score = relevance_score + (float(getattr(c, "rating", 0.0) or 0.0) * 2.0)
-        if getattr(c, "schedules", None):
-            total_score += 3.0
+        # ── Experience Weightage (Up to 10.0 points baseline) ──
+        exp_years = float(getattr(c, "experience_years", 2) or 2)
+        exp_score = min(10.0, max(0.0, exp_years * 0.5))
+        if is_exp_requested and exp_years >= 5:
+            exp_score += min(8.0, exp_years * 0.5)
+
+        # ── Pricing / Amount Charged Weightage (Up to 8.0 points baseline) ──
+        fee = float(getattr(c, "consultation_fee", None) or getattr(c, "hourly_rate", 500) or 500)
+        price_score = max(0.0, min(8.0, (2500.0 - fee) / 250.0))
+        if is_budget_requested:
+            price_score += max(0.0, min(10.0, (2000.0 - fee) / 150.0))
+
+        # ── Rating & Schedule Availability ──
+        rating_score = float(getattr(c, "rating", 0.0) or 0.0) * 2.0
+        schedule_score = 3.0 if getattr(c, "schedules", None) else 0.0
+
+        total_score = relevance_score + exp_score + price_score + rating_score + schedule_score
 
         name = getattr(user, "name", None) or getattr(c, "full_name", None) or "Consultant"
         earliest = get_earliest_slot(c, db, tz_name=tz_name)
