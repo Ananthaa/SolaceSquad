@@ -556,26 +556,36 @@ SUPPORTED_LANGUAGES = {
     "kanada": "Kannada",
     "kannad": "Kannada",
     "kannda": "Kannada",
+    "ಕನ್ನಡ": "Kannada",
     "hindi": "Hindi",
     "hind": "Hindi",
+    "हिंदी": "Hindi",
     "tamil": "Tamil",
     "tamizh": "Tamil",
+    "தமிழ்": "Tamil",
     "telugu": "Telugu",
     "telegu": "Telugu",
+    "తెలుగు": "Telugu",
     "malayalam": "Malayalam",
     "malyalam": "Malayalam",
     "malayali": "Malayalam",
+    "മലയാളം": "Malayalam",
     "english": "English",
     "marathi": "Marathi",
     "marati": "Marathi",
+    "मराठी": "Marathi",
     "bengali": "Bengali",
     "bangla": "Bengali",
+    "বাংলা": "Bengali",
     "gujarati": "Gujarati",
     "gujrati": "Gujarati",
+    "ગુજરાતી": "Gujarati",
     "punjabi": "Punjabi",
     "panjabi": "Punjabi",
+    "ਪੰਜਾਬੀ": "Punjabi",
     "odia": "Odia",
     "oriya": "Odia",
+    "ଓଡ଼ಿଆ": "Odia",
     "urdu": "Urdu",
     "assamese": "Assamese",
     "bhojpuri": "Bhojpuri",
@@ -598,7 +608,9 @@ GENDER_PATTERNS = {
 }
 
 
-def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_name: str = "Asia/Kolkata") -> dict:
+def match_consultants_for_user_query(
+    user_message: str, db, limit: int = 3, tz_name: str = "Asia/Kolkata", detected_language: str = None
+) -> dict:
     """
     Given a user message, extract multi-dimensional filters:
       1. Matching topics / focus areas from SEARCH_KEYWORD_TAXONOMY & synonyms
@@ -609,6 +621,7 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
     """
     from models import ConsultantProfile, User
     import re
+    from sarvam_voice import detect_text_language, SARVAM_LANG_TO_NAME
 
     msg_lower = user_message.lower().strip()
 
@@ -620,12 +633,23 @@ def match_consultants_for_user_query(user_message: str, db, limit: int = 3, tz_n
         "often", "always", "some", "very", "much", "want", "find", "looking", "good"
     }
 
-    # 1. Extract requested languages
+    # 1. Extract requested languages from keywords in query
     matched_languages = []
     for lang_key, canon_lang in SUPPORTED_LANGUAGES.items():
-        if re.search(r'\b' + re.escape(lang_key) + r'\b', msg_lower):
+        if re.search(r'(?:\b|^)' + re.escape(lang_key) + r'(?:\b|$)', msg_lower):
             if canon_lang not in matched_languages:
                 matched_languages.append(canon_lang)
+
+    # If no explicit language keyword was found, but a non-English language was detected from audio LID or script
+    if not matched_languages:
+        if detected_language:
+            canon_from_lid = SARVAM_LANG_TO_NAME.get(detected_language, detected_language)
+            if canon_from_lid and canon_from_lid != "English" and canon_from_lid not in matched_languages:
+                matched_languages.append(canon_from_lid)
+        else:
+            _, auto_script_lang = detect_text_language(user_message)
+            if auto_script_lang and auto_script_lang != "English" and auto_script_lang not in matched_languages:
+                matched_languages.append(auto_script_lang)
 
     # 2. Extract requested gender
     matched_gender = None

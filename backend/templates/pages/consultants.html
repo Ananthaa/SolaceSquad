@@ -734,7 +734,8 @@
         </div>
         <div style="display:flex;align-items:center;gap:4px;">
             <select id="emoraVoiceLangSelect" onchange="localStorage.setItem('emora_voice_lang', this.value)" style="font-size:0.7rem;padding:2px 4px;border-radius:4px;border:1px solid #fca5a5;background:#fff;color:#991b1b;font-weight:600;cursor:pointer;">
-                <option value="en-IN" selected>English (IN)</option>
+                <option value="unknown" selected>🌐 Auto Detect Language</option>
+                <option value="en-IN">English (India)</option>
                 <option value="hi-IN">Hindi (हिंदी)</option>
                 <option value="kn-IN">Kannada (ಕನ್ನಡ)</option>
                 <option value="te-IN">Telugu (తెలుగు)</option>
@@ -3029,6 +3030,34 @@
         50% { transform: scale(1.18); opacity: 0.75; }
         100% { transform: scale(1); }
     }
+    .emora-audio-btn {
+        background: rgba(124, 58, 237, 0.08);
+        border: 1px solid rgba(124, 58, 237, 0.22);
+        color: #6d28d9;
+        border-radius: 6px;
+        padding: 2px 7px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 5px;
+        transition: all 0.15s ease;
+    }
+    .emora-audio-btn:hover {
+        background: rgba(124, 58, 237, 0.16);
+        transform: scale(1.04);
+    }
+    .emora-speaking .emora-bot-bubble {
+        border-color: #8b5cf6 !important;
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
+        animation: emoraSpeakingPulse 1.2s ease-in-out infinite;
+    }
+    @keyframes emoraSpeakingPulse {
+        0%, 100% { box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25); }
+        50% { box-shadow: 0 0 0 5px rgba(192, 132, 252, 0.4); }
+    }
 </style>
 
 
@@ -4653,10 +4682,6 @@ async function sendEmoraVoiceToMatcher(blob) {
 
         renderEmoraBotResponse(data, body);
 
-        if (data.success && data.audio_b64) {
-            playEmoraMatcherAudio(data.audio_b64);
-        }
-
     } catch (err) {
         if (typing) {
             typing.style.display = 'none';
@@ -4679,14 +4704,80 @@ async function sendEmoraVoiceToMatcher(blob) {
     }
 }
 
-function playEmoraMatcherAudio(base64Audio) {
+function playEmoraMatcherAudio(base64Audio, rowEl) {
     if (!base64Audio) return;
     try {
         if (!_emoraMatcherAudio) _emoraMatcherAudio = new Audio();
+        _emoraMatcherAudio.pause();
+        _emoraMatcherAudio.currentTime = 0;
         _emoraMatcherAudio.src = 'data:audio/mpeg;base64,' + base64Audio;
-        _emoraMatcherAudio.play().catch(function(e) { console.warn('[Voice Emora Matcher] play error:', e); });
+
+        document.querySelectorAll('.emora-bot-row.emora-speaking').forEach(function(el) {
+            el.classList.remove('emora-speaking');
+        });
+
+        if (rowEl) rowEl.classList.add('emora-speaking');
+
+        _emoraMatcherAudio.onended = function() {
+            if (rowEl) rowEl.classList.remove('emora-speaking');
+        };
+        _emoraMatcherAudio.onpause = function() {
+            if (rowEl) rowEl.classList.remove('emora-speaking');
+        };
+
+        var p = _emoraMatcherAudio.play();
+        if (p && p.catch) {
+            p.catch(function(e) {
+                console.warn('[Voice Emora Matcher] play error:', e);
+                if (rowEl) rowEl.classList.remove('emora-speaking');
+            });
+        }
     } catch (e) {
         console.warn('[Voice Emora Matcher] Audio play error:', e);
+        if (rowEl) rowEl.classList.remove('emora-speaking');
+    }
+}
+
+async function handleEmoraBubbleAudio(btn, encodedText, lang) {
+    var rowEl = btn.closest('.emora-bot-row');
+    if (_emoraMatcherAudio && !_emoraMatcherAudio.paused && rowEl && rowEl.classList.contains('emora-speaking')) {
+        _emoraMatcherAudio.pause();
+        rowEl.classList.remove('emora-speaking');
+        btn.innerHTML = '🔊 Listen';
+        return;
+    }
+
+    var cachedAudio = btn.getAttribute('data-audio');
+    if (cachedAudio && cachedAudio.length > 20) {
+        playEmoraMatcherAudio(cachedAudio, rowEl);
+        return;
+    }
+
+    var text = decodeURIComponent(encodedText || '');
+    if (!text) return;
+
+    btn.innerHTML = '⏳ Loading...';
+    btn.disabled = true;
+
+    try {
+        var r = await fetch('/api/ai-chat/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text, language: lang || 'en-IN' })
+        });
+        var d = await r.json();
+        btn.disabled = false;
+        btn.innerHTML = '🔊 Listen';
+        if (d.success && d.audio_b64) {
+            btn.setAttribute('data-audio', d.audio_b64);
+            playEmoraMatcherAudio(d.audio_b64, rowEl);
+        } else if (d.voice_not_available) {
+            _showEmoraMicUpgradeTooltip();
+        }
+    } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = '🔊 Listen';
+        console.warn('TTS fetch error', err);
     }
 }
 
@@ -4770,6 +4861,19 @@ function renderEmoraBotResponse(data, body) {
         updateEmoraQuotaUI(data.quota);
     }
 
+    if (data.detected_language) {
+        var langSelect = document.getElementById('emoraVoiceLangSelect');
+        if (langSelect) {
+            for (var i = 0; i < langSelect.options.length; i++) {
+                if (langSelect.options[i].value === data.detected_language) {
+                    langSelect.selectedIndex = i;
+                    localStorage.setItem('emora_voice_lang', data.detected_language);
+                    break;
+                }
+            }
+        }
+    }
+
     if (data.quota_exhausted) {
         var errRow = document.createElement('div');
         errRow.className = 'emora-msg-row emora-bot-row';
@@ -4837,12 +4941,22 @@ function renderEmoraBotResponse(data, body) {
     }
 
     // Formatted text
-    var formattedMsg = escapeHtml(data.response || data.reply_text || '')
+    var fullRawText = data.response || data.reply_text || '';
+    var formattedMsg = escapeHtml(fullRawText)
         .replace(/\n\n/g, '<br><br>')
         .replace(/\n/g, '<br>')
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>');
-    responseHtml += '<p style="margin:0 0 6px 0;line-height:1.45;">' + formattedMsg + '</p>';
+    responseHtml += '<p style="margin:0 0 4px 0;line-height:1.45;">' + formattedMsg + '</p>';
+
+    // Audio Listen Button
+    var audioB64Attr = (data.audio_b64 || '');
+    var langAttr = (data.language || 'en-IN');
+    responseHtml += '<div style="display:flex;align-items:center;justify-content:flex-start;margin-top:2px;">' +
+        '<button type="button" class="emora-audio-btn" data-audio="' + audioB64Attr + '" onclick="handleEmoraBubbleAudio(this, \'' + encodeURIComponent(fullRawText) + '\', \'' + langAttr + '\')" title="Listen to Emora">' +
+            '🔊 Listen' +
+        '</button>' +
+    '</div>';
 
     // Render matched consultants cards & sync background page filter
     if (data.matched_consultants && data.matched_consultants.length > 0) {
@@ -4910,6 +5024,10 @@ function renderEmoraBotResponse(data, body) {
     botRow.innerHTML = responseHtml;
     body.appendChild(botRow);
     body.scrollTop = body.scrollHeight;
+
+    if (data.audio_b64) {
+        playEmoraMatcherAudio(data.audio_b64, botRow);
+    }
 }
 
 function openConsultantProfileFromEmora(cid) {

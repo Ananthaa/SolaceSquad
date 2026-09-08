@@ -9117,7 +9117,7 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
       5. Return { transcript, reply_text, audio_b64, language }
     """
     import base64 as _b64
-    from sarvam_voice import stt, tts
+    from sarvam_voice import stt_with_lid, tts, to_speech_text, SARVAM_LANG_TO_NAME, detect_text_language
 
     user_id = request.session.get("user_id")
     if not user_id:
@@ -9143,7 +9143,7 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
     try:
         form       = await request.form()
         audio_file = form.get("audio")
-        language   = form.get("language", "en-IN")
+        language   = form.get("language", "unknown")
 
         if not audio_file:
             return JSONResponse({"success": False, "error": "No audio provided"}, status_code=400)
@@ -9160,8 +9160,8 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
 
         audio_bytes = await audio_file.read()
 
-        # ── 1. Speech → Text ──────────────────────────────────────────────────
-        transcript = stt(audio_bytes, language=language)
+        # ── 1. Speech → Text with Language Identification (LID) ────────────────
+        transcript, stt_detected_lang = stt_with_lid(audio_bytes, language=language)
         if not transcript:
             return JSONResponse({
                 "success": False,
@@ -9195,7 +9195,9 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
                 match_consultants_for_user_query, format_matcher_prompt_context
             )
             if mode == "consultant_match":
-                match_res = match_consultants_for_user_query(transcript, db, limit=3)
+                match_res = match_consultants_for_user_query(
+                    transcript, db, limit=3, detected_language=stt_detected_lang
+                )
                 matched_keyword = match_res.get("matched_keyword", "")
                 matched_focus_areas = match_res.get("matched_focus_areas", [])
                 matched_languages = match_res.get("matched_languages", [])
@@ -9244,15 +9246,14 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         import re as _re
         ai_text = _re.sub(r"\[user[\u2019']?s?\s*name\]", user_display_name, ai_text, flags=_re.IGNORECASE)
 
-        # Extract language tag from Emora's response
-        detected_lang = language or "en-IN"
+        # Extract language tag from Emora's response or use identified language
+        detected_lang = stt_detected_lang or language or "en-IN"
         lang_match = _re.search(r'\[LANG:\s*([a-z]{2}-IN)\]', ai_text, flags=_re.IGNORECASE)
         if lang_match:
             detected_lang = lang_match.group(1)
             ai_text = ai_text.replace(lang_match.group(0), "").strip()
 
         # ── 4. Text → Speech (strip URLs/markdown so Emora doesn't read out links) ─
-        from sarvam_voice import to_speech_text
         speech_text = to_speech_text(ai_text)   # voice-friendly version
         audio_out   = tts(speech_text, language=detected_lang)
         audio_b64   = _b64.b64encode(audio_out).decode() if audio_out else ""
@@ -9289,7 +9290,7 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         except Exception:
             pass
 
-        print(f"[Voice Emora] user={user_id}, lang={language}, transcript={transcript!r}, tts_bytes={len(audio_out)}")
+        print(f"[Voice Emora] user={user_id}, lang={language}, detected_lang={detected_lang}, transcript={transcript!r}, tts_bytes={len(audio_out)}")
 
         return JSONResponse({
             "success":             True,
@@ -9314,10 +9315,50 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         return JSONResponse({"success": False, "error": "Voice processing failed. Please try typing instead."})
 
 
+@app.post("/api/ai-chat/tts")
+@limiter.limit("60/minute")
+async def get_ai_tts(request: Request, db: Session = Depends(get_db)):
+    """Generate on-demand TTS audio for Emora response"""
+    import base64 as _b64
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"success": False, "error": "Not authenticated"}, status_code=401)
+
+    try:
+        from subscription_routes import get_active_subscription
+        active_sub = get_active_subscription(user_id, db)
+        plan_name = ""
+        if active_sub and active_sub.plan:
+            plan_name = (active_sub.plan.name or "").strip().lower()
+        if not any(p in plan_name for p in {"green", "blue"}):
+            return JSONResponse({"success": False, "voice_not_available": True, "error": "Voice Emora is available on Green and Blue plans."}, status_code=403)
+    except Exception:
+        pass
+
+    try:
+        data = await request.json()
+        text = (data.get("text") or "").strip()
+        language = (data.get("language") or "en-IN").strip()
+        if not text:
+            return JSONResponse({"success": False, "error": "No text provided"}, status_code=400)
+
+        from sarvam_voice import to_speech_text, tts
+        speech_text = to_speech_text(text)
+        audio_out = tts(speech_text, language=language)
+        if not audio_out:
+            return JSONResponse({"success": False, "error": "TTS audio synthesis failed"})
+
+        audio_b64 = _b64.b64encode(audio_out).decode()
+        return JSONResponse({"success": True, "audio_b64": audio_b64, "language": language})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
 @app.post("/api/ai-chat/send")
 @limiter.limit("30/minute")
 async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
     """Send a message to AI assistant and get response"""
+    import base64 as _b64
     try:
         user_id = request.session.get("user_id")
         if not user_id:
@@ -9432,8 +9473,13 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                     detect_intent, get_recommended_consultants, format_consultant_context,
                     match_consultants_for_user_query, format_matcher_prompt_context
                 )
+                from sarvam_voice import detect_text_language
+                auto_lang_code, auto_lang_name = detect_text_language(original_message)
+
                 if mode == "consultant_match":
-                    match_res = match_consultants_for_user_query(original_message, db, limit=3)
+                    match_res = match_consultants_for_user_query(
+                        original_message, db, limit=3, detected_language=auto_lang_name
+                    )
                     matched_keyword = match_res.get("matched_keyword", "")
                     matched_focus_areas = match_res.get("matched_focus_areas", [])
                     matched_languages = match_res.get("matched_languages", [])
@@ -9482,9 +9528,29 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         )
         print(f"[Emora] name_in_response: display_name={user_display_name!r}, chat_name={_chat_name!r}")
 
-        # ── Strip [LANG: xx-IN] tag — used internally for language detection but
-        #    must never be shown to the user in the chat UI ───────────────────────
-        ai_response = _re.sub(r'\[LANG:\s*[a-z]{2}-IN\]', '', ai_response, flags=_re.IGNORECASE).strip()
+        # ── Detect language code from AI response or text detector ───────────
+        from sarvam_voice import detect_text_language, to_speech_text, tts
+        detected_lang_code, _ = detect_text_language(original_message)
+        lang_match = _re.search(r'\[LANG:\s*([a-z]{2}-IN)\]', ai_response, flags=_re.IGNORECASE)
+        if lang_match:
+            detected_lang_code = lang_match.group(1)
+            ai_response = _re.sub(r'\[LANG:\s*[a-z]{2}-IN\]', '', ai_response, flags=_re.IGNORECASE).strip()
+        else:
+            ai_response = _re.sub(r'\[LANG:\s*[a-z]{2}-IN\]', '', ai_response, flags=_re.IGNORECASE).strip()
+
+        # Generate audio for Green and Blue plans if in consultant match mode
+        audio_b64 = ""
+        try:
+            from subscription_routes import get_active_subscription
+            active_sub = get_active_subscription(user_id, db)
+            sub_plan = (active_sub.plan.name or "").strip().lower() if active_sub and active_sub.plan else ""
+            if any(p in sub_plan for p in {"green", "blue"}):
+                speech_text = to_speech_text(ai_response)
+                audio_out = tts(speech_text, language=detected_lang_code)
+                if audio_out:
+                    audio_b64 = _b64.b64encode(audio_out).decode()
+        except Exception as _audio_err:
+            print(f"[Send AI Audio] non-fatal TTS error: {_audio_err}")
 
         # Save original message (not the enriched version)
         saved_message = "" if is_greeting else original_message
@@ -9535,6 +9601,9 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         return {
             "success":             True,
             "response":            ai_response,
+            "audio_b64":           audio_b64,
+            "language":            detected_lang_code,
+            "detected_language":   detected_lang_code,
             "timestamp":           chat_entry.timestamp.isoformat(),
             "matched_keyword":     matched_keyword,
             "matched_focus_areas": matched_focus_areas,

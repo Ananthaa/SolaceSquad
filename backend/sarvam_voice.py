@@ -26,6 +26,68 @@ STT_MODEL      = "saaras:v3"
 # Phrase spoken instead of reading out a URL
 _LINK_PHRASE   = "I've shared the link in the chat"
 
+SARVAM_LANG_TO_NAME = {
+    "en-IN": "English",
+    "hi-IN": "Hindi",
+    "kn-IN": "Kannada",
+    "te-IN": "Telugu",
+    "ta-IN": "Tamil",
+    "mr-IN": "Marathi",
+    "bn-IN": "Bengali",
+    "ml-IN": "Malayalam",
+    "gu-IN": "Gujarati",
+    "pa-IN": "Punjabi",
+    "or-IN": "Odia",
+}
+
+NAME_TO_SARVAM_LANG = {
+    "english": "en-IN",
+    "hindi": "hi-IN",
+    "kannada": "kn-IN",
+    "telugu": "te-IN",
+    "tamil": "ta-IN",
+    "marathi": "mr-IN",
+    "bengali": "bn-IN",
+    "malayalam": "ml-IN",
+    "gujarati": "gu-IN",
+    "punjabi": "pa-IN",
+    "odia": "or-IN",
+}
+
+
+def detect_text_language(text: str) -> tuple:
+    """
+    Detect language from Unicode script or vocabulary.
+    Returns (sarvam_lang_code, language_name), e.g. ('kn-IN', 'Kannada').
+    """
+    if not text:
+        return "en-IN", "English"
+
+    import re
+    # Check Unicode script blocks for Indic scripts
+    if re.search(r'[\u0C80-\u0CFF]', text):
+        return "kn-IN", "Kannada"
+    if re.search(r'[\u0C00-\u0C7F]', text):
+        return "te-IN", "Telugu"
+    if re.search(r'[\u0B80-\u0BFF]', text):
+        return "ta-IN", "Tamil"
+    if re.search(r'[\u0D00-\u0D7F]', text):
+        return "ml-IN", "Malayalam"
+    if re.search(r'[\u0980-\u09FF]', text):
+        return "bn-IN", "Bengali"
+    if re.search(r'[\u0A80-\u0AFF]', text):
+        return "gu-IN", "Gujarati"
+    if re.search(r'[\u0A00-\u0A7F]', text):
+        return "pa-IN", "Punjabi"
+    if re.search(r'[\u0B00-\u0B7F]', text):
+        return "or-IN", "Odia"
+    if re.search(r'[\u0900-\u097F]', text):
+        if any(w in text.lower() for w in ["आहे", "नाही", "कसं", "मला", "तुम्ही", "होय", "नमस्कार"]):
+            return "mr-IN", "Marathi"
+        return "hi-IN", "Hindi"
+
+    return "en-IN", "English"
+
 
 def to_speech_text(text: str) -> str:
     """
@@ -81,18 +143,19 @@ def to_speech_text(text: str) -> str:
     return t.strip()
 
 
-def stt(audio_bytes: bytes, language: str = DEFAULT_LANG) -> str:
+def stt_with_lid(audio_bytes: bytes, language: str = "unknown") -> tuple:
     """
-    Speech-to-Text via Sarvam REST API.
-    Accepts webm audio from browser MediaRecorder.
-    Returns transcript string, or "" on failure.
+    Speech-to-Text via Sarvam REST API with automatic Language Identification (LID).
+    Returns (transcript, detected_language_code).
     """
     if not SARVAM_API_KEY:
         logger.error("[Sarvam STT] SARVAM_API_KEY not set")
-        return ""
+        return "", ""
     if not audio_bytes:
         logger.warning("[Sarvam STT] Empty audio bytes received")
-        return ""
+        return "", ""
+
+    lang_code = language if (language and language.strip()) else "unknown"
 
     try:
         headers = {"api-subscription-key": SARVAM_API_KEY}
@@ -103,7 +166,7 @@ def stt(audio_bytes: bytes, language: str = DEFAULT_LANG) -> str:
         }
         data = {
             "model":         STT_MODEL,
-            "language_code": language,
+            "language_code": lang_code,
             "mode":          "transcribe",
         }
 
@@ -120,15 +183,26 @@ def stt(audio_bytes: bytes, language: str = DEFAULT_LANG) -> str:
 
         result     = resp.json()
         transcript = (result.get("transcript") or "").strip()
-        logger.info(f"[Sarvam STT] lang={language} → {transcript!r}")
-        return transcript
+        detected_lang = (result.get("language_code") or (lang_code if lang_code != "unknown" else "en-IN")).strip()
+        logger.info(f"[Sarvam STT] req_lang={lang_code} → detected={detected_lang} transcript={transcript!r}")
+        return transcript, detected_lang
 
     except requests.HTTPError as e:
         logger.error(f"[Sarvam STT] HTTP error {e.response.status_code}: {e.response.text[:200]}")
-        return ""
+        return "", ""
     except Exception as e:
         logger.error(f"[Sarvam STT] Error: {e}")
-        return ""
+        return "", ""
+
+
+def stt(audio_bytes: bytes, language: str = "unknown") -> str:
+    """
+    Speech-to-Text via Sarvam REST API.
+    Accepts webm audio from browser MediaRecorder.
+    Returns transcript string, or "" on failure.
+    """
+    transcript, _ = stt_with_lid(audio_bytes, language=language)
+    return transcript
 
 
 def tts(text: str, language: str = DEFAULT_LANG) -> bytes:
@@ -142,6 +216,11 @@ def tts(text: str, language: str = DEFAULT_LANG) -> bytes:
     if not text:
         return b""
 
+    # Resolve language code if name is provided (e.g. 'Kannada' -> 'kn-IN')
+    lang_code = NAME_TO_SARVAM_LANG.get(language.lower(), language)
+    if lang_code not in SARVAM_LANG_TO_NAME:
+        lang_code = DEFAULT_LANG
+
     try:
         safe_text = text[:500]   # Sarvam TTS max ~500 chars per call
         headers = {
@@ -150,7 +229,7 @@ def tts(text: str, language: str = DEFAULT_LANG) -> bytes:
         }
         payload = {
             "inputs":               [safe_text],
-            "target_language_code": language,
+            "target_language_code": lang_code,
             "speaker":              TTS_SPEAKER,
             "model":                TTS_MODEL,
             "pace":                 0.95,
@@ -165,7 +244,7 @@ def tts(text: str, language: str = DEFAULT_LANG) -> bytes:
             timeout=30,
         )
 
-        logger.info(f"[Sarvam TTS] HTTP {resp.status_code}")
+        logger.info(f"[Sarvam TTS] HTTP {resp.status_code} lang={lang_code}")
         resp.raise_for_status()
 
         result = resp.json()
