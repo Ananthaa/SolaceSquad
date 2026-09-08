@@ -172,9 +172,15 @@ def detect_intent(message: str) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. EARLIEST AVAILABILITY CALCULATOR
 # ─────────────────────────────────────────────────────────────────────────────
-def get_earliest_slot(consultant, db, tz_name: str = "Asia/Kolkata") -> str:
+def get_earliest_slot_details(consultant, db, tz_name: str = "Asia/Kolkata") -> dict:
     """
-    Return human-readable earliest available slot in next 14 days (Local).
+    Return detailed earliest available slot in next 14 days (Local):
+      {
+        "slot_str": "Tomorrow at 10:00 AM",
+        "days_until": 1.0,
+        "hours_until": 24.5,
+        "has_active_schedule": True
+      }
     Checks ConsultantSchedule vs existing Appointments status∈{scheduled,pending}.
     Enforces minimum 24-hour advance booking for paid appointments.
     """
@@ -188,7 +194,12 @@ def get_earliest_slot(consultant, db, tz_name: str = "Asia/Kolkata") -> str:
 
         active_slots = [s for s in (getattr(consultant, "schedules", None) or []) if getattr(s, "is_active", True)]
         if not active_slots:
-            return "Availability on request"
+            return {
+                "slot_str": "Availability on request",
+                "days_until": 999.0,
+                "hours_until": 9999.0,
+                "has_active_schedule": False
+            }
 
         # Paid consultants require at least 24 hours advance notice
         min_booking_ist = now_ist.replace(tzinfo=None) + timedelta(hours=24)
@@ -234,20 +245,52 @@ def get_earliest_slot(consultant, db, tz_name: str = "Asia/Kolkata") -> str:
 
                     time_part = slot_dt.strftime("%I:%M %p")
                     days_diff = (check_date - today_ist).days
+                    delta = (slot_dt - now_ist.replace(tzinfo=None))
+                    hours_until = max(0.0, delta.total_seconds() / 3600.0)
+
                     if days_diff == 1:
-                        return f"Tomorrow at {time_part}"
+                        slot_str = f"Tomorrow at {time_part}"
                     else:
-                        return f"{slot_dt.strftime('%a, %d %b')} at {time_part}"
+                        slot_str = f"{slot_dt.strftime('%a, %d %b')} at {time_part}"
+
+                    return {
+                        "slot_str": slot_str,
+                        "days_until": float(days_diff),
+                        "hours_until": hours_until,
+                        "has_active_schedule": True
+                    }
                 except Exception:
                     days_diff = (check_date - today_ist).days
-                    if days_diff == 1:
-                        return f"Tomorrow at {slot_time_str}"
-                    return f"{check_date.strftime('%a, %d %b')} at {slot_time_str}"
+                    slot_str = f"Tomorrow at {slot_time_str}" if days_diff == 1 else f"{check_date.strftime('%a, %d %b')} at {slot_time_str}"
+                    return {
+                        "slot_str": slot_str,
+                        "days_until": float(days_diff),
+                        "hours_until": float(days_diff * 24),
+                        "has_active_schedule": True
+                    }
 
-        return "Check availability on the platform"
+        return {
+            "slot_str": "Check availability on the platform",
+            "days_until": 999.0,
+            "hours_until": 9999.0,
+            "has_active_schedule": True
+        }
     except Exception as _slot_err:
         print(f"[EarliestSlot] non-fatal error: {_slot_err}")
-        return "Availability on request"
+        return {
+            "slot_str": "Availability on request",
+            "days_until": 999.0,
+            "hours_until": 9999.0,
+            "has_active_schedule": False
+        }
+
+
+def get_earliest_slot(consultant, db, tz_name: str = "Asia/Kolkata") -> str:
+    """
+    Return human-readable earliest available slot in next 14 days (Local).
+    """
+    details = get_earliest_slot_details(consultant, db, tz_name=tz_name)
+    return details.get("slot_str", "Availability on request")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -659,9 +702,10 @@ def match_consultants_for_user_query(
             matched_gender = canon_g
             break
 
-    # 3. Detect experience or budget/pricing preference cues in query
+    # 3. Detect experience, budget, or urgency/availability preference cues in query
     is_exp_requested = bool(re.search(r'\b(experienced|senior|veteran|seasoned|years of exp|expert|specialist)\b', msg_lower))
     is_budget_requested = bool(re.search(r'\b(affordable|budget|cheap|low cost|economical|inexpensive|pocket friendly|reasonable fee|low fee|low rate|price)\b', msg_lower))
+    urgency_mode = is_urgency_requested(user_message)
 
     matched_items = []
     matched_focus_areas = []
@@ -874,14 +918,46 @@ def match_consultants_for_user_query(
         if is_budget_requested:
             price_score += max(0.0, min(10.0, (2000.0 - fee) / 150.0))
 
-        # ── Rating & Schedule Availability ──
+        # ── Rating Weightage ──
         rating_score = float(getattr(c, "rating", 0.0) or 0.0) * 2.0
-        schedule_score = 3.0 if getattr(c, "schedules", None) else 0.0
 
-        total_score = relevance_score + exp_score + price_score + rating_score + schedule_score
+        # ── Earliest Availability & Schedule Weightage ──
+        slot_details = get_earliest_slot_details(c, db, tz_name=tz_name)
+        earliest = slot_details.get("slot_str", "Availability on request")
+        days_until_slot = slot_details.get("days_until", 999.0)
+        hours_until_slot = slot_details.get("hours_until", 9999.0)
+        has_schedule = slot_details.get("has_active_schedule", False)
+
+        # Baseline availability score (consultants with soonest upcoming slot get a natural rank boost)
+        if days_until_slot <= 1.0: # Tomorrow
+            avail_score = 15.0
+        elif days_until_slot <= 2.0: # In 2 days
+            avail_score = 12.0
+        elif days_until_slot <= 4.0: # In 3-4 days
+            avail_score = 8.0
+        elif days_until_slot <= 7.0: # Within a week
+            avail_score = 5.0
+        elif has_schedule:
+            avail_score = 2.0
+        else:
+            avail_score = 0.0
+
+        # If user explicitly requested "as soon as possible", "urgent", "earliest slot", etc.
+        if urgency_mode:
+            if days_until_slot <= 1.0: # Tomorrow
+                avail_score += 50.0
+            elif days_until_slot <= 2.0: # 2 days
+                avail_score += 35.0
+            elif days_until_slot <= 3.0: # 3 days
+                avail_score += 25.0
+            elif days_until_slot <= 5.0: # 5 days
+                avail_score += 15.0
+            elif days_until_slot <= 7.0: # within a week
+                avail_score += 8.0
+
+        total_score = relevance_score + exp_score + price_score + rating_score + avail_score
 
         name = getattr(user, "name", None) or getattr(c, "full_name", None) or "Consultant"
-        earliest = get_earliest_slot(c, db, tz_name=tz_name)
 
         # Sexual wellness flag
         is_sw = (
@@ -892,6 +968,8 @@ def match_consultants_for_user_query(
 
         return {
             "score":                  total_score,
+            "hours_until_slot":       hours_until_slot,
+            "days_until_slot":        days_until_slot,
             "has_requested_lang":     has_lang,
             "has_requested_gender":   has_gender,
             "data": {
@@ -907,6 +985,7 @@ def match_consultants_for_user_query(
                 "languages":              langs,
                 "languages_str":          langs_str,
                 "earliest_slot":          earliest,
+                "days_until_slot":        days_until_slot,
                 "matched_areas":          matched_areas_for_c or (eas[:2] if eas else [getattr(c, "specialization", "General")]),
                 "offers_sexual_wellness": is_sw,
                 "has_requested_lang":     has_lang,
@@ -942,8 +1021,14 @@ def match_consultants_for_user_query(
             # STRICT MATCH: Only keep consultants matching requested gender!
             evaluated_candidates = gender_filtered
 
-    # Sort remaining candidates strictly by score descending
-    evaluated_candidates.sort(key=lambda x: x["score"], reverse=True)
+    # Sort candidates:
+    # If urgency is requested, sort primarily by hours_until_slot ascending, then score descending.
+    # Otherwise, sort by score descending (which includes baseline availability bonus).
+    if urgency_mode:
+        evaluated_candidates.sort(key=lambda x: (x["hours_until_slot"], -x["score"]))
+    else:
+        evaluated_candidates.sort(key=lambda x: x["score"], reverse=True)
+
     all_matched_ids = [item["data"]["id"] for item in evaluated_candidates]
     top_consultants = [item["data"] for item in evaluated_candidates[:limit]]
 
@@ -953,10 +1038,20 @@ def match_consultants_for_user_query(
         "matched_languages":   matched_languages,
         "matched_gender":      matched_gender,
         "language_matched":    language_matched,
+        "is_urgency_requested": urgency_mode,
         "all_matched_ids":     all_matched_ids,
         "total_matches":       len(all_matched_ids),
         "consultants":         top_consultants,
     }
+
+
+def is_urgency_requested(message: str) -> bool:
+    """Check if the user requested a consultation urgently or as soon as possible."""
+    if not message:
+        return False
+    msg_clean = message.lower().strip()
+    urgency_pattern = r'\b(asap|as soon as possible|soon|sooner|soonest|earliest|earlier|immediately|immediate|urgent|urgently|today|tonight|tomorrow|right away|right now|quick|quickly|fast|fastest|earliest slot|earliest availability|available first|earliest possible|who is available|who can meet soon)\b'
+    return bool(re.search(urgency_pattern, msg_clean))
 
 
 def is_greeting_message(message: str) -> bool:
@@ -1152,7 +1247,8 @@ def format_matcher_prompt_context(
     focus_areas: list,
     matched_languages: list = None,
     matched_gender: str = None,
-    language_matched: bool = True
+    language_matched: bool = True,
+    is_urgency_requested: bool = False
 ) -> str:
     """Build context for Emora in consultant matcher mode with multi-filter awareness."""
     matched_languages = matched_languages or []
@@ -1176,12 +1272,13 @@ def format_matcher_prompt_context(
             lang_note = f" Requested Language: {', '.join(matched_languages)} (NOTE: None of our {matched_keyword} specialists currently list {', '.join(matched_languages)} on their profile. Matched experts converse in English/Hindi)."
 
     gender_note = f" Requested Gender: {matched_gender}." if matched_gender else ""
+    urgency_note = " User Priority: Requested consultation as soon as possible / earliest available slot." if is_urgency_requested else ""
     criteria_tag = f"{matched_keyword} ({', '.join(matched_languages)})" if matched_languages else matched_keyword
 
     lines = [
         f"[CONSULTANT_MATCHER_RECOMMENDATION]\n"
-        f"The user confirmed they want consultant recommendations for: '{matched_keyword}' (Focus Areas: {', '.join(focus_areas)}).{lang_note}{gender_note}\n"
-        f"You have matched these real SolaceSquad consultants from our database (their recommendation cards are already filtered and presented directly below your message to the user):\n"
+        f"The user confirmed they want consultant recommendations for: '{matched_keyword}' (Focus Areas: {', '.join(focus_areas)}).{lang_note}{gender_note}{urgency_note}\n"
+        f"You have matched these real SolaceSquad consultants from our database (their recommendation cards are already filtered and presented directly below your message to the user, ranked with priority for earliest availability):\n"
     ]
     for c in consultants:
         areas_text = ", ".join(c.get("matched_areas", [])) or c["specialization"]
@@ -1197,7 +1294,10 @@ def format_matcher_prompt_context(
     )
 
     names_list = ", ".join(c["name"] for c in consultants)
-    if matched_languages and language_matched:
+    if is_urgency_requested and consultants:
+        top_c = consultants[0]
+        lines.append(f"4. Highlight that {top_c['name']} is available soonest ({top_c['earliest_slot']}) to help address their needs right away.\n")
+    elif matched_languages and language_matched:
         lines.append(f"4. Explicitly confirm that {names_list} speaks {', '.join(matched_languages)} as requested, and introduce them BY EXACT NAME explaining briefly how their expertise can support them.\n")
     elif matched_languages and not language_matched:
         lines.append(f"4. Transparently let the user know that while our {matched_keyword} specialists currently converse in {consultants[0].get('languages_str', 'English/Hindi')}, introduce {names_list} BY EXACT NAME as our top verified specialists for this concern.\n")

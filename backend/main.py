@@ -9236,6 +9236,7 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
                     matched_languages = match_res.get("matched_languages", [])
                     matched_gender = match_res.get("matched_gender", None)
                     language_matched = match_res.get("language_matched", True)
+                    is_urgency_requested = match_res.get("is_urgency_requested", False)
                     matched_consultants = match_res.get("consultants", [])
                     all_matched_ids = match_res.get("all_matched_ids", [])
                     total_matches = match_res.get("total_matches", len(matched_consultants))
@@ -9245,7 +9246,8 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
                         matched_focus_areas,
                         matched_languages=matched_languages,
                         matched_gender=matched_gender,
-                        language_matched=language_matched
+                        language_matched=language_matched,
+                        is_urgency_requested=is_urgency_requested
                     )
                     matcher_stage = "matched"
                     is_confirmation_pending = False
@@ -9560,6 +9562,7 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                     matched_languages = match_res.get("matched_languages", [])
                     matched_gender = match_res.get("matched_gender", None)
                     language_matched = match_res.get("language_matched", True)
+                    is_urgency_requested = match_res.get("is_urgency_requested", False)
                     matched_consultants = match_res.get("consultants", [])
                     all_matched_ids = match_res.get("all_matched_ids", [])
                     total_matches = match_res.get("total_matches", len(matched_consultants))
@@ -9569,7 +9572,8 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                         matched_focus_areas,
                         matched_languages=matched_languages,
                         matched_gender=matched_gender,
-                        language_matched=language_matched
+                        language_matched=language_matched,
+                        is_urgency_requested=is_urgency_requested
                     )
                     matcher_stage = "matched"
                     is_confirmation_pending = False
