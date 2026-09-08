@@ -9443,6 +9443,8 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         if not message:
             return {"success": False, "error": "Message is required"}
         
+        original_message = message
+        
         # Get recent conversation history -- 15 exchanges for richer memory
         recent_chats = db.query(AIChatHistory).filter(
             AIChatHistory.user_id == user_id
@@ -9491,6 +9493,8 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         all_matched_ids = []
         total_matches = 0
         consultant_context = ""
+        auto_lang_code = "en-IN"
+        auto_lang_name = "English"
 
         # Identify system greetings OR simple user greetings
         user_msg_lower = message.lower().strip()
