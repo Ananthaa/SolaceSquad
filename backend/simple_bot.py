@@ -1,6 +1,7 @@
 """
-Simple Rule-Based Chatbot for Wellbeing Support
-Works without external dependencies as a fallback when Ollama is unavailable
+Simple Fallback Bot for SolaceSquad (Emora)
+Safe, empathetic offline fallback when AI models are temporarily unreachable.
+No grounding loops, no 5-4-3-2-1 traps, strictly supportive and consultant-friendly.
 """
 import random
 import re
@@ -8,256 +9,94 @@ from datetime import datetime
 
 class SimpleWellbeingBot:
     def __init__(self):
-        # Interactive flows for specific techniques
-        self.flows = {
-            '54321': {
-                'name': 'Grounding Technique',
-                'steps': [
-                    "Let's try the 5-4-3-2-1 grounding technique together. First, look around and tell me 5 things you can see right now.",
-                    "Great observation. Now, focus on your sense of touch. Tell me 4 things you can physically feel (like the chair supporting you, or fabric on your skin).",
-                    "Wonderful. Next, let's close our eyes for a moment. Listen carefully. Tell me 3 things you can hear.",
-                    "You're doing great. Now, engage your sense of smell. Tell me 2 things you can smell (or your favorite smells).",
-                    "Almost there. Finally, tell me 1 thing you can taste, or simply name a taste you enjoy.",
-                    "Excellent. Take a deep breath. How are you feeling now after grounding yourself in the present?"
-                ]
-            },
-            'breathing': {
-                'name': '4-7-8 Breathing',
-                'steps': [
-                    "Let's do a 4-7-8 breathing exercise. Sit comfortably. Exhale completely through your mouth. Ready? ... Inhale through your nose for 4 seconds.",
-                    "Hold that breath for 7 seconds...",
-                    "Now exhale forcefully through your mouth for 8 seconds...",
-                    "Great. Let's do it one more time. Inhale deeply... 2... 3... 4...",
-                    "Hold... 2... 3... 4... 5... 6... 7...",
-                    "Exhale fully... 2... 3... 4... 5... 6... 7... 8...",
-                    "Wonderful. Normal breathing now. How did that feel for you?"
-                ]
-            }
-        }
-        
         self.responses = {
             'greeting': [
-                "Hello! I'm here to support your wellbeing journey. How are you feeling right now?",
-                "Hi there! It's great to connect. What's on your mind today?",
-                "Welcome. I'm listening. How can I help you feel more balanced today?",
-                "Hello! I'm glad you're here. How is your day going?",
+                "Hello! 👋 I'm Emora, your wellness guide. How are you feeling today?",
+                "Hi there! 💜 I'm right here with you. What's on your mind today?",
+                "Hello! I'm glad you're here. How can I support your wellbeing today?",
             ],
             'stress': [
-                "I hear that you're stressed. It's completely valid to feel that way. Would you like to try a 'grounding' exercise to help you feel more centered?",
-                "Stress can be heavy. Sometimes pausing helps. Shall we try a quick 'breathing' exercise together?",
-                "It sounds like you're carrying a lot. Remember to be gentle with yourself. Would a 'distraction' help, or do you want to talk about what's stressing you?",
-                "When we're stressed, our body tenses up. Have you taken a moment to stretch or breathe deeply today?",
+                "I hear you, and it is completely understandable to feel overwhelmed. Remember you don't have to carry this alone. You can also connect with one of our SolaceSquad consultants for personalized support.",
+                "Stress can feel heavy, but I'm here to listen. Take things one moment at a time. How can I support you right now?",
+                "It sounds like you're carrying a lot right now. Please be gentle with yourself. Would you like to talk about what's causing this stress, or connect with a specialist?",
             ],
             'anxiety': [
-                "Anxiety feels overwhelming, but it will pass. Would you like to try the '5-4-3-2-1' technique to help ground you in the moment?",
-                "I understand. You're safe here. Shall we try some deep 'breathing' to calm your nervous system?",
-                "Naming your worries can sometimes reduce their power. Or we could do a quick 'grounding' exercise. Which sounds better?",
-                "Take a gentle breath. You are right here, right now, and you are safe. Can I help you with a calming exercise?",
+                "I understand how uncomfortable and overwhelming anxiety can feel. Take a gentle breath—you are safe here. Would you like to talk about what's making you anxious, or would you like to explore talking with a verified consultant?",
+                "Feeling anxious is tough, but you are not alone. I'm right here listening. What thoughts or situations are on your mind right now?",
+                "I hear you. Anxiety can be exhausting. Take your time—I'm here with you. How can I help you feel a bit more at ease today?",
             ],
             'sad': [
-                "I'm sorry you're feeling down. Thank you for telling me. Do you want to share more about what's happening, or would you prefer a gentle distraction?",
-                "It's okay to feel sad. I'm here. Would you like to hear a 'positive' thought, or just have someone listen?",
-                "Sadness is a heavy emotion. Be kind to yourself today. I'm listening if you want to vent.",
+                "I'm so sorry you're feeling down. Thank you for opening up to me. I'm here to listen whenever you're ready to share.",
+                "It's completely okay to not feel okay today. You are safe here with me. What has been weighing on your heart?",
+                "Sadness is a heavy emotion. Please be kind to yourself. If you'd like deeper support, our SolaceSquad consultants are also here to help you through this.",
             ],
             'sleep': [
-                "Sleep struggles are tough. Have you tried the '4-7-8' breathing technique? I can guide you through it if you like.",
-                "Racing thoughts often keep us awake. Would you like to try a 'grounding' exercise to get out of your head?",
-                "Setting a consistent bedtime routine can sometimes help. What is your current routine like?"
+                "Sleep struggles can be so draining. Creating a calm, low-light environment and winding down early can help. What seems to be keeping you awake?",
+                "I hear you—restless nights make everything harder. Would you like to share what's on your mind, or connect with a sleep and wellness specialist?",
             ],
-            'exercise': [
-                "Movement changes mood! Even a 2-minute stretch counts. Want a quick challenge? Try standing up and stretching your arms up high right now!",
-                "Regular interactions with nature or just walking can boost your mood significantly. Have you moved your body today?",
+            'nutrition': [
+                "Nutrition and physical wellness play a huge role in how we feel every day. Would you like to share what specific health or diet goals you're focusing on?",
+                "Taking care of your body is a wonderful step. You can also connect directly with certified nutritionists right here on SolaceSquad.",
             ],
-            'gratitude': [
-                "Gratitude shifts perspective. Can you tell me just ONE meaningful thing that happened today?",
-                "That's a beautiful practice. Who is one person you're grateful for having in your life, and why?",
-                "Focusing on the good can help rewiring our brain. What made you smile today?",
-            ],
-            'motivation': [
-                "Motivation follows action, not the other way around. What is the tiniest, 2-minute version of the task you're avoiding?",
-                "Be kind to yourself. You don't have to do it all. What's one small step you can take right now?",
-                "Sometimes we just need to start. Can you commit to just 5 minutes of the task?",
-            ],
-            'positive': [
-                "That's wonderful! Hold onto that feeling. What do you think contributed to this good moment?",
-                "I love hearing that! Celebrate this win. How can you treat yourself to something nice today?",
-                "Positivity is contagious. Thank you for sharing your joy with me!",
-            ],
-            'help': [
-                "I can guide you through 'breathing' exercises or 'grounding' techniques, or just listen. What feels right for you?",
-                "I'm here to support you. We can try a calming exercise together, or you can book a session with one of our consultants for deeper support. What would help most right now?",
-            ],
-            'professional': [
-                "I can offer general support, but our human consultants are amazing for deeper work. You can book a 1-on-1 session with them right here on SolaceSquad.",
-                "It sounds like speaking to one of our consultants could really help. They're available to book directly on SolaceSquad.",
-            ],
-            'work': [
-                "Work can be a major source of stress. Remember to take breaks. Have you stepped away from your screen recently?",
-                "Balancing work and life is a continuous challenge. What's one boundary you can set today?",
-            ],
-            'lonely': [
-                "Loneliness is a universal human feeling, but it hurts. I'm here with you. Would you like to talk about what's making you feel that way?",
-                "You're not alone right now — I'm here. If you'd like more human support, you can always book a session with one of our SolaceSquad consultants.",
-            ],
-            'not_well': [
-                "I'm sorry to hear you're not feeling well. That takes courage to acknowledge. Would you like to talk about what's going on?",
-                "It's okay to not be okay. I'm here to listen — can you tell me a bit more about how you're feeling?",
-                "I hear you. Sometimes things just feel heavy. Would a calming breathing exercise help, or would you rather talk about what's on your mind?",
-                "Thank you for sharing that with me. Not feeling good is hard. What do you think has been weighing on you most?",
+            'consultant': [
+                "We have verified wellness consultants, therapists, and nutritionists on SolaceSquad who can support you 1-on-1. You can view their profiles and book a session right below.",
+                "Connecting with a professional can make a world of difference. You can check out our matched specialists and pick a time slot that works best for you.",
             ],
             'default': [
-                "I'm listening. Please tell me more about that.",
-                "I see. How does that make you feel?",
-                "Thank you for sharing that with me. Go on.",
-                "I'm here with you. What else is on your mind?",
-                "That sounds important. Can you elaborate?",
-                "I appreciate you opening up. How long have you felt this way?",
-                "I'm checking in—how is your body feeling as you talk about this?",
-                "That's interesting. What do you think led to this?",
-                "I hear you. It's safe to share more if you'd like.",
+                "I hear you. I'm right here with you—please tell me more about what you're experiencing.",
+                "Thank you for sharing that with me. What would be most helpful for you right now?",
+                "I'm listening closely. How has this been affecting your day?",
+                "I appreciate you opening up. Take your time—I'm here to support you.",
             ]
         }
         
         self.patterns = {
-            'greeting': r'\b(hi|hello|hey|good morning|good evening|greetings)\b',
-            'stress': r'\b(stress|stressed|overwhelm|pressure|too much|tense)\b',
+            'greeting': r'\b(hi|hello|hey|good morning|good evening|namaste|greetings)\b',
+            'stress': r'\b(stress|stressed|overwhelm|pressure|too much|burnout|tense)\b',
             'anxiety': r'\b(anxious|anxiety|worried|worry|nervous|panic|scared|fear)\b',
-            'sad': r'\b(sad|depressed|down|unhappy|lonely|alone|cry|crying|tears)\b',
+            'sad': r'\b(sad|depressed|depression|down|unhappy|lonely|alone|cry|crying|grief)\b',
             'sleep': r'\b(sleep|insomnia|tired|exhausted|rest|awake|night)\b',
-            'exercise': r'\b(exercise|workout|fitness|active|movement|walk|run|gym)\b',
-            'gratitude': r'\b(grateful|gratitude|thankful|appreciate|blessed)\b',
-            'motivation': r'\b(motivat|unmotivat|lazy|procrastinat|stuck)\b',
-            'not_well': r'\b(not feeling|not well|not okay|not fine|not good|feeling low|feeling down|feeling bad|feel terrible|feel awful|feel horrible)\b',
-            'positive': r'\b(good|great|happy|better|wonderful|amazing|excellent|joy|love)\b',
-            'help': r'\b(help|what can you|how do you|what do you|support)\b',
-            'professional': r'\b(therapist|counselor|consultant|professional help|doctor)\b',
-            'work': r'\b(work|job|boss|career|office|deadline)\b',
-            'lonely': r'\b(lonely|alone|isolation|friend|friends)\b',
-
-            
-            # Flow triggers
-            'trigger_grounding': r'\b(grounding|5-4-3-2-1|54321|focus|center)\b',
-            'trigger_breathing': r'\b(breath|breathing|4-7-8|calm down|inhale|exhale)\b',
-            'trigger_yes': r'\b(yes|sure|okay|yeah|yep|please|ok|do it)\b',
-            'trigger_no': r'\b(no|nope|nah|pas|later|stop|don\'t|quit)\b'
+            'nutrition': r'\b(nutrition|diet|weight|gut|digestion|fitness|workout|exercise)\b',
+            'consultant': r'\b(therapist|counselor|consultant|doctor|psychologist|nutritionist|specialist|session|book)\b',
         }
     
     def get_response(self, message: str, conversation_history: list = None) -> str:
-        """Generate a response based on the user's message and history"""
-        message_lower = message.lower()
-        
-        # 1. Check if we are in an active flow
-        active_flow_response = self._check_active_flow(conversation_history)
-        if active_flow_response:
-            # If the user says "no" or "stop" to continuing a flow, break out
-            if re.search(self.patterns['trigger_no'], message_lower):
-                return "That's completely okay. We can stop. How else can I support you right now?"
-            return active_flow_response
+        """Generate an empathetic, non-looping response"""
+        if not message:
+            return "I'm right here with you. What would you like to talk about today?"
 
-        # 2. Check for flow triggers in current message
-        if re.search(self.patterns['trigger_grounding'], message_lower):
-            return self.flows['54321']['steps'][0]
-        
-        if re.search(self.patterns['trigger_breathing'], message_lower):
-            return self.flows['breathing']['steps'][0]
+        message_clean = message.strip()
+        message_lower = message_clean.lower()
 
-        # 3. Check for reflection patterns (I feel... / I am...)
-        reflection_match = re.search(r'\bi (feel|am) ([a-z]+)', message_lower)
-        if reflection_match and len(message_lower.split()) < 10:
-            feeling = reflection_match.group(2)
-            # Skip if the feeling word is a trigger or common filler
-            skip_words = {'grounding', 'breathing', 'ready', 'not', 'just', 'so', 'very', 'really'}
-            if feeling not in skip_words:
-                if random.random() < 0.3:
-                    return f"I understand that you're feeling {feeling}. Can you tell me more about what's making you feel that way?"
+        # Check if matcher context is present in message
+        if "[CONSULTANT_MATCHER_RECOMMENDATION]" in message_clean:
+            # Extract consultant names from context if any
+            consultant_matches = re.findall(r'•\s+([^(\n]+)\s*\(([^)]+)\)', message_clean)
+            if consultant_matches:
+                names = [c[0].strip() for c in consultant_matches[:2]]
+                names_str = " and ".join(names)
+                return f"We have verified specialists ready to support you, including {names_str}. You can view their profiles and book a session directly from the cards below."
+            return "We have verified specialists available to help you with this concern. You can browse their details and book a session right below."
 
-        # 4. Check for general patterns — but honour negation context for 'positive'
-        negation_pattern = re.compile(r'\b(not|no|never|don\'t|cant|cannot|without)\b')
+        if "[CONSULTANT_MATCHER_PROBLEM_UNDERSTOOD]" in message_clean:
+            return "Thank you for sharing that with me. I understand what you're going through, and a 1-on-1 consultation would be ideal for this. Do you have any language preferences for your consultant?"
+
+        if "[CONSULTANT_MATCHER_GREETING]" in message_clean:
+            return "Hi! I'm Emora, your wellness guide. What health, wellness, nutrition, or life challenge can we support you with today?"
+
+        if "[CONSULTANT_MATCHER_CLARIFICATION]" in message_clean:
+            return "I'm right here with you. Could you share a little more about what specific challenge or concern you'd like support with today?"
+
+        # Match category patterns
         for category, pattern in self.patterns.items():
-            if category.startswith('trigger_'): continue
-            if re.search(pattern, message_lower, re.IGNORECASE):
-                # Don't fire 'positive' when there's a negation word nearby
-                if category == 'positive' and negation_pattern.search(message_lower):
-                    continue  # Fall through to 'default' or another matching category
-                return self._get_varied_response(category, conversation_history)
-        
-        # 5. Contextual "Yes" handling (if user says "yes" without a clear trigger)
-        if conversation_history and len(conversation_history) > 0 and re.search(self.patterns['trigger_yes'], message_lower):
-            last_bot_msg = self._get_last_bot_message(conversation_history)
-            if last_bot_msg:
-                if 'grounding' in last_bot_msg.lower() or '5-4-3-2-1' in last_bot_msg:
-                    return self.flows['54321']['steps'][0]
-                if 'breath' in last_bot_msg.lower():
-                    return self.flows['breathing']['steps'][0]
-        
-        # 6. Default response
-        return self._get_varied_response('default', conversation_history)
+            if re.search(pattern, message_lower):
+                options = self.responses.get(category, self.responses['default'])
+                return random.choice(options)
 
-    def _check_active_flow(self, history):
-        """Check if the conversation is currently inside a flow"""
-        last_bot_msg = self._get_last_bot_message(history)
-        
-        if not last_bot_msg:
-            return None
+        return random.choice(self.responses['default'])
 
-        # Check which flow and step we are in using fuzzy matching
-        for flow_name, flow_data in self.flows.items():
-            for i, step in enumerate(flow_data['steps']):
-                # Simple fuzzy match: check if the first 15 chars match or last 15 chars match
-                # This handles minor differences or truncations
-                clean_step = step.strip()
-                clean_last = last_bot_msg.strip()
-                
-                # Check for exact match or partial match
-                match = (clean_step == clean_last) or \
-                        (len(clean_step) > 20 and clean_step[:20] == clean_last[:20]) or \
-                        (len(clean_step) > 20 and clean_step[-20:] == clean_last[-20:])
-                
-                if match:
-                    # valid match, return the NEXT step
-                    if i + 1 < len(flow_data['steps']):
-                        return flow_data['steps'][i + 1]
-                    else:
-                        # Flow finished
-                        return None
-        return None
-
-    def _get_last_bot_message(self, history):
-        """Get the content of the last message from the bot"""
-        if not history:
-            return None
-        
-        for msg in reversed(history):
-            if not msg.get('is_user'): # It's a bot message
-                return msg.get('content')
-        return None
-
-    def _get_varied_response(self, category, history):
-        """Get a response that isn't the same as the last one"""
-        options = self.responses.get(category, self.responses['default'])
-        
-        # Try to avoid the exact same response as last time
-        last_bot_msg = self._get_last_bot_message(history)
-        
-        # Filter out the last message from options if possible
-        valid_options = [opt for opt in options if opt != last_bot_msg]
-        
-        if not valid_options: # If we exhausted options (shouldn't happen with default), reset
-            valid_options = options
-            
-        return random.choice(valid_options)
-    
     def get_greeting(self) -> str:
-        """Get a greeting message"""
-        hour = datetime.now().hour
-        if hour < 12:
-            greeting = "Good morning"
-        elif hour < 18:
-            greeting = "Good afternoon"
-        else:
-            greeting = "Good evening"
-        
-        return f"{greeting}! I'm your AI wellbeing assistant. I can guide you through grounding exercises, breathing techniques, or just listen to how you're feeling."
+        return "Hi! 👋 I'm Emora, your wellness guide. How can I support you today?"
 
 # Global instance
 simple_bot = SimpleWellbeingBot()

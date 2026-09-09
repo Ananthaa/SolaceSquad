@@ -30,8 +30,8 @@ except ImportError:
 _GCP_PROJECT   = os.getenv("GCP_PROJECT_ID", "abiding-idea-485817-k2")
 _GCP_LOCATION  = os.getenv("GCP_LOCATION",   "global")   # gemini-2.5-flash requires "global"
 _VERTEX_MODEL  = "gemini-2.5-flash"
-_GEMINI_MODEL  = "gemini-2.0-flash"                       # Used for direct API tier
-_GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+_GEMINI_MODEL  = "gemini-2.5-flash"                       # Primary direct API model
+_GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
 
 def _load_system_prompt() -> str:
@@ -66,46 +66,45 @@ class GeminiChat:
 
         # ── Tier 1: Vertex AI (HIPAA-eligible) ───────────────────────────────
         if _VERTEX_AVAILABLE:
-            try:
-                vertexai.init(project=_GCP_PROJECT, location=_GCP_LOCATION)
-                self.vertex_model = _VXModel(
-                    _VERTEX_MODEL,
-                    system_instruction=self.system_prompt,
-                )
-                # Warm-up: raises immediately on bad model/access
-                self.vertex_model.generate_content(
-                    "hi",
-                    generation_config={"max_output_tokens": 5},
-                )
-                self.available = True
-                print(f"[Emora] [OK] Tier 1 Vertex AI ready: {_VERTEX_MODEL} "
-                      f"(project={_GCP_PROJECT}, location={_GCP_LOCATION})")
-            except Exception as e:
-                print(f"[Emora] [WARN] Tier 1 Vertex AI failed: {e}")
-                self.vertex_model = None
+            for v_loc in [_GCP_LOCATION, "global", "us-central1"]:
+                try:
+                    vertexai.init(project=_GCP_PROJECT, location=v_loc)
+                    for vm in [_VERTEX_MODEL, "gemini-2.0-flash", "gemini-1.5-flash"]:
+                        try:
+                            m = _VXModel(vm, system_instruction=self.system_prompt)
+                            m.generate_content("hi", generation_config={"max_output_tokens": 5})
+                            self.vertex_model = m
+                            self.available = True
+                            print(f"[Emora] [OK] Tier 1 Vertex AI ready: {vm} (location={v_loc})")
+                            break
+                        except Exception:
+                            continue
+                    if self.vertex_model:
+                        break
+                except Exception as e:
+                    print(f"[Emora] [WARN] Tier 1 Vertex AI ({v_loc}) failed: {e}")
 
-        # ── Tier 2: Direct Gemini API ─────────────────────────────────────────
-        if not self.available and _GENAI_AVAILABLE and _GEMINI_API_KEY:
+        # ── Tier 2: Direct Gemini API (Always configured for instant failover) ─
+        if _GENAI_AVAILABLE and _GEMINI_API_KEY:
             try:
                 genai.configure(api_key=_GEMINI_API_KEY)
-                self.genai_model = genai.GenerativeModel(
-                    _GEMINI_MODEL,
-                    system_instruction=self.system_prompt,
-                )
-                # Warm-up
-                self.genai_model.generate_content(
-                    "hi",
-                    generation_config={"max_output_tokens": 5},
-                )
-                self.available = True
-                print(f"[Emora] [OK] Tier 2 Direct Gemini API ready: {_GEMINI_MODEL}")
+                for gm in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+                    try:
+                        m = genai.GenerativeModel(gm, system_instruction=self.system_prompt)
+                        m.generate_content("hi", generation_config={"max_output_tokens": 5})
+                        self.genai_model = m
+                        self.available = True
+                        print(f"[Emora] [OK] Tier 2 Direct Gemini API ready: {gm}")
+                        break
+                    except Exception as ge:
+                        print(f"[Emora] [WARN] Tier 2 model {gm} failed: {ge}")
             except Exception as e:
-                print(f"[Emora] [WARN] Tier 2 Direct Gemini API failed: {e}")
+                print(f"[Emora] [WARN] Tier 2 Direct Gemini API configuration failed: {e}")
                 self.genai_model = None
 
         if not self.available:
             print("[Emora] [WARN] Both Vertex AI and Direct Gemini API unavailable "
-                  "— falling back to simple_bot (last resort)")
+                  "— falling back to safe Emora bot (last resort)")
 
     def _build_vertex_history(self, conversation_history: List[Dict]):
         """Convert conversation history to Vertex AI Content list."""
