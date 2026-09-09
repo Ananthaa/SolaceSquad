@@ -9123,40 +9123,44 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
     if not user_id:
         return JSONResponse({"success": False, "error": "Not authenticated"}, status_code=401)
 
-    # ── Plan gate: Voice is available on Green and Blue plans only ─────
-    try:
-        from subscription_routes import get_active_subscription
-        active_sub = get_active_subscription(user_id, db)
-        plan_name = ""
-        if active_sub and active_sub.plan:
-            plan_name = (active_sub.plan.name or "").strip().lower()
-        voice_allowed_plans = {"green", "blue"}
-        if not any(p in plan_name for p in voice_allowed_plans):
-            return JSONResponse({
-                "success": False,
-                "voice_not_available": True,
-                "error": "Voice Emora is available exclusively on Green and Blue plans. Upgrade your plan to unlock Voice Emora!"
-            }, status_code=403)
-    except Exception as _plan_err:
-        print(f"[Voice] Plan gate check error (non-fatal, allowing): {_plan_err}")
-
     try:
         form       = await request.form()
         audio_file = form.get("audio")
         language   = form.get("language", "unknown")
+        mode       = form.get("mode", "") # "consultant_match"
+        action     = form.get("action", "") # e.g. "confirm_match"
+        pending_query = form.get("pending_query", "")
 
         if not audio_file:
             return JSONResponse({"success": False, "error": "No audio provided"}, status_code=400)
 
-        # Check quota limit before processing voice
-        from subscription_routes import check_feature_limit, increment_feature_usage
-        q = check_feature_limit(user_id, "ai_chat", db)
-        if not q.get("allowed", True):
-            return JSONResponse({
-                "success": False,
-                "quota_exhausted": True,
-                "error": q.get("message", "You have reached your daily message limit.")
-            }, status_code=429)
+        # ── Plan gate: Voice is free & open for consultant matching; requires Green/Blue for general companion chat ──
+        if mode != "consultant_match":
+            try:
+                from subscription_routes import get_active_subscription
+                active_sub = get_active_subscription(user_id, db)
+                plan_name = ""
+                if active_sub and active_sub.plan:
+                    plan_name = (active_sub.plan.name or "").strip().lower()
+                voice_allowed_plans = {"green", "blue"}
+                if not any(p in plan_name for p in voice_allowed_plans):
+                    return JSONResponse({
+                        "success": False,
+                        "voice_not_available": True,
+                        "error": "Voice Emora is available exclusively on Green and Blue plans. Upgrade your plan to unlock Voice Emora!"
+                    }, status_code=403)
+            except Exception as _plan_err:
+                print(f"[Voice] Plan gate check error (non-fatal, allowing): {_plan_err}")
+
+            # Check quota limit before processing voice in general chat
+            from subscription_routes import check_feature_limit
+            q = check_feature_limit(user_id, "ai_chat", db)
+            if not q.get("allowed", True):
+                return JSONResponse({
+                    "success": False,
+                    "quota_exhausted": True,
+                    "error": q.get("message", "You have reached your daily message limit.")
+                }, status_code=429)
 
         audio_bytes = await audio_file.read()
 
@@ -9178,10 +9182,6 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         except Exception:
             pass   # keep the session fallback
 
-        mode = form.get("mode", "") # "consultant_match"
-        action = form.get("action", "") # e.g. "confirm_match"
-        pending_query = form.get("pending_query", "")
-
         matcher_stage = "idle" # "greeting", "conversational", "clarifying", "problem_understood_ask_lang", "matched"
         is_confirmation_pending = False
         matched_keyword = ""
@@ -9201,7 +9201,8 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
                 is_greeting_message, is_meta_or_conversational_remark,
                 extract_language_preference, is_affirmative_confirmation, is_vague_query,
                 format_matcher_greeting_context, format_matcher_conversational_context,
-                format_clarification_prompt_context, format_problem_understood_and_ask_language_context
+                format_clarification_prompt_context, format_problem_understood_and_ask_language_context,
+                get_fast_matcher_greeting
             )
             from sarvam_voice import detect_text_language
 
@@ -9212,9 +9213,40 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
                 is_meta = is_meta_or_conversational_remark(transcript)
 
                 if is_greeting:
-                    consultant_context = format_matcher_greeting_context(user_display_name)
+                    # ── FAST INITIAL CONVERSATION (Zero LLM latency) ──────────
                     matcher_stage = "greeting"
                     is_confirmation_pending = False
+                    
+                    target_lang = stt_detected_lang if (stt_detected_lang and stt_detected_lang != "unknown") else language
+                    detected_lang = target_lang if target_lang in SARVAM_LANG_TO_NAME else "en-IN"
+                    ai_text = get_fast_matcher_greeting(user_display_name, detected_lang)
+                    
+                    speech_text = to_speech_text(ai_text)
+                    audio_out = tts(speech_text, language=detected_lang)
+                    audio_b64 = _b64.b64encode(audio_out).decode() if audio_out else ""
+
+                    print(f"[Voice Emora Fast Greeting] user={user_id}, lang={detected_lang}, bytes={len(audio_out)}")
+                    return JSONResponse({
+                        "success":                 True,
+                        "transcript":              transcript,
+                        "response":                ai_text,
+                        "reply_text":              ai_text,
+                        "stage":                   matcher_stage,
+                        "is_confirmation_pending": False,
+                        "pending_query":           "",
+                        "audio_b64":               audio_b64,
+                        "language":                detected_lang,
+                        "detected_language":       detected_lang,
+                        "matched_keyword":         "",
+                        "matched_focus_areas":     [],
+                        "matched_languages":       [],
+                        "matched_gender":          None,
+                        "language_matched":        True,
+                        "matched_consultants":     [],
+                        "all_matched_ids":         [],
+                        "total_matches":           0,
+                    })
+
                 elif is_meta:
                     consultant_context = format_matcher_conversational_context(transcript, user_display_name)
                     matcher_stage = "conversational"
@@ -9335,13 +9367,16 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(chat_entry)
 
-        try:
-            increment_feature_usage(user_id, "ai_chat", db)
-        except Exception as _q_err:
-            print(f"[Voice Quota] increment error: {_q_err}")
+        if mode != "consultant_match":
+            try:
+                from subscription_routes import increment_feature_usage
+                increment_feature_usage(user_id, "ai_chat", db)
+            except Exception as _q_err:
+                print(f"[Voice Quota] increment error: {_q_err}")
 
         quota_info = {}
         try:
+            from subscription_routes import check_feature_limit
             q_after = check_feature_limit(user_id, "ai_chat", db)
             limit = q_after.get("limit", 20)
             in_first_week = q_after.get("in_first_week", False)
@@ -9531,7 +9566,8 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                 is_greeting_message, is_meta_or_conversational_remark,
                 extract_language_preference, is_affirmative_confirmation, is_vague_query,
                 format_matcher_greeting_context, format_matcher_conversational_context,
-                format_clarification_prompt_context, format_problem_understood_and_ask_language_context
+                format_clarification_prompt_context, format_problem_understood_and_ask_language_context,
+                get_fast_matcher_greeting
             )
             from sarvam_voice import detect_text_language
             auto_lang_code, auto_lang_name = detect_text_language(original_message)
@@ -9543,10 +9579,40 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                 is_m_meta = is_meta_or_conversational_remark(original_message)
 
                 if is_m_greeting:
+                    # ── FAST INITIAL CONVERSATION (Zero LLM latency) ──────────
                     is_greeting = True
-                    consultant_context = format_matcher_greeting_context(user_display_name)
                     matcher_stage = "greeting"
                     is_confirmation_pending = False
+                    
+                    target_lang = auto_lang_code if auto_lang_code in SARVAM_LANG_TO_NAME else "en-IN"
+                    ai_response = get_fast_matcher_greeting(user_display_name, target_lang)
+                    
+                    from sarvam_voice import to_speech_text, tts
+                    speech_text = to_speech_text(ai_response)
+                    audio_out = tts(speech_text, language=target_lang)
+                    audio_b64 = _b64.b64encode(audio_out).decode() if audio_out else ""
+
+                    print(f"[Send AI Chat Fast Greeting] user={user_id}, lang={target_lang}, bytes={len(audio_out)}")
+                    return {
+                        "success":                 True,
+                        "response":                ai_response,
+                        "reply_text":              ai_response,
+                        "stage":                   matcher_stage,
+                        "is_confirmation_pending": False,
+                        "pending_query":           "",
+                        "audio_b64":               audio_b64,
+                        "language":                target_lang,
+                        "detected_language":       target_lang,
+                        "matched_keyword":         "",
+                        "matched_focus_areas":     [],
+                        "matched_languages":       [],
+                        "matched_gender":          None,
+                        "language_matched":        True,
+                        "matched_consultants":     [],
+                        "all_matched_ids":         [],
+                        "total_matches":           0,
+                    }
+
                 elif is_m_meta:
                     consultant_context = format_matcher_conversational_context(original_message, user_display_name)
                     matcher_stage = "conversational"
@@ -9624,8 +9690,8 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         except Exception as _cls_err:
             print(f"[Classifier] non-fatal error: {_cls_err}")
 
-        # ── Quota gate (skip for greeting auto-messages) ─────────────────────
-        if not is_greeting and not is_pref_gather:
+        # ── Quota gate (skip for greeting auto-messages and matcher mode) ────
+        if not is_greeting and not is_pref_gather and mode != "consultant_match":
             from subscription_routes import check_feature_limit
             quota = check_feature_limit(user_id, "ai_chat", db)
             if not quota["allowed"]:
@@ -9711,8 +9777,8 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(chat_entry)
 
-        # ── Deduct from quota (never deduct for greeting) ──────────────────────
-        if not is_greeting and not is_pref_gather:
+        # ── Deduct from quota (never deduct for greeting or matcher mode) ──────
+        if not is_greeting and not is_pref_gather and mode != "consultant_match":
             try:
                 from subscription_routes import increment_feature_usage
                 increment_feature_usage(user_id, "ai_chat", db)

@@ -1060,7 +1060,7 @@ def is_greeting_message(message: str) -> bool:
         return False
     msg_clean = message.lower().strip()
     greeting_patterns = [
-        r'^(hi|hello|hey|hey there|greetings|good morning|good evening|good afternoon|namaste|vanakkam|namaskara|namaskaram|hola|hi emora|hello emora|hey emora|heyy|hiii|hii)$'
+        r'^(hi|hello|hey|hey there|hello there|hi there|greetings|good morning|good evening|good afternoon|good day|namaste|vanakkam|namaskara|namaskaram|hola|hi emora|hello emora|hey emora|heyy|hiii|hii)$'
     ]
     return any(re.search(pat, msg_clean) for pat in greeting_patterns)
 
@@ -1171,6 +1171,45 @@ def is_vague_query(message: str) -> bool:
         return True
 
     return False
+
+
+def get_fast_matcher_greeting(user_display_name: str, language_code: str = "en-IN") -> str:
+    """
+    Generate an instant, warm, empathetic greeting for Emora Consultant Matcher.
+    Bypasses LLM round-trip latency (0ms generation) so voice synthesis can begin immediately.
+    """
+    clean_name = (user_display_name or "").strip()
+    if clean_name.lower() in {"there", "friend", "user", "guest", ""}:
+        name_en = ""
+        name_indic = ""
+    else:
+        name_en = f" {clean_name}"
+        name_indic = f" {clean_name}"
+
+    lang = (language_code or "en-IN").strip().lower()
+
+    if "hi" in lang: # Hindi
+        return f"नमस्ते{name_indic}! 🙏 मैं इमोरा हूँ। आप आज किस स्वास्थ्य या वेलनेस समस्या के लिए विशेषज्ञ परामर्श लेना चाहते हैं?"
+    elif "kn" in lang: # Kannada
+        return f"ನಮಸ್ಕಾರ{name_indic}! 🙏 ನಾನು ಎಮೋರಾ. ಇಂದು ನೀವು ಯಾವ ಆರೋಗ್ಯ ಅಥವಾ ಕ್ಷೇಮ ಸಮಸ್ಯೆಗೆ ತಜ್ಞರ ಸಮಾಲೋಚನೆ ಬಯಸುತ್ತಿದ್ದೀರಿ?"
+    elif "te" in lang: # Telugu
+        return f"నమస్కారం{name_indic}! 🙏 నేను ఎమోరా. ఈరోజు మీరు ఏ ఆరోగ్య లేదా వెల్నెస్ సమస్య కోసం కన్సల్టేషన్ కోరుకుంటున్నారు?"
+    elif "ta" in lang: # Tamil
+        return f"வணக்கம்{name_indic}! 🙏 நான் எமோரா. இன்று நீங்கள் எந்த உடல்நலம் அல்லது நல்வாழ்வு பிரச்சனைக்கு நிபுணர் ஆலோசனை பெற விரும்புகிறீர்கள்?"
+    elif "mr" in lang: # Marathi
+        return f"नमस्कार{name_indic}! 🙏 मी इमोरा आहे. आज आपण कोणत्या आरोग्य किंवा वेलनेस समस्येसाठी सल्ला घेऊ इच्छिता?"
+    elif "bn" in lang: # Bengali
+        return f"নমস্কার{name_indic}! 🙏 আমি ইমোরা। আপনি আজ কোন স্বাস্থ্য বা সুস্থতা সংক্রান্ত পরামর্শের জন্য বিশেষজ্ঞ খুঁজছেন?"
+    elif "or" in lang: # Odia
+        return f"ନମସ୍କାର{name_indic}! 🙏 ମୁଁ ଇମୋରା। ଆପଣ ଆଜି କେଉଁ ସ୍ୱାସ୍ଥ୍ୟ କିମ୍ବା ୱେଲନେସ୍ ପରାମର୍ଶ ପାଇଁ ବିଶେଷଜ୍ଞ ଖୋଜୁଛନ୍ତି?"
+    elif "gu" in lang: # Gujarati
+        return f"નમસ્તે{name_indic}! 🙏 હું ઇમોરા છું. આજે તમે કઈ આરોગ્ય અથવા વેલનેસ સમસ્યા માટે નિષ્ણાત પરામર્શ મેળવવા માંગો છો?"
+    elif "pa" in lang: # Punjabi
+        return f"ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ{name_indic}! 🙏 ਮੈਂ ਇਮੋਰਾ ਹਾਂ। ਅੱਜ ਤੁਸੀਂ ਕਿਸ ਸਿਹਤ ਜਾਂ ਵੈੱਲਨੈੱਸ ਸਮੱਸਿਆ ਲਈ ਮਾਹਰ ਸਲਾਹ ਚਾਹੁੰਦੇ ਹੋ?"
+    elif "ml" in lang: # Malayalam
+        return f"നമസ്കാരം{name_indic}! 🙏 ഞാൻ എമോറ. ഇന്ന് ഏത് ആരോഗ്യ അല്ലെങ്കിൽ വെൽനസ് പ്രശ്നത്തിനാണ് നിങ്ങൾ കൺസൾട്ടേഷൻ തേടുന്നത്?"
+    else: # English default
+        return f"Hi{name_en}! 👋 I'm Emora, your wellness guide. What health, wellness, nutrition, or life challenge can we support you with today?"
 
 
 def format_matcher_greeting_context(user_display_name: str) -> str:

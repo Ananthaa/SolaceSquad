@@ -18,6 +18,9 @@ SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
 STT_URL        = "https://api.sarvam.ai/speech-to-text"
 TTS_URL        = "https://api.sarvam.ai/text-to-speech"
 
+# Reuse persistent HTTP connection session to minimize TCP/TLS handshake latency
+_sarvam_session = requests.Session()
+
 DEFAULT_LANG   = "en-IN"
 TTS_SPEAKER    = "anushka"    # warm, soft — suits Emora's therapeutic persona
 TTS_MODEL      = "bulbul:v2"
@@ -170,12 +173,12 @@ def stt_with_lid(audio_bytes: bytes, language: str = "unknown") -> tuple:
             "mode":          "transcribe",
         }
 
-        resp = requests.post(
+        resp = _sarvam_session.post(
             STT_URL,
             headers=headers,
             files=files,
             data=data,
-            timeout=30,
+            timeout=25,
         )
 
         logger.info(f"[Sarvam STT] HTTP {resp.status_code}, body={resp.text[:300]}")
@@ -246,11 +249,11 @@ def tts(text: str, language: str = DEFAULT_LANG) -> bytes:
             "enable_preprocessing": True,
         }
 
-        resp = requests.post(
+        resp = _sarvam_session.post(
             TTS_URL,
             headers=headers,
             json=payload,
-            timeout=30,
+            timeout=25,
         )
 
         logger.info(f"[Sarvam TTS] HTTP {resp.status_code} lang={lang_code}")

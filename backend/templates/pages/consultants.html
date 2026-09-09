@@ -4545,30 +4545,14 @@ function initEmoraVoice() {
 }
 
 function applyEmoraVoicePlanGate() {
-    if (_emoraVoicePlanChecked) return;
-    _emoraVoicePlanChecked = true;
-    fetch('/api/plans/my-usage', { credentials: 'include' })
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-            var planName = ((d.plan_name || d.plan || '')).toLowerCase().trim();
-            var voicePlans = ['green', 'blue'];
-            var hasVoice = voicePlans.some(function(p) { return planName.indexOf(p) !== -1; });
-            var mb = document.getElementById('emoraMicBtn');
-            var lock = document.getElementById('emoraMicLockBadge');
-            if (hasVoice) {
-                if (mb) { mb.disabled = false; mb.style.opacity = '1'; }
-                if (lock) lock.style.display = 'none';
-            } else {
-                if (mb) { mb.disabled = true; mb.style.opacity = '0.5'; }
-                if (lock) lock.style.display = 'flex';
-            }
-        })
-        .catch(function() {
-            var mb = document.getElementById('emoraMicBtn');
-            var lock = document.getElementById('emoraMicLockBadge');
-            if (mb) { mb.disabled = true; mb.style.opacity = '0.5'; }
-            if (lock) lock.style.display = 'flex';
-        });
+    var mb = document.getElementById('emoraMicBtn');
+    var lock = document.getElementById('emoraMicLockBadge');
+    if (mb) {
+        mb.disabled = false;
+        mb.style.opacity = '1';
+        mb.title = 'Speak with Emora';
+    }
+    if (lock) lock.style.display = 'none';
 }
 
 function _showEmoraMicUpgradeTooltip() {
