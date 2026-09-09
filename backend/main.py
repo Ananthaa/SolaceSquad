@@ -9173,6 +9173,9 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
                 "error": "I'm having a little trouble hearing you clearly — could you try speaking again? 😊"
             })
 
+        from consultant_classifier import normalize_stt_transcript
+        transcript = normalize_stt_transcript(transcript)
+
         # ── 2. Fetch user context & consultant matching ──────────────────────
         user_display_name = request.session.get("user_name", "friend").split()[0]
         try:
@@ -9323,19 +9326,30 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
 
         # ── 3. Emora text response (reuse existing Gemini pipeline) ───────────
         from gemini_chat import gemini_chat
-        enriched_msg = f"[CONTEXT: The user's name is {user_display_name}.{consultant_context}] {transcript}"
+        if mode == "consultant_match":
+            # Isolate matcher from general companion chat history to prevent 5-4-3-2-1 therapy / grounding exercise leakage
+            conversation_history = []
+            enriched_msg = (
+                f"[CONTEXT: The user's name is {user_display_name}. "
+                f"CONSULTANT_MATCHER_ACTIVE: You are Emora acting strictly as the Consultant Matching Assistant on the Find Consultants page. "
+                f"DO NOT conduct grounding exercises, sensory exercises, or therapy sessions. "
+                f"Your sole purpose here is understanding what health or wellness specialist the user needs and guiding them.\n"
+                f"{consultant_context}] {transcript}"
+            )
+        else:
+            enriched_msg = f"[CONTEXT: The user's name is {user_display_name}.{consultant_context}] {transcript}"
 
-        # Fetch recent history — gemini_chat expects {"content":..., "is_user":bool}
-        history_rows = db.query(AIChatHistory)\
-            .filter(AIChatHistory.user_id == user_id)\
-            .order_by(AIChatHistory.timestamp.desc())\
-            .limit(5).all()
-        conversation_history = []
-        for row in reversed(history_rows):
-            if row.message:
-                conversation_history.append({"content": row.message,  "is_user": True})
-            if row.response:
-                conversation_history.append({"content": row.response, "is_user": False})
+            # Fetch recent history — gemini_chat expects {"content":..., "is_user":bool}
+            history_rows = db.query(AIChatHistory)\
+                .filter(AIChatHistory.user_id == user_id)\
+                .order_by(AIChatHistory.timestamp.desc())\
+                .limit(5).all()
+            conversation_history = []
+            for row in reversed(history_rows):
+                if row.message:
+                    conversation_history.append({"content": row.message,  "is_user": True})
+                if row.response:
+                    conversation_history.append({"content": row.response, "is_user": False})
 
         ai_text = gemini_chat.chat(enriched_msg, conversation_history)
 
@@ -9362,12 +9376,12 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         audio_b64   = _b64.b64encode(audio_out).decode() if audio_out else ""
 
         # ── 5. Persist to chat history & deduct quota ─────────────────────────
-        chat_entry = AIChatHistory(user_id=user_id, message=transcript, response=ai_text)
-        db.add(chat_entry)
-        db.commit()
-        db.refresh(chat_entry)
-
         if mode != "consultant_match":
+            chat_entry = AIChatHistory(user_id=user_id, message=transcript, response=ai_text)
+            db.add(chat_entry)
+            db.commit()
+            db.refresh(chat_entry)
+
             try:
                 from subscription_routes import increment_feature_usage
                 increment_feature_usage(user_id, "ai_chat", db)
@@ -9486,20 +9500,27 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         if not message:
             return {"success": False, "error": "Message is required"}
         
-        original_message = message
+        from consultant_classifier import normalize_stt_transcript
+        original_message = normalize_stt_transcript(message)
+        message = original_message
         
-        # Get recent conversation history -- 15 exchanges for richer memory
-        recent_chats = db.query(AIChatHistory).filter(
-            AIChatHistory.user_id == user_id
-        ).order_by(AIChatHistory.timestamp.desc()).limit(15).all()
+        mode = data.get("mode", "") # "consultant_match"
+        action = data.get("action", "") # e.g. "confirm_match"
+        pending_query = data.get("pending_query", "")
 
-        # Build history oldest-first, skip empty greeting rows
+        # Get recent conversation history -- 15 exchanges for richer memory (only for companion chat)
         conversation_history = []
-        for chat in reversed(recent_chats):
-            if chat.message:
-                conversation_history.append({"content": chat.message, "is_user": True})
-            if chat.response:
-                conversation_history.append({"content": chat.response, "is_user": False})
+        if mode != "consultant_match":
+            recent_chats = db.query(AIChatHistory).filter(
+                AIChatHistory.user_id == user_id
+            ).order_by(AIChatHistory.timestamp.desc()).limit(15).all()
+
+            # Build history oldest-first, skip empty greeting rows
+            for chat in reversed(recent_chats):
+                if chat.message:
+                    conversation_history.append({"content": chat.message, "is_user": True})
+                if chat.response:
+                    conversation_history.append({"content": chat.response, "is_user": False})
 
         # -- User context enrichment --
         user_display_name = "there"
@@ -9520,10 +9541,6 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                 user_context_note += f" Their most recently logged mood is '{mood_entry.mood}'."
         except Exception:
             pass
-
-        mode = data.get("mode", "") # "consultant_match"
-        action = data.get("action", "") # e.g. "confirm_match"
-        pending_query = data.get("pending_query", "")
 
         matcher_stage = "idle" # "greeting", "conversational", "clarifying", "problem_understood_ask_lang", "matched"
         is_confirmation_pending = False
@@ -9703,7 +9720,13 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
 
         # ── Prompt construction ──────────────────────────────────────────────
         if mode == "consultant_match":
-            message = f"[CONTEXT: {user_context_note}\n{consultant_context}] {original_message}"
+            message = (
+                f"[CONTEXT: {user_context_note}\n"
+                f"CONSULTANT_MATCHER_ACTIVE: You are Emora acting strictly as the Consultant Matching Assistant on the Find Consultants page. "
+                f"DO NOT conduct grounding exercises, sensory exercises, or therapy sessions. "
+                f"Your sole purpose here is understanding what health or wellness specialist the user needs and guiding them.\n"
+                f"{consultant_context}] {original_message}"
+            )
         elif is_system_greeting:
             name = message.split("__GREET__:", 1)[-1].strip() or user_display_name
             message = (
@@ -9766,16 +9789,21 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         except Exception as _audio_err:
             print(f"[Send AI Audio] non-fatal TTS error: {_audio_err}")
 
-        # Save original message (not the enriched version)
-        saved_message = "" if is_greeting else original_message
-        chat_entry = AIChatHistory(
-            user_id=user_id,
-            message=saved_message,
-            response=ai_response
-        )
-        db.add(chat_entry)
-        db.commit()
-        db.refresh(chat_entry)
+        # Save original message (not the enriched version) - skip for consultant_match
+        if mode != "consultant_match":
+            saved_message = "" if is_greeting else original_message
+            chat_entry = AIChatHistory(
+                user_id=user_id,
+                message=saved_message,
+                response=ai_response
+            )
+            db.add(chat_entry)
+            db.commit()
+            db.refresh(chat_entry)
+            entry_timestamp = chat_entry.timestamp.isoformat()
+        else:
+            from datetime import datetime as _dt
+            entry_timestamp = _dt.utcnow().isoformat()
 
         # ── Deduct from quota (never deduct for greeting or matcher mode) ──────
         if not is_greeting and not is_pref_gather and mode != "consultant_match":
@@ -9822,7 +9850,7 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
             "audio_b64":               audio_b64,
             "language":                detected_lang_code,
             "detected_language":       detected_lang_code,
-            "timestamp":               chat_entry.timestamp.isoformat(),
+            "timestamp":               entry_timestamp,
             "matched_keyword":         matched_keyword,
             "matched_focus_areas":     matched_focus_areas,
             "matched_languages":       matched_languages,

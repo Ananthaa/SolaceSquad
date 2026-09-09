@@ -1054,15 +1054,63 @@ def is_urgency_requested(message: str) -> bool:
     return bool(re.search(urgency_pattern, msg_clean))
 
 
+# Phonetic variations of "Emora" commonly produced by speech-to-text engines
+STT_EMORA_VARIATIONS = [
+    r'\b(amarav|amara|amora|aimora|emra|omora|mora|emorah|imora|emara|amrav|hemore|hemora|e\s+mora|a\s+mora)\b'
+]
+
+
+def normalize_stt_transcript(text: str) -> str:
+    """
+    Normalize speech-to-text transcripts, correcting common phonetic misrecognitions of 'Emora'.
+    """
+    if not text:
+        return ""
+    normalized = text
+    for pattern in STT_EMORA_VARIATIONS:
+        normalized = re.sub(pattern, "Emora", normalized, flags=re.IGNORECASE)
+    return normalized.strip()
+
+
 def is_greeting_message(message: str) -> bool:
-    """Check if the user's message is a greeting."""
+    """Check if the user's message is a greeting (English, Indic languages, or STT variants)."""
     if not message:
         return False
-    msg_clean = message.lower().strip()
-    greeting_patterns = [
-        r'^(hi|hello|hey|hey there|hello there|hi there|greetings|good morning|good evening|good afternoon|good day|namaste|vanakkam|namaskara|namaskaram|hola|hi emora|hello emora|hey emora|heyy|hiii|hii)$'
+    norm_msg = normalize_stt_transcript(message)
+    # Strip common punctuation
+    msg_clean = re.sub(r'[^\w\s]', '', norm_msg).lower().strip()
+    if not msg_clean:
+        return False
+
+    greeting_starters = (
+        r'^(hi|hello|hey|heyy|heyyy|hii|hiii|greetings|good\s+morning|good\s+evening|'
+        r'good\s+afternoon|good\s+day|namaste|vanakkam|namaskara|namaskaram|namaskar|hola|howdy|sup|yo)'
+    )
+
+    # 1. Exact greeting or greeting + name/short remark (up to ~3 trailing words like 'emora', 'there', 'emora how are you')
+    if re.match(greeting_starters + r'(\s+(emora|there|friend|everyone|all|guys|[a-zA-Z0-9_-]+)){0,3}$', msg_clean):
+        return True
+
+    # 2. Indic script greetings
+    indic_greetings = [
+        "ನಮಸ್ಕಾರ", "ನಮಸ್ತೆ", "ಹಲೋ", "ಹಾಯ್", # Kannada
+        "नमस्ते", "नमस्कार", "हेलो", "हाय", "प्रणाम", "नमस्ते जी", # Hindi
+        "வணக்கம்", "ஹலோ", "ஹாய்", # Tamil
+        "నమస్కారం", "నమస్తే", "హలో", "హాయ్", # Telugu
+        "നമസ്കാരം", "ഹലോ", "ഹായ്", # Malayalam
+        "नमस्कार", "नमस्ते", "हॅलो", "हाय", # Marathi
+        "নমস্কার", "হ্যালো", "হাই", # Bengali
+        "નમસ્તે", "નમસ્કાર", "હેલો", "હાય", # Gujarati
+        "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ", "ਹੈਲੋ", "ਹਾਏ", # Punjabi
+        "ନମସ୍କାର", "ହେଲୋ", "ହାଏ", # Odia
     ]
-    return any(re.search(pat, msg_clean) for pat in greeting_patterns)
+    for ind in indic_greetings:
+        if ind in norm_msg:
+            tokens = norm_msg.split()
+            if len(tokens) <= 4:
+                return True
+
+    return False
 
 
 def is_meta_or_conversational_remark(message: str) -> bool:
