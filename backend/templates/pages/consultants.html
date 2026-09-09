@@ -4785,7 +4785,54 @@ function speakWithWebSpeechFallback(text, langCode, rowEl) {
         var utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = langCode || 'en-IN';
         utterance.rate = 0.95;
-        utterance.pitch = 1.05;
+        utterance.pitch = 1.15; // Feminine pitch
+
+        // Explicitly pick a female voice from browser voices
+        var voices = window.speechSynthesis.getVoices() || [];
+        var targetLang = (langCode || 'en-IN').toLowerCase();
+        var langPrefix = targetLang.split('-')[0];
+        var femaleKeywords = ['female', 'zira', 'samantha', 'victoria', 'karen', 'moira', 'tessa', 'fiona', 'heera', 'swara', 'neerja', 'veena', 'priya', 'ananya', 'geeta', 'sangeeta', 'lekha'];
+
+        var selectedVoice = null;
+        // 1. First search for female voice matching exact or prefix language
+        for (var i = 0; i < voices.length; i++) {
+            var v = voices[i];
+            var vName = (v.name || '').toLowerCase();
+            var vLang = (v.lang || '').toLowerCase();
+            var isLangMatch = vLang === targetLang || vLang.startsWith(langPrefix);
+            var isFemale = femaleKeywords.some(function(kw) { return vName.indexOf(kw) !== -1; });
+            if (isLangMatch && isFemale) {
+                selectedVoice = v;
+                break;
+            }
+        }
+        // 2. If not found, any voice matching language that is not explicitly male
+        if (!selectedVoice) {
+            for (var j = 0; j < voices.length; j++) {
+                var v2 = voices[j];
+                var vName2 = (v2.name || '').toLowerCase();
+                var vLang2 = (v2.lang || '').toLowerCase();
+                if ((vLang2 === targetLang || vLang2.startsWith(langPrefix)) && vName2.indexOf('male') === -1 && vName2.indexOf('david') === -1 && vName2.indexOf('george') === -1 && vName2.indexOf('ravi') === -1 && vName2.indexOf('mark') === -1) {
+                    selectedVoice = v2;
+                    break;
+                }
+            }
+        }
+        // 3. Fallback to any available female voice
+        if (!selectedVoice) {
+            for (var k = 0; k < voices.length; k++) {
+                var v3 = voices[k];
+                var vName3 = (v3.name || '').toLowerCase();
+                if (femaleKeywords.some(function(kw) { return vName3.indexOf(kw) !== -1; })) {
+                    selectedVoice = v3;
+                    break;
+                }
+            }
+        }
+
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
 
         if (rowEl) {
             rowEl.classList.add('emora-speaking');

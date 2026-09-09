@@ -2,10 +2,16 @@ package com.ssq2_and.solacesquad.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// SolaceSquad Brand Color Palette
+val BrandGreenPrimary = Color(0xFF2D6A5A)
+val BrandGreenDark = Color(0xFF1E4D40)
+val BrandGreenLight = Color(0xFFE6F2EE)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val BrandGoldAccent = Color(0xFFEAB308)
+val BrandGoldDark = Color(0xFFA16207)
+
+val AppBackgroundLight = Color(0xFFF9FAFB)
+val AppSurfaceLight = Color(0xFFFFFFFF)
+
+val AppBackgroundDark = Color(0xFF121212)
+val AppSurfaceDark = Color(0xFF1E1E1E)

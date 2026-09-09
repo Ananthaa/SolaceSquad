@@ -11,8 +11,8 @@ android {
         applicationId = "com.ssq2_and.solacesquad"
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     signingConfigs {
@@ -25,7 +25,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            resValue("string", "app_base_url", "https://solacesquad-mirror-312011725712.us-central1.run.app")
+        }
         release {
+            resValue("string", "app_base_url", "https://www.solacesquad.com")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("release")
@@ -37,6 +41,7 @@ android {
     }
     buildFeatures {
       compose = true
+      resValues = true
       aidl = false
       buildConfig = false
       shaders = false
@@ -60,6 +65,7 @@ dependencies {
 
   // Core Android dependencies
   implementation(libs.androidx.core.ktx)
+  implementation(libs.androidx.fragment.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.activity.compose)
 
@@ -96,6 +102,14 @@ dependencies {
   implementation(platform(libs.firebase.bom))
   implementation(libs.firebase.messaging)
   implementation(libs.firebase.analytics)
+
+  // Security & Biometrics
+  implementation(libs.androidx.biometric)
+  implementation(libs.androidx.security.crypto)
+  implementation(libs.androidx.compose.material.icons.extended)
+
+  // Razorpay Android SDK
+  implementation("com.razorpay:checkout:1.6.41")
 }
 
 if (file("google-services.json").exists()) {
