@@ -4753,21 +4753,10 @@ async function sendEmoraVoiceToMatcher(blob) {
 
 function getEmoraAudioUrl(base64Data) {
     if (!base64Data) return '';
-    if (base64Data.startsWith('data:audio/') || base64Data.startsWith('blob:')) return base64Data;
+    if (base64Data.startsWith('data:audio/') || base64Data.startsWith('blob:') || base64Data.startsWith('http')) return base64Data;
     var isWav = base64Data.startsWith('UklGR');
     var mime = isWav ? 'audio/wav' : 'audio/mpeg';
-    try {
-        var byteCharacters = atob(base64Data);
-        var byteNumbers = new Array(byteCharacters.length);
-        for (var i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        var byteArray = new Uint8Array(byteNumbers);
-        var blob = new Blob([byteArray], { type: mime });
-        return URL.createObjectURL(blob);
-    } catch (e) {
-        return 'data:' + mime + ';base64,' + base64Data;
-    }
+    return 'data:' + mime + ';base64,' + base64Data;
 }
 
 function cleanSpeechTextClient(text) {

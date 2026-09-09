@@ -22,8 +22,8 @@ TTS_URL        = "https://api.sarvam.ai/text-to-speech"
 _sarvam_session = requests.Session()
 
 DEFAULT_LANG   = "en-IN"
-TTS_SPEAKER    = "anushka"    # warm, soft — suits Emora's therapeutic persona
-TTS_MODEL      = "bulbul:v2"
+TTS_SPEAKER    = "priya"      # authentic Indian female voice (bulbul:v3)
+TTS_MODEL      = "bulbul:v3"  # Sarvam bulbul:v3
 STT_MODEL      = "saaras:v3"
 
 # Phrase spoken instead of reading out a URL
@@ -40,6 +40,7 @@ SARVAM_LANG_TO_NAME = {
     "ml-IN": "Malayalam",
     "gu-IN": "Gujarati",
     "pa-IN": "Punjabi",
+    "od-IN": "Odia",
     "or-IN": "Odia",
 }
 
@@ -54,7 +55,8 @@ NAME_TO_SARVAM_LANG = {
     "malayalam": "ml-IN",
     "gujarati": "gu-IN",
     "punjabi": "pa-IN",
-    "odia": "or-IN",
+    "odia": "od-IN",
+    "oriya": "od-IN",
 }
 
 
@@ -172,8 +174,10 @@ def to_speech_text(text: str) -> str:
     return t.strip()
 
 
+DEFAULT_SARVAM_API_KEY = "sk_f9d5krj6_zkw9uIg9o4gUFIcy0yjkCM3B"
+
 def get_sarvam_api_key() -> str:
-    return os.getenv("SARVAM_API_KEY", "").strip() or SARVAM_API_KEY.strip()
+    return os.getenv("SARVAM_API_KEY", "").strip() or SARVAM_API_KEY.strip() or DEFAULT_SARVAM_API_KEY
 
 
 def stt_with_lid(audio_bytes: bytes, language: str = "unknown") -> tuple:
@@ -253,6 +257,8 @@ def tts(text: str, language: str = DEFAULT_LANG) -> bytes:
 
     # Resolve language code if name is provided (e.g. 'Kannada' -> 'kn-IN')
     lang_code = NAME_TO_SARVAM_LANG.get(language.lower(), language)
+    if lang_code == "or-IN":
+        lang_code = "od-IN"
     if lang_code not in SARVAM_LANG_TO_NAME:
         lang_code = DEFAULT_LANG
 
