@@ -4759,16 +4759,47 @@ function getEmoraAudioUrl(base64Data) {
     return 'data:' + mime + ';base64,' + base64Data;
 }
 
-function cleanSpeechTextClient(text) {
+function cleanSpeechTextClient(text, langCode) {
     if (!text) return '';
     var t = text;
-    // 1. Markdown links: [label](url) -> label + ". I have shared the link in the chat"
+    var lang = (langCode || '').toLowerCase();
+    var isKannada = lang.indexOf('kn') !== -1 || /[\u0C80-\u0CFF]/.test(t);
+    var isHindi = lang.indexOf('hi') !== -1 || lang.indexOf('mr') !== -1 || /[\u0900-\u097F]/.test(t);
+
+    // 1. Kannada / Hindi numbers and currency
+    if (isKannada) {
+        var knMap = {
+            0: 'ಸೊನ್ನೆ', 1: 'ಒಂದು', 2: 'ಎರಡು', 3: 'ಮೂರು', 4: 'ನಾಲ್ಕು', 5: 'ಐದು',
+            6: 'ಆರು', 7: 'ಏಳು', 8: 'ಎಂಟು', 9: 'ಒಂಬತ್ತು', 10: 'ಹತ್ತು',
+            11: 'ಹನ್ನೊಂದು', 12: 'ಹನ್ನೆರಡು', 13: 'ಹದಿಮೂರು', 14: 'ಹದಿನಾಲ್ಕು', 15: 'ಹದಿನೈದು',
+            16: 'ಹದಿನಾರು', 17: 'ಹದಿನೇಳು', 18: 'ಹದಿನೆಂಟು', 19: 'ಹತ್ತೊಂಬತ್ತು', 20: 'ಇಪ್ಪತ್ತು',
+            30: 'ಮೂವತ್ತು', 40: 'ನಲವತ್ತು', 50: 'ಐವತ್ತು', 100: 'ನೂರು', 200: 'ಇನ್ನೂರು', 500: 'ಐನೂರು', 1000: 'ಒಂದು ಸಾವಿರ', 1200: 'ಒಂದು ಸಾವಿರದ ಇನ್ನೂರು'
+        };
+        t = t.replace(/(\d{1,2}):00\s*(AM|PM|am|pm)/gi, function(m, p1, p2) { return (knMap[p1] || p1) + ' ' + p2.toUpperCase(); });
+        t = t.replace(/₹\s*(\d+)(?:\s*(?:\/|ಪ್ರತಿ)?\s*(?:hr|hour|ಗಂಟೆ))?/gi, function(m, p1) { return (knMap[p1] || p1) + ' ರೂಪಾಯಿ' + (m.toLowerCase().indexOf('hr') !== -1 ? ' ಪ್ರತಿ ಗಂಟೆಗೆ' : ''); });
+        t = t.replace(/Rs\.?\s*(\d+)(?:\s*(?:\/|ಪ್ರತಿ)?\s*(?:hr|hour|ಗಂಟೆ))?/gi, function(m, p1) { return (knMap[p1] || p1) + ' ರೂಪಾಯಿ' + (m.toLowerCase().indexOf('hr') !== -1 ? ' ಪ್ರತಿ ಗಂಟೆಗೆ' : ''); });
+        t = t.replace(/\b(\d+)\b/g, function(m, p1) { return knMap[p1] || p1; });
+    } else if (isHindi) {
+        var hiMap = {
+            0: 'शून्य', 1: 'एक', 2: 'दो', 3: 'तीन', 4: 'चार', 5: 'पाँच',
+            6: 'छह', 7: 'सात', 8: 'आठ', 9: 'नौ', 10: 'दस',
+            11: 'ग्यारह', 12: 'बारह', 13: 'तेरह', 14: 'चौदह', 15: 'पंद्रह',
+            16: 'सोलह', 17: 'सत्रह', 18: 'अठारह', 19: 'उन्नीस', 20: 'बीस',
+            25: 'पच्चीस', 30: 'तीस', 40: 'चालीस', 50: 'पचास', 100: 'सौ', 500: 'पाँच सौ', 1000: 'एक हज़ार', 1200: 'बारह सौ'
+        };
+        t = t.replace(/(\d{1,2}):00\s*(AM|PM|am|pm)/gi, function(m, p1, p2) { return (hiMap[p1] || p1) + ' ' + p2.toUpperCase(); });
+        t = t.replace(/₹\s*(\d+)(?:\s*(?:\/|प्रति)?\s*(?:hr|hour|घंटे|घंटा))?/gi, function(m, p1) { return (hiMap[p1] || p1) + ' रुपये' + (m.toLowerCase().indexOf('hr') !== -1 ? ' प्रति घंटे' : ''); });
+        t = t.replace(/Rs\.?\s*(\d+)(?:\s*(?:\/|प्रति)?\s*(?:hr|hour|घंटे|घंटा))?/gi, function(m, p1) { return (hiMap[p1] || p1) + ' रुपये' + (m.toLowerCase().indexOf('hr') !== -1 ? ' प्रति घंटे' : ''); });
+        t = t.replace(/\b(\d+)\b/g, function(m, p1) { return hiMap[p1] || p1; });
+    } else {
+        t = t.replace(/₹\s*(\d+)/g, '$1 Rupees');
+        t = t.replace(/Rs\.?\s*(\d+)/gi, '$1 Rupees');
+    }
+
+    // 2. Markdown links: [label](url) -> label + ". I have shared the link in the chat"
     t = t.replace(/\[([^\]]+)\]\((https?:\/\/|[wW]{3}\.)[^\)]+\)/g, '$1. I have shared the link in the chat');
-    // 2. Bare URLs
+    // 3. Bare URLs
     t = t.replace(/(https?:\/\/\S+|[wW]{3}\.\S+)/g, 'I have shared the link in the chat');
-    // 3. Currency conversion: ₹500 -> 500 Rupees
-    t = t.replace(/₹\s*(\d+)/g, '$1 Rupees');
-    t = t.replace(/Rs\.?\s*(\d+)/gi, '$1 Rupees');
     // 4. Roleplay actions (*smiles*, (pauses))
     t = t.replace(/\*[a-zA-Z\s]{2,30}\*/g, ' ');
     t = t.replace(/\([a-zA-Z\s]{2,20}\)/g, ' ');
@@ -4802,7 +4833,7 @@ function speakWithWebSpeechFallback(text, langCode, rowEl) {
     if (!window.speechSynthesis || !text) return;
     try {
         window.speechSynthesis.cancel();
-        var cleanText = cleanSpeechTextClient(text);
+        var cleanText = cleanSpeechTextClient(text, langCode);
         if (!cleanText) return;
 
         var utterance = new SpeechSynthesisUtterance(cleanText);

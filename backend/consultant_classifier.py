@@ -1237,25 +1237,25 @@ def get_fast_matcher_greeting(user_display_name: str, language_code: str = "en-I
     lang = (language_code or "en-IN").strip().lower()
 
     if "hi" in lang: # Hindi
-        return f"नमस्ते{name_indic}! 🙏 मैं इमोरा हूँ। आप आज किस स्वास्थ्य या वेलनेस समस्या के लिए विशेषज्ञ परामर्श लेना चाहते हैं?"
+        return f"नमस्ते{name_indic}! 🙏 मैं Emora हूँ। आज आप किस health या wellness issue के लिए Consultant ढूँढ रहे हैं?"
     elif "kn" in lang: # Kannada
-        return f"ನಮಸ್ಕಾರ{name_indic}! 🙏 ನಾನು ಎಮೋರಾ. ಇಂದು ನೀವು ಯಾವ ಆರೋಗ್ಯ ಅಥವಾ ಕ್ಷೇಮ ಸಮಸ್ಯೆಗೆ ತಜ್ಞರ ಸಮಾಲೋಚನೆ ಬಯಸುತ್ತಿದ್ದೀರಿ?"
+        return f"ನಮಸ್ಕಾರ{name_indic}! 🙏 ನಾನು Emora. ಇಂದು ನೀವು ಯಾವ health ಅಥವಾ wellness ಕಾಳಜಿಗಾಗಿ Consultant ಹುಡುಕುತ್ತಿದ್ದೀರಿ?"
     elif "te" in lang: # Telugu
-        return f"నమస్కారం{name_indic}! 🙏 నేను ఎమోరా. ఈరోజు మీరు ఏ ఆరోగ్య లేదా వెల్నెస్ సమస్య కోసం కన్సల్టేషన్ కోరుకుంటున్నారు?"
+        return f"నమస్కారం{name_indic}! 🙏 నేను Emora. ఈరోజు మీరు ఏ health లేదా wellness issue కోసం Consultant ని చూస్తున్నారు?"
     elif "ta" in lang: # Tamil
-        return f"வணக்கம்{name_indic}! 🙏 நான் எமோரா. இன்று நீங்கள் எந்த உடல்நலம் அல்லது நல்வாழ்வு பிரச்சனைக்கு நிபுணர் ஆலோசனை பெற விரும்புகிறீர்கள்?"
+        return f"வணக்கம்{name_indic}! 🙏 நான் Emora. இன்று நீங்கள் எந்த health அல்லது wellness issue-க்கு Consultant பார்க்க விரும்புகிறீர்கள்?"
     elif "mr" in lang: # Marathi
-        return f"नमस्कार{name_indic}! 🙏 मी इमोरा आहे. आज आपण कोणत्या आरोग्य किंवा वेलनेस समस्येसाठी सल्ला घेऊ इच्छिता?"
+        return f"नमस्कार{name_indic}! 🙏 मी Emora आहे. आज आपण कोणत्या health किंवा wellness समस्येसाठी Consultant शोधत आहात?"
     elif "bn" in lang: # Bengali
-        return f"নমস্কার{name_indic}! 🙏 আমি ইমোরা। আপনি আজ কোন স্বাস্থ্য বা সুস্থতা সংক্রান্ত পরামর্শের জন্য বিশেষজ্ঞ খুঁজছেন?"
+        return f"নমস্কার{name_indic}! 🙏 আমি Emora। আজ আপনি কোন health বা wellness বিষয়ের জন্য Consultant খুঁজছেন?"
     elif "or" in lang: # Odia
-        return f"ନମସ୍କାର{name_indic}! 🙏 ମୁଁ ଇମୋରା। ଆପଣ ଆଜି କେଉଁ ସ୍ୱାସ୍ଥ୍ୟ କିମ୍ବା ୱେଲନେସ୍ ପରାମର୍ଶ ପାଇଁ ବିଶେଷଜ୍ଞ ଖୋଜୁଛନ୍ତି?"
+        return f"ନମସ୍କାର{name_indic}! 🙏 ମୁଁ Emora। ଆଜି ଆପଣ କେଉଁ health କିମ୍ବା wellness ସମସ୍ୟା ପାଇଁ Consultant ଖୋଜୁଛନ୍ତି?"
     elif "gu" in lang: # Gujarati
-        return f"નમસ્તે{name_indic}! 🙏 હું ઇમોરા છું. આજે તમે કઈ આરોગ્ય અથવા વેલનેસ સમસ્યા માટે નિષ્ણાત પરામર્શ મેળવવા માંગો છો?"
+        return f"નમસ્તે{name_indic}! 🙏 હું Emora છું. આજે તમે કઈ health અથવા wellness સમસ્યા માટે Consultant શોધી રહ્યા છો?"
     elif "pa" in lang: # Punjabi
-        return f"ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ{name_indic}! 🙏 ਮੈਂ ਇਮੋਰਾ ਹਾਂ। ਅੱਜ ਤੁਸੀਂ ਕਿਸ ਸਿਹਤ ਜਾਂ ਵੈੱਲਨੈੱਸ ਸਮੱਸਿਆ ਲਈ ਮਾਹਰ ਸਲਾਹ ਚਾਹੁੰਦੇ ਹੋ?"
+        return f"ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ{name_indic}! 🙏 ਮੈਂ Emora ਹਾਂ। ਅੱਜ ਤੁਸੀਂ ਕਿਸ health ਜਾਂ wellness ਸਮੱਸਿਆ ਲਈ Consultant ਲੱਭ ਰਹੇ ਹੋ?"
     elif "ml" in lang: # Malayalam
-        return f"നമസ്കാരം{name_indic}! 🙏 ഞാൻ എമോറ. ഇന്ന് ഏത് ആരോഗ്യ അല്ലെങ്കിൽ വെൽനസ് പ്രശ്നത്തിനാണ് നിങ്ങൾ കൺസൾട്ടേഷൻ തേടുന്നത്?"
+        return f"നമസ്കാരം{name_indic}! 🙏 ഞാൻ Emora. ഇന്ന് ഏത് health അല്ലെങ്കിൽ wellness കാര്യത്തിനാണ് Consultant-നെ തിരയുന്നത്?"
     else: # English default
         return f"Hi{name_en}! 👋 I'm Emora, your wellness guide. What health, wellness, nutrition, or life challenge can we support you with today?"
 
@@ -1378,22 +1378,23 @@ def format_matcher_prompt_context(
         f"1. You are talking to the user DIRECTLY ON the Find Consultants page. NEVER tell them to 'go to /app/consultants', 'visit the consultants section', or navigate anywhere.\n"
         f"2. DO NOT conduct grounding exercises, breathing exercises, or live sensory therapy techniques. Your sole role is to introduce the matched expert(s).\n"
         f"3. Phrase your opening explicitly as: \"We have {len(consultants)} consultants offering consultations matching your criteria (Matched by Emora for '{criteria_tag}').\"\n"
+        f"4. If replying in a regional language (such as Kannada, Hindi, Telugu, Tamil, etc.), DO NOT translate technical/platform terms (like Consultant, Therapist, Psychologist, Nutritionist, Session, Profile, Book Session, Emora, SolaceSquad) into archaic regional words; keep them in conversational English as spoken naturally every day.\n"
     )
 
     names_list = ", ".join(c["name"] for c in consultants)
     if is_urgency_requested and consultants:
         top_c = consultants[0]
-        lines.append(f"4. Highlight that {top_c['name']} is available soonest ({top_c['earliest_slot']}) to help address their needs right away.\n")
+        lines.append(f"5. Highlight that {top_c['name']} is available soonest ({top_c['earliest_slot']}) to help address their needs right away.\n")
     elif matched_languages and language_matched:
-        lines.append(f"4. Explicitly confirm that {names_list} speaks {', '.join(matched_languages)} as requested, and introduce them BY EXACT NAME explaining briefly how their expertise can support them.\n")
+        lines.append(f"5. Explicitly confirm that {names_list} speaks {', '.join(matched_languages)} as requested, and introduce them BY EXACT NAME explaining briefly how their expertise can support them.\n")
     elif matched_languages and not language_matched:
-        lines.append(f"4. Transparently let the user know that while our {matched_keyword} specialists currently converse in {consultants[0].get('languages_str', 'English/Hindi')}, introduce {names_list} BY EXACT NAME as our top verified specialists for this concern.\n")
+        lines.append(f"5. Transparently let the user know that while our {matched_keyword} specialists currently converse in {consultants[0].get('languages_str', 'English/Hindi')}, introduce {names_list} BY EXACT NAME as our top verified specialists for this concern.\n")
     else:
-        lines.append(f"4. Introduce {names_list} BY EXACT NAME, explaining briefly how their specific expertise can support them.\n")
+        lines.append(f"5. Introduce {names_list} BY EXACT NAME, explaining briefly how their specific expertise can support them.\n")
 
     lines.append(
-        f"5. Direct them to the card(s) shown right below to view their profile or click 'Book Session'.\n"
-        f"6. Keep your response concise (2-4 sentences max), warm, and supportive.\n"
+        f"6. Direct them to the card(s) shown right below to view their profile or click 'Book Session'.\n"
+        f"7. Keep your response concise (2-4 sentences max), warm, and supportive.\n"
         f"[END_CONSULTANT_MATCHER_RECOMMENDATION]"
     )
     return "\n".join(lines)

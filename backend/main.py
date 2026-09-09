@@ -9224,7 +9224,7 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
                     detected_lang = target_lang if target_lang in SARVAM_LANG_TO_NAME else "en-IN"
                     ai_text = get_fast_matcher_greeting(user_display_name, detected_lang)
                     
-                    speech_text = to_speech_text(ai_text)
+                    speech_text = to_speech_text(ai_text, language=detected_lang)
                     audio_out = tts(speech_text, language=detected_lang)
                     audio_b64 = _b64.b64encode(audio_out).decode() if audio_out else ""
 
@@ -9371,7 +9371,7 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         ai_text = _re.sub(r'\[LANG:\s*[a-z]{2}-IN\]', '', ai_text, flags=_re.IGNORECASE).strip()
 
         # ── 4. Text → Speech (strip URLs/markdown so Emora doesn't read out links) ─
-        speech_text = to_speech_text(ai_text)   # voice-friendly version
+        speech_text = to_speech_text(ai_text, language=detected_lang)   # voice-friendly version
         audio_out   = tts(speech_text, language=detected_lang)
         audio_b64   = _b64.b64encode(audio_out).decode() if audio_out else ""
 
@@ -9473,7 +9473,7 @@ async def get_ai_tts(request: Request, db: Session = Depends(get_db)):
             return JSONResponse({"success": False, "error": "No text provided"}, status_code=400)
 
         from sarvam_voice import to_speech_text, tts
-        speech_text = to_speech_text(text)
+        speech_text = to_speech_text(text, language=language)
         audio_out = tts(speech_text, language=language)
         if not audio_out:
             return JSONResponse({"success": False, "error": "TTS audio synthesis failed"})
@@ -9605,7 +9605,7 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
                     ai_response = get_fast_matcher_greeting(user_display_name, target_lang)
                     
                     from sarvam_voice import to_speech_text, tts
-                    speech_text = to_speech_text(ai_response)
+                    speech_text = to_speech_text(ai_response, language=target_lang)
                     audio_out = tts(speech_text, language=target_lang)
                     audio_b64 = _b64.b64encode(audio_out).decode() if audio_out else ""
 
@@ -9782,7 +9782,7 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
             active_sub = get_active_subscription(user_id, db)
             sub_plan = (active_sub.plan.name or "").strip().lower() if active_sub and active_sub.plan else ""
             if mode == "consultant_match" or any(p in sub_plan for p in {"green", "blue"}):
-                speech_text = to_speech_text(ai_response)
+                speech_text = to_speech_text(ai_response, language=detected_lang_code)
                 audio_out = tts(speech_text, language=detected_lang_code)
                 if audio_out:
                     audio_b64 = _b64.b64encode(audio_out).decode()
