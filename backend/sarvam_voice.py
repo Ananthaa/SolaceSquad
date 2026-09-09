@@ -94,24 +94,23 @@ def detect_text_language(text: str) -> tuple:
 
 def to_speech_text(text: str) -> str:
     """
-    Convert Emora's full text response into a voice-friendly version:
-      - Markdown links [label](url)  →  label + ", " + _LINK_PHRASE
-      - Bare URLs https://...        →  _LINK_PHRASE
-      - Markdown bold/italic **x**, *x*, __x__, _x_  →  plain text
-      - Markdown headers ## Title   →  Title
-      - Bullet dashes/asterisks     →  removed
-      - Emoticons and emojis        →  removed
-      - Special chars (#,*,~,<,>,etc)→ removed
-      - Multiple blank lines        →  single space
-
-    The original text (with links) is still returned as reply_text
-    for the chat window — this function only affects what Emora speaks.
+    Convert Emora's full text response into a clean, voice-friendly version:
+      - Strips all emojis (astral & BMP)
+      - Strips text emoticons (:), :-), :D, <3, etc.)
+      - Strips roleplay actions (*smiles*, *sighs*, etc.)
+      - Converts currency ₹ to 'Rupees'
+      - Strips markdown formatting, symbols (#, *, _, ~, `, |, <, >, [, ], {, }, etc.)
+      - Normalizes smart quotes and dashes
+      - Normalizes whitespace and punctuation
     """
     import re
 
+    if not text:
+        return ""
+
     t = text
 
-    # 1. Markdown links: [label](url) → "label, I've shared the link in the chat"
+    # 1. Markdown links: [label](url) -> label + ". " + _LINK_PHRASE
     t = re.sub(
         r'\[([^\]]+)\]\((https?://|[wW]{3}\.)[^\)]+\)',
         lambda m: m.group(1) + ". " + _LINK_PHRASE,
@@ -121,26 +120,53 @@ def to_speech_text(text: str) -> str:
     # 2. Bare URLs (http://, https://, or www.)
     t = re.sub(r'(https?://\S+|[wW]{3}\.\S+)', _LINK_PHRASE, t)
 
-    # 3. Strip out emojis (Unicode ranges for emoticons, dingbats, transport, UI symbols, etc.)
-    t = re.sub(r'[\U00010000-\U0010ffff]', '', t)
-    
-    # 4. Strip out common text emoticons carefully (e.g. :-) :) :D), avoiding normal punctuation
-    t = re.sub(r'(?:\s|^)[:;=][\-~]?[\)\]\(\[dDpP](?=\s|$|[.,!?;:\'"/\-])', '', t)
+    # 3. Currency symbols conversion: ₹500 -> 500 Rupees
+    t = re.sub(r'₹\s*(\d+)', r'\1 Rupees', t)
+    t = re.sub(r'Rs\.?\s*(\d+)', r'\1 Rupees', t, flags=re.IGNORECASE)
 
-    # 5. Markdown bold/italic: **text**, *text*, __text__, _text_
+    # 4. Remove roleplay actions in asterisks or parentheses: *smiles*, *gently laughs*, (pauses), etc.
+    t = re.sub(r'\*[a-zA-Z\s]{2,30}\*', ' ', t)
+    t = re.sub(r'\([a-zA-Z\s]{2,20}\)', ' ', t)
+
+    # 5. Remove astral plane emojis (U+10000 to U+10FFFF)
+    t = re.sub(r'[\U00010000-\U0010ffff]', ' ', t)
+
+    # 6. Remove BMP symbols, Dingbats, Technical, Arrows, Miscellaneous symbols, variation selectors
+    bmp_symbols_pattern = r'[\u200B-\u200D\uFE0E\uFE0F\u2028-\u202F\u2190-\u21FF\u2300-\u23FF\u2460-\u24FF\u2500-\u27BF\u2900-\u297F\u2B00-\u2BFF\uFE00-\uFE0F]'
+    t = re.sub(bmp_symbols_pattern, ' ', t)
+
+    # 7. Common text emoticons
+    emoticon_patterns = [
+        r'(?:\s|^)[:;=8][\-~o\*\']?[\)\]\(\[dDpP/\\](?=\s|$|[.,!?])', # :), :-(, :D, ;), :P
+        r'(?:\s|^)[\)\]\(\[][\-~]?[:;=8](?=\s|$|[.,!?])', # (:, (-:
+        r'(?:\s|^)[D][:;=](?=\s|$|[.,!?])', # D:
+        r'(?:\s|^)(<3|</3|\^_\^|\^\.\^|-_-|>_<|o_o|O_O|T_T|TwT|OwO|UwU|\(y\)|\(n\)|xD|XD)(?=\s|$|[.,!?])',
+    ]
+    for ep in emoticon_patterns:
+        t = re.sub(ep, ' ', t)
+
+    # 8. Markdown formatting: bold, italic, strikethrough, headers
     t = re.sub(r'\*{1,3}([^*]+)\*{1,3}', r'\1', t)
-    t = re.sub(r'_{1,2}([^_]+)_{1,2}',   r'\1', t)
-
-    # 6. Markdown headers: ## Title → Title
+    t = re.sub(r'_{1,3}([^_]+)_{1,3}',   r'\1', t)
+    t = re.sub(r'~{1,2}([^~]+)~{1,2}',   r'\1', t)
     t = re.sub(r'^#{1,6}\s+', '', t, flags=re.MULTILINE)
+    t = re.sub(r'^\s*[-*•+]\s+', '', t, flags=re.MULTILINE)
+    t = re.sub(r'^\s*\d+\.\s+', '', t, flags=re.MULTILINE)
 
-    # 7. Bullet points: "- item" or "* item" → "item"
-    t = re.sub(r'^\s*[-*]\s+', '', t, flags=re.MULTILINE)
+    # 9. Smart punctuation to plain punctuation
+    t = t.replace('“', '"').replace('”', '"').replace('‘', "'").replace('’', "'")
+    t = t.replace('—', ', ').replace('–', ', ').replace('…', '. ')
 
-    # 8. Strip random special characters, strictly PRESERVING punctuation (. , ! ? ; : ' " / -)
-    t = re.sub(r'[#\*~^<>\\[\]|\\_`]', ' ', t)
+    # 10. Strip remaining noisy symbols: # * ~ ^ < > [ ] { } | \ ` @ $ % & + =
+    t = re.sub(r'[#\*~^<>\\[\]\{\}\|\`@\$%&\+=_/]', ' ', t)
 
-    # 9. Collapse multiple blank spaces/lines → single space
+    # 11. Normalize duplicate punctuation
+    t = re.sub(r'[!]{2,}', '!', t)
+    t = re.sub(r'[\?]{2,}', '?', t)
+    t = re.sub(r'[\.]{2,}', '.', t)
+    t = re.sub(r'[,]{2,}', ',', t)
+
+    # 12. Collapse multiple blank spaces -> single space
     t = re.sub(r'\s{2,}', ' ', t)
 
     return t.strip()

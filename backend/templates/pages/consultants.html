@@ -4770,60 +4770,97 @@ function getEmoraAudioUrl(base64Data) {
     }
 }
 
+function cleanSpeechTextClient(text) {
+    if (!text) return '';
+    var t = text;
+    // 1. Markdown links: [label](url) -> label + ". I have shared the link in the chat"
+    t = t.replace(/\[([^\]]+)\]\((https?:\/\/|[wW]{3}\.)[^\)]+\)/g, '$1. I have shared the link in the chat');
+    // 2. Bare URLs
+    t = t.replace(/(https?:\/\/\S+|[wW]{3}\.\S+)/g, 'I have shared the link in the chat');
+    // 3. Currency conversion: ₹500 -> 500 Rupees
+    t = t.replace(/₹\s*(\d+)/g, '$1 Rupees');
+    t = t.replace(/Rs\.?\s*(\d+)/gi, '$1 Rupees');
+    // 4. Roleplay actions (*smiles*, (pauses))
+    t = t.replace(/\*[a-zA-Z\s]{2,30}\*/g, ' ');
+    t = t.replace(/\([a-zA-Z\s]{2,20}\)/g, ' ');
+    // 5. Astral plane emojis
+    t = t.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, ' ');
+    // 6. BMP symbols, Dingbats, Arrows, Misc symbols, variation selectors
+    t = t.replace(/[\u200B-\u200D\uFE0E\uFE0F\u2028-\u202F\u2190-\u21FF\u2300-\u23FF\u2460-\u24FF\u2500-\u27BF\u2900-\u297F\u2B00-\u2BFF\uFE00-\uFE0F]/g, ' ');
+    // 7. Text emoticons
+    t = t.replace(/(?:\s|^)[:;=8][\-~o*']?[\)\]\(\[dDpP/\\](?=\s|$|[.,!?])/g, ' ');
+    t = t.replace(/(?:\s|^)[\)\]\(\[][\-~]?[:;=8](?=\s|$|[.,!?])/g, ' ');
+    t = t.replace(/(?:\s|^)D[:;=](?=\s|$|[.,!?])/g, ' ');
+    t = t.replace(/(?:\s|^)(<3|<\/3|\^_\^|\^\.\^|-_-|>_<|o_o|O_O|T_T|TwT|OwO|UwU|\(y\)|\(n\)|xD|XD)(?=\s|$|[.,!?])/g, ' ');
+    // 8. Markdown formatting
+    t = t.replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1');
+    t = t.replace(/_{1,3}([^_]+)_{1,3}/g, '$1');
+    t = t.replace(/~{1,2}([^~]+)~{1,2}/g, '$1');
+    t = t.replace(/^#{1,6}\s+/gm, '');
+    t = t.replace(/^\s*[-*•+]\s+/gm, '');
+    t = t.replace(/^\s*\d+\.\s+/gm, '');
+    // 9. Smart quotes and dashes
+    t = t.replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[—–]/g, ', ').replace(/…/g, '. ');
+    // 10. Noisy symbols
+    t = t.replace(/[#*~^<>[\]{}|`@$%&+=_/]/g, ' ');
+    // 11. Normalize punctuation
+    t = t.replace(/!{2,}/g, '!').replace(/\?{2,}/g, '?').replace(/\.{2,}/g, '.').replace(/,{2,}/g, ',');
+    // 12. Collapse spaces
+    return t.replace(/\s+/g, ' ').trim();
+}
+
 function speakWithWebSpeechFallback(text, langCode, rowEl) {
     if (!window.speechSynthesis || !text) return;
     try {
         window.speechSynthesis.cancel();
-        var cleanText = text
-            .replace(/[\U00010000-\U0010ffff]/g, '')
-            .replace(/https?:\/\/\S+/g, '')
-            .replace(/[*#_`~<>[\]]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
+        var cleanText = cleanSpeechTextClient(text);
         if (!cleanText) return;
 
         var utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = langCode || 'en-IN';
-        utterance.rate = 0.95;
-        utterance.pitch = 1.15; // Feminine pitch
+        utterance.rate = 0.92;
+        utterance.pitch = 1.1; // Warm feminine pitch
 
-        // Explicitly pick a female voice from browser voices
+        // Prioritize Indian English & Indic Female voices
         var voices = window.speechSynthesis.getVoices() || [];
-        var targetLang = (langCode || 'en-IN').toLowerCase();
+        var targetLang = (langCode || 'en-IN').toLowerCase().replace('_', '-');
         var langPrefix = targetLang.split('-')[0];
-        var femaleKeywords = ['female', 'zira', 'samantha', 'victoria', 'karen', 'moira', 'tessa', 'fiona', 'heera', 'swara', 'neerja', 'veena', 'priya', 'ananya', 'geeta', 'sangeeta', 'lekha'];
+        var indianFemaleKeywords = ['heera', 'neerja', 'swara', 'veena', 'lekha', 'kajal', 'isha', 'aditi', 'priya', 'ananya', 'geeta', 'sangeeta', 'hindi', 'india', 'indian'];
+        var generalFemaleKeywords = ['female', 'zira', 'samantha', 'victoria', 'karen', 'moira', 'tessa', 'fiona'];
 
         var selectedVoice = null;
-        // 1. First search for female voice matching exact or prefix language
+        // Priority 1: Indian female voice matching language code (e.g. en-IN, hi-IN)
         for (var i = 0; i < voices.length; i++) {
             var v = voices[i];
             var vName = (v.name || '').toLowerCase();
-            var vLang = (v.lang || '').toLowerCase();
-            var isLangMatch = vLang === targetLang || vLang.startsWith(langPrefix);
-            var isFemale = femaleKeywords.some(function(kw) { return vName.indexOf(kw) !== -1; });
-            if (isLangMatch && isFemale) {
+            var vLang = (v.lang || '').toLowerCase().replace('_', '-');
+            var isIndianLang = vLang === targetLang || vLang.indexOf('-in') !== -1 || vLang.indexOf('in') !== -1;
+            var isIndianNamed = indianFemaleKeywords.some(function(kw) { return vName.indexOf(kw) !== -1; });
+            var isFemale = generalFemaleKeywords.some(function(kw) { return vName.indexOf(kw) !== -1; }) || isIndianNamed;
+            if (isIndianLang && isFemale) {
                 selectedVoice = v;
                 break;
             }
         }
-        // 2. If not found, any voice matching language that is not explicitly male
+        // Priority 2: Any Indian voice not explicitly male
         if (!selectedVoice) {
             for (var j = 0; j < voices.length; j++) {
                 var v2 = voices[j];
                 var vName2 = (v2.name || '').toLowerCase();
-                var vLang2 = (v2.lang || '').toLowerCase();
-                if ((vLang2 === targetLang || vLang2.startsWith(langPrefix)) && vName2.indexOf('male') === -1 && vName2.indexOf('david') === -1 && vName2.indexOf('george') === -1 && vName2.indexOf('ravi') === -1 && vName2.indexOf('mark') === -1) {
+                var vLang2 = (v2.lang || '').toLowerCase().replace('_', '-');
+                if ((vLang2.indexOf('-in') !== -1 || vName2.indexOf('india') !== -1 || vName2.indexOf('hindi') !== -1) && vName2.indexOf('male') === -1 && vName2.indexOf('david') === -1 && vName2.indexOf('george') === -1 && vName2.indexOf('ravi') === -1 && vName2.indexOf('mark') === -1) {
                     selectedVoice = v2;
                     break;
                 }
             }
         }
-        // 3. Fallback to any available female voice
+        // Priority 3: Female voice matching target language
         if (!selectedVoice) {
             for (var k = 0; k < voices.length; k++) {
                 var v3 = voices[k];
                 var vName3 = (v3.name || '').toLowerCase();
-                if (femaleKeywords.some(function(kw) { return vName3.indexOf(kw) !== -1; })) {
+                var vLang3 = (v3.lang || '').toLowerCase().replace('_', '-');
+                if ((vLang3 === targetLang || vLang3.startsWith(langPrefix)) && generalFemaleKeywords.some(function(kw) { return vName3.indexOf(kw) !== -1; })) {
                     selectedVoice = v3;
                     break;
                 }
