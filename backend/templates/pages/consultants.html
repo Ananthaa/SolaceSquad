@@ -4438,6 +4438,7 @@ function toggleEmoraPopup() {
 }
 
 function openEmoraPopup() {
+    unlockEmoraAudio();
     var popup = document.getElementById('emoraMatchPopup');
     var floatingPill = document.getElementById('emoraFloatingPill');
     if (!popup) return;
@@ -4569,7 +4570,10 @@ function unlockEmoraAudio() {
         if (!_emoraMatcherAudio) {
             _emoraMatcherAudio = new Audio();
         }
-        if (_emoraMatcherAudio.paused) {
+        if (window.speechSynthesis && window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+        }
+        if (_emoraMatcherAudio.paused && !_emoraMatcherAudio.src) {
             _emoraMatcherAudio.src = _SILENT_AUDIO_DATA;
             var p = _emoraMatcherAudio.play();
             if (p && p.catch) p.catch(function() {});
@@ -4580,10 +4584,16 @@ function unlockEmoraAudio() {
 }
 
 function stopEmoraVoiceSpeech() {
-    if (_emoraMatcherAudio) {
-        _emoraMatcherAudio.pause();
-        _emoraMatcherAudio.currentTime = 0;
-    }
+    try {
+        if (_emoraMatcherAudio) {
+            _emoraMatcherAudio.pause();
+            _emoraMatcherAudio.currentTime = 0;
+        }
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+    } catch (e) {}
+
     document.querySelectorAll('.emora-bot-row.emora-speaking').forEach(function(el) {
         el.classList.remove('emora-speaking');
         var bar = el.querySelector('.emora-voice-status-bar');
@@ -4741,24 +4751,95 @@ async function sendEmoraVoiceToMatcher(blob) {
     }
 }
 
-function playEmoraMatcherAudio(base64Audio, rowEl) {
-    if (!base64Audio) return;
+function getEmoraAudioUrl(base64Data) {
+    if (!base64Data) return '';
+    if (base64Data.startsWith('data:audio/') || base64Data.startsWith('blob:')) return base64Data;
+    var isWav = base64Data.startsWith('UklGR');
+    var mime = isWav ? 'audio/wav' : 'audio/mpeg';
+    try {
+        var byteCharacters = atob(base64Data);
+        var byteNumbers = new Array(byteCharacters.length);
+        for (var i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        var byteArray = new Uint8Array(byteNumbers);
+        var blob = new Blob([byteArray], { type: mime });
+        return URL.createObjectURL(blob);
+    } catch (e) {
+        return 'data:' + mime + ';base64,' + base64Data;
+    }
+}
+
+function speakWithWebSpeechFallback(text, langCode, rowEl) {
+    if (!window.speechSynthesis || !text) return;
+    try {
+        window.speechSynthesis.cancel();
+        var cleanText = text
+            .replace(/[\U00010000-\U0010ffff]/g, '')
+            .replace(/https?:\/\/\S+/g, '')
+            .replace(/[*#_`~<>[\]]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (!cleanText) return;
+
+        var utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = langCode || 'en-IN';
+        utterance.rate = 0.95;
+        utterance.pitch = 1.05;
+
+        if (rowEl) {
+            rowEl.classList.add('emora-speaking');
+            var bar = rowEl.querySelector('.emora-voice-status-bar');
+            if (bar) bar.style.display = 'flex';
+            var replay = rowEl.querySelector('.emora-replay-btn');
+            if (replay) replay.style.display = 'none';
+        }
+
+        utterance.onend = function() {
+            if (rowEl) {
+                rowEl.classList.remove('emora-speaking');
+                var bar = rowEl.querySelector('.emora-voice-status-bar');
+                if (bar) bar.style.display = 'none';
+                var replay = rowEl.querySelector('.emora-replay-btn');
+                if (replay) replay.style.display = 'inline-flex';
+            }
+        };
+        utterance.onerror = function(e) {
+            console.warn('[Web Speech Fallback] error:', e);
+            if (rowEl) {
+                rowEl.classList.remove('emora-speaking');
+                var bar = rowEl.querySelector('.emora-voice-status-bar');
+                if (bar) bar.style.display = 'none';
+                var replay = rowEl.querySelector('.emora-replay-btn');
+                if (replay) replay.style.display = 'inline-flex';
+            }
+        };
+
+        window.speechSynthesis.speak(utterance);
+    } catch (err) {
+        console.warn('[Web Speech Fallback] execution error:', err);
+    }
+}
+
+function playEmoraMatcherAudio(base64Audio, rowEl, fallbackText, fallbackLang) {
+    var textToSpeak = fallbackText || '';
+    var langToSpeak = fallbackLang || 'en-IN';
+
+    if (!base64Audio) {
+        if (textToSpeak) {
+            speakWithWebSpeechFallback(textToSpeak, langToSpeak, rowEl);
+        }
+        return;
+    }
+
     try {
         if (!_emoraMatcherAudio) {
             _emoraMatcherAudio = new Audio();
         }
-        _emoraMatcherAudio.pause();
-        _emoraMatcherAudio.currentTime = 0;
-        _emoraMatcherAudio.src = 'data:audio/mpeg;base64,' + base64Audio;
-        _emoraMatcherAudio.load();
+        stopEmoraVoiceSpeech();
 
-        document.querySelectorAll('.emora-bot-row.emora-speaking').forEach(function(el) {
-            el.classList.remove('emora-speaking');
-            var bar = el.querySelector('.emora-voice-status-bar');
-            if (bar) bar.style.display = 'none';
-            var replay = el.querySelector('.emora-replay-btn');
-            if (replay) replay.style.display = 'inline-flex';
-        });
+        var audioSrc = getEmoraAudioUrl(base64Audio);
+        _emoraMatcherAudio.src = audioSrc;
 
         if (rowEl) {
             rowEl.classList.add('emora-speaking');
@@ -4777,8 +4858,11 @@ function playEmoraMatcherAudio(base64Audio, rowEl) {
                 if (replay) replay.style.display = 'inline-flex';
             }
         };
-        _emoraMatcherAudio.onpause = function() {
-            if (rowEl) {
+        _emoraMatcherAudio.onerror = function(err) {
+            console.warn('[Voice Emora Matcher] Audio decode/playback error, using speech fallback:', err);
+            if (textToSpeak) {
+                speakWithWebSpeechFallback(textToSpeak, langToSpeak, rowEl);
+            } else if (rowEl) {
                 rowEl.classList.remove('emora-speaking');
                 var bar = rowEl.querySelector('.emora-voice-status-bar');
                 if (bar) bar.style.display = 'none';
@@ -4790,22 +4874,23 @@ function playEmoraMatcherAudio(base64Audio, rowEl) {
         var p = _emoraMatcherAudio.play();
         if (p && p.catch) {
             p.catch(function(e) {
-                console.warn('[Voice Emora Matcher] auto-play prevented:', e);
-                if (rowEl) {
+                console.warn('[Voice Emora Matcher] Audio play prevented by browser:', e);
+                if (textToSpeak) {
+                    speakWithWebSpeechFallback(textToSpeak, langToSpeak, rowEl);
+                } else if (rowEl) {
                     rowEl.classList.remove('emora-speaking');
                     var bar = rowEl.querySelector('.emora-voice-status-bar');
                     if (bar) bar.style.display = 'none';
                     var replay = rowEl.querySelector('.emora-replay-btn');
-                    if (replay) {
-                        replay.style.display = 'inline-flex';
-                        replay.innerHTML = '🔊 Speak response';
-                    }
+                    if (replay) replay.style.display = 'inline-flex';
                 }
             });
         }
     } catch (e) {
-        console.warn('[Voice Emora Matcher] Audio play error:', e);
-        if (rowEl) rowEl.classList.remove('emora-speaking');
+        console.warn('[Voice Emora Matcher] Audio exception, falling back:', e);
+        if (textToSpeak) {
+            speakWithWebSpeechFallback(textToSpeak, langToSpeak, rowEl);
+        }
     }
 }
 
@@ -4816,13 +4901,13 @@ async function replayEmoraBubbleAudio(btn, encodedText, lang) {
         return;
     }
 
+    var text = decodeURIComponent(encodedText || '');
     var cachedAudio = btn.getAttribute('data-audio');
     if (cachedAudio && cachedAudio.length > 20) {
-        playEmoraMatcherAudio(cachedAudio, rowEl);
+        playEmoraMatcherAudio(cachedAudio, rowEl, text, lang);
         return;
     }
 
-    var text = decodeURIComponent(encodedText || '');
     if (!text) return;
 
     btn.innerHTML = '⏳ Loading...';
@@ -4839,12 +4924,15 @@ async function replayEmoraBubbleAudio(btn, encodedText, lang) {
         btn.innerHTML = '🔁 Replay';
         if (d.success && d.audio_b64) {
             btn.setAttribute('data-audio', d.audio_b64);
-            playEmoraMatcherAudio(d.audio_b64, rowEl);
+            playEmoraMatcherAudio(d.audio_b64, rowEl, text, lang);
+        } else {
+            speakWithWebSpeechFallback(text, lang, rowEl);
         }
     } catch (err) {
         btn.disabled = false;
         btn.innerHTML = '🔁 Replay';
-        console.warn('TTS replay error', err);
+        console.warn('TTS replay error, falling back to Web Speech', err);
+        speakWithWebSpeechFallback(text, lang, rowEl);
     }
 }
 
@@ -5261,7 +5349,7 @@ function renderEmoraBotResponse(data, body) {
     body.scrollTop = body.scrollHeight;
 
     if (data.audio_b64) {
-        playEmoraMatcherAudio(data.audio_b64, botRow);
+        playEmoraMatcherAudio(data.audio_b64, botRow, fullRawText, data.language || 'en-IN');
     } else if (fullRawText && !data.quota_exhausted && !data.voice_not_available) {
         // Automatically fetch and speak via TTS if audio was not bundled in the initial response
         fetch('/api/ai-chat/tts', {
@@ -5274,12 +5362,17 @@ function renderEmoraBotResponse(data, body) {
             if (d.success && d.audio_b64) {
                 var replay = botRow.querySelector('.emora-replay-btn');
                 if (replay) replay.setAttribute('data-audio', d.audio_b64);
-                playEmoraMatcherAudio(d.audio_b64, botRow);
+                playEmoraMatcherAudio(d.audio_b64, botRow, fullRawText, data.language || 'en-IN');
+            } else {
+                speakWithWebSpeechFallback(fullRawText, data.language || 'en-IN', botRow);
             }
         })
         .catch(function(err) {
-            console.warn('[Emora Matcher] auto-TTS fetch failed:', err);
+            console.warn('[Emora Matcher] auto-TTS fetch failed, speaking via WebSpeech:', err);
+            speakWithWebSpeechFallback(fullRawText, data.language || 'en-IN', botRow);
         });
+    } else if (fullRawText) {
+        speakWithWebSpeechFallback(fullRawText, data.language || 'en-IN', botRow);
     }
 }
 

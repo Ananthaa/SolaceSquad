@@ -146,12 +146,17 @@ def to_speech_text(text: str) -> str:
     return t.strip()
 
 
+def get_sarvam_api_key() -> str:
+    return os.getenv("SARVAM_API_KEY", "").strip() or SARVAM_API_KEY.strip()
+
+
 def stt_with_lid(audio_bytes: bytes, language: str = "unknown") -> tuple:
     """
     Speech-to-Text via Sarvam REST API with automatic Language Identification (LID).
     Returns (transcript, detected_language_code).
     """
-    if not SARVAM_API_KEY:
+    api_key = get_sarvam_api_key()
+    if not api_key:
         logger.error("[Sarvam STT] SARVAM_API_KEY not set")
         return "", ""
     if not audio_bytes:
@@ -161,7 +166,7 @@ def stt_with_lid(audio_bytes: bytes, language: str = "unknown") -> tuple:
     lang_code = language if (language and language.strip()) else "unknown"
 
     try:
-        headers = {"api-subscription-key": SARVAM_API_KEY}
+        headers = {"api-subscription-key": api_key}
 
         # Multipart file upload — explicit content-type so Sarvam can detect format
         files = {
@@ -213,7 +218,8 @@ def tts(text: str, language: str = DEFAULT_LANG) -> bytes:
     Text-to-Speech via Sarvam REST API.
     Returns raw MP3 bytes, or b"" on failure.
     """
-    if not SARVAM_API_KEY:
+    api_key = get_sarvam_api_key()
+    if not api_key:
         logger.error("[Sarvam TTS] SARVAM_API_KEY not set")
         return b""
     if not text:
@@ -236,7 +242,7 @@ def tts(text: str, language: str = DEFAULT_LANG) -> bytes:
                 safe_text = safe_text[:space_idx].strip() if space_idx > 100 else safe_text[:500].strip()
 
         headers = {
-            "api-subscription-key": SARVAM_API_KEY,
+            "api-subscription-key": api_key,
             "Content-Type":         "application/json",
         }
         payload = {
