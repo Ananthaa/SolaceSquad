@@ -9400,18 +9400,24 @@ async def get_ai_tts(request: Request, db: Session = Depends(get_db)):
         return JSONResponse({"success": False, "error": "Not authenticated"}, status_code=401)
 
     try:
-        from subscription_routes import get_active_subscription
-        active_sub = get_active_subscription(user_id, db)
-        plan_name = ""
-        if active_sub and active_sub.plan:
-            plan_name = (active_sub.plan.name or "").strip().lower()
-        if not any(p in plan_name for p in {"green", "blue"}):
-            return JSONResponse({"success": False, "voice_not_available": True, "error": "Voice Emora is available on Green and Blue plans."}, status_code=403)
+        data = await request.json()
     except Exception:
-        pass
+        data = {}
+
+    mode = (data.get("mode") or "").strip()
+    if mode != "consultant_match":
+        try:
+            from subscription_routes import get_active_subscription
+            active_sub = get_active_subscription(user_id, db)
+            plan_name = ""
+            if active_sub and active_sub.plan:
+                plan_name = (active_sub.plan.name or "").strip().lower()
+            if not any(p in plan_name for p in {"green", "blue"}):
+                return JSONResponse({"success": False, "voice_not_available": True, "error": "Voice Emora is available on Green and Blue plans."}, status_code=403)
+        except Exception:
+            pass
 
     try:
-        data = await request.json()
         text = (data.get("text") or "").strip()
         language = (data.get("language") or "en-IN").strip()
         if not text:
@@ -9686,7 +9692,7 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
             from subscription_routes import get_active_subscription
             active_sub = get_active_subscription(user_id, db)
             sub_plan = (active_sub.plan.name or "").strip().lower() if active_sub and active_sub.plan else ""
-            if any(p in sub_plan for p in {"green", "blue"}):
+            if mode == "consultant_match" or any(p in sub_plan for p in {"green", "blue"}):
                 speech_text = to_speech_text(ai_response)
                 audio_out = tts(speech_text, language=detected_lang_code)
                 if audio_out:

@@ -222,7 +222,16 @@ def tts(text: str, language: str = DEFAULT_LANG) -> bytes:
         lang_code = DEFAULT_LANG
 
     try:
-        safe_text = text[:500]   # Sarvam TTS max ~500 chars per call
+        safe_text = text.strip()
+        if len(safe_text) > 500:
+            # Cut at the last sentence boundary before 500 chars to avoid mid-sentence audio cuts
+            cut_idx = max(safe_text.rfind('. ', 0, 500), safe_text.rfind('! ', 0, 500), safe_text.rfind('? ', 0, 500))
+            if cut_idx > 100:
+                safe_text = safe_text[:cut_idx + 1].strip()
+            else:
+                space_idx = safe_text.rfind(' ', 0, 500)
+                safe_text = safe_text[:space_idx].strip() if space_idx > 100 else safe_text[:500].strip()
+
         headers = {
             "api-subscription-key": SARVAM_API_KEY,
             "Content-Type":         "application/json",
