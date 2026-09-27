@@ -68,8 +68,8 @@ steps:
         chmod +x /usr/local/bin/cloud-sql-proxy
         /usr/local/bin/cloud-sql-proxy --port=5433 abiding-idea-485817-k2:us-central1:solacesquad-login-data1 &
         sleep 5
-        echo "Dropping tables..."
-        PGPASSWORD="SoulSquad2024x" psql -h 127.0.0.1 -p 5433 -U Admin -d solacesquad_mirror -c \
+        PGPASS=$$(gcloud secrets versions access latest --secret=db-password-admin 2>/dev/null || echo "$$DB_PASSWORD")
+        PGPASSWORD="$$PGPASS" psql -h 127.0.0.1 -p 5433 -U Admin -d solacesquad_mirror -c \
           "DO \$\$ DECLARE r RECORD; BEGIN FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE'; END LOOP; END \$\$;"
 
   # Step 5: Import clean snapshot into mirror DB

@@ -619,8 +619,8 @@ def _run_bank_column_migration():
             socket_dir = f"/cloudsql/{inst}"
             conn = psycopg2.connect(
                 dbname=db_name,
-                user="postgres",
-                password=os.getenv("PG_SUPERUSER_PASSWORD", "SoulSquad2024pg"),
+                user=os.getenv("PG_SUPERUSER_USER", "postgres"),
+                password=os.getenv("PG_SUPERUSER_PASSWORD", ""),
                 host=socket_dir,
             )
         else:
