@@ -63,7 +63,19 @@
                                 </span>
                             {% elif v.applies_to == 'package' %}
                                 <span class="badge bg-purple-50 text-purple-700 border border-purple-200">
-                                    Emora Pack {{ v.applies_to_id }}
+                                    {% if v.applies_to_id and v.applies_to_id != 'ALL' %}
+                                        Emora Pack {{ v.applies_to_id }}
+                                    {% else %}
+                                        All Emora Packs
+                                    {% endif %}
+                                </span>
+                            {% elif v.applies_to in ('quick_consultation', 'quick_consult') %}
+                                <span class="badge bg-emerald-50 text-emerald-800 border border-emerald-300 font-bold">
+                                    {% if v.applies_to_id and v.applies_to_id != 'ALL' %}
+                                        ⚡ Quick Consult (ID: {{ v.applies_to_id }})
+                                    {% else %}
+                                        ⚡ All Quick Consultations
+                                    {% endif %}
                                 </span>
                             {% endif %}
                         </td>
@@ -81,13 +93,37 @@
                             {% endif %}
                         </td>
                         <td class="px-6 py-4">
-                            <button onclick="toggleVoucherStatus({{ v.id }})" 
-                                class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold {{ 'bg-green-100 text-green-800' if v.is_active else 'bg-gray-100 text-gray-800' }}">
-                                {{ 'Active' if v.is_active else 'Inactive' }}
-                            </button>
+                            {% if v.is_exhausted %}
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                                    Limit Reached
+                                </span>
+                            {% elif not v.is_active %}
+                                <button onclick="toggleVoucherStatus({{ v.id }})" 
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-800">
+                                    Inactive
+                                </button>
+                            {% elif v.is_expired %}
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                                    Expired
+                                </span>
+                            {% else %}
+                                <button onclick="toggleVoucherStatus({{ v.id }})" 
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                                    Active
+                                </button>
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4 text-sm font-semibold text-gray-900">
-                            {{ v.usage_count }} times
+                            <div>
+                                <span>{{ v.usage_count }} / {% if v.max_uses %}{{ v.max_uses }}{% else %}<span class="text-gray-400 font-normal">∞</span>{% endif %}</span>
+                                {% if v.is_exhausted %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-700 ml-1">
+                                        Exhausted
+                                    </span>
+                                {% elif v.max_uses %}
+                                    <span class="text-xs text-gray-400 block font-normal">{{ v.max_uses - v.usage_count }} remaining</span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td class="px-6 py-4 text-right text-sm font-medium">
                             <!-- Desktop Actions -->
@@ -100,8 +136,10 @@
                                     applies_to_id: '{{ v.applies_to_id or "" }}',
                                     assigned_user_emails: '{{ v.assigned_user_emails or "" }}',
                                     valid_until: '{{ v.valid_until | format_local("%d-%b-%Y %H:%M") if v.valid_until else "" }}',
+                                    max_uses: {{ v.max_uses if v.max_uses is not none else 'null' }},
                                     is_active: {{ 'true' if v.is_active else 'false' }},
                                     is_expired: {{ 'true' if v.is_expired else 'false' }},
+                                    is_exhausted: {{ 'true' if v.is_exhausted else 'false' }},
                                     usage_count: {{ v.usage_count }},
                                     created_at: '{{ v.created_at | format_local("%d-%b-%Y %H:%M") if v.created_at else "" }}'
                                 })" class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-blue-600 hover:text-blue-900 shadow-sm transition" title="View Details">
@@ -129,8 +167,10 @@
                                         applies_to_id: '{{ v.applies_to_id or "" }}',
                                         assigned_user_emails: '{{ v.assigned_user_emails or "" }}',
                                         valid_until: '{{ v.valid_until | format_local("%d-%b-%Y %H:%M") if v.valid_until else "" }}',
+                                        max_uses: {{ v.max_uses if v.max_uses is not none else 'null' }},
                                         is_active: {{ 'true' if v.is_active else 'false' }},
                                         is_expired: {{ 'true' if v.is_expired else 'false' }},
+                                        is_exhausted: {{ 'true' if v.is_exhausted else 'false' }},
                                         usage_count: {{ v.usage_count }},
                                         created_at: '{{ v.created_at | format_local("%d-%b-%Y %H:%M") if v.created_at else "" }}'
                                     })">
@@ -193,9 +233,22 @@
                 <label class="block text-sm font-bold text-gray-700 mb-1">Applies To</label>
                 <select id="appliesTo" class="input w-full" onchange="toggleAppliesToFields()">
                     <option value="all">All Plans & Packages</option>
+                    <option value="quick_consultation">⚡ Quick Consultation</option>
                     <option value="plan">Specific Usage Plan</option>
                     <option value="package">Specific Emora Package</option>
                 </select>
+            </div>
+
+            <!-- Specific Quick Consult Selection -->
+            <div id="quickConsultSelectionBlock" class="hidden">
+                <label class="block text-sm font-bold text-gray-700 mb-1">Select Consultant (Optional)</label>
+                <select id="appliesToConsultantId" class="input w-full">
+                    <option value="ALL">All Quick Consult Consultants</option>
+                    {% for c in consultants %}
+                    <option value="{{ c.id }}">{{ c.full_name or c.user.name }} ({{ c.specialization or 'General' }})</option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Select a specific consultant or choose "All Quick Consult Consultants".</p>
             </div>
 
             <!-- Specific Plan Selection -->
@@ -212,6 +265,7 @@
             <div id="packageSelectionBlock" class="hidden">
                 <label class="block text-sm font-bold text-gray-700 mb-1">Select Emora Package</label>
                 <select id="appliesToPackId" class="input w-full">
+                    <option value="ALL">All Emora Packages (S, M, L)</option>
                     <option value="S">Emora Pack S (₹500)</option>
                     <option value="M">Emora Pack M (₹2,000)</option>
                     <option value="L">Emora Pack L (₹5,000)</option>
@@ -229,6 +283,21 @@
                 <label class="block text-sm font-bold text-gray-700 mb-1">Validity Expiration Date (Optional)</label>
                 <input type="datetime-local" id="validUntil" class="input w-full">
                 <p class="text-xs text-gray-500 mt-1">Voucher will not be redeemable past this date/time.</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">Usage Limit</label>
+                <select id="usageLimitType" class="input w-full" onchange="toggleUsageLimitFields()">
+                    <option value="unlimited">Unlimited Uses</option>
+                    <option value="limited">Limited Number of Uses</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Choose whether redemptions are unlimited or capped at a specific number.</p>
+            </div>
+
+            <div id="maxUsesBlock" class="hidden">
+                <label class="block text-sm font-bold text-gray-700 mb-1">Maximum Allowed Uses</label>
+                <input type="number" id="maxUses" min="1" step="1" placeholder="e.g. 50" class="input w-full">
+                <p class="text-xs text-gray-500 mt-1">Total times this voucher can be redeemed across all users. Once reached, redemptions will be blocked.</p>
             </div>
 
             <div class="flex items-center">
@@ -280,9 +349,15 @@
             
             <hr class="border-gray-100">
             
-            <div>
-                <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Usage</span>
-                <span class="block text-base font-bold text-teal-700 mt-1" id="viewUsage"></span>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Usage</span>
+                    <span class="block text-base font-bold text-teal-700 mt-1" id="viewUsage"></span>
+                </div>
+                <div>
+                    <span class="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Usage Limit</span>
+                    <span class="block text-base font-bold text-gray-900 mt-1" id="viewMaxUses"></span>
+                </div>
             </div>
             
             <hr class="border-gray-100">
@@ -396,8 +471,11 @@
 <script>
 function openVoucherModal() {
     document.getElementById('voucherForm').reset();
+    document.getElementById('usageLimitType').value = 'unlimited';
+    document.getElementById('maxUses').value = '';
     document.getElementById('voucherModal').classList.remove('hidden');
     toggleAppliesToFields();
+    toggleUsageLimitFields();
     updateDiscountLabel();
 }
 
@@ -419,14 +497,32 @@ function toggleAppliesToFields() {
     const appliesTo = document.getElementById('appliesTo').value;
     const planBlock = document.getElementById('planSelectionBlock');
     const packBlock = document.getElementById('packageSelectionBlock');
+    const qcBlock = document.getElementById('quickConsultSelectionBlock');
 
-    planBlock.classList.add('hidden');
-    packBlock.classList.add('hidden');
+    if (planBlock) planBlock.classList.add('hidden');
+    if (packBlock) packBlock.classList.add('hidden');
+    if (qcBlock) qcBlock.classList.add('hidden');
 
-    if (appliesTo === 'plan') {
+    if (appliesTo === 'plan' && planBlock) {
         planBlock.classList.remove('hidden');
-    } else if (appliesTo === 'package') {
+    } else if (appliesTo === 'package' && packBlock) {
         packBlock.classList.remove('hidden');
+    } else if (appliesTo === 'quick_consultation' && qcBlock) {
+        qcBlock.classList.remove('hidden');
+    }
+}
+
+function toggleUsageLimitFields() {
+    const type = document.getElementById('usageLimitType').value;
+    const block = document.getElementById('maxUsesBlock');
+    const input = document.getElementById('maxUses');
+    if (type === 'limited') {
+        block.classList.remove('hidden');
+        input.required = true;
+    } else {
+        block.classList.add('hidden');
+        input.required = false;
+        input.value = '';
     }
 }
 
@@ -442,10 +538,25 @@ async function submitVoucher(e) {
         applies_to_id = document.getElementById('appliesToPlanId').value;
     } else if (applies_to === 'package') {
         applies_to_id = document.getElementById('appliesToPackId').value;
+    } else if (applies_to === 'quick_consultation') {
+        const cVal = document.getElementById('appliesToConsultantId').value;
+        applies_to_id = (cVal && cVal !== 'ALL') ? cVal : null;
     }
 
     const assigned_user_emails = document.getElementById('assignedEmails').value;
     const valid_until = document.getElementById('validUntil').value;
+
+    const usageLimitType = document.getElementById('usageLimitType').value;
+    let max_uses = null;
+    if (usageLimitType === 'limited') {
+        const maxUsesInput = document.getElementById('maxUses').value.trim();
+        if (!maxUsesInput || parseInt(maxUsesInput) < 1) {
+            showError('Please enter a valid usage limit (at least 1 redemption)');
+            return;
+        }
+        max_uses = parseInt(maxUsesInput);
+    }
+
     const is_active = document.getElementById('isActive').checked;
 
     try {
@@ -454,16 +565,21 @@ async function submitVoucher(e) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 code, discount_type, discount_value, applies_to, applies_to_id, 
-                assigned_user_emails, valid_until, is_active
+                assigned_user_emails, valid_until, max_uses, is_active
             })
         });
+        if (response.status === 401 || response.status === 403) {
+            showError('Admin authorization required. Your session may have expired — please log in again.');
+            setTimeout(() => { window.location.href = '/login?next=/admin/vouchers'; }, 2000);
+            return;
+        }
         const data = await response.json();
         if (data.success) {
             closeVoucherModal();
             showToast('✅ Voucher created successfully!');
             setTimeout(() => location.reload(), 1000);
         } else {
-            showError(data.error || 'Failed to create voucher');
+            showError(data.error || data.detail || 'Failed to create voucher');
         }
     } catch (err) {
         showError('Network error: ' + err.message);
@@ -477,12 +593,17 @@ async function toggleVoucherStatus(voucherId) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({voucher_id: voucherId})
         });
+        if (response.status === 401 || response.status === 403) {
+            showError('Admin authorization required. Please log in again.');
+            setTimeout(() => { window.location.href = '/login?next=/admin/vouchers'; }, 2000);
+            return;
+        }
         const data = await response.json();
         if (data.success) {
             showToast('✅ Voucher status updated!');
             setTimeout(() => location.reload(), 800);
         } else {
-            showError(data.error || 'Failed to toggle status');
+            showError(data.error || data.detail || 'Failed to toggle status');
         }
     } catch (err) {
         showError('Network error: ' + err.message);
@@ -498,12 +619,17 @@ async function deleteVoucher(voucherId) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({voucher_id: voucherId})
         });
+        if (response.status === 401 || response.status === 403) {
+            showError('Admin authorization required. Please log in again.');
+            setTimeout(() => { window.location.href = '/login?next=/admin/vouchers'; }, 2000);
+            return;
+        }
         const data = await response.json();
         if (data.success) {
             showToast('🗑️ Voucher deleted successfully!');
             setTimeout(() => location.reload(), 800);
         } else {
-            showError(data.error || 'Failed to delete voucher');
+            showError(data.error || data.detail || 'Failed to delete voucher');
         }
     } catch (err) {
         showError('Network error: ' + err.message);
@@ -525,7 +651,9 @@ function openViewVoucherModal(v) {
     } else if (v.applies_to === 'plan') {
         document.getElementById('viewAppliesTo').textContent = 'Usage Plan ID: ' + v.applies_to_id;
     } else if (v.applies_to === 'package') {
-        document.getElementById('viewAppliesTo').textContent = 'Emora Pack ' + v.applies_to_id;
+        document.getElementById('viewAppliesTo').textContent = (v.applies_to_id && v.applies_to_id !== 'ALL') ? ('Emora Pack ' + v.applies_to_id) : 'All Emora Packs';
+    } else if (v.applies_to === 'quick_consultation' || v.applies_to === 'quick_consult') {
+        document.getElementById('viewAppliesTo').textContent = (v.applies_to_id && v.applies_to_id !== 'ALL') ? ('Quick Consult (Consultant ID: ' + v.applies_to_id + ')') : 'All Quick Consultations';
     }
     
     // Expiration
@@ -543,8 +671,14 @@ function openViewVoucherModal(v) {
         document.getElementById('viewExpiration').textContent = 'Lifetime';
     }
     
-    // Usage
-    document.getElementById('viewUsage').textContent = v.usage_count + ' times';
+    // Usage & Limit
+    if (v.max_uses) {
+        document.getElementById('viewMaxUses').textContent = v.max_uses + ' uses';
+        document.getElementById('viewUsage').textContent = v.usage_count + ' / ' + v.max_uses + (v.is_exhausted ? ' (Exhausted)' : '');
+    } else {
+        document.getElementById('viewMaxUses').textContent = 'Unlimited';
+        document.getElementById('viewUsage').textContent = v.usage_count + ' times (Unlimited)';
+    }
     
     // Assigned users
     document.getElementById('viewAssignedUsers').textContent = v.assigned_user_emails || 'Anyone (No restrictions)';
@@ -554,7 +688,10 @@ function openViewVoucherModal(v) {
     
     // Status Badge
     const badge = document.getElementById('viewStatusBadge');
-    if (!v.is_active) {
+    if (v.is_exhausted) {
+        badge.className = 'badge bg-amber-100 text-amber-800 border border-amber-200';
+        badge.textContent = 'Limit Reached';
+    } else if (!v.is_active) {
         badge.className = 'badge bg-gray-100 text-gray-800 border border-gray-200';
         badge.textContent = 'Inactive';
     } else if (v.is_expired) {
@@ -606,7 +743,11 @@ async function viewVoucherReport(voucherId) {
         }
 
         document.getElementById('reportVoucherCode').innerText = `Voucher Code: ${data.voucher_code}`;
-        document.getElementById('reportTotalUses').innerText = data.total_uses;
+        if (data.max_uses) {
+            document.getElementById('reportTotalUses').innerHTML = `${data.total_uses} <span class="text-sm font-semibold text-teal-600">/ ${data.max_uses} limit${data.is_exhausted ? ' (Exhausted)' : ''}</span>`;
+        } else {
+            document.getElementById('reportTotalUses').innerHTML = `${data.total_uses} <span class="text-sm font-semibold text-teal-600">(Unlimited)</span>`;
+        }
         document.getElementById('reportTotalDiscount').innerText = `₹${data.total_discount.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
 
         // Render Log

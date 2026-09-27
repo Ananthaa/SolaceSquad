@@ -16,7 +16,7 @@
                 <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
 
-            <a href="/" class="flex items-center gap-2">
+            <a href="{% if user and user.user_type == 'consultant' %}/consultant-dashboard{% else %}/user-dashboard{% endif %}" class="app-logo-link flex items-center gap-2">
                 <img src="/static/images/logo.png" alt="SolaceSquad" class="h-10 w-auto">
             </a>
         </div>

@@ -139,6 +139,7 @@ async def sitemap(db_gen=Depends(get_db)):
     public_paths = [
         # ── Core public pages (highest priority) ──────────────────────────
         ("/",                       "1.0", "daily"),
+        ("/quickconsult",           "0.9", "daily"),
         # ── Service / condition pages ──────────────────────────────────────
         ("/mental-wellness",        "0.9", "weekly"),
         ("/physical-wellness",      "0.9", "weekly"),
@@ -509,6 +510,50 @@ async def startup_event():
                  "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS refund_status VARCHAR(50)"),
                 ("sponsor_config on event_workshops",
                  "ALTER TABLE event_workshops ADD COLUMN IF NOT EXISTS sponsor_config TEXT DEFAULT NULL"),
+                ("accepts_short_notice on consultant_profiles",
+                 "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS accepts_short_notice BOOLEAN DEFAULT FALSE"),
+                ("quick_consultations table",
+                 """CREATE TABLE IF NOT EXISTS quick_consultations (
+                     id SERIAL PRIMARY KEY,
+                     qc_id VARCHAR(20) UNIQUE NOT NULL,
+                     phone_number VARCHAR(20) NOT NULL,
+                     appointment_date TIMESTAMP NOT NULL,
+                     duration_minutes INTEGER NOT NULL DEFAULT 30,
+                     consultant_id INTEGER NOT NULL REFERENCES consultant_profiles(id),
+                     consultant_name VARCHAR(255) NOT NULL,
+                     base_amount FLOAT NOT NULL DEFAULT 0.0,
+                     surcharge_amount FLOAT NOT NULL DEFAULT 100.0,
+                     taxes FLOAT NOT NULL DEFAULT 0.0,
+                     amount_paid FLOAT NOT NULL DEFAULT 0.0,
+                     razorpay_order_id VARCHAR(100),
+                     razorpay_payment_id VARCHAR(100),
+                     razorpay_signature VARCHAR(300),
+                     payment_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+                     call_status VARCHAR(30) NOT NULL DEFAULT 'scheduled',
+                     exotel_call_sid VARCHAR(100),
+                     consent_timestamp TIMESTAMP DEFAULT NOW(),
+                     consent_ip VARCHAR(50),
+                     consultant_notes TEXT,
+                     is_test BOOLEAN NOT NULL DEFAULT FALSE,
+                     created_at TIMESTAMP DEFAULT NOW(),
+                     updated_at TIMESTAMP DEFAULT NOW()
+                 )"""),
+                ("idx_qc_id",
+                 "CREATE INDEX IF NOT EXISTS idx_qc_id ON quick_consultations(qc_id)"),
+                ("idx_qc_phone",
+                 "CREATE INDEX IF NOT EXISTS idx_qc_phone ON quick_consultations(phone_number)"),
+                ("user_id nullable on payment_transactions",
+                 "ALTER TABLE payment_transactions ALTER COLUMN user_id DROP NOT NULL"),
+                ("quick_consultation_id on consultant_earnings",
+                 "ALTER TABLE consultant_earnings ADD COLUMN IF NOT EXISTS quick_consultation_id INTEGER REFERENCES quick_consultations(id)"),
+                ("max_uses on vouchers",
+                 "ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS max_uses INTEGER DEFAULT NULL"),
+                ("discount_amount on quick_consultations",
+                 "ALTER TABLE quick_consultations ADD COLUMN IF NOT EXISTS discount_amount FLOAT NOT NULL DEFAULT 0.0"),
+                ("voucher_code on quick_consultations",
+                 "ALTER TABLE quick_consultations ADD COLUMN IF NOT EXISTS voucher_code VARCHAR(50)"),
+                ("consultation_mode on quick_consultations",
+                 "ALTER TABLE quick_consultations ADD COLUMN IF NOT EXISTS consultation_mode VARCHAR(30) NOT NULL DEFAULT 'telephony'"),
             ]
 
             # Migrations that require superuser (postgres) - run separately
@@ -533,6 +578,49 @@ async def startup_event():
                  "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS refund_status VARCHAR(50)"),
                 ("sponsor_config on event_workshops (pg)",
                  "ALTER TABLE event_workshops ADD COLUMN IF NOT EXISTS sponsor_config TEXT DEFAULT NULL"),
+                ("accepts_short_notice on consultant_profiles (pg)",
+                 "ALTER TABLE consultant_profiles ADD COLUMN IF NOT EXISTS accepts_short_notice BOOLEAN DEFAULT FALSE"),
+                ("quick_consultations table (pg)",
+                 """CREATE TABLE IF NOT EXISTS quick_consultations (
+                     id SERIAL PRIMARY KEY,
+                     qc_id VARCHAR(20) UNIQUE NOT NULL,
+                     phone_number VARCHAR(20) NOT NULL,
+                     appointment_date TIMESTAMP NOT NULL,
+                     duration_minutes INTEGER NOT NULL DEFAULT 30,
+                     consultant_id INTEGER NOT NULL REFERENCES consultant_profiles(id),
+                     consultant_name VARCHAR(255) NOT NULL,
+                     base_amount FLOAT NOT NULL DEFAULT 0.0,
+                     surcharge_amount FLOAT NOT NULL DEFAULT 100.0,
+                     taxes FLOAT NOT NULL DEFAULT 0.0,
+                     amount_paid FLOAT NOT NULL DEFAULT 0.0,
+                     discount_amount FLOAT NOT NULL DEFAULT 0.0,
+                     voucher_code VARCHAR(50),
+                     razorpay_order_id VARCHAR(100),
+                     razorpay_payment_id VARCHAR(100),
+                     razorpay_signature VARCHAR(300),
+                     payment_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+                     call_status VARCHAR(30) NOT NULL DEFAULT 'scheduled',
+                     consultation_mode VARCHAR(30) NOT NULL DEFAULT 'telephony',
+                     exotel_call_sid VARCHAR(100),
+                     consent_timestamp TIMESTAMP DEFAULT NOW(),
+                     consent_ip VARCHAR(50),
+                     consultant_notes TEXT,
+                     is_test BOOLEAN NOT NULL DEFAULT FALSE,
+                     created_at TIMESTAMP DEFAULT NOW(),
+                     updated_at TIMESTAMP DEFAULT NOW()
+                 )"""),
+                ("user_id nullable on payment_transactions (pg)",
+                 "ALTER TABLE payment_transactions ALTER COLUMN user_id DROP NOT NULL"),
+                ("quick_consultation_id on consultant_earnings (pg)",
+                 "ALTER TABLE consultant_earnings ADD COLUMN IF NOT EXISTS quick_consultation_id INTEGER REFERENCES quick_consultations(id)"),
+                ("max_uses on vouchers (pg)",
+                 "ALTER TABLE vouchers ADD COLUMN IF NOT EXISTS max_uses INTEGER DEFAULT NULL"),
+                ("discount_amount on quick_consultations (pg)",
+                 "ALTER TABLE quick_consultations ADD COLUMN IF NOT EXISTS discount_amount FLOAT NOT NULL DEFAULT 0.0"),
+                ("voucher_code on quick_consultations (pg)",
+                 "ALTER TABLE quick_consultations ADD COLUMN IF NOT EXISTS voucher_code VARCHAR(50)"),
+                ("consultation_mode on quick_consultations (pg)",
+                 "ALTER TABLE quick_consultations ADD COLUMN IF NOT EXISTS consultation_mode VARCHAR(30) NOT NULL DEFAULT 'telephony'"),
             ]
 
             # Open a direct psycopg2 connection - NOT from SQLAlchemy pool
@@ -626,8 +714,22 @@ app.add_middleware(
     secret_key=SECRET_KEY,
     https_only=True,       # cookie only sent over HTTPS (required for SameSite=None)
     same_site="none",      # none: cookie sent for all requests incl. POST from PWA/mobile
-    max_age=86400,         # 24-hour session expiry
+    max_age=7776000,       # 90-day persistent session expiry for mobile app and web
 )
+
+def _is_mobile_app_request(request: Request, data: dict = None) -> bool:
+    """Detect if request originated from Android or iOS SolaceSquad wrapper app."""
+    ua = request.headers.get("user-agent", "")
+    if "SolaceSquadApp" in ua:
+        return True
+    if data:
+        if str(data.get("is_mobile_app", "")).lower() in ("1", "true"):
+            return True
+        if data.get("client_platform") in ("android", "ios"):
+            return True
+    if request.query_params.get("is_mobile_app") in ("1", "true"):
+        return True
+    return False
 
 # Get the directory of this file
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -705,6 +807,10 @@ register_blog_routes(app, templates, get_db)
 # ── Event & Workshop Routes ──────────────────────────────────────────────────────
 from event_routes import register_event_routes
 register_event_routes(app, templates, get_db)
+
+# ── Quick Consultation Routes ────────────────────────────────────────────────────
+from quick_consult_routes import register_quick_consult_routes
+register_quick_consult_routes(app, templates, get_db)
 
 # PWA Routes
 @app.get("/sw.js", include_in_schema=False)
@@ -1187,16 +1293,36 @@ async def delete_user_account(request: Request, db: Session = Depends(get_db)):
 # MARKETING ROUTES
 # ============================================================================
 
+@app.get("/app-start")
+async def app_start(request: Request):
+    """Mobile app bootstrap endpoint for persistent login and instant dashboard entry"""
+    user_id = request.session.get("user_id")
+    user_type = request.session.get("user_type")
+    if user_id:
+        if user_type == "consultant":
+            return RedirectResponse(url="/consultant-dashboard", status_code=303)
+        return RedirectResponse(url="/user-dashboard", status_code=303)
+    return RedirectResponse(url="/login", status_code=303)
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, db: Session = Depends(get_db)):
     """
-    Marketing home page â€” single source of truth:
-      1. Published canvas snapshot in DB â†’ inject global styles and serve directly.
-      2. Published section-builder rows â†’ assemble via home_published.html.
-      3. Fallback â†’ static home.html template.
+    Marketing home page — single source of truth:
+      1. Published canvas snapshot in DB → inject global styles and serve directly.
+      2. Published section-builder rows → assemble via home_published.html.
+      3. Fallback → static home.html template.
     """
+    # Intercept mobile app requests: never show public marketing page in the app
+    if _is_mobile_app_request(request):
+        user_id = request.session.get("user_id")
+        user_type = request.session.get("user_type")
+        if user_id:
+            if user_type == "consultant":
+                return RedirectResponse(url="/consultant-dashboard", status_code=303)
+            return RedirectResponse(url="/user-dashboard", status_code=303)
+        return RedirectResponse(url="/login", status_code=303)
 
-    # â”€â”€ Global CSS injected into any raw-HTML response so it matches base.html â”€â”€
+    # ── Global CSS injected into any raw-HTML response so it matches base.html ──
     GLOBAL_STYLES = """
     <style id="ss-global-override">
       /* Fonts */
@@ -4315,7 +4441,12 @@ async def admin_save_consultant_details(profile_id: int, request: Request, db: S
                 if url:
                     profile.photo_url = url
                     
-        # 3. Commit changes
+        # 3. Update short notice / quick consultation flag
+        if "accepts_short_notice" in form:
+            short_notice_raw = form.get("accepts_short_notice")
+            profile.accepts_short_notice = str(short_notice_raw).lower() in ("true", "1", "on", "yes")
+
+        # 4. Commit changes
         db.commit()
         db.refresh(profile)
 
@@ -4334,11 +4465,53 @@ async def admin_save_consultant_details(profile_id: int, request: Request, db: S
             "message": "Consultant details saved successfully!",
             "photo_url": profile.photo_url,
             "hourly_rate": profile.hourly_rate or profile.consultation_fee or 0,
+            "accepts_short_notice": bool(profile.accepts_short_notice),
             "user_id": profile.user_id
         })
     except Exception as e:
         db.rollback()
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/admin/consultants/{profile_id}/toggle_short_notice")
+async def toggle_consultant_short_notice(profile_id: int, request: Request, db: Session = Depends(get_db)):
+    """Admin / Assistant: Toggle short-notice / quick consultation flag for a consultant."""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type not in ("admin", "admin_assistant"):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    profile = db.query(ConsultantProfile).filter(
+        (ConsultantProfile.id == profile_id) | (ConsultantProfile.user_id == profile_id)
+    ).first()
+    if not profile:
+        return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
+
+    try:
+        current_val = bool(profile.accepts_short_notice)
+        profile.accepts_short_notice = not current_val
+        db.commit()
+        db.refresh(profile)
+
+        AuditLogger.log_event(
+            db,
+            user_id=admin.id,
+            event_type="admin_consultant_short_notice_toggled",
+            resource_type="consultant_profile",
+            resource_id=str(profile.id),
+            details=f"Admin {admin.email} set short notice flag to {profile.accepts_short_notice} for consultant {profile.user.name if profile.user else profile.id}",
+            request=request
+        )
+
+        return JSONResponse({
+            "success": True,
+            "accepts_short_notice": profile.accepts_short_notice,
+            "message": f"Short notice bookings {'enabled' if profile.accepts_short_notice else 'disabled'} for {profile.user.name if profile.user else 'consultant'}."
+        })
+    except Exception as e:
+        db.rollback()
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
 
 
 @app.post("/api/admin/reject/{profile_id}")
@@ -4495,7 +4668,24 @@ async def consultant_pending(request: Request):
 # CONSULTANT DASHBOARD ROUTES
 # ============================================================================
 
+@app.get("/dashboard")
+async def general_dashboard_redirect(request: Request, db: Session = Depends(get_db)):
+    """General dashboard redirect routing user based on their role"""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    if user.user_type == "consultant":
+        return RedirectResponse(url="/consultant", status_code=303)
+    elif user.user_type == "admin":
+        return RedirectResponse(url="/admin", status_code=303)
+    else:
+        return RedirectResponse(url="/app", status_code=303)
+
 @app.get("/consultant", response_class=HTMLResponse)
+@app.get("/consultant/dashboard", response_class=HTMLResponse)
 async def consultant_dashboard(request: Request, db: Session = Depends(get_db)):
     """Consultant dashboard - main authenticated area"""
     user_id = request.session.get("user_id")
@@ -4572,7 +4762,8 @@ async def consultant_dashboard(request: Request, db: Session = Depends(get_db)):
     from models import ConsultantEarning
     from finance_routes import _is_test_mode
     earnings_query = db.query(ConsultantEarning).filter(
-        ConsultantEarning.consultant_user_id == user_id
+        ConsultantEarning.consultant_user_id == user_id,
+        ConsultantEarning.is_approved == True
     )
     if not _is_test_mode():
         earnings_query = earnings_query.filter(ConsultantEarning.is_test == False)
@@ -4919,24 +5110,17 @@ async def logout(request: Request):
     return RedirectResponse(url="/", status_code=303)
 
 
-def _is_mobile_app_request(request: Request, data: dict = None) -> bool:
-    """Detect if request originated from Android or iOS SolaceSquad wrapper app."""
-    ua = request.headers.get("user-agent", "")
-    if "SolaceSquadApp" in ua:
-        return True
-    if data:
-        if str(data.get("is_mobile_app", "")).lower() in ("1", "true"):
-            return True
-        if data.get("client_platform") in ("android", "ios"):
-            return True
-    if request.query_params.get("is_mobile_app") in ("1", "true"):
-        return True
-    return False
-
-
 @app.get("/login", response_class=HTMLResponse)
 async def login(request: Request):
     """Login page"""
+    # If already logged in, redirect directly to dashboard
+    user_id = request.session.get("user_id")
+    if user_id:
+        user_type = request.session.get("user_type")
+        if user_type == "consultant":
+            return RedirectResponse(url="/consultant-dashboard", status_code=303)
+        return RedirectResponse(url="/user-dashboard", status_code=303)
+
     next_url = request.query_params.get("next", "")
     return templates.TemplateResponse(
         "pages/auth/login.html",
@@ -5042,6 +5226,17 @@ async def login_post(request: Request, db: Session = Depends(get_db)):
                 }
             )
         
+        # Check if account is blocked
+        if getattr(user, "is_blocked", False):
+            return templates.TemplateResponse(
+                "pages/auth/login.html",
+                {
+                    "request": request,
+                    "page_title": "Login - SolaceSquad",
+                    "error": f"Your account has been blocked: {user.blocked_reason or 'Please contact support.'}"
+                }
+            )
+
         # Check if account is active
         if not user.is_active:
             return templates.TemplateResponse(
@@ -7129,6 +7324,12 @@ async def send_login_otp_api(request: Request, db: Session = Depends(get_db)):
                 "error": "No account found with this mobile number. Please sign up first."
             }, status_code=404)
 
+        if getattr(user, "is_blocked", False):
+            return JSONResponse({
+                "success": False,
+                "error": f"Account blocked: {user.blocked_reason or 'Please contact support.'}"
+            }, status_code=403)
+
         if not user.is_active:
             return JSONResponse({
                 "success": False,
@@ -7206,6 +7407,12 @@ async def verify_login_otp_api(request: Request, db: Session = Depends(get_db)):
 
         if not user:
             return JSONResponse({"success": False, "error": "User record not found"}, status_code=404)
+
+        if getattr(user, "is_blocked", False):
+            return JSONResponse({
+                "success": False,
+                "error": f"Account blocked: {user.blocked_reason or 'Please contact support.'}"
+            }, status_code=403)
 
         if not user.is_active:
             return JSONResponse({"success": False, "error": "Account deactivated"}, status_code=403)
@@ -7805,6 +8012,7 @@ async def list_consultants(request: Request, db: Session = Depends(get_db)):
             "languages":              langs_list,
             "is_active":              user.is_active,
             "is_approved":            profile.is_approved,
+            "accepts_short_notice":   bool(getattr(profile, "accepts_short_notice", False)),
         })
 
     from models import Appointment
@@ -7968,7 +8176,7 @@ async def get_consultant_schedule(consultant_id: int, request: Request, db: Sess
             Appointment.consultant_id    == consultant_id,
             Appointment.appointment_date >= start_date,
             Appointment.appointment_date <= end_date,
-            Appointment.status           == "scheduled",
+            Appointment.status.in_(["scheduled", "in_progress", "confirmed"]),
         ).all()
 
         booked_slots = []
@@ -7983,28 +8191,62 @@ async def get_consultant_schedule(consultant_id: int, request: Request, db: Sess
                 "blocked_end":   (a_end   + timedelta(minutes=BUFFER_MINUTES)).isoformat(),
             })
 
-        # For paid consultants: earliest bookable = now (IST) + 24 hours, rounded up to
-        # the current hour. Format as "YYYY-MM-DDTHH:MM" (no TZ suffix) so the frontend
+        # Include confirmed/paid QuickConsultations in booked slots
+        from models import QuickConsultation
+        from sqlalchemy import or_, and_
+        ten_mins_ago = datetime.utcnow() - timedelta(minutes=10)
+        qcs = db.query(QuickConsultation).filter(
+            QuickConsultation.consultant_id == consultant_id,
+            QuickConsultation.appointment_date >= start_date,
+            QuickConsultation.appointment_date <= end_date,
+            QuickConsultation.call_status != "cancelled",
+            or_(
+                QuickConsultation.payment_status.in_(["paid", "completed"]),
+                and_(
+                    QuickConsultation.payment_status == "pending",
+                    QuickConsultation.created_at >= ten_mins_ago,
+                ),
+            ),
+        ).all()
+        for qc in qcs:
+            dur = qc.duration_minutes or 30
+            q_start = qc.appointment_date.replace(tzinfo=None) if getattr(qc.appointment_date, "tzinfo", None) else qc.appointment_date
+            q_end   = q_start + timedelta(minutes=dur)
+            booked_slots.append({
+                "date":          q_start.isoformat(),
+                "duration":      dur,
+                "blocked_start": (q_start - timedelta(minutes=BUFFER_MINUTES)).isoformat(),
+                "blocked_end":   (q_end   + timedelta(minutes=BUFFER_MINUTES)).isoformat(),
+            })
+
+        # For paid consultants: earliest bookable = now (IST) + 24 hours (or +15m if accepts_short_notice),
+        # rounded up to the current hour. Format as "YYYY-MM-DDTHH:MM" (no TZ suffix) so the frontend
         # can assign it directly to input.min without any Date() timezone conversion.
         # Bypassed if booked by an admin on behalf of a user (impersonating).
         is_impersonating = "impersonate_user_id" in request.session
+        accepts_short_notice = bool(getattr(consultant, 'accepts_short_notice', False))
         min_booking_date = None
         if is_paid and not is_impersonating:
-            now_ist      = datetime.utcnow() + timedelta(hours=5, minutes=30)
-            min_appt_ist = now_ist + timedelta(hours=24)
-            # Round up to the next hour so the picker shows a clean time
-            min_booking_date = min_appt_ist.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M")
+            now_ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
+            if accepts_short_notice:
+                min_appt_ist = now_ist + timedelta(minutes=15)
+                min_booking_date = min_appt_ist.strftime("%Y-%m-%dT%H:%M")
+            else:
+                min_appt_ist = now_ist + timedelta(hours=24)
+                # Round up to the next hour so the picker shows a clean time
+                min_booking_date = min_appt_ist.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M")
 
         return {
-            "success":           True,
-            "consultant_name":   consultant.user.name,
-            "is_paid":           is_paid,
-            "consultation_fee":  consultant.consultation_fee or 0,
-            "allowed_durations": [30, 60, 90] if is_paid else [15],
-            "min_booking_date":  min_booking_date,   # None for free consultants
-            "buffer_minutes":    BUFFER_MINUTES,
-            "schedule":          schedule_data,
-            "booked_slots":      booked_slots,
+            "success":              True,
+            "consultant_name":      consultant.user.name,
+            "is_paid":              is_paid,
+            "accepts_short_notice": accepts_short_notice,
+            "consultation_fee":     consultant.consultation_fee or 0,
+            "allowed_durations":    [30, 60, 90] if is_paid else [15],
+            "min_booking_date":     min_booking_date,   # None for free consultants
+            "buffer_minutes":       BUFFER_MINUTES,
+            "schedule":             schedule_data,
+            "booked_slots":         booked_slots,
         }
     except Exception as e:
         print(f"Error getting consultant schedule: {str(e)}")
@@ -8084,15 +8326,33 @@ async def consultant_day_timeline(
     ).all()
     break_ranges = [(hhmm_to_minutes(b.break_start), hhmm_to_minutes(b.break_end)) for b in breaks]
 
-    # Get existing appointments for this date
+    # Get existing appointments and quick consultations for this date
     BUFFER = 15
-    day_start_dt = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0)
-    day_end_dt   = day_start_dt + timedelta(days=1)
+    # Target date is in IST; convert midnight-to-midnight IST window to UTC for DB queries
+    day_start_utc = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0) - timedelta(hours=5, minutes=30)
+    day_end_utc   = day_start_utc + timedelta(days=1)
     existing_appts = db.query(Appointment).filter(
         Appointment.consultant_id    == consultant_id,
-        Appointment.status.in_(["scheduled", "in_progress"]),
-        Appointment.appointment_date >= day_start_dt,
-        Appointment.appointment_date <  day_end_dt,
+        Appointment.status.in_(["scheduled", "in_progress", "confirmed"]),
+        Appointment.appointment_date >= day_start_utc,
+        Appointment.appointment_date <  day_end_utc,
+    ).all()
+
+    from models import QuickConsultation
+    from sqlalchemy import or_, and_
+    ten_mins_ago = datetime.utcnow() - timedelta(minutes=10)
+    existing_qcs = db.query(QuickConsultation).filter(
+        QuickConsultation.consultant_id == consultant_id,
+        QuickConsultation.call_status != "cancelled",
+        or_(
+            QuickConsultation.payment_status.in_(["paid", "completed"]),
+            and_(
+                QuickConsultation.payment_status == "pending",
+                QuickConsultation.created_at >= ten_mins_ago,
+            ),
+        ),
+        QuickConsultation.appointment_date >= day_start_utc,
+        QuickConsultation.appointment_date <  day_end_utc,
     ).all()
 
     # Build booked ranges (with buffer) in minutes-since-midnight
@@ -8109,6 +8369,21 @@ async def consultant_day_timeline(
         booked_display.append({
             "start":        minutes_to_hhmm(a_start),
             "end":          minutes_to_hhmm(a_end),
+            "buffer_start": minutes_to_hhmm(max(0, buf_start)),
+            "buffer_end":   minutes_to_hhmm(min(23*60+59, buf_end)),
+        })
+
+    for q in existing_qcs:
+        qc_ist = q.appointment_date + timedelta(hours=5, minutes=30)
+        q_start = qc_ist.hour * 60 + qc_ist.minute
+        q_dur   = q.duration_minutes or 30
+        q_end   = q_start + q_dur
+        buf_start = q_start - BUFFER
+        buf_end   = q_end   + BUFFER
+        booked_ranges.append((buf_start, buf_end, q_start, q_end))
+        booked_display.append({
+            "start":        minutes_to_hhmm(q_start),
+            "end":          minutes_to_hhmm(q_end),
             "buffer_start": minutes_to_hhmm(max(0, buf_start)),
             "buffer_end":   minutes_to_hhmm(min(23*60+59, buf_end)),
         })
@@ -8221,7 +8496,8 @@ async def book_appointment(request: Request, db: Session = Depends(get_db)):
 
         # -- Rule 2: Paid consultants need 24-hour advance booking ------------
         is_impersonating = "impersonate_user_id" in request.session
-        if is_paid and not is_impersonating:
+        accepts_short_notice = bool(getattr(consultant, 'accepts_short_notice', False))
+        if is_paid and not is_impersonating and not accepts_short_notice:
             now_ist  = datetime.utcnow() + timedelta(hours=5, minutes=30)
             tomorrow = (now_ist + timedelta(days=1)).replace(
                 hour=0, minute=0, second=0, microsecond=0)
@@ -8233,6 +8509,14 @@ async def book_appointment(request: Request, db: Session = Depends(get_db)):
                     "error":         f"Paid consultations must be booked at least 24 hours in advance. Earliest available date: {earliest}.",
                     "conflict_type": "advance_booking_required",
                     "earliest_date": tomorrow.isoformat(),
+                }
+        elif is_paid and not is_impersonating and accepts_short_notice:
+            now_utc = datetime.utcnow()
+            if appointment_date < now_utc - timedelta(minutes=5):
+                return {
+                    "success": False,
+                    "error": "Appointment time cannot be in the past.",
+                    "conflict_type": "past_time_not_allowed"
                 }
 
         # -- Blocked zone for the NEW appointment (with buffers) --------------
@@ -8410,7 +8694,7 @@ def _find_next_slot(db, consultant_id: int, search_from, duration_minutes: int, 
 
 @app.get("/api/appointments/user")
 async def get_user_appointments(request: Request, db: Session = Depends(get_db)):
-    """Get all appointments for the logged-in user, auto-completing elapsed ones."""
+    """Get all appointments for the logged-in user (both standard and linked quick consultations), auto-completing elapsed ones."""
     try:
         user_id = request.session.get("user_id")
         if not user_id:
@@ -8425,7 +8709,8 @@ async def get_user_appointments(request: Request, db: Session = Depends(get_db))
         appointment_list = []
         for appt in appointments:
             # Auto-expire: slot fully over AND call never started (status still 'scheduled')
-            appt_end = appt.appointment_date + timedelta(minutes=appt.duration_minutes)
+            duration = appt.duration_minutes or 60
+            appt_end = appt.appointment_date + timedelta(minutes=duration)
             if appt.status == "scheduled" and appt_end < now:
                 appt.status = "expired"
                 changed = True
@@ -8440,18 +8725,123 @@ async def get_user_appointments(request: Request, db: Session = Depends(get_db))
                 appt.status = "scheduled"
                 changed = True
 
+            c_name = "Consultant"
+            c_spec = "Wellbeing Specialist"
+            if appt.consultant:
+                c_spec = appt.consultant.specialization or "Wellbeing Specialist"
+                if appt.consultant.user:
+                    c_name = appt.consultant.user.name or "Consultant"
+
             appointment_list.append({
                 "id":                       appt.id,
+                "is_quick_consult":         False,
+                "consultation_mode":        "standard",
                 "consultant_id":            appt.consultant_id,
-                "consultant_name":          appt.consultant.user.name,
-                "consultant_specialization": appt.consultant.specialization,
+                "consultant_name":          c_name,
+                "consultant_specialization": c_spec,
                 "appointment_date":         appt.appointment_date.isoformat() + "Z",
-                "duration_minutes":         appt.duration_minutes,
+                "duration_minutes":         duration,
                 "status":                   appt.status,
                 "notes":                    appt.notes,
                 "reschedule_free":          appt.reschedule_free,
                 "refund_status":            appt.refund_status,
+                "join_url":                 f"/app/call/{appt.id}",
             })
+
+        # ── Link Quick Consultations booked by this registered user by phone ──
+        try:
+            current_user = db.query(User).filter(User.id == user_id).first()
+            user_phones = set()
+            if current_user and current_user.phone_number:
+                digits = "".join(filter(str.isdigit, str(current_user.phone_number)))
+                if len(digits) >= 10:
+                    user_phones.add(digits[-10:])
+            
+            # Also check session for verified phone
+            for key in ["phone_number", "qc_verified_phone"]:
+                val = request.session.get(key)
+                if val:
+                    val_digits = "".join(filter(str.isdigit, str(val)))
+                    if len(val_digits) >= 10:
+                        user_phones.add(val_digits[-10:])
+            
+            if user_phones:
+                from models import QuickConsultation
+                from sqlalchemy import or_
+                from sqlalchemy.orm import joinedload
+
+                phone_filters = []
+                for p in user_phones:
+                    phone_filters.extend([
+                        QuickConsultation.phone_number == p,
+                        QuickConsultation.phone_number == f"+91{p}",
+                        QuickConsultation.phone_number == f"91{p}",
+                        QuickConsultation.phone_number.like(f"%{p}"),
+                    ])
+
+                quick_consults = db.query(QuickConsultation).options(
+                    joinedload(QuickConsultation.consultant).joinedload(ConsultantProfile.user)
+                ).filter(
+                    or_(*phone_filters),
+                    QuickConsultation.payment_status.in_(["paid", "completed"]),
+                    QuickConsultation.call_status != "cancelled",
+                ).order_by(QuickConsultation.appointment_date.desc()).all()
+
+                seen_ids = set(a["id"] for a in appointment_list)
+                for qc in quick_consults:
+                    if not qc.appointment_date:
+                        continue
+                    qc_key = f"qc_{qc.qc_id}"
+                    if qc_key in seen_ids:
+                        continue
+                    seen_ids.add(qc_key)
+
+                    qc_duration = qc.duration_minutes or 30
+                    qc_end = qc.appointment_date + timedelta(minutes=qc_duration)
+                    qc_call_status = qc.call_status or "scheduled"
+
+                    if qc_call_status == "scheduled" and qc_end < now:
+                        qc_call_status = "expired"
+                        qc.call_status = "expired"
+                        changed = True
+                    elif qc_call_status in ["initiated", "in_progress"] and qc_end < now:
+                        qc_call_status = "completed"
+                        qc.call_status = "completed"
+                        changed = True
+
+                    c_mode = getattr(qc, "consultation_mode", "telephony") or "telephony"
+                    is_webrtc = (c_mode == "webrtc")
+
+                    c_name = qc.consultant_name
+                    c_spec = "Wellbeing Specialist"
+                    if qc.consultant:
+                        if qc.consultant.specialization:
+                            c_spec = qc.consultant.specialization
+                        if not c_name and qc.consultant.user:
+                            c_name = qc.consultant.user.name
+
+                    appointment_list.append({
+                        "id":                       qc_key,
+                        "qc_id":                    qc.qc_id,
+                        "is_quick_consult":         True,
+                        "consultation_mode":        c_mode,
+                        "consultant_id":            qc.consultant_id,
+                        "consultant_name":          c_name or "Consultant",
+                        "consultant_specialization": c_spec,
+                        "appointment_date":         qc.appointment_date.isoformat() + "Z",
+                        "duration_minutes":         qc_duration,
+                        "status":                   "scheduled" if qc_call_status in ["scheduled", "initiated"] else qc_call_status,
+                        "raw_call_status":          qc_call_status,
+                        "notes":                    "⚡ 30-Min Web Call" if is_webrtc else "📞 30-Min Phone Call",
+                        "join_url":                 f"/quick-consult/room/{qc.qc_id}" if is_webrtc else "",
+                        "reschedule_free":          False,
+                        "refund_status":            None,
+                    })
+        except Exception as qce:
+            print(f"[Appointments] Error linking user quick consultations: {qce}")
+
+        # Sort all appointments chronologically descending
+        appointment_list.sort(key=lambda x: x["appointment_date"], reverse=True)
 
         if changed:
             db.commit()
@@ -8464,68 +8854,148 @@ async def get_user_appointments(request: Request, db: Session = Depends(get_db))
 
 @app.get("/api/appointments/consultant")
 async def get_consultant_appointments(request: Request, db: Session = Depends(get_db)):
-    """Get all appointments for the logged-in consultant"""
+    """Get all appointments for the logged-in consultant (both standard and quick consultations)"""
     try:
         user_id = request.session.get("user_id")
-        user_type = request.session.get("user_type")
-        
-        if not user_id or user_type != "consultant":
+        if not user_id:
             return {"success": False, "error": "Not authorized", "appointments": []}
         
+        try:
+            user_id_int = int(user_id)
+        except (ValueError, TypeError):
+            user_id_int = user_id
+
         # Get consultant profile
         consultant_profile = db.query(ConsultantProfile).filter(
-            ConsultantProfile.user_id == user_id
+            ConsultantProfile.user_id == user_id_int
         ).first()
         
         if not consultant_profile:
-            return {"success": False, "error": "Consultant profile not found", "appointments": []}
+            return {"success": True, "appointments": []}
         
-        appointments = db.query(Appointment).filter(
-            Appointment.consultant_id == consultant_profile.id
-        ).order_by(Appointment.appointment_date.desc()).all()
         now = datetime.utcnow()
         changed = False
         appointment_list = []
-        for appt in appointments:
-            appt_end = appt.appointment_date + timedelta(minutes=appt.duration_minutes)
 
-            # Auto-expire: slot is fully over AND call never started (status still 'scheduled')
-            # 'in_progress' means call started but was interrupted - leave it alone
-            # 'completed' means call finished normally - leave it alone
-            if appt.status == "scheduled" and appt_end < now:
-                appt.status = "expired"
-                changed = True
+        # ── 1. Standard Appointments Query (with eager joinedload to eliminate N+1 latency) ──
+        try:
+            from sqlalchemy.orm import joinedload
+            appointments = db.query(Appointment).options(
+                joinedload(Appointment.user)
+            ).filter(
+                Appointment.consultant_id == consultant_profile.id
+            ).order_by(Appointment.appointment_date.desc()).all()
 
-            # Auto-complete: slot is fully over AND call was in_progress (status 'in_progress')
-            if appt.status == "in_progress" and appt_end < now:
-                appt.status = "completed"
-                changed = True
+            for appt in appointments:
+                if not appt.appointment_date:
+                    continue
+                duration = appt.duration_minutes or 30
+                appt_end = appt.appointment_date + timedelta(minutes=duration)
 
-            # Reset future 'in_progress' to 'scheduled' if it's in the future
-            if appt.status == "in_progress" and appt.appointment_date > now + timedelta(minutes=15):
-                appt.status = "scheduled"
-                changed = True
+                # Auto-expire: slot is fully over AND call never started (status still 'scheduled')
+                appt_status = appt.status or "scheduled"
+                if appt_status == "scheduled" and appt_end < now:
+                    appt_status = "expired"
+                    appt.status = "expired"
+                    changed = True
+                elif appt_status == "in_progress" and appt_end < now:
+                    appt_status = "completed"
+                    appt.status = "completed"
+                    changed = True
+                elif appt_status == "in_progress" and appt.appointment_date > now + timedelta(minutes=15):
+                    appt_status = "scheduled"
+                    appt.status = "scheduled"
+                    changed = True
 
-            appointment_list.append({
-                "id":                appt.id,
-                "client_id":         appt.user_id,
-                "client_name":       appt.user.name,
-                "client_email":      appt.user.email,
-                "appointment_date":  appt.appointment_date.isoformat() + "Z",
-                "duration_minutes":  appt.duration_minutes,
-                "status":            appt.status,
-                "notes":             appt.notes,
-                "consultation_notes": getattr(appt, 'consultation_notes', None),
-                "reschedule_free":   appt.reschedule_free,
-                "refund_status":     appt.refund_status,
-            })
+                client_name = "Client"
+                client_email = ""
+                try:
+                    if appt.user:
+                        client_name = appt.user.name or "Client"
+                        client_email = appt.user.email or ""
+                except Exception:
+                    pass
+
+                appointment_list.append({
+                    "id":                appt.id,
+                    "is_quick_consult":  False,
+                    "consultation_mode": "standard",
+                    "client_id":         appt.user_id,
+                    "client_name":       client_name,
+                    "client_email":      client_email,
+                    "appointment_date":  appt.appointment_date.isoformat() + "Z",
+                    "duration_minutes":  duration,
+                    "status":            appt_status,
+                    "notes":             appt.notes or "",
+                    "consultation_notes": getattr(appt, 'consultation_notes', None) or getattr(appt, 'consultant_observations', None) or "",
+                    "reschedule_free":   bool(appt.reschedule_free),
+                    "refund_status":     appt.refund_status,
+                    "join_url":          f"/app/call/{appt.id}",
+                })
+        except Exception as ae:
+            print(f"[Appointments] Error querying standard appointments: {ae}")
+
+        # ── 2. Quick Consultations Query ─────────────────────────────────────
+        try:
+            quick_consults = db.query(QuickConsultation).filter(
+                QuickConsultation.consultant_id == consultant_profile.id,
+                QuickConsultation.payment_status == "completed",
+            ).order_by(QuickConsultation.appointment_date.desc()).all()
+
+            for qc in quick_consults:
+                if not qc.appointment_date:
+                    continue
+                qc_duration = qc.duration_minutes or 30
+                qc_end = qc.appointment_date + timedelta(minutes=qc_duration)
+                qc_call_status = qc.call_status or "scheduled"
+                if qc_call_status == "scheduled" and qc_end < now:
+                    qc_call_status = "expired"
+                    qc.call_status = "expired"
+                    changed = True
+                elif qc_call_status in ["initiated", "in_progress"] and qc_end < now:
+                    qc_call_status = "completed"
+                    qc.call_status = "completed"
+                    changed = True
+
+                c_mode = getattr(qc, "consultation_mode", "telephony") or "telephony"
+                is_webrtc = (c_mode == "webrtc")
+
+                appointment_list.append({
+                    "id":                f"qc_{qc.qc_id}",
+                    "qc_id":             qc.qc_id,
+                    "is_quick_consult":  True,
+                    "consultation_mode": c_mode,
+                    "client_id":         None,
+                    "client_name":       f"Guest Client ({qc.qc_id})",
+                    "client_email":      "",
+                    "appointment_date":  qc.appointment_date.isoformat() + "Z",
+                    "duration_minutes":  qc_duration,
+                    "status":            "scheduled" if qc_call_status in ["scheduled", "initiated"] else qc_call_status,
+                    "raw_call_status":   qc_call_status,
+                    "notes":             "⚡ 30-Min Web Call" if is_webrtc else "📞 30-Min Phone Call",
+                    "consultation_notes": qc.consultant_notes or "",
+                    "reschedule_free":   False,
+                    "refund_status":     None,
+                    "join_url":          f"/quick-consult/room/{qc.qc_id}" if is_webrtc else "",
+                })
+        except Exception as qce:
+            print(f"[Appointments] Error querying quick consultations: {qce}")
 
         if changed:
-            db.commit()
+            try:
+                db.commit()
+            except Exception as ce:
+                db.rollback()
+                print(f"[Appointments] DB commit failed during status auto-update: {ce}")
+
+        # Sort all combined sessions chronologically by appointment date desc
+        appointment_list.sort(key=lambda x: x["appointment_date"] or "", reverse=True)
         
         return {"success": True, "appointments": appointment_list}
     except Exception as e:
         print(f"Error getting consultant appointments: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {"success": False, "error": str(e), "appointments": []}
 
 
@@ -12395,7 +12865,8 @@ async def get_appointment_details(appointment_id: int, request: Request, db: Ses
             "duration_minutes": appointment.duration_minutes,
             "status": appointment.status,
             "notes": appointment.notes,
-            "consultation_notes": getattr(appointment, 'consultation_notes', None),
+            "consultant_observations": getattr(appointment, 'consultant_observations', None),
+            "consultation_notes": getattr(appointment, 'consultant_observations', None),
             "reschedule_free": appointment.reschedule_free,
             "refund_status": appointment.refund_status
         }
@@ -12407,26 +12878,27 @@ async def get_appointment_details(appointment_id: int, request: Request, db: Ses
 
 @app.post("/api/appointments/{appointment_id}/notes")
 async def save_consultation_notes(appointment_id: int, request: Request, db: Session = Depends(get_db)):
-    """Save consultation notes for an appointment"""
+    """Save consultation notes / observations for an appointment"""
     user_id = request.session.get("user_id")
     if not user_id:
         return {"success": False, "error": "Not logged in"}
     
     try:
         data = await request.json()
-        consultation_notes = data.get("consultation_notes", "")
+        consultant_obs = data.get("consultant_observations") or data.get("consultation_notes") or data.get("notes") or ""
         
         appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
         
         if not appointment:
             return {"success": False, "error": "Appointment not found"}
         
-        # Update consultation notes (store in notes field for now)
-        appointment.notes = consultation_notes
+        # Save consultation observations into dedicated consultant_observations field
+        # Preserves appointment.notes (the user's initial booking note/concern)
+        appointment.consultant_observations = consultant_obs
         
         db.commit()
         
-        return {"success": True, "message": "Notes saved successfully"}
+        return {"success": True, "message": "Observations saved successfully"}
     except Exception as e:
         print(f"Error saving consultation notes: {e}")
         return {"success": False, "error": str(e)}
@@ -13456,6 +13928,79 @@ async def toggle_user(request: Request, user_id: int, db: Session = Depends(get_
         return JSONResponse({"success": True, "is_active": target_user.is_active})
     
     return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+
+
+@app.post("/api/admin/users/{user_id}/block")
+async def block_user(request: Request, user_id: int, db: Session = Depends(get_db)):
+    """Admin blocks a user from accessing the platform"""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+
+    if target_user.user_type == "admin":
+        return JSONResponse({"success": False, "error": "Cannot block an administrator"}, status_code=400)
+
+    # Try reading reason from JSON or form
+    reason = "Blocked by Admin"
+    try:
+        data = await request.json()
+        reason = data.get("reason", "").strip() or reason
+    except Exception:
+        try:
+            form_data = await request.form()
+            reason = form_data.get("reason", "").strip() or reason
+        except Exception:
+            pass
+
+    target_user.is_blocked = True
+    target_user.blocked_reason = reason
+    target_user.blocked_at = datetime.utcnow()
+    target_user.is_active = False  # Deactivate as well
+
+    if target_user.user_type == "consultant":
+        profile = db.query(ConsultantProfile).filter(
+            ConsultantProfile.user_id == target_user.id
+        ).first()
+        if profile:
+            profile.is_approved = False
+
+    db.commit()
+    return JSONResponse({
+        "success": True,
+        "is_blocked": True,
+        "blocked_reason": reason,
+        "message": f"User {target_user.name or target_user.email} has been blocked."
+    })
+
+
+@app.post("/api/admin/users/{user_id}/unblock")
+async def unblock_user(request: Request, user_id: int, db: Session = Depends(get_db)):
+    """Admin unblocks a previously blocked user"""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        return JSONResponse({"success": False, "error": "User not found"}, status_code=404)
+
+    target_user.is_blocked = False
+    target_user.blocked_reason = None
+    target_user.blocked_at = None
+    target_user.is_active = True
+
+    db.commit()
+    return JSONResponse({
+        "success": True,
+        "is_blocked": False,
+        "message": f"User {target_user.name or target_user.email} has been unblocked."
+    })
 
 
 # User profile API endpoint
@@ -16996,5 +17541,4 @@ async def get_consultant_patient_reports(
         }
         for r in reports
     ]
-
 

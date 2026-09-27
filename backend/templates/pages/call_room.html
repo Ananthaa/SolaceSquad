@@ -805,17 +805,28 @@
             </div>
         </div>
 
-        <!-- Consultation Notes -->
+        <!-- Client Booking Concern & Consultant Observations -->
         <div class="health-card mt-4">
-            <h4 class="text-md font-semibold mb-3 text-gray-800">Consultation Notes</h4>
+            {% if appointment.notes %}
+            <div class="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                <div class="flex items-center gap-1.5 text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1">
+                    <i data-lucide="help-circle" class="w-3.5 h-3.5"></i> Client's Reason for Consultation
+                </div>
+                <p class="text-sm text-amber-900 whitespace-pre-line">{{ appointment.notes }}</p>
+            </div>
+            {% endif %}
+
+            <h4 class="text-md font-semibold mb-2 text-gray-800 flex items-center gap-2">
+                <i data-lucide="file-text" class="w-4 h-4 text-blue-600"></i> Consultant's Observations
+            </h4>
             <div class="relative">
                 <textarea id="consultation-notes"
                     class="w-full p-4 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[120px] text-sm text-gray-700 resize-y shadow-sm"
-                    placeholder="Type your observations and notes for this session...">{{ appointment.notes or '' }}</textarea>
+                    placeholder="Record your clinical observations, recommendations, and session notes here...">{{ appointment.consultant_observations or '' }}</textarea>
                 <div class="absolute bottom-3 right-3">
                     <button onclick="saveNotes()" id="save-notes-btn"
                         class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm">
-                        <i data-lucide="save" class="w-4 h-4"></i> Save
+                        <i data-lucide="save" class="w-4 h-4"></i> Save Observations
                     </button>
                 </div>
             </div>
@@ -3290,7 +3301,7 @@
             const response = await fetch(`/api/appointments/${APPOINTMENT_ID}/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ notes: notes })
+                body: JSON.stringify({ consultant_observations: notes, notes: notes })
             });
 
             const data = await response.json();

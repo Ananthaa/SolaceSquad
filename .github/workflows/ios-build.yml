@@ -19,12 +19,12 @@ jobs:
 
       - name: Install CocoaPods
         run: |
-          cd ios-wrapper
+          cd ios-app
           pod install
 
       - name: Build for iOS Simulator (Unsigned - Zero Apple Account Required)
         run: |
-          cd ios-wrapper
+          cd ios-app
           xcodebuild build \
             -workspace SolaceSquad.xcworkspace \
             -scheme SolaceSquad \
@@ -39,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SolaceSquad-Simulator-App
-          path: ios-wrapper/build/Build/Products/Debug-iphonesimulator/SolaceSquad.app
+          path: ios-app/build/Build/Products/Debug-iphonesimulator/SolaceSquad.app

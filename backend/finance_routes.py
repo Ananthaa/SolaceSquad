@@ -208,14 +208,18 @@ def _validate_booking(db, user_id: int, consultant_id: int,
       4. User may not double-book themselves
     """
     from datetime import timedelta
-    from models import Appointment
+    from models import Appointment, ConsultantSchedule, ScheduleBreak, ConsultantProfile
 
     BUFFER = 15
 
-    # Rule 2: 24-hour advance for paid consultants.
+    # Get consultant profile and timezone
+    profile = db.query(ConsultantProfile).filter(ConsultantProfile.id == consultant_id).first()
+    accepts_short_notice = bool(getattr(profile, 'accepts_short_notice', False)) if profile else False
+
+    # Rule 2: 24-hour advance for paid consultants (unless flagged for short notice).
     # appt_dt is now UTC (naive). Compare with UTC now.
     is_impersonating = request.session.get("impersonate_user_id") is not None if request else False
-    if is_paid and not is_impersonating:
+    if is_paid and not is_impersonating and not accepts_short_notice:
         now_utc = datetime.utcnow()
         if appt_dt < now_utc + timedelta(hours=24):
             # For the error message, show the earliest time in user's local timezone
@@ -235,14 +239,18 @@ def _validate_booking(db, user_id: int, consultant_id: int,
                 "conflict_type": "advance_booking_required",
                 "earliest_date": earliest_utc.isoformat(),
             }
+    elif is_paid and not is_impersonating and accepts_short_notice:
+        now_utc = datetime.utcnow()
+        if appt_dt < now_utc - timedelta(minutes=5):
+            return {
+                "success":       False,
+                "error":         "Appointment time cannot be in the past. Please select an upcoming slot.",
+                "conflict_type": "past_time_not_allowed",
+            }
 
-    appt_end          = appt_dt + timedelta(minutes=duration)
+    appt_end = appt_dt + timedelta(minutes=duration)
 
     # ── NEW: Working hours & break validation ──────────────────────────────
-    from models import ConsultantSchedule, ScheduleBreak, ConsultantProfile
-
-    # Get consultant's timezone to interpret their schedule (defaults to Asia/Kolkata)
-    profile = db.query(ConsultantProfile).filter(ConsultantProfile.id == consultant_id).first()
     cons_tz = "Asia/Kolkata"
     if profile and profile.user and profile.user.timezone and profile.user.timezone != "UTC":
         cons_tz = profile.user.timezone
@@ -345,7 +353,7 @@ def _validate_booking(db, user_id: int, consultant_id: int,
             db.query(Appointment)
             .filter(
                 Appointment.consultant_id    == consultant_id,
-                Appointment.status           == "scheduled",
+                Appointment.status.in_(["scheduled", "in_progress", "confirmed"]),
                 Appointment.appointment_date >= wide_start,
                 Appointment.appointment_date <  wide_end,
             )
@@ -355,10 +363,21 @@ def _validate_booking(db, user_id: int, consultant_id: int,
     except Exception:
         consultant_appts = db.query(Appointment).filter(
             Appointment.consultant_id    == consultant_id,
-            Appointment.status           == "scheduled",
+            Appointment.status.in_(["scheduled", "in_progress", "confirmed"]),
             Appointment.appointment_date >= wide_start,
             Appointment.appointment_date <  wide_end,
         ).all()
+
+    from models import QuickConsultation
+    consultant_qcs = db.query(QuickConsultation).filter(
+        QuickConsultation.consultant_id == consultant_id,
+        or_(
+            QuickConsultation.payment_status.in_(["paid", "completed"]),
+            QuickConsultation.call_status.in_(["scheduled", "initiated", "in_progress"]),
+        ),
+        QuickConsultation.appointment_date >= wide_start,
+        QuickConsultation.appointment_date <  wide_end,
+    ).all()
 
     conflict_end = None
     for c in consultant_appts:
@@ -370,6 +389,16 @@ def _validate_booking(db, user_id: int, consultant_id: int,
         if max(c_block_s, new_blocked_start) < min(c_block_e, new_blocked_end):
             if conflict_end is None or c_block_e > conflict_end:
                 conflict_end = c_block_e
+
+    for q in consultant_qcs:
+        q_dur   = q.duration_minutes or 30
+        q_start = q.appointment_date.replace(tzinfo=None) if getattr(q.appointment_date, "tzinfo", None) else q.appointment_date
+        q_end   = q_start + timedelta(minutes=q_dur)
+        q_block_s = q_start - timedelta(minutes=BUFFER)
+        q_block_e = q_end   + timedelta(minutes=BUFFER)
+        if max(q_block_s, new_blocked_start) < min(q_block_e, new_blocked_end):
+            if conflict_end is None or q_block_e > conflict_end:
+                conflict_end = q_block_e
 
     if conflict_end is not None:
         # Try to find the next free slot
@@ -519,6 +548,9 @@ def log_consultant_earning(
     discount_amount: float = 0.0,
     discount_pct: float = 0.0,
     standard_fee_pct: float = None,  # If provided, platform fee is calculated as (gross_amount - taxes) * standard_fee_pct
+    is_approved: bool = False,
+    approved_by_user_id: int = None,
+    approved_at = None,
 ) -> "ConsultantEarning":
     """Create a ConsultantEarning row after a consultation payment."""
     from models import ConsultantEarning
@@ -548,6 +580,9 @@ def log_consultant_earning(
         taxes                  = taxes,
         discount_amount        = discount_amount,
         discount_pct           = discount_pct,
+        is_approved            = is_approved,
+        approved_by_user_id    = approved_by_user_id,
+        approved_at            = approved_at,
     )
     db.add(earning)
     db.commit()
@@ -750,6 +785,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         notes: str = Form(""),
         consent_to_record: str = Form("false"),
         consent_to_share_data: str = Form("false"),
+        admin_booking_type: str = Form("free"),
         db: Session = Depends(get_db),
     ):
         """Create a Razorpay order for a consultation booking."""
@@ -792,6 +828,77 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             return JSONResponse(err, status_code=200)  # structured error for UI
 
         fee = profile.consultation_fee or 0.0
+
+        if is_admin_booking and admin_booking_type == "paid":
+            # Admin booked as Paid consultation — book directly, generate unapproved earning
+            from models import Appointment, User
+            appt = Appointment(
+                user_id          = uid,
+                consultant_id    = consultant_id,
+                appointment_date = appt_dt,
+                duration_minutes = eff_duration,
+                notes            = notes,
+                consent_to_record = consent_to_record.lower() == "true",
+                consent_to_share_data = consent_to_share_data.lower() == "true",
+                status           = "scheduled",
+            )
+            db.add(appt)
+            db.flush()
+
+            base_fee = profile.consultation_fee or 500.0
+            payout_rate = profile.consultant_payout or base_fee
+            gross_val = round(base_fee * (eff_duration / 60.0), 2)
+            payout_val = round(payout_rate * (eff_duration / 60.0), 2)
+            taxes_val = round(gross_val - (gross_val / 1.18), 2)
+
+            log_consultant_earning(
+                db                     = db,
+                consultant_user_id     = profile.user_id,
+                appointment_id         = appt.id,
+                payment_transaction_id = None,
+                gross_amount           = gross_val,
+                payout_amount          = payout_val,
+                taxes                  = taxes_val,
+                discount_amount        = 0.0,
+                discount_pct           = 0.0,
+                is_approved            = False,
+            )
+            db.commit()
+            db.refresh(appt)
+
+            # Confirmation emails
+            try:
+                from sendgrid_email import send_appointment_email
+                user = db.query(User).filter(User.id == uid).first()
+                user_email       = user.email if user else ""
+                user_name        = user.name if user else "User"
+                consultant_email = profile.user.email if profile and profile.user else ""
+                consultant_name  = profile.user.name if profile and profile.user else "Consultant"
+                admin_email = "admin@solacesquad.com"
+                shared_kwargs = dict(
+                    action="booked", appointment_id=appt.id,
+                    user_name=user_name, consultant_name=consultant_name,
+                    appointment_date=appt_dt, duration_minutes=eff_duration,
+                    notes=notes,
+                    organiser_email=user_email, organiser_name=user_name,
+                    attendee_emails=[e for e in [user_email, consultant_email, admin_email] if e],
+                    admin_booked=is_admin_booking,
+                )
+                if user_email:
+                    send_appointment_email(to_email=user_email, to_name=user_name, **shared_kwargs)
+                if consultant_email:
+                    send_appointment_email(to_email=consultant_email, to_name=consultant_name, **shared_kwargs)
+                send_appointment_email(to_email=admin_email, to_name="SolaceSquad Admin", **shared_kwargs)
+            except Exception as mail_err:
+                print(f"[Appointment email confirmation - Admin Paid] non-fatal error: {mail_err}")
+
+            return JSONResponse({
+                "success": True,
+                "free": True,
+                "appointment_id": appt.id,
+                "redirect": "/app/consultants?booked=1",
+            })
+
         if fee <= 0 or is_admin_booking:
             # Free consultation — book directly, no payment
             from models import Appointment, User
@@ -1328,7 +1435,8 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         else:
             mode = "test"
 
-        q = db.query(PaymentTransaction, User).join(User, PaymentTransaction.user_id == User.id)
+        from models import QuickConsultation
+        q = db.query(PaymentTransaction, User).outerjoin(User, PaymentTransaction.user_id == User.id)
 
         if txn_type:
             q = q.filter(PaymentTransaction.transaction_type == txn_type)
@@ -1352,6 +1460,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 User.email.ilike(f"%{search}%"),
                 PaymentTransaction.invoice_number.ilike(f"%{search}%"),
                 PaymentTransaction.razorpay_payment_id.ilike(f"%{search}%"),
+                PaymentTransaction.description.ilike(f"%{search}%"),
             ))
         try:
             if mode == "live":
@@ -1364,7 +1473,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         except Exception as _qe:
             # is_test column may not exist yet — fall back to unfiltered query
             print(f"[FINANCE] is_test filter failed ({_qe}), falling back to unfiltered query")
-            q2 = db.query(PaymentTransaction, User).join(User, PaymentTransaction.user_id == User.id)
+            q2 = db.query(PaymentTransaction, User).outerjoin(User, PaymentTransaction.user_id == User.id)
             if txn_type:
                 q2 = q2.filter(PaymentTransaction.transaction_type == txn_type)
             if status:
@@ -1372,32 +1481,44 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             total = q2.count()
             rows  = q2.order_by(desc(PaymentTransaction.created_at)).offset((page - 1) * per_page).limit(per_page).all()
 
+        transactions_list = []
+        for t, u in rows:
+            if u:
+                uname = u.name
+                uemail = u.email
+            elif t.related_entity_type == "quick_consultation" and t.related_entity_id:
+                qc = db.query(QuickConsultation).filter(QuickConsultation.id == t.related_entity_id).first()
+                uname = f"Quick Consult ({qc.qc_id})" if qc else "Quick Consult"
+                uemail = qc.phone_number if qc else "Guest User"
+            else:
+                uname = "Guest User"
+                uemail = "N/A"
+
+            transactions_list.append({
+                "id":                   t.id,
+                "invoice_number":       t.invoice_number,
+                "user_id":              t.user_id,
+                "user_name":            uname,
+                "user_email":           uemail,
+                "transaction_type":     t.transaction_type,
+                "amount":               t.amount,
+                "currency":             t.currency,
+                "status":               t.status,
+                "description":          t.description,
+                "razorpay_order_id":    t.razorpay_order_id,
+                "razorpay_payment_id":  t.razorpay_payment_id,
+                "related_entity_type":  t.related_entity_type,
+                "related_entity_id":    t.related_entity_id,
+                "refunded_at":          t.refunded_at.isoformat() if t.refunded_at else None,
+                "created_at":           t.created_at.isoformat(),
+                "is_test":              bool(getattr(t, 'is_test', False)),
+            })
+
         return {
             "total": total,
             "page": page,
             "per_page": per_page,
-            "transactions": [
-                {
-                    "id":                   t.id,
-                    "invoice_number":       t.invoice_number,
-                    "user_id":              t.user_id,
-                    "user_name":            u.name,
-                    "user_email":           u.email,
-                    "transaction_type":     t.transaction_type,
-                    "amount":               t.amount,
-                    "currency":             t.currency,
-                    "status":               t.status,
-                    "description":          t.description,
-                    "razorpay_order_id":    t.razorpay_order_id,
-                    "razorpay_payment_id":  t.razorpay_payment_id,
-                    "related_entity_type":  t.related_entity_type,
-                    "related_entity_id":    t.related_entity_id,
-                    "refunded_at":          t.refunded_at.isoformat() if t.refunded_at else None,
-                    "created_at":           t.created_at.isoformat(),
-                    "is_test":              bool(getattr(t, 'is_test', False)),
-                }
-                for t, u in rows
-            ],
+            "transactions": transactions_list,
         }
 
     @app.get("/api/admin/finance/consultant/{consultant_user_id}/earnings")
@@ -1528,9 +1649,9 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             earnings_list.append({
                 "id":               e.id,
                 "appointment_id":   e.appointment_id,
-                "appointment_date": appt.appointment_date.isoformat() if appt else (e.event_workshop.event_date.isoformat() if e.event_workshop else None),
-                "client_name":      client.name if client else (f"Event: {e.event_workshop.title}" if e.event_workshop else "Unknown"),
-                "fee_tag":          "consultation fee" if e.appointment_id else (f"{e.event_workshop.event_mode} {'webinar' if e.event_workshop.type == 'event' else e.event_workshop.type} fee" if e.event_workshop else "financial entry"),
+                "appointment_date": appt.appointment_date.isoformat() if appt else (e.quick_consultation.appointment_date.isoformat() if getattr(e, 'quick_consultation', None) else (e.event_workshop.event_date.isoformat() if e.event_workshop else None)),
+                "client_name":      client.name if client else (f"Quick Consult ({e.quick_consultation.qc_id})" if getattr(e, 'quick_consultation', None) else (f"Event: {e.event_workshop.title}" if e.event_workshop else "Guest User")),
+                "fee_tag":          "consultation fee" if e.appointment_id else ("quick consultation fee" if getattr(e, 'quick_consultation', None) else (f"{e.event_workshop.event_mode} {'webinar' if e.event_workshop.type == 'event' else e.event_workshop.type} fee" if e.event_workshop else "financial entry")),
                 "gross_amount":     round(customer_paid, 2),
                 "taxes":            round(taxes_val, 2),
                 "discount_amount":  round(disc_amt, 2),
@@ -1539,6 +1660,8 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 "platform_fee":     round(platform_fee_val, 2),
                 "consultant_payout":round(payout_val, 2),
                 "payout_status":    e.payout_status,
+                "is_approved":      bool(getattr(e, "is_approved", True)),
+                "approved_at":      e.approved_at.isoformat() if getattr(e, "approved_at", None) else None,
                 "payout_date":      e.payout_date.isoformat() if e.payout_date else None,
                 "payout_reference": e.payout_reference,
                 "admin_notes":      e.admin_notes,
@@ -1672,6 +1795,8 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 COALESCE(ce.consultant_payout, 0)     AS consultant_payout,
                 COALESCE(ce.platform_fee, 0)          AS platform_fee,
                 ce.payout_status,
+                ce.is_approved,
+                ce.approved_at,
                 pt.invoice_number,
                 pt.status         AS txn_status,
                 cs.actual_start   AS call_started,
@@ -1721,7 +1846,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 payout = 0.0
                 payout_status = "on_hold"
 
-            is_free = (gross == 0 and r.invoice_number is None and r.earning_id is None)
+            is_free = (gross == 0 and r.invoice_number is None and (r.earning_id is None or r.payout_status == 'free'))
 
             result.append({
                 "appointment_id":             r.appointment_id,
@@ -1737,6 +1862,9 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 "consultant_email":           r.consultant_email or "",
                 "consultant_specialization":  r.consultant_specialization or "",
                 "is_free":                    is_free,
+                "earning_id":                 r.earning_id,
+                "is_approved":                bool(getattr(r, "is_approved", False)) if r.earning_id else False,
+                "approved_at":                r.approved_at.isoformat() if (r.earning_id and getattr(r, "approved_at", None)) else None,
                 "gross_amount":               gross,
                 "consultant_payout":          payout,
                 "platform_fee":               float(r.platform_fee or 0),
@@ -1747,12 +1875,159 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 "call_duration_sec":          r.call_duration_sec,
             })
 
-
         return {
             "total":    total,
             "page":     page,
             "per_page": per_page,
             "sessions": result,
+        }
+
+    # ── Admin: Approve Consultant Payout ──────────────────────────────────────
+    @app.post("/api/admin/finance/consultant-earnings/{earning_id}/approve")
+    async def admin_approve_consultant_earning(
+        request: Request,
+        earning_id: int,
+        payout_amount: Optional[float] = Form(None),
+        admin_notes: str = Form(""),
+        db: Session = Depends(get_db),
+    ):
+        """Admin approves a consultant payout, optionally updating the payout amount."""
+        _admin_check(request, db)
+        from models import ConsultantEarning, User
+        admin_uid = request.session.get("user_id")
+
+        earning = db.query(ConsultantEarning).filter(ConsultantEarning.id == earning_id).first()
+        if not earning:
+            return JSONResponse({"success": False, "error": "Consultant earning record not found"}, status_code=404)
+
+        if payout_amount is not None:
+            earning.consultant_payout = round(float(payout_amount), 2)
+            # Re-evaluate platform fee if applicable
+            net_gross = max(0.0, (earning.gross_amount or 0.0) - (earning.taxes or 0.0))
+            if net_gross > 0 and (earning.discount_amount or 0) == 0 and (earning.discount_pct or 0) == 0:
+                earning.platform_fee = round(net_gross - earning.consultant_payout, 2)
+                earning.platform_fee_pct = round((earning.platform_fee / net_gross * 100), 2)
+
+        earning.is_approved = True
+        earning.approved_at = datetime.utcnow()
+        earning.approved_by_user_id = admin_uid
+        if admin_notes.strip():
+            if earning.admin_notes:
+                earning.admin_notes += f" | {admin_notes.strip()}"
+            else:
+                earning.admin_notes = admin_notes.strip()
+
+        db.commit()
+        db.refresh(earning)
+
+        consultant = db.query(User).filter(User.id == earning.consultant_user_id).first()
+        return {
+            "success": True,
+            "earning_id": earning.id,
+            "consultant_name": consultant.name if consultant else "",
+            "consultant_payout": earning.consultant_payout,
+            "is_approved": earning.is_approved,
+            "approved_at": earning.approved_at.isoformat() if earning.approved_at else None,
+        }
+
+    # ── Admin: Convert Free Consultation to Paid ──────────────────────────────
+    @app.post("/api/admin/finance/appointments/{appointment_id}/convert-to-paid")
+    async def admin_convert_appointment_to_paid(
+        request: Request,
+        appointment_id: int,
+        gross_amount: float = Form(500.0),
+        consultant_payout: float = Form(500.0),
+        razorpay_payment_id: str = Form(""),
+        admin_notes: str = Form(""),
+        db: Session = Depends(get_db),
+    ):
+        """Admin converts a free consultation into a paid session with consultant earning."""
+        _admin_check(request, db)
+        from models import Appointment, ConsultantProfile, ConsultantEarning, User
+        admin_uid = request.session.get("user_id")
+
+        appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+        if not appt:
+            return JSONResponse({"success": False, "error": "Appointment not found"}, status_code=404)
+
+        profile = db.query(ConsultantProfile).filter(ConsultantProfile.id == appt.consultant_id).first()
+        if not profile:
+            return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
+
+        gross_val = round(float(gross_amount), 2)
+        payout_val = round(float(consultant_payout), 2)
+        taxes_val = round(gross_val - (gross_val / 1.18), 2) if gross_val > 0 else 0.0
+
+        # Optional payment transaction
+        txn = None
+        if gross_val > 0 or razorpay_payment_id.strip():
+            consultant_user = db.query(User).filter(User.id == profile.user_id).first()
+            c_name = consultant_user.name if consultant_user else "Consultant"
+            txn = log_payment_transaction(
+                db=db,
+                user_id=appt.user_id,
+                transaction_type="consultation",
+                amount=gross_val,
+                status="completed",
+                razorpay_payment_id=razorpay_payment_id.strip() or None,
+                related_entity_type="appointment",
+                related_entity_id=appt.id,
+                description=f"Consultation with {c_name} (Converted to paid by Admin)",
+            )
+
+        # Existing earning or new
+        earning = db.query(ConsultantEarning).filter(ConsultantEarning.appointment_id == appt.id).first()
+        if not earning:
+            net_gross = max(0.0, gross_val - taxes_val)
+            fee = round(net_gross - payout_val, 2) if net_gross > 0 else 0.0
+            pct = round((fee / net_gross * 100), 2) if net_gross > 0 else 0.0
+
+            earning = ConsultantEarning(
+                consultant_user_id=profile.user_id,
+                appointment_id=appt.id,
+                payment_transaction_id=txn.id if txn else None,
+                gross_amount=gross_val,
+                platform_fee_pct=pct,
+                platform_fee=fee,
+                consultant_payout=payout_val,
+                payout_status="pending",
+                is_test=_is_test_mode(),
+                taxes=taxes_val,
+                discount_amount=0.0,
+                discount_pct=0.0,
+                is_approved=True,
+                approved_at=datetime.utcnow(),
+                approved_by_user_id=admin_uid,
+                admin_notes=admin_notes.strip() or "Converted from free to paid by Admin",
+            )
+            db.add(earning)
+        else:
+            earning.gross_amount = gross_val
+            earning.consultant_payout = payout_val
+            earning.taxes = taxes_val
+            if txn:
+                earning.payment_transaction_id = txn.id
+            earning.payout_status = "pending"
+            earning.is_approved = True
+            earning.approved_at = datetime.utcnow()
+            earning.approved_by_user_id = admin_uid
+            if admin_notes.strip():
+                if earning.admin_notes:
+                    earning.admin_notes += f" | {admin_notes.strip()}"
+                else:
+                    earning.admin_notes = admin_notes.strip()
+
+        db.commit()
+        db.refresh(earning)
+
+        return {
+            "success": True,
+            "earning_id": earning.id,
+            "appointment_id": appt.id,
+            "gross_amount": earning.gross_amount,
+            "consultant_payout": earning.consultant_payout,
+            "is_approved": earning.is_approved,
+            "approved_at": earning.approved_at.isoformat() if earning.approved_at else None,
         }
 
 
@@ -2083,7 +2358,10 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             db.query(ConsultantEarning, Appointment, User)
             .outerjoin(Appointment, ConsultantEarning.appointment_id == Appointment.id)
             .outerjoin(User,        Appointment.user_id == User.id)
-            .filter(ConsultantEarning.consultant_user_id == uid)
+            .filter(
+                ConsultantEarning.consultant_user_id == uid,
+                ConsultantEarning.is_approved == True
+            )
         )
         # Scope to current environment
         if not _is_test_mode():
@@ -2127,7 +2405,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
 
     @app.post("/api/consultant/earnings/request-payout")
     async def consultant_request_payout(request: Request, db: Session = Depends(get_db)):
-        """Consultant self-service payout request � marks pending earnings as 'processing'."""
+        """Consultant self-service payout request – marks pending earnings as 'processing'."""
         uid = request.session.get("user_id")
         if not uid or request.session.get("user_type") != "consultant":
             return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=401)
@@ -2137,6 +2415,7 @@ def register_finance_routes(app: FastAPI, templates: Jinja2Templates, get_db):
 
         filters = [
             ConsultantEarning.consultant_user_id == uid,
+            ConsultantEarning.is_approved == True,
             ConsultantEarning.payout_status == "pending",
             ConsultantEarning.is_test == _is_test_mode(),  # scope to current environment
         ]

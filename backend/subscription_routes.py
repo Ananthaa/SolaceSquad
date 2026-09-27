@@ -489,9 +489,21 @@ def register_subscription_routes(app, templates, get_db):
 
     def _admin_check(request: Request, db: Session):
         uid = request.session.get("user_id")
-        user = db.query(User).filter(User.id == uid).first() if uid else None
-        if not user or user.user_type != "admin":
-            raise HTTPException(status_code=403, detail="Forbidden")
+        if not uid:
+            raise HTTPException(status_code=401, detail="Authentication required. Please log in as admin.")
+        user = db.query(User).filter(User.id == uid).first()
+        admin_email = os.getenv("ADMIN_EMAIL", "admin@solacesquad.com").strip().lower()
+        user_email = (user.email or "").strip().lower() if user else ""
+        session_email = (request.session.get("email") or "").strip().lower()
+        session_role = request.session.get("user_type", "")
+        
+        is_admin = (
+            (user and (user.user_type in ["admin", "admin_assistant"] or getattr(user, "is_admin", False) or user_email == admin_email))
+            or session_role in ["admin", "admin_assistant"]
+            or session_email == admin_email
+        )
+        if not user or not is_admin:
+            raise HTTPException(status_code=403, detail="Admin privileges required. Please log in with an admin account.")
         return user
 
     def _user_check(request: Request, db: Session):
@@ -2830,6 +2842,25 @@ def register_subscription_routes(app, templates, get_db):
     # ── Vouchers System Endpoints ─────────────────────────────────────────────
 
     # Helper function inside closure
+    def _get_voucher_usage_count(db: Session, voucher_code: str) -> int:
+        is_test_env = os.getenv("RAZORPAY_KEY_ID", "").startswith("rzp_test_")
+        sub_count = db.query(UserSubscription).filter(
+            UserSubscription.voucher_code == voucher_code,
+            UserSubscription.status.in_(["active", "paused", "grace", "expired", "cancelled"]),
+            UserSubscription.is_test == is_test_env
+        ).count()
+        topup_count = db.query(FeatureUsageTopUp).filter(
+            FeatureUsageTopUp.voucher_code == voucher_code,
+            FeatureUsageTopUp.status == "paid",
+            FeatureUsageTopUp.is_test == is_test_env
+        ).count()
+        from models import QuickConsultation
+        qc_count = db.query(QuickConsultation).filter(
+            QuickConsultation.voucher_code == voucher_code,
+            QuickConsultation.payment_status == "completed",
+        ).count()
+        return sub_count + topup_count + qc_count
+
     def _validate_voucher_internal(db: Session, uid: int, code: str, applies_type: str, target_id, current_price: float):
         code = (code or "").strip().upper()
         if not code:
@@ -2845,6 +2876,12 @@ def register_subscription_routes(app, templates, get_db):
         if voucher.valid_until and datetime.utcnow() > voucher.valid_until:
             return {"valid": False, "error": "Voucher code has expired"}
             
+        # Check overall usage limit
+        if voucher.max_uses is not None:
+            total_used = _get_voucher_usage_count(db, voucher.code)
+            if total_used >= voucher.max_uses:
+                return {"valid": False, "error": f"Voucher usage limit reached (Max {voucher.max_uses} uses)"}
+
         # Check assigned user emails
         if voucher.assigned_user_emails:
             user = db.query(User).filter(User.id == uid).first()
@@ -2873,11 +2910,17 @@ def register_subscription_routes(app, templates, get_db):
             
         # Check applicability
         if voucher.applies_to == "plan":
-            if applies_type != "plan" or str(voucher.applies_to_id) != str(target_id):
+            if applies_type != "plan":
                 return {"valid": False, "error": "This voucher is not applicable to the selected plan"}
+            if voucher.applies_to_id and str(voucher.applies_to_id).strip() and str(voucher.applies_to_id).upper() not in ("ALL", ""):
+                if str(voucher.applies_to_id) != str(target_id):
+                    return {"valid": False, "error": "This voucher is not applicable to the selected plan"}
         elif voucher.applies_to == "package":
-            if applies_type != "package" or str(voucher.applies_to_id).upper() != str(target_id).upper():
+            if applies_type != "package":
                 return {"valid": False, "error": "This voucher is not applicable to the selected package"}
+            if voucher.applies_to_id and str(voucher.applies_to_id).strip() and str(voucher.applies_to_id).upper() not in ("ALL", ""):
+                if str(voucher.applies_to_id).upper() != str(target_id).upper():
+                    return {"valid": False, "error": "This voucher is not applicable to the selected package"}
                 
         # Calculate discount
         if voucher.discount_type == "percentage":
@@ -2899,24 +2942,25 @@ def register_subscription_routes(app, templates, get_db):
     async def admin_vouchers_page(request: Request, db: Session = Depends(get_db)):
         user = _admin_check(request, db)
         vouchers = db.query(Voucher).order_by(Voucher.created_at.desc()).all()
-        # Pre-calculate usage counts and expiration status
-        is_test_env = os.getenv("RAZORPAY_KEY_ID", "").startswith("rzp_test_")
+        # Pre-calculate usage counts, exhausted status, and expiration status
         now_utc = datetime.utcnow()
         for v in vouchers:
-            v.is_expired = v.valid_until and v.valid_until < now_utc
-            sub_count = db.query(UserSubscription).filter(
-                UserSubscription.voucher_code == v.code,
-                UserSubscription.status == 'active',
-                UserSubscription.is_test == is_test_env
-            ).count()
-            topup_count = db.query(FeatureUsageTopUp).filter(
-                FeatureUsageTopUp.voucher_code == v.code,
-                FeatureUsageTopUp.status == 'paid',
-                FeatureUsageTopUp.is_test == is_test_env
-            ).count()
-            v.usage_count = sub_count + topup_count
+            v.is_expired = bool(v.valid_until and v.valid_until < now_utc)
+            v.usage_count = _get_voucher_usage_count(db, v.code)
+            v.is_exhausted = bool(v.max_uses is not None and v.usage_count >= v.max_uses)
 
         active_plans = db.query(UsagePlan).filter(UsagePlan.is_active == True).all()
+        from models import ConsultantProfile, User
+        consultants = (
+            db.query(ConsultantProfile)
+            .join(User, ConsultantProfile.user_id == User.id)
+            .filter(
+                User.is_active == True,
+                ConsultantProfile.is_approved == True,
+            )
+            .order_by(ConsultantProfile.full_name.asc(), User.name.asc())
+            .all()
+        )
 
         return templates.TemplateResponse(
             "pages/admin_vouchers.html",
@@ -2927,6 +2971,7 @@ def register_subscription_routes(app, templates, get_db):
                 "user_type": "admin",
                 "vouchers": vouchers,
                 "active_plans": active_plans,
+                "consultants": consultants,
                 "active_page": "vouchers",
             }
         )
@@ -2954,11 +2999,11 @@ def register_subscription_routes(app, templates, get_db):
             return JSONResponse({"success": False, "error": "Invalid discount value"}, status_code=400)
             
         applies_to = data.get("applies_to") or "all"
-        if applies_to not in ["all", "plan", "package"]:
+        if applies_to not in ["all", "plan", "package", "quick_consultation", "quick_consult"]:
             return JSONResponse({"success": False, "error": "Invalid applies_to value"}, status_code=400)
             
         applies_to_id = data.get("applies_to_id")
-        if applies_to != "all" and not applies_to_id:
+        if applies_to in ["plan", "package"] and not applies_to_id:
             return JSONResponse({"success": False, "error": "applies_to_id is required for specific target"}, status_code=400)
             
         assigned_user_emails = data.get("assigned_user_emails") or None
@@ -2973,6 +3018,18 @@ def register_subscription_routes(app, templates, get_db):
                     valid_until = datetime.strptime(valid_until_str, "%Y-%m-%d")
             except Exception:
                 return JSONResponse({"success": False, "error": "Invalid expiration date format"}, status_code=400)
+
+        # max_uses (None indicates unlimited)
+        max_uses_val = data.get("max_uses")
+        max_uses = None
+        if max_uses_val is not None and str(max_uses_val).strip() != "":
+            try:
+                parsed_max = int(max_uses_val)
+                if parsed_max < 1:
+                    return JSONResponse({"success": False, "error": "Usage limit must be at least 1 (or leave blank for unlimited)"}, status_code=400)
+                max_uses = parsed_max
+            except (ValueError, TypeError):
+                return JSONResponse({"success": False, "error": "Invalid usage limit value"}, status_code=400)
                 
         is_active = bool(data.get("is_active", True))
         
@@ -2984,6 +3041,7 @@ def register_subscription_routes(app, templates, get_db):
             applies_to_id=str(applies_to_id) if applies_to_id else None,
             assigned_user_emails=assigned_user_emails,
             valid_until=valid_until,
+            max_uses=max_uses,
             is_active=is_active
         )
         db.add(voucher)
@@ -3098,6 +3156,30 @@ def register_subscription_routes(app, templates, get_db):
             })
             total_discount += discount
 
+        # 3. Fetch Quick Consultations
+        from models import QuickConsultation
+        qcs = db.query(QuickConsultation).filter(
+            QuickConsultation.voucher_code == voucher.code,
+            QuickConsultation.payment_status == "completed",
+        ).order_by(QuickConsultation.created_at.desc()).all()
+
+        for q in qcs:
+            orig_p = float(q.base_amount or 400.0)
+            disc = float(q.discount_amount or 0.0)
+            fin_p = float(q.amount_paid or 0.0)
+            usages.append({
+                "date": q.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                "date_only": q.created_at.strftime("%Y-%m-%d"),
+                "user_email": q.email or "Quick Consult Guest",
+                "user_name": q.user_name or "Guest Client",
+                "item_name": f"Quick Consult ({q.consultant_name or 'Specialist'})",
+                "original_price": orig_p,
+                "discount_amount": disc,
+                "final_price": fin_p,
+                "type": "Quick Consult"
+            })
+            total_discount += disc
+
         # Sort all usages by date descending
         usages.sort(key=lambda x: x["date"], reverse=True)
         
@@ -3118,6 +3200,8 @@ def register_subscription_routes(app, templates, get_db):
         return JSONResponse({
             "success": True,
             "voucher_code": voucher.code,
+            "max_uses": voucher.max_uses,
+            "is_exhausted": bool(voucher.max_uses is not None and len(usages) >= voucher.max_uses),
             "total_uses": len(usages),
             "total_discount": round(total_discount, 2),
             "usages": usages,

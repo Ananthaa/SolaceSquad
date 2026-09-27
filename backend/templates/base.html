@@ -57,7 +57,28 @@
       /* Layout protection — prevents horizontal overflow flash */
       html, body { overflow-x: hidden; box-sizing: border-box; }
       *, *::before, *::after { box-sizing: inherit; }
+
+      /* Mobile App Shell Enhancements */
+      .is-mobile-app .hdr-desktop-nav,
+      .is-mobile-app .hdr-desktop-auth,
+      .is-mobile-app .hdr-mobile-menu,
+      .is-mobile-app footer.bg-gray-900 {
+        display: none !important;
+      }
+      .is-mobile-app {
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+      }
     </style>
+    <script>
+      (function() {
+        if (window.AndroidBridge !== undefined || window.iOSBridge !== undefined || /SolaceSquadApp/i.test(navigator.userAgent)) {
+          document.documentElement.classList.add('is-mobile-app');
+          window.isMobileApp = true;
+        }
+      })();
+    </script>
 
     <!-- ═══ Tailwind CSS: compiled static file — preloaded for earliest possible paint ═══ -->
     <!-- Built at Docker build-time via Tailwind CLI — covers all static classes + safelisted dynamic classes -->

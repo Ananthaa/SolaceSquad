@@ -1,0 +1,1594 @@
+{% extends "base.html" %}
+
+{% block title %}Quick Consultation — Speak to a Certified Wellness Expert in 30 Mins | SolaceSquad{% endblock %}
+{% block meta_desc %}Book an instant 30-minute online consultation with verified psychologists, nutritionists, and wellness experts on SolaceSquad. No registration required.{% endblock %}
+
+{% block content %}
+<!-- ══ Razorpay Checkout SDK ══ -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<style>
+  :root {
+    --qc-teal-primary: #1e4d40;
+    --qc-teal-accent: #2d6a5a;
+    --qc-teal-light: #f0fdf4;
+    --qc-emerald: #10b981;
+    --qc-amber: #f59e0b;
+  }
+
+  .qc-hero-bg {
+    background: linear-gradient(135deg, #133930 0%, #1e4d40 45%, #2d6a5a 85%, #059669 100%);
+  }
+
+  .qc-consultant-card {
+    background: #ffffff;
+    border-radius: 1.25rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .qc-consultant-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 36px rgba(30, 77, 64, 0.08);
+    border-color: #cbd5e1;
+  }
+
+  .qc-pulse-badge {
+    animation: qcLivePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes qcLivePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.08); }
+  }
+
+  .qc-category-pill {
+    padding: 0.45rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1.5px solid #e2e8f0;
+    background: #ffffff;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  .qc-category-pill:hover {
+    border-color: #2d6a5a;
+    color: #1e4d40;
+    background: #f0fdf4;
+  }
+
+  .qc-category-pill.active {
+    background: #1e4d40;
+    border-color: #1e4d40;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(30, 77, 64, 0.25);
+  }
+
+  /* Scrollbar hide for category tabs */
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Modal Backdrop */
+  .qc-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @media (max-width: 640px) {
+    .qc-modal-backdrop {
+      padding: env(safe-area-inset-top, 12px) 0.5rem env(safe-area-inset-bottom, 20px) 0.5rem;
+      align-items: flex-start;
+    }
+  }
+
+  /* Prevent iOS Safari auto-zoom on inputs */
+  @media (max-width: 640px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  .qc-modal-backdrop:not(.hidden) {
+    display: flex !important;
+  }
+
+  .qc-modal-backdrop.hidden {
+    display: none !important;
+  }
+
+  .qc-search-box {
+    position: relative;
+    width: 100%;
+    max-width: 640px;
+  }
+
+  .qc-search-input {
+    width: 100%;
+    padding: 0.85rem 2.75rem 0.85rem 3rem;
+    border-radius: 1rem;
+    border: 1.5px solid #e2e8f0;
+    background: #ffffff;
+    color: #1e293b;
+    font-size: 0.95rem;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s ease;
+  }
+
+  .qc-search-input:focus {
+    outline: none;
+    border-color: #2d6a5a;
+    box-shadow: 0 0 0 4px rgba(45, 106, 90, 0.12);
+  }
+
+  .qc-search-input::placeholder {
+    color: #94a3b8;
+    font-weight: 500;
+  }
+</style>
+
+<!-- ══ TOP BRAND NAVBAR ══ -->
+<header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <a href="/" class="app-logo-link flex items-center gap-2.5 group" onclick="if(window.AndroidBridge||window.iOSBridge||/SolaceSquadApp/i.test(navigator.userAgent)){window.location.href='/app-start';return false;}">
+      <img src="/static/images/logo.png" alt="SolaceSquad" class="h-9 sm:h-10 w-auto object-contain" onerror="this.onerror=null;this.src='/static/images/default-avatar.png';">
+    </a>
+    <div class="flex items-center gap-2 sm:gap-4">
+      <span class="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
+        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-600"></i>
+        <span>Certified Wellness Experts</span>
+      </span>
+      <a href="/" class="text-xs sm:text-sm font-bold text-[#1e4d40] hover:text-emerald-700 transition-colors flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-slate-100">
+        <span>Home</span>
+        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="min-h-screen bg-slate-50 pb-24">
+
+  <!-- ══ HERO SECTION ══ -->
+  <section class="qc-hero-bg text-white pt-16 pb-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div class="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-white opacity-5 pointer-events-none"></div>
+    <div class="absolute -left-20 -bottom-20 w-80 h-80 rounded-full bg-emerald-400 opacity-10 pointer-events-none"></div>
+
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+
+      <h1 class="text-3xl sm:text-5xl lg:text-6xl font-display font-extrabold tracking-tight leading-tight text-white mb-4">
+        Speak to a Wellness Expert <span class="text-emerald-300">Right Now</span>
+      </h1>
+      
+      <p class="text-sm sm:text-lg text-teal-50 max-w-2xl mx-auto font-normal leading-relaxed mb-8">
+        No registration required. Browse verified consultants, view their full profile, and connect in a secure 30-minute consultation.
+      </p>
+
+      <!-- Trust Badges -->
+      <div class="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs text-teal-100 font-semibold">
+        <div class="flex items-center gap-1.5 bg-black/20 px-3.5 py-1.5 rounded-full border border-white/15">
+          <i data-lucide="clock" class="w-4 h-4 text-emerald-300"></i>
+          <span>Strictly 30-Min Focused Sessions</span>
+        </div>
+        <div class="flex items-center gap-1.5 bg-black/20 px-3.5 py-1.5 rounded-full border border-white/15">
+          <i data-lucide="shield-check" class="w-4 h-4 text-emerald-300"></i>
+          <span>DPDP Act (2023) Compliant</span>
+        </div>
+        <div class="flex items-center gap-1.5 bg-black/20 px-3.5 py-1.5 rounded-full border border-white/15">
+          <i data-lucide="video" class="w-4 h-4 text-emerald-300"></i>
+          <span>Secure WebRTC Room</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ MAIN SEARCH & FILTER CONTROLS ══ -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-20">
+
+    <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-md border border-slate-200 mb-8 space-y-4">
+      
+      <!-- Top Bar: Search Input (No Keywords Shown) -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div class="qc-search-box flex-1">
+          <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <i data-lucide="search" class="w-5 h-5"></i>
+          </span>
+          <input 
+            type="text" 
+            id="consultantSearchInput"
+            placeholder="Search by consultant name, specialization, city, or concern..." 
+            class="qc-search-input"
+            oninput="handleSearchInput(event)"
+            autocomplete="off"
+          />
+          <button 
+            id="searchClearBtn" 
+            type="button" 
+            onclick="clearSearch()" 
+            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 hidden cursor-pointer"
+          >
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Active Results Count -->
+        <div class="text-xs font-bold text-slate-500 whitespace-nowrap self-start sm:self-auto">
+          <span id="resultsCountBadge" class="px-3 py-1.5 rounded-full bg-slate-100 text-slate-700">Loading experts...</span>
+        </div>
+      </div>
+
+      <!-- Category Filter Tabs -->
+      <div class="flex flex-wrap items-center gap-2 pt-1 pb-1">
+        <button type="button" onclick="filterCategory('all')" id="cat-all" class="qc-category-pill active">
+          All Specialists
+        </button>
+        <button type="button" onclick="filterCategory('Mental')" id="cat-Mental" class="qc-category-pill">
+          🧠 Mental Wellbeing
+        </button>
+        <button type="button" onclick="filterCategory('Physical')" id="cat-Physical" class="qc-category-pill">
+          💪 Physical Wellbeing
+        </button>
+        <button type="button" onclick="filterCategory('Professional')" id="cat-Professional" class="qc-category-pill">
+          🎯 Professional Growth
+        </button>
+        <button type="button" onclick="filterCategory('Sexual')" id="cat-Sexual" class="qc-category-pill">
+          <img src="/static/images/sexual_wellness_32.png" alt="" class="w-4 h-4 object-contain inline-block">
+          <span>Sexual Wellness</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ══ CONSULTANTS CARDS GRID ══ -->
+    <div id="consultantsGrid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Loading Skeletons -->
+      <div class="qc-consultant-card p-6 animate-pulse">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-16 h-16 rounded-2xl bg-slate-200"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-4 bg-slate-200 rounded w-3/4"></div>
+            <div class="h-3 bg-slate-200 rounded w-1/2"></div>
+          </div>
+        </div>
+        <div class="h-16 bg-slate-100 rounded-xl mb-4"></div>
+        <div class="h-10 bg-slate-200 rounded-xl"></div>
+      </div>
+      <div class="qc-consultant-card p-6 animate-pulse">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-16 h-16 rounded-2xl bg-slate-200"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-4 bg-slate-200 rounded w-3/4"></div>
+            <div class="h-3 bg-slate-200 rounded w-1/2"></div>
+          </div>
+        </div>
+        <div class="h-16 bg-slate-100 rounded-xl mb-4"></div>
+        <div class="h-10 bg-slate-200 rounded-xl"></div>
+      </div>
+      <div class="qc-consultant-card p-6 animate-pulse">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-16 h-16 rounded-2xl bg-slate-200"></div>
+          <div class="flex-1 space-y-2">
+            <div class="h-4 bg-slate-200 rounded w-3/4"></div>
+            <div class="h-3 bg-slate-200 rounded w-1/2"></div>
+          </div>
+        </div>
+        <div class="h-16 bg-slate-100 rounded-xl mb-4"></div>
+        <div class="h-10 bg-slate-200 rounded-xl"></div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="noConsultantsState" class="hidden text-center py-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+      <div class="w-16 h-16 rounded-full bg-teal-50 text-[#1e4d40] flex items-center justify-center mx-auto mb-4">
+        <i data-lucide="search-x" class="w-8 h-8"></i>
+      </div>
+      <h3 class="text-lg font-bold text-slate-800 mb-1">No matching consultants found</h3>
+      <p class="text-sm text-slate-500 max-w-md mx-auto mb-5">
+        Try adjusting your search terms or select "All Specialists" to see all available wellness experts.
+      </p>
+      <button onclick="clearSearch(); filterCategory('all')" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#1e4d40] text-white text-xs font-bold hover:bg-[#133930] transition-colors cursor-pointer">
+        <span>Reset Search & Filters</span>
+      </button>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══ 1. CONSULTANT PROFILE MODAL ══ -->
+<div id="profileModal" class="qc-modal-backdrop hidden">
+  <div class="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-7 max-w-xl w-full shadow-2xl border border-slate-100 relative max-h-[92vh] my-auto overflow-y-auto">
+    
+    <!-- Brand Header & Close Button -->
+    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+      <div class="flex items-center gap-2">
+        <img src="/static/images/logo.png" alt="SolaceSquad" class="h-7 w-auto object-contain" onerror="this.onerror=null;this.src='/static/images/default-avatar.png';">
+      </div>
+      <button type="button" onclick="closeProfileModal()" class="text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-colors cursor-pointer">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Profile Header -->
+    <div class="flex items-start gap-3.5 pb-4 border-b border-slate-100 mb-4">
+      <img id="profilePhoto" src="/static/images/default-avatar.png" alt="Consultant" class="w-16 sm:w-20 h-16 sm:h-20 rounded-2xl object-cover border-2 border-teal-500/20 shadow-sm flex-shrink-0" onerror="this.onerror=null;this.src='/static/images/default-avatar.png';">
+      <div class="min-w-0 flex-1">
+        <h2 id="profileName" class="text-xl font-extrabold text-slate-900 leading-tight">Consultant Name</h2>
+        <p id="profileSpecialization" class="text-xs font-bold text-[#2d6a5a] mt-0.5">Specialization</p>
+        
+        <!-- Rating & Experience -->
+        <div class="flex items-center gap-3 mt-2 text-xs font-semibold text-slate-600">
+          <div class="flex items-center gap-1 text-amber-500">
+            <i data-lucide="star" class="w-3.5 h-3.5 fill-amber-400 text-amber-400"></i>
+            <span id="profileRating" class="font-extrabold text-slate-800">4.9</span>
+          </div>
+          <span class="text-slate-300">•</span>
+          <div class="flex items-center gap-1">
+            <i data-lucide="briefcase" class="w-3.5 h-3.5 text-slate-400"></i>
+            <span id="profileExp">5+ Years Exp</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bio / About Section -->
+    <div class="mb-5">
+      <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-2">About the Consultant</h3>
+      <p id="profileBio" class="text-xs sm:text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
+        Bio information goes here...
+      </p>
+    </div>
+
+    <!-- Education & Qualifications -->
+    <div class="grid sm:grid-cols-2 gap-3 mb-5">
+      <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+        <h4 class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Education / Degree</h4>
+        <p id="profileEducation" class="text-xs font-bold text-slate-800">Degree info</p>
+      </div>
+      <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+        <h4 class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Languages Spoken</h4>
+        <p id="profileLanguages" class="text-xs font-bold text-slate-800">English, Hindi</p>
+      </div>
+    </div>
+
+    <!-- Focus Areas Tags -->
+    <div class="mb-6">
+      <h4 class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">Wellness & Focus Areas</h4>
+      <div id="profileFocusAreas" class="flex flex-wrap gap-1.5"></div>
+    </div>
+
+    <!-- 30-Min Fee & Book CTA -->
+    <div class="pt-4 border-t border-slate-100 flex items-center justify-between gap-4">
+      <div>
+        <span class="text-[11px] font-bold text-slate-400 block uppercase">30-Min Consultation Fee</span>
+        <span id="profilePriceTotal" class="text-lg font-black text-[#1e4d40]">₹400 <span class="text-[11px] font-medium text-slate-500">(+ 18% GST)</span></span>
+      </div>
+      <button 
+        id="profileBookBtn" 
+        onclick="openBookingFromProfile()" 
+        class="py-3 px-6 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-extrabold text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
+      >
+        <i data-lucide="zap" class="w-4 h-4 text-emerald-300"></i>
+        <span>Book 30-Min Consultation</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ 2. 30-MINUTE BOOKING & PAYMENT MODAL ══ -->
+<div id="bookingModal" class="qc-modal-backdrop hidden">
+  <div class="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 relative max-h-[92vh] my-auto overflow-y-auto">
+    
+    <!-- Brand Header & Close Button -->
+    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+      <div class="flex items-center gap-2">
+        <img src="/static/images/logo.png" alt="SolaceSquad" class="h-7 w-auto object-contain" onerror="this.onerror=null;this.src='/static/images/default-avatar.png';">
+        <span class="text-[10px] font-extrabold uppercase tracking-wider text-[#1e4d40] bg-teal-50 px-2 py-0.5 rounded border border-teal-200/60">Quick Consult</span>
+      </div>
+      <button type="button" onclick="closeBookingModal()" class="text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-colors cursor-pointer">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Consultant Mini Profile -->
+    <div class="flex items-center gap-3 pb-3.5 border-b border-slate-100 mb-4">
+      <img id="modalConsultantImg" src="/static/images/default-avatar.png" alt="Consultant" class="w-12 sm:w-14 h-12 sm:h-14 rounded-2xl object-cover border-2 border-teal-500/20 shadow-sm flex-shrink-0" onerror="this.onerror=null;this.src='/static/images/default-avatar.png';">
+      <div class="min-w-0 flex-1">
+        <span class="inline-flex items-center gap-1 text-[10px] font-extrabold text-[#1e4d40] uppercase tracking-wider bg-teal-50 px-2 py-0.5 rounded-md mb-0.5 border border-teal-200/60">
+          ⚡ 30-Min Quick Consult
+        </span>
+        <h3 id="modalConsultantName" class="text-base font-extrabold text-slate-900 leading-tight truncate">Consultant Name</h3>
+        <p id="modalConsultantSpec" class="text-xs text-slate-500 font-medium truncate">Specialization</p>
+      </div>
+    </div>
+
+    <!-- Booking Form -->
+    <form id="quickConsultForm" onsubmit="handleQuickBookingSubmit(event)" class="space-y-3.5">
+      
+      <!-- Field 1: User Mobile Number with OTP Verification -->
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+            Your Mobile Number <span class="text-red-500">*</span>
+          </label>
+          <span id="phoneVerifiedBadge" class="hidden text-[10px] font-extrabold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <i data-lucide="check-circle" class="w-3 h-3 text-emerald-600"></i>
+            <span>Verified</span>
+          </span>
+        </div>
+
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 font-bold text-xs sm:text-sm">
+              🇮🇳 +91
+            </div>
+            <input 
+              type="tel" 
+              id="userPhoneNumber" 
+              required 
+              maxlength="10" 
+              pattern="[0-9]{10}"
+              placeholder="9876543210" 
+              oninput="handlePhoneInput(this)"
+              class="w-full pl-16 pr-3 py-2.5 sm:py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-[#1e4d40] focus:border-[#1e4d40] text-slate-900 font-bold text-sm tracking-wide shadow-sm"
+            />
+          </div>
+          <button 
+            type="button" 
+            id="sendOtpBtn" 
+            onclick="sendPhoneOtp()" 
+            class="px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-extrabold text-xs transition-colors flex items-center justify-center gap-1 whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            <span>Get OTP</span>
+          </button>
+          <button 
+            type="button" 
+            id="changePhoneBtn" 
+            onclick="resetPhoneVerification()" 
+            class="hidden px-3 py-2.5 sm:py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors whitespace-nowrap cursor-pointer border border-slate-200"
+          >
+            Change
+          </button>
+        </div>
+        <p id="phoneHelpText" class="text-[11px] text-slate-400 mt-1">We'll send a 6-digit OTP code to verify your mobile number.</p>
+
+        <!-- OTP Verification Sub-panel -->
+        <div id="otpContainer" class="hidden mt-2 p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-2">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-bold text-slate-700">Enter 6-Digit OTP:</span>
+            <span id="otpTimerText" class="text-[11px] font-semibold text-slate-500"></span>
+          </div>
+          <div class="flex gap-2">
+            <input 
+              type="text" 
+              id="otpCodeInput" 
+              maxlength="6" 
+              inputmode="numeric" 
+              pattern="[0-9]{6}" 
+              placeholder="• • • • • •"
+              autocomplete="one-time-code"
+              class="flex-1 px-3 py-2 rounded-lg border border-slate-300 text-center font-mono font-black text-base tracking-widest text-slate-900 bg-white focus:ring-2 focus:ring-[#1e4d40] focus:border-[#1e4d40]"
+            />
+            <button 
+              type="button" 
+              id="verifyOtpBtn" 
+              onclick="verifyPhoneOtp()" 
+              class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition-colors cursor-pointer flex items-center gap-1 shadow-sm"
+            >
+              <span>Verify</span>
+            </button>
+          </div>
+          <div id="otpStatusMsg" class="hidden text-[11px] font-semibold"></div>
+        </div>
+      </div>
+
+      <!-- Field 2: Appointment Time Slot -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+          Select Appointment Slot (Today) <span class="text-red-500">*</span>
+        </label>
+        <select id="modalSlotSelect" required class="w-full px-3.5 py-3 rounded-xl border border-slate-300 text-slate-800 font-bold text-xs focus:ring-2 focus:ring-[#1e4d40] focus:border-[#1e4d40]">
+          <option value="">Choose 30-min slot...</option>
+        </select>
+      </div>
+
+      <!-- Field 3: Voucher / 100% Free Reschedule Code -->
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+            Have a Voucher or Reschedule Code?
+          </label>
+          <span id="voucherAppliedTag" class="hidden text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+            ✓ Applied
+          </span>
+        </div>
+        <div class="flex gap-2">
+          <input 
+            type="text" 
+            id="voucherCodeInput" 
+            placeholder="e.g. FREE-A8K9X" 
+            class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 uppercase font-mono font-bold text-xs tracking-wider focus:ring-2 focus:ring-[#1e4d40] focus:border-[#1e4d40]"
+          />
+          <button 
+            type="button" 
+            id="applyVoucherBtn" 
+            onclick="applyVoucherCode()" 
+            class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            <span>Apply</span>
+          </button>
+        </div>
+        <div id="voucherMessage" class="hidden text-[11px] mt-1.5 font-semibold"></div>
+      </div>
+
+      <!-- 30-Min Price Breakdown Box -->
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs space-y-1.5">
+        <div class="flex justify-between text-slate-600">
+          <span>30-Min Consultation Fee:</span>
+          <span id="breakdownBase">₹300.00</span>
+        </div>
+        <div class="flex justify-between text-slate-600">
+          <span>Priority Surcharge:</span>
+          <span id="breakdownSurcharge">₹100.00</span>
+        </div>
+        <div class="flex justify-between font-semibold text-slate-800 border-t border-dashed border-slate-200 pt-1">
+          <span>Subtotal (excl. GST):</span>
+          <span id="breakdownSubtotal">₹400.00</span>
+        </div>
+        <div class="flex justify-between text-slate-600">
+          <span>GST (18%):</span>
+          <span id="breakdownGST">₹72.00</span>
+        </div>
+        <div id="breakdownDiscountRow" class="hidden justify-between text-emerald-700 font-bold bg-emerald-50/80 -mx-1 px-1 py-0.5 rounded">
+          <span>Voucher Discount (<span id="breakdownVoucherCode">CODE</span>):</span>
+          <span id="breakdownDiscount">-₹0.00</span>
+        </div>
+        <div class="border-t border-slate-200 pt-2 flex justify-between font-extrabold text-slate-900 text-sm">
+          <span>Total Amount Payable:</span>
+          <span id="breakdownTotal" class="text-[#1e4d40] text-base font-black">₹472.00</span>
+        </div>
+      </div>
+
+      <!-- DPDP Act (2023) Consent -->
+      <div class="pt-1">
+        <label class="flex items-start gap-2.5 cursor-pointer select-none">
+          <input type="checkbox" id="dpdpConsentCheckbox" required class="mt-0.5 w-4 h-4 rounded text-[#1e4d40] focus:ring-[#1e4d40] border-slate-300">
+          <span class="text-[11px] text-slate-600 leading-snug">
+            I consent to SolaceSquad processing my mobile number for this 30-minute consultation and sending SMS alerts in accordance with the <strong>DPDP Act, 2023</strong> and <a href="/privacy" target="_blank" class="text-[#1e4d40] underline font-semibold">Privacy Policy</a>.
+          </span>
+        </label>
+      </div>
+
+      <!-- Error Box -->
+      <div id="modalErrorBox" class="hidden p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold"></div>
+
+      <!-- Submit CTA -->
+      <button 
+        type="submit" 
+        id="modalSubmitBtn" 
+        class="w-full py-3.5 px-4 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-extrabold text-sm shadow-md transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <i data-lucide="lock" class="w-4 h-4 text-emerald-300"></i>
+        <span id="submitBtnText">Pay & Confirm (₹472.00)</span>
+      </button>
+
+      <p class="text-[10px] text-center text-slate-400 font-medium">
+        Processed directly via Razorpay. One-time payment, no recurring subscription.
+      </p>
+
+    </form>
+  </div>
+</div>
+
+<!-- ══ 2.5. USER TERMS & CONDITIONS TO JOIN SESSION MODAL ══ -->
+<div id="termsModal" class="qc-modal-backdrop hidden">
+  <div class="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-7 max-w-lg w-full shadow-2xl border border-slate-100 relative max-h-[92vh] my-auto flex flex-col">
+    
+    <!-- Header -->
+    <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+      <div class="flex items-center gap-2">
+        <img src="/static/images/logo.png" alt="SolaceSquad" class="h-7 w-auto object-contain" onerror="this.onerror=null;this.src='/static/images/default-avatar.png';">
+        <span class="text-xs font-black uppercase tracking-wider text-slate-800">User T&amp;C to Join Session</span>
+      </div>
+      <button type="button" onclick="closeTermsModal()" class="text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-colors cursor-pointer">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <p class="text-xs text-slate-500 mb-3 font-medium">
+      Please review and accept our consultation session guidelines before proceeding to payment:
+    </p>
+
+    <!-- Scrollable Terms List (14 Guidelines) -->
+    <div class="flex-1 overflow-y-auto pr-1 space-y-2.5 text-xs text-slate-700 max-h-[48vh] border border-slate-100 bg-slate-50/70 p-4 rounded-2xl">
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">1.</span>
+        <span>Join the session on time, preferably 2 minutes early from the scheduled time.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">2.</span>
+        <span>Ensure that your device is sufficiently charged.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">3.</span>
+        <span>Check your internet connection, camera and microphone before the session.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">4.</span>
+        <span>Keep headphones/earphones available, if possible.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">5.</span>
+        <span>Keep water and anything else you may need during the session nearby.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">6.</span>
+        <span>Choose a quiet and private space where you can speak freely without being overheard.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">7.</span>
+        <span>Avoid attending the session while travelling, driving or performing other activities. Being focused in the conversation helps.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">8.</span>
+        <span>Avoid attending the session while under the influence of alcohol or recreational substances.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">9.</span>
+        <span>Be properly dressed if you are joining video call session.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">10.</span>
+        <span>Inform your counsellor if another person enters or is present in the room. This impacts your privacy and thus privacy of the session.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">11.</span>
+        <span>Please do not record, screenshot, photograph or distribute the counselling session without prior discussion and appropriate consent.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">12.</span>
+        <span>Use a private device/account where possible and avoid public/shared networks discussing highly sensitive information.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">13.</span>
+        <span>Do not share your personal number or any communication details or try to ask the same from the counsellor also.</span>
+      </div>
+      <div class="flex gap-2.5">
+        <span class="font-extrabold text-[#1e4d40] min-w-[18px]">14.</span>
+        <span>Maintain decency and respect in your conversation with the counsellor. The counsellor may disconnect the call and raise a Red Flag against your profile if he/she founds anything offensive and unprofessional from your end.</span>
+      </div>
+    </div>
+
+    <!-- Agreement Checkbox -->
+    <div class="pt-3.5 pb-1">
+      <label class="flex items-start gap-2.5 cursor-pointer select-none">
+        <input type="checkbox" id="termsAgreementCheckbox" onchange="handleTermsCheckboxChange()" class="mt-0.5 w-4 h-4 rounded text-[#1e4d40] focus:ring-[#1e4d40] border-slate-300">
+        <span class="text-xs font-bold text-slate-800 leading-snug">
+          I have read, understood, and agree to follow all the Session Terms &amp; Conditions above.
+        </span>
+      </label>
+    </div>
+
+    <div id="termsErrorBox" class="hidden my-2 p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold"></div>
+
+    <!-- Action Buttons -->
+    <div class="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+      <button 
+        type="button" 
+        onclick="closeTermsModal()" 
+        class="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
+      >
+        Back
+      </button>
+      <button 
+        type="button" 
+        id="agreeAndProceedBtn" 
+        onclick="proceedToPaymentAfterTerms()" 
+        disabled
+        class="flex-1 py-3 px-4 rounded-xl bg-[#1e4d40] hover:bg-[#133930] disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <i data-lucide="lock" class="w-4 h-4 text-emerald-300"></i>
+        <span id="agreeAndProceedBtnText">Agree &amp; Proceed to Payment</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ 3. CONFIRMATION SUCCESS MODAL ══ -->
+<div id="successModal" class="qc-modal-backdrop hidden">
+  <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 text-center relative">
+    
+    <div class="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4 border-4 border-emerald-100 shadow-inner">
+      <i data-lucide="check" class="w-8 h-8 stroke-[3]"></i>
+    </div>
+
+    <span class="inline-flex items-center gap-1 text-[11px] font-extrabold text-emerald-700 uppercase tracking-wider bg-emerald-50 px-3 py-1 rounded-full mb-2 border border-emerald-200">
+      ⚡ 30-Min Consultation Confirmed
+    </span>
+
+    <h2 class="text-2xl font-display font-extrabold text-slate-900 mb-2">
+      Booking Successful!
+    </h2>
+
+    <p class="text-xs text-slate-500 mb-5">
+      Your consultation is scheduled. Join directly via the Web Call Room at start time.
+    </p>
+
+    <!-- Summary Details Card -->
+    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left space-y-2 text-xs mb-5">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-200">
+        <span class="text-slate-500 font-semibold">Appointment ID:</span>
+        <span id="successQcId" class="font-mono font-black text-slate-900 text-sm">SS_XXXXX</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-slate-500 font-semibold">Consultant:</span>
+        <span id="successConsultantName" class="font-bold text-slate-800">Expert Name</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-slate-500 font-semibold">Duration:</span>
+        <span class="font-bold text-slate-800">30 Minutes</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-slate-500 font-semibold">Scheduled IST Time:</span>
+        <span id="successApptTime" class="font-bold text-emerald-700">Today at 4:30 PM</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-slate-500 font-semibold">Client Mobile:</span>
+        <span id="successUserPhone" class="font-bold text-slate-800">+91 9876543210</span>
+      </div>
+    </div>
+
+    <!-- Web Call Room CTA -->
+    <a id="successRoomLink" href="#" class="w-full mb-3 py-3.5 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all">
+      <i data-lucide="video" class="w-4 h-4 text-emerald-300"></i>
+      <span>🌐 Open Web Call Room</span>
+    </a>
+
+    <button onclick="window.location.href='/'" class="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors">
+      Return to Home
+    </button>
+
+  </div>
+</div>
+
+<!-- ══ CONTROLLER JAVASCRIPT ══ -->
+<script>
+  let allConsultants = [];
+  let filteredConsultants = [];
+  let currentCategory = 'all';
+  let searchQuery = '';
+  let selectedConsultant = null;
+  let appliedVoucher = null;
+  const RAZORPAY_KEY = "{{ razorpay_key_id | default('') }}";
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadQuickConsultants();
+    if (window.lucide) lucide.createIcons();
+  });
+
+  async function loadQuickConsultants() {
+    try {
+      const res = await fetch('/api/quick-consult/available-consultants');
+      const data = await res.json();
+      
+      if (data.success && data.consultants && data.consultants.length > 0) {
+        allConsultants = data.consultants;
+        applyFilters();
+      } else {
+        allConsultants = [];
+        applyFilters();
+      }
+    } catch (err) {
+      console.error('Error fetching quick consultants:', err);
+      document.getElementById('consultantsGrid').innerHTML = `
+        <div class="col-span-full text-center py-12 text-red-500 font-semibold text-sm">
+          Failed to load available consultants. Please refresh the page.
+        </div>
+      `;
+    }
+  }
+
+  function handleSearchInput(e) {
+    searchQuery = (e.target.value || '').trim().toLowerCase();
+    const clearBtn = document.getElementById('searchClearBtn');
+    if (searchQuery.length > 0) {
+      clearBtn.classList.remove('hidden');
+    } else {
+      clearBtn.classList.add('hidden');
+    }
+    applyFilters();
+  }
+
+  function clearSearch() {
+    searchQuery = '';
+    const input = document.getElementById('consultantSearchInput');
+    if (input) input.value = '';
+    document.getElementById('searchClearBtn').classList.add('hidden');
+    applyFilters();
+  }
+
+  function filterCategory(category) {
+    currentCategory = category;
+    document.querySelectorAll('.qc-category-pill').forEach(btn => btn.classList.remove('active'));
+    const targetBtn = document.getElementById(`cat-${category}`);
+    if (targetBtn) targetBtn.classList.add('active');
+    applyFilters();
+  }
+
+  function applyFilters() {
+    filteredConsultants = allConsultants.filter(c => {
+      // 0. Only show consultants who have available slots remaining today
+      if (!c.available_slots || c.available_slots.length === 0) {
+        return false;
+      }
+
+      // Category filter
+      if (currentCategory !== 'all') {
+        const cats = (c.wellness_categories || []).map(cat => cat.toLowerCase());
+        const hasSW = c.offers_sexual_wellness;
+        if (currentCategory === 'Sexual' && !hasSW && !cats.includes('sexual')) return false;
+        if (currentCategory !== 'Sexual' && !cats.includes(currentCategory.toLowerCase())) return false;
+      }
+
+      // Search query filter (search across name, specialization, bio, city, languages)
+      if (searchQuery) {
+        const name = (c.name || '').toLowerCase();
+        const spec = (c.specialization || '').toLowerCase();
+        const bio = (c.bio || '').toLowerCase();
+        const city = (c.city || '').toLowerCase();
+        const langs = (c.languages || []).join(' ').toLowerCase();
+        const expAreas = (c.expertise_areas || []).join(' ').toLowerCase();
+
+        const match = name.includes(searchQuery) ||
+                      spec.includes(searchQuery) ||
+                      bio.includes(searchQuery) ||
+                      city.includes(searchQuery) ||
+                      langs.includes(searchQuery) ||
+                      expAreas.includes(searchQuery);
+        if (!match) return false;
+      }
+
+      return true;
+    });
+
+    sortConsultantsByAvailability(filteredConsultants);
+    renderConsultants();
+  }
+
+  function sortConsultantsByAvailability(list) {
+    return list.sort((a, b) => {
+      const aSlots = a.available_slots && a.available_slots.length > 0;
+      const bSlots = b.available_slots && b.available_slots.length > 0;
+      
+      // 1. Available slots today come before fully booked
+      if (aSlots && !bSlots) return -1;
+      if (!aSlots && bSlots) return 1;
+      
+      // 2. Earliest slot time today
+      if (aSlots && bSlots) {
+        const timeA = a.available_slots[0].time || '';
+        const timeB = b.available_slots[0].time || '';
+        if (timeA < timeB) return -1;
+        if (timeA > timeB) return 1;
+      }
+      
+      // 3. Higher rating first
+      const ratingA = parseFloat(a.rating) || 0;
+      const ratingB = parseFloat(b.rating) || 0;
+      if (ratingB !== ratingA) return ratingB - ratingA;
+      
+      // 4. Experience
+      return (b.experience_years || 0) - (a.experience_years || 0);
+    });
+  }
+
+  function renderConsultants() {
+    const grid = document.getElementById('consultantsGrid');
+    const emptyState = document.getElementById('noConsultantsState');
+    const countBadge = document.getElementById('resultsCountBadge');
+
+    countBadge.textContent = `${filteredConsultants.length} Verified Specialist${filteredConsultants.length === 1 ? '' : 's'} Available Today`;
+
+    if (filteredConsultants.length === 0) {
+      grid.innerHTML = '';
+      emptyState.classList.remove('hidden');
+      return;
+    }
+
+    emptyState.classList.add('hidden');
+
+    grid.innerHTML = filteredConsultants.map(c => {
+      const basePrice = c.pricing_30 ? c.pricing_30.base_amount : 400.0;
+      const hasSlots = c.available_slots && c.available_slots.length > 0;
+      const earliestSlot = hasSlots ? c.available_slots[0].display : '';
+      const languagesStr = (c.languages && c.languages.length > 0) ? c.languages.join(', ') : 'English, Hindi';
+
+      return `
+        <div class="qc-consultant-card p-5 sm:p-6 flex flex-col justify-between">
+          <div>
+            <!-- Consultant Header -->
+            <div class="flex items-start gap-3.5 mb-4">
+              <div class="relative flex-shrink-0">
+                <img src="${c.photo_url}" alt="${c.name}" class="w-16 h-16 rounded-2xl object-cover border-2 border-teal-500/20 shadow-sm" onerror="this.src='/static/images/default-avatar.png'">
+                <span class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" title="Online & Available Now"></span>
+                ${c.offers_sexual_wellness ? `
+                  <div class="absolute -top-1.5 -left-1.5 w-6 h-6 rounded-full bg-white shadow-md border border-rose-100 flex items-center justify-center p-0.5" title="Offers Sexual Wellness Consultation">
+                    <img src="/static/images/sexual_wellness_32.png" alt="Sexual Wellness" class="w-4 h-4 object-contain">
+                  </div>
+                ` : ''}
+              </div>
+              <div class="flex-1 min-w-0">
+                <h3 class="text-base font-extrabold text-slate-900 truncate leading-tight">${c.name}</h3>
+                <p class="text-xs font-bold text-[#2d6a5a] truncate mt-0.5">${c.specialization}</p>
+                <div class="flex items-center gap-2 mt-1.5 text-xs text-slate-500 font-semibold">
+                  <div class="flex items-center gap-1 text-amber-500">
+                    <i data-lucide="star" class="w-3 h-3 fill-amber-400 text-amber-400"></i>
+                    <span class="font-extrabold text-slate-800">${c.rating}</span>
+                  </div>
+                  <span>•</span>
+                  <span>${c.experience_years}+ yrs exp</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Meta Badges -->
+            <div class="flex flex-wrap items-center gap-1.5 mb-4">
+              <span class="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md inline-flex items-center gap-1.5 flex-wrap break-words leading-relaxed max-w-full" title="${languagesStr}">
+                <span>🗣️</span>
+                <span>${languagesStr}</span>
+              </span>
+              ${c.offers_sexual_wellness ? `
+                <span class="text-[11px] font-bold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-md border border-rose-200 inline-flex items-center gap-1.5">
+                  <img src="/static/images/sexual_wellness_32.png" alt="" class="w-3.5 h-3.5 object-contain inline-block">
+                  <span>Sexual Wellness</span>
+                </span>
+              ` : ''}
+            </div>
+
+            <!-- Next Available Slot Notice -->
+            <div class="bg-teal-50/70 border border-teal-100 rounded-xl p-2.5 mb-5 flex items-center justify-between text-xs">
+              <span class="text-slate-500 font-medium">Earliest Slot:</span>
+              <span class="font-extrabold text-[#1e4d40]">⚡ Today, ${earliestSlot}</span>
+            </div>
+          </div>
+
+          <!-- Price & Action Buttons -->
+          <div class="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+            <div class="flex-shrink-0">
+              <span class="text-[10px] uppercase font-bold text-slate-400 block whitespace-nowrap">30 Mins Call</span>
+              <div class="flex items-baseline gap-1 whitespace-nowrap">
+                <span class="text-base font-black text-[#1e4d40]">₹${Math.round(basePrice).toLocaleString('en-IN')}</span>
+                <span class="text-[10px] text-slate-500 font-semibold">+ GST</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <button 
+                onclick="openProfileModal(${c.id})" 
+                class="px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
+                title="View Full Profile & Credentials"
+              >
+                View Profile
+              </button>
+              <button 
+                onclick="openBookingModal(${c.id})" 
+                class="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-extrabold text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <i data-lucide="zap" class="w-3.5 h-3.5 text-emerald-300"></i>
+                <span>Book Call</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+  }
+
+  /* ══ PROFILE MODAL LOGIC ══ */
+  function openProfileModal(consultantId) {
+    const c = allConsultants.find(item => item.id === consultantId);
+    if (!c) return;
+    selectedConsultant = c;
+
+    document.getElementById('profilePhoto').src = c.photo_url || '/static/images/default-avatar.png';
+    document.getElementById('profileName').textContent = c.name;
+    document.getElementById('profileSpecialization').textContent = c.specialization;
+    document.getElementById('profileRating').textContent = c.rating;
+    document.getElementById('profileExp').textContent = `${c.experience_years}+ Years Experience`;
+    const cityBadge = document.getElementById('profileCityBadge');
+    if (cityBadge) cityBadge.remove();
+    document.getElementById('profileBio').textContent = c.bio || 'Certified SolaceSquad Wellness Consultant offering prompt consultation.';
+    document.getElementById('profileEducation').textContent = c.education || c.highest_qualification || 'Certified Professional';
+    document.getElementById('profileLanguages').textContent = (c.languages || []).join(', ') || 'English, Hindi';
+    
+    const basePrice = c.pricing_30 ? c.pricing_30.base_amount : 400.0;
+    document.getElementById('profilePriceTotal').innerHTML = `₹${Math.round(basePrice).toLocaleString('en-IN')} <span class="text-[11px] font-medium text-slate-500">(+ 18% GST)</span>`;
+
+    // Focus areas
+    const focusContainer = document.getElementById('profileFocusAreas');
+    const areas = (c.expertise_areas && c.expertise_areas.length > 0) ? c.expertise_areas : (c.wellness_categories || ['Holistic Wellness']);
+    focusContainer.innerHTML = areas.map(a => `
+      <span class="text-[11px] font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+        ${a}
+      </span>
+    `).join('');
+
+    document.getElementById('profileModal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closeProfileModal() {
+    document.getElementById('profileModal').classList.add('hidden');
+  }
+
+  function openBookingFromProfile() {
+    closeProfileModal();
+    if (selectedConsultant) {
+      openBookingModal(selectedConsultant.id);
+    }
+  }
+
+  /* ══ OTP VERIFICATION STATE & LOGIC ══ */
+  let isPhoneVerified = false;
+  let verifiedPhoneNumber = '';
+  let verifiedOtpCode = '';
+  let otpTimerInterval = null;
+  let otpCountdown = 0;
+
+  function handlePhoneInput(el) {
+    el.value = el.value.replace(/[^0-9]/g, '').slice(0, 10);
+    if (isPhoneVerified && el.value !== verifiedPhoneNumber) {
+      resetPhoneVerification();
+    }
+  }
+
+  function resetPhoneVerification() {
+    isPhoneVerified = false;
+    verifiedPhoneNumber = '';
+    verifiedOtpCode = '';
+    const phoneInput = document.getElementById('userPhoneNumber');
+    if (phoneInput) {
+      phoneInput.readOnly = false;
+      phoneInput.classList.remove('bg-slate-100', 'text-slate-600');
+    }
+    const sendBtn = document.getElementById('sendOtpBtn');
+    if (sendBtn) {
+      sendBtn.classList.remove('hidden');
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '<span>Get OTP</span>';
+    }
+    const changeBtn = document.getElementById('changePhoneBtn');
+    if (changeBtn) changeBtn.classList.add('hidden');
+    const badge = document.getElementById('phoneVerifiedBadge');
+    if (badge) badge.classList.add('hidden');
+    const help = document.getElementById('phoneHelpText');
+    if (help) help.textContent = "We'll send a 6-digit OTP code to verify your mobile number.";
+    const otpContainer = document.getElementById('otpContainer');
+    if (otpContainer) otpContainer.classList.add('hidden');
+    const otpInput = document.getElementById('otpCodeInput');
+    if (otpInput) otpInput.value = '';
+    const otpMsg = document.getElementById('otpStatusMsg');
+    if (otpMsg) otpMsg.classList.add('hidden');
+    clearInterval(otpTimerInterval);
+    const timerText = document.getElementById('otpTimerText');
+    if (timerText) timerText.textContent = '';
+  }
+
+  async function sendPhoneOtp() {
+    const phoneInput = document.getElementById('userPhoneNumber');
+    const phone = (phoneInput.value || '').trim();
+    const errorBox = document.getElementById('modalErrorBox');
+    errorBox.classList.add('hidden');
+
+    if (!phone || phone.length !== 10) {
+      errorBox.textContent = 'Please enter a valid 10-digit mobile number before requesting OTP.';
+      errorBox.classList.remove('hidden');
+      phoneInput.focus();
+      return;
+    }
+
+    const sendBtn = document.getElementById('sendOtpBtn');
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = `<span>Sending...</span>`;
+
+    try {
+      const res = await fetch('/api/quick-consult/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to send OTP. Please try again.');
+      }
+
+      // Reveal OTP box
+      document.getElementById('otpContainer').classList.remove('hidden');
+      const statusMsg = document.getElementById('otpStatusMsg');
+      statusMsg.className = 'text-[11px] font-semibold text-emerald-700';
+      statusMsg.textContent = data.message || `OTP sent to +91 ${phone}`;
+      if (data.otp_debug) {
+        statusMsg.textContent += ` (Test OTP: ${data.otp_debug})`;
+      }
+      statusMsg.classList.remove('hidden');
+
+      const otpInput = document.getElementById('otpCodeInput');
+      otpInput.value = '';
+      otpInput.focus();
+
+      // Start 60s cooldown
+      otpCountdown = 60;
+      updateOtpTimerDisplay();
+      clearInterval(otpTimerInterval);
+      otpTimerInterval = setInterval(() => {
+        otpCountdown--;
+        if (otpCountdown <= 0) {
+          clearInterval(otpTimerInterval);
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = `<span>Resend OTP</span>`;
+          const timerText = document.getElementById('otpTimerText');
+          if (timerText) timerText.textContent = '';
+        } else {
+          updateOtpTimerDisplay();
+        }
+      }, 1000);
+
+    } catch (err) {
+      console.error('Send OTP failed:', err);
+      errorBox.textContent = err.message || 'Failed to send OTP.';
+      errorBox.classList.remove('hidden');
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = `<span>Get OTP</span>`;
+    }
+  }
+
+  function updateOtpTimerDisplay() {
+    const timerText = document.getElementById('otpTimerText');
+    if (timerText) {
+      timerText.textContent = `Resend in ${otpCountdown}s`;
+    }
+  }
+
+  async function verifyPhoneOtp() {
+    const phone = (document.getElementById('userPhoneNumber').value || '').trim();
+    const otpInput = document.getElementById('otpCodeInput');
+    const otp = (otpInput.value || '').trim();
+    const errorBox = document.getElementById('modalErrorBox');
+    const statusMsg = document.getElementById('otpStatusMsg');
+    errorBox.classList.add('hidden');
+
+    if (!otp || otp.length < 4) {
+      statusMsg.className = 'text-[11px] font-semibold text-red-600';
+      statusMsg.textContent = 'Please enter the 6-digit OTP received via SMS.';
+      statusMsg.classList.remove('hidden');
+      otpInput.focus();
+      return;
+    }
+
+    const verifyBtn = document.getElementById('verifyOtpBtn');
+    verifyBtn.disabled = true;
+    verifyBtn.innerHTML = `<span>Verifying...</span>`;
+
+    try {
+      const res = await fetch('/api/quick-consult/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.verified) {
+        throw new Error(data.error || 'Invalid OTP code. Please try again.');
+      }
+
+      // Success
+      isPhoneVerified = true;
+      verifiedPhoneNumber = phone;
+      verifiedOtpCode = otp;
+      clearInterval(otpTimerInterval);
+
+      // Lock phone input
+      const phoneInput = document.getElementById('userPhoneNumber');
+      phoneInput.readOnly = true;
+      phoneInput.classList.add('bg-slate-100', 'text-slate-600');
+
+      // Update UI
+      document.getElementById('sendOtpBtn').classList.add('hidden');
+      document.getElementById('changePhoneBtn').classList.remove('hidden');
+      document.getElementById('phoneVerifiedBadge').classList.remove('hidden');
+      document.getElementById('otpContainer').classList.add('hidden');
+      document.getElementById('phoneHelpText').textContent = '✓ Mobile number successfully verified.';
+
+      if (window.lucide) lucide.createIcons();
+
+    } catch (err) {
+      console.error('Verify OTP failed:', err);
+      statusMsg.className = 'text-[11px] font-semibold text-red-600';
+      statusMsg.textContent = err.message || 'Verification failed.';
+      statusMsg.classList.remove('hidden');
+      verifyBtn.disabled = false;
+      verifyBtn.innerHTML = `<span>Verify</span>`;
+    }
+  }
+
+  /* ══ BOOKING MODAL LOGIC ══ */
+  function openBookingModal(consultantId) {
+    const c = allConsultants.find(item => item.id === consultantId);
+    if (!c) return;
+    selectedConsultant = c;
+    appliedVoucher = null;
+
+    document.getElementById('modalConsultantImg').src = c.photo_url || '/static/images/default-avatar.png';
+    document.getElementById('modalConsultantName').textContent = c.name;
+    document.getElementById('modalConsultantSpec').textContent = c.specialization;
+
+    // Reset OTP verification UI if phone not verified yet
+    if (!isPhoneVerified) {
+      resetPhoneVerification();
+    }
+
+    // Populate 30-min slots
+    const slotSelect = document.getElementById('modalSlotSelect');
+    slotSelect.innerHTML = '<option value="">Choose 30-min time slot...</option>';
+    if (c.available_slots && c.available_slots.length > 0) {
+      c.available_slots.forEach(slot => {
+        const opt = document.createElement('option');
+        opt.value = slot.time;
+        opt.dataset.date = slot.date;
+        opt.textContent = `Today at ${slot.display}`;
+        slotSelect.appendChild(opt);
+      });
+      slotSelect.selectedIndex = 1; // Auto select earliest slot
+    } else {
+      const opt = document.createElement('option');
+      opt.value = "";
+      opt.textContent = "Not available today";
+      opt.disabled = true;
+      opt.selected = true;
+      slotSelect.appendChild(opt);
+    }
+
+    // Reset Voucher UI
+    document.getElementById('voucherCodeInput').value = '';
+    document.getElementById('voucherAppliedTag').classList.add('hidden');
+    document.getElementById('voucherMessage').classList.add('hidden');
+    document.getElementById('breakdownDiscountRow').classList.add('hidden');
+
+    updatePriceBreakdown();
+    document.getElementById('bookingModal').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closeBookingModal() {
+    document.getElementById('bookingModal').classList.add('hidden');
+  }
+
+  function updatePriceBreakdown() {
+    if (!selectedConsultant) return;
+    const p = selectedConsultant.pricing_30;
+
+    let base = p.base_prorated;
+    let surcharge = p.surcharge;
+    let subtotal = p.base_amount;
+    let gst = p.taxes;
+    let total = p.total_amount;
+
+    document.getElementById('breakdownBase').textContent = `₹${base.toFixed(2)}`;
+    document.getElementById('breakdownSurcharge').textContent = `₹${surcharge.toFixed(2)}`;
+    const subtotalEl = document.getElementById('breakdownSubtotal');
+    if (subtotalEl) subtotalEl.textContent = `₹${subtotal.toFixed(2)}`;
+    document.getElementById('breakdownGST').textContent = `₹${gst.toFixed(2)}`;
+
+    if (appliedVoucher && appliedVoucher.valid) {
+      document.getElementById('breakdownDiscountRow').classList.remove('hidden');
+      document.getElementById('breakdownDiscountRow').classList.add('flex');
+      document.getElementById('breakdownVoucherCode').textContent = appliedVoucher.code;
+      document.getElementById('breakdownDiscount').textContent = `-₹${appliedVoucher.discount_amount.toFixed(2)}`;
+      total = appliedVoucher.final_amount;
+    } else {
+      document.getElementById('breakdownDiscountRow').classList.add('hidden');
+      document.getElementById('breakdownDiscountRow').classList.remove('flex');
+    }
+
+    document.getElementById('breakdownTotal').textContent = `₹${total.toFixed(2)}`;
+
+    const submitBtn = document.getElementById('submitBtnText');
+    if (total === 0) {
+      submitBtn.textContent = 'Confirm 30-Min Consultation (Free)';
+    } else {
+      submitBtn.textContent = `Pay & Confirm (₹${total.toFixed(2)})`;
+    }
+  }
+
+  async function applyVoucherCode() {
+    const code = (document.getElementById('voucherCodeInput').value || '').trim().toUpperCase();
+    const msgBox = document.getElementById('voucherMessage');
+    const appliedTag = document.getElementById('voucherAppliedTag');
+
+    if (!code) {
+      msgBox.className = 'text-[11px] mt-1.5 font-semibold text-red-600';
+      msgBox.textContent = 'Please enter a voucher code.';
+      msgBox.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/quick-consult/validate-voucher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          voucher_code: code,
+          consultant_id: selectedConsultant ? selectedConsultant.id : null,
+          duration_minutes: 30,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.valid) {
+        appliedVoucher = data;
+        appliedTag.classList.remove('hidden');
+        msgBox.className = 'text-[11px] mt-1.5 font-semibold text-emerald-600';
+        msgBox.textContent = `✓ ${data.message}`;
+        msgBox.classList.remove('hidden');
+        updatePriceBreakdown();
+      } else {
+        appliedVoucher = null;
+        appliedTag.classList.add('hidden');
+        msgBox.className = 'text-[11px] mt-1.5 font-semibold text-red-600';
+        msgBox.textContent = data.error || 'Invalid voucher code';
+        msgBox.classList.remove('hidden');
+        updatePriceBreakdown();
+      }
+    } catch (err) {
+      console.error('Voucher validation failed:', err);
+    }
+  }
+
+  /* ══ TERMS & CONDITIONS MODAL LOGIC ══ */
+  let pendingBookingData = null;
+
+  function openTermsModal() {
+    document.getElementById('termsAgreementCheckbox').checked = false;
+    document.getElementById('agreeAndProceedBtn').disabled = true;
+    const termsErr = document.getElementById('termsErrorBox');
+    if (termsErr) termsErr.classList.add('hidden');
+    document.getElementById('bookingModal').classList.add('hidden');
+    document.getElementById('termsModal').classList.remove('hidden');
+    const isFree = appliedVoucher && (appliedVoucher.is_100_percent || appliedVoucher.final_amount === 0);
+    const agreeBtnText = document.getElementById('agreeAndProceedBtnText');
+    if (agreeBtnText) {
+      agreeBtnText.textContent = isFree ? 'Agree & Confirm Consultation' : 'Agree & Proceed to Payment';
+    }
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closeTermsModal() {
+    document.getElementById('termsModal').classList.add('hidden');
+    document.getElementById('bookingModal').classList.remove('hidden');
+  }
+
+  function handleTermsCheckboxChange() {
+    const checked = document.getElementById('termsAgreementCheckbox').checked;
+    const btn = document.getElementById('agreeAndProceedBtn');
+    if (btn) btn.disabled = !checked;
+  }
+
+  async function handleQuickBookingSubmit(e) {
+    e.preventDefault();
+    const errorBox = document.getElementById('modalErrorBox');
+    errorBox.classList.add('hidden');
+
+    const phone = (document.getElementById('userPhoneNumber').value || '').trim();
+    const slotSelect = document.getElementById('modalSlotSelect');
+    const slotTime = slotSelect.value;
+    const selectedOption = slotSelect.options[slotSelect.selectedIndex];
+    const slotDate = selectedOption ? selectedOption.dataset.date : null;
+    const consent = document.getElementById('dpdpConsentCheckbox').checked;
+    const voucherCode = appliedVoucher ? appliedVoucher.code : null;
+
+    if (!phone || phone.length !== 10) {
+      errorBox.textContent = 'Please enter a valid 10-digit mobile number.';
+      errorBox.classList.remove('hidden');
+      return;
+    }
+
+    if (!isPhoneVerified) {
+      errorBox.textContent = 'Please verify your mobile number with OTP before confirming.';
+      errorBox.classList.remove('hidden');
+      const sendOtpBtn = document.getElementById('sendOtpBtn');
+      if (sendOtpBtn) sendOtpBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    if (!slotTime) {
+      errorBox.textContent = 'Please select an appointment slot.';
+      errorBox.classList.remove('hidden');
+      return;
+    }
+
+    if (!consent) {
+      errorBox.textContent = 'Please accept the DPDP Act consent to proceed.';
+      errorBox.classList.remove('hidden');
+      return;
+    }
+
+    // Save pending booking details and display Terms & Conditions modal first
+    pendingBookingData = {
+      consultant_id: selectedConsultant.id,
+      phone_number: phone,
+      duration_minutes: 30,
+      consultation_mode: 'webrtc',
+      slot_time: slotTime,
+      slot_date: slotDate,
+      voucher_code: voucherCode,
+      consent: true,
+      otp: verifiedOtpCode || undefined,
+    };
+
+    openTermsModal();
+  }
+
+  async function proceedToPaymentAfterTerms() {
+    const agreeChecked = document.getElementById('termsAgreementCheckbox').checked;
+    const termsErr = document.getElementById('termsErrorBox');
+    if (!agreeChecked) {
+      if (termsErr) {
+        termsErr.textContent = 'Please read and agree to the Session Terms & Conditions to proceed.';
+        termsErr.classList.remove('hidden');
+      }
+      return;
+    }
+
+    if (!pendingBookingData) {
+      closeTermsModal();
+      return;
+    }
+
+    const isFree = appliedVoucher && (appliedVoucher.is_100_percent || appliedVoucher.final_amount === 0);
+    const agreeBtn = document.getElementById('agreeAndProceedBtn');
+    const agreeBtnText = document.getElementById('agreeAndProceedBtnText');
+    agreeBtn.disabled = true;
+    agreeBtnText.textContent = isFree ? 'Confirming Consultation...' : 'Preparing Payment...';
+
+    try {
+      // 1. Init Booking Order
+      const initRes = await fetch('/api/quick-consult/book-init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pendingBookingData),
+      });
+
+      let initData;
+      try {
+        initData = await initRes.json();
+      } catch (parseErr) {
+        throw new Error('Server returned an unexpected response. Please try again later.');
+      }
+      if (!initRes.ok || !initData.success) {
+        throw new Error(initData.detail || initData.error || 'Failed to initiate booking order.');
+      }
+
+      // 2. Handle 100% Free Voucher Checkout
+      if (initData.is_free) {
+        document.getElementById('termsModal').classList.add('hidden');
+        await confirmBookingAndOpenSuccess({
+          qc_id: initData.qc_id,
+          razorpay_order_id: initData.order_id,
+          razorpay_payment_id: `pay_free_${initData.qc_id}`,
+          razorpay_signature: 'sig_free_voucher',
+        });
+        return;
+      }
+
+      // 3. Handle Razorpay Modal Checkout
+      const phone = pendingBookingData.phone_number;
+      const options = {
+        key: initData.key_id || RAZORPAY_KEY,
+        amount: initData.amount_paise,
+        currency: 'INR',
+        name: 'SolaceSquad',
+        description: `30-Min Quick Consultation (${initData.qc_id})`,
+        order_id: initData.order_id,
+        prefill: {
+          contact: phone,
+        },
+        theme: {
+          color: '#1e4d40',
+        },
+        handler: async function (response) {
+          document.getElementById('termsModal').classList.add('hidden');
+          await confirmBookingAndOpenSuccess({
+            qc_id: initData.qc_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+        },
+        modal: {
+          ondismiss: function () {
+            agreeBtn.disabled = false;
+            agreeBtnText.textContent = isFree ? 'Agree & Confirm Consultation' : 'Agree & Proceed to Payment';
+          }
+        }
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.open();
+
+    } catch (err) {
+      console.error('Booking submission error:', err);
+      if (termsErr) {
+        termsErr.textContent = err.message || 'An error occurred while booking. Please try again.';
+        termsErr.classList.remove('hidden');
+      }
+      agreeBtn.disabled = false;
+      agreeBtnText.textContent = isFree ? 'Agree & Confirm Consultation' : 'Agree & Proceed to Payment';
+    }
+  }
+
+  async function confirmBookingAndOpenSuccess(payload) {
+    try {
+      const confirmRes = await fetch('/api/quick-consult/book-confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      let confirmData;
+      try {
+        confirmData = await confirmRes.json();
+      } catch (parseErr) {
+        throw new Error('Server returned an unexpected response. Please contact support.');
+      }
+      if (!confirmRes.ok || !confirmData.success) {
+        throw new Error(confirmData.detail || confirmData.error || 'Payment confirmation failed.');
+      }
+
+      closeBookingModal();
+      document.getElementById('termsModal').classList.add('hidden');
+
+      document.getElementById('successQcId').textContent = confirmData.qc_id;
+      document.getElementById('successConsultantName').textContent = confirmData.consultant_name;
+      document.getElementById('successApptTime').textContent = confirmData.appointment_time;
+      document.getElementById('successUserPhone').textContent = confirmData.phone_number;
+      document.getElementById('successRoomLink').href = confirmData.room_url || `/quick-consult/room/${confirmData.qc_id}`;
+
+      document.getElementById('successModal').classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+
+    } catch (err) {
+      alert(`Payment Succeeded, but confirmation failed: ${err.message}`);
+    }
+  }
+</script>
+{% endblock %}

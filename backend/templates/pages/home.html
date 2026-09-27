@@ -157,6 +157,26 @@ Confidential &amp; affordable. Trusted by 500+ Indians.{% endblock %}
     box-shadow: var(--h-shadow-teal-lg); transition: all 0.28s;
   }
   .h-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 20px 56px rgba(13,148,136,0.40); color: #fff; }
+  .h-btn-qc {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 14px 26px; border-radius: var(--h-radius-md);
+    background: linear-gradient(135deg, #0d9488, #0f766e);
+    color: #fff; font-size: 1rem; font-weight: 700;
+    box-shadow: 0 8px 24px rgba(13,148,136,0.28);
+    text-decoration: none; transition: all 0.28s;
+  }
+  .h-btn-qc:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 40px rgba(13,148,136,0.40);
+    color: #fff;
+  }
+  @media (max-width: 640px) {
+    .h-hero-cta-row { gap: 10px; }
+    .h-btn-primary, .h-btn-qc {
+      padding: 12px 18px;
+      font-size: 0.92rem;
+    }
+  }
   .h-btn-secondary {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 14px 28px; border-radius: var(--h-radius-md);
@@ -593,10 +613,14 @@ Confidential &amp; affordable. Trusted by 500+ Indians.{% endblock %}
         </p>
 
         <div class="h-hero-cta-row">
-          <p style="font-size:0.85rem;font-weight:600;color:#0d9488;letter-spacing:0.04em;margin-bottom:0.5rem;">Get Your THRYVEQ&trade; Score</p>
-          <a href="/signup" class="h-btn-primary">
-            Start Your Journey
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <p style="width:100%;font-size:0.85rem;font-weight:600;color:#0d9488;letter-spacing:0.04em;margin-bottom:0.25rem;">Get Your THRYVEQ&trade; Score</p>
+          <a href="/signup" class="h-btn-primary" title="Signup">
+            <svg class="w-5 h-5 flex-shrink-0" data-lucide="user-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+            <span>Signup</span>
+          </a>
+          <a href="/quick-consult-web" class="h-btn-qc" title="Quick Consult">
+            <svg class="w-5 h-5 flex-shrink-0" data-lucide="video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8Z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+            <span>Quick Consult</span>
           </a>
         </div>
 

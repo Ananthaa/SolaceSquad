@@ -83,3 +83,20 @@ Info.txt
 *.pdf
 *.zip
 *.exe
+
+# Sensitive data and user records
+users_export.csv
+*.csv
+*.keystore
+*.jks
+*service-account*.json
+**/service-account*.json
+
+# Local scratch and backup folders
+scratch/
+backend/scratch/
+backend_backup*/
+frontend_backup*/
+backend/backup_llmseo*/
+MIrror2*/
+MIrror*/

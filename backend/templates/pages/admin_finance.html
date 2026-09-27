@@ -175,6 +175,7 @@
     <button class="tab-btn active" onclick="switchTab('all')" id="tab-all">All Transactions</button>
     <button class="tab-btn" onclick="switchTab('consultants')" id="tab-consultants">Consultant Earnings</button>
     <button class="tab-btn" onclick="switchTab('sessions')" id="tab-sessions">📋 Appointment Sessions</button>
+    <button class="tab-btn" onclick="switchTab('quickconsult')" id="tab-quickconsult">⚡ Quick Consultations</button>
   </div>
 
   <!-- ═══════ ALL TRANSACTIONS TAB ═══════ -->
@@ -330,10 +331,11 @@
             <th style="text-align:right;">Amt Paid by User</th>
             <th style="text-align:right;">Amt Due to Consultant</th>
             <th>Payout</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody id="sessionsBody">
-          <tr><td colspan="8" class="empty-state">Loading sessions…</td></tr>
+          <tr><td colspan="9" class="empty-state">Loading sessions…</td></tr>
         </tbody>
       </table>
     </div>
@@ -346,6 +348,74 @@
     </div>
   </div>
 
+  <!-- ═══════ QUICK CONSULTATIONS TAB ═══════ -->
+  <div id="panel-quickconsult" style="display:none;">
+    <div class="filter-bar">
+      <input type="text" id="qc-search" placeholder="Search Session ID, Phone, Consultant, Razorpay ID…">
+      <select id="qc-call-status">
+        <option value="">All Call Statuses</option>
+        <option value="completed">Completed</option>
+        <option value="in_progress">In Progress</option>
+        <option value="initiated">Initiated</option>
+        <option value="scheduled">Scheduled</option>
+        <option value="consultant_no_answer">Consultant Missed</option>
+        <option value="user_no_answer">Client Missed</option>
+        <option value="failed">Failed</option>
+      </select>
+      <select id="qc-pay-status">
+        <option value="">All Payment Statuses</option>
+        <option value="completed">Paid / Completed</option>
+        <option value="refunded">Refunded</option>
+        <option value="pending">Pending</option>
+      </select>
+      <button class="btn-filter" onclick="loadAdminQuickConsultations()">Filter</button>
+    </div>
+
+    <div class="fin-table-wrap">
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>Session ID</th>
+            <th>Date & Time</th>
+            <th>Client Mobile</th>
+            <th>Consultant</th>
+            <th>Duration</th>
+            <th style="text-align:right;">Amount Paid</th>
+            <th style="text-align:right;">Consultant Payout</th>
+            <th>Call Status</th>
+            <th>Payment</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="qcTableBody">
+          <tr><td colspan="10" class="empty-state">Loading quick consultations…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Quick Consult Refund Modal -->
+<div id="qcRefundModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:1rem;max-width:420px;width:90%;padding:1.5rem;box-shadow:0 10px 25px rgba(0,0,0,.15);">
+    <h3 style="font-size:1rem;font-weight:800;margin:0 0 .5rem;color:#dc2626;">💸 Issue Razorpay Refund</h3>
+    <p style="font-size:.78rem;color:#6b7280;margin:0 0 1rem;">This will trigger an instant Razorpay refund to the client and freeze the consultant payout.</p>
+    <input type="hidden" id="qcRefundTargetId">
+    
+    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:.6rem;padding:.75rem;margin-bottom:.85rem;font-size:.82rem;">
+      <div>Session ID: <strong id="qcRefundModalId" style="font-family:monospace;">—</strong></div>
+      <div>Refund Amount: <strong id="qcRefundModalAmt" style="color:#b91c1c;">—</strong></div>
+    </div>
+
+    <label style="font-size:.82rem;font-weight:600;color:#374151;">Reason for Refund <span style="color:#dc2626;">*</span></label>
+    <textarea id="qcRefundReason" placeholder="e.g. Consultant missed call / Client requested cancellation…" style="width:100%;border:1px solid #e5e7eb;border-radius:.5rem;padding:.5rem .75rem;font-size:.85rem;margin:.4rem 0 1rem;box-sizing:border-box;font-family:inherit;resize:vertical;height:70px;"></textarea>
+    
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+      <button onclick="document.getElementById('qcRefundModal').style.display='none'" style="padding:.45rem 1rem;border:1.5px solid #e5e7eb;border-radius:.5rem;background:#fff;cursor:pointer;font-size:.82rem;font-weight:600;">Cancel</button>
+      <button id="qcRefundConfirmBtn" onclick="confirmQcRefund()" style="padding:.45rem 1.2rem;background:#dc2626;color:#fff;border:none;border-radius:.5rem;cursor:pointer;font-size:.82rem;font-weight:700;">Issue Full Refund</button>
+    </div>
+  </div>
 </div>
 
 <!-- Mark Paid Modal -->
@@ -385,6 +455,43 @@
     <div style="display:flex;gap:.5rem;justify-content:flex-end;">
       <button onclick="document.getElementById('refundModal').style.display='none'" style="padding:.45rem 1rem;border:1.5px solid #e5e7eb;border-radius:.5rem;background:#fff;cursor:pointer;font-size:.82rem;font-weight:600;">Cancel</button>
       <button onclick="confirmRefund()" style="padding:.45rem 1.2rem;background:#dc2626;color:#fff;border:none;border-radius:.5rem;cursor:pointer;font-size:.82rem;font-weight:700;">Confirm Refund</button>
+    </div>
+  </div>
+</div>
+
+<!-- Convert to Paid Modal -->
+<div id="convertToPaidModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:1rem;max-width:440px;width:90%;padding:1.5rem;box-shadow:0 10px 25px rgba(0,0,0,.15);">
+    <h3 style="font-size:1rem;font-weight:800;margin:0 0 .5rem;color:#0f766e;">🔄 Convert Consultation to Paid</h3>
+    <p style="font-size:.78rem;color:#6b7280;margin:0 0 1rem;">Set the consultation fee, consultant payout, and optional payment reference for this session.</p>
+    <input type="hidden" id="c2pAppointmentId">
+    
+    <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:.6rem;padding:.75rem;margin-bottom:.85rem;font-size:.82rem;">
+      <div>Appointment: <strong id="c2pModalApptId" style="font-family:monospace;">—</strong></div>
+      <div>Consultant: <strong id="c2pModalConsultant">—</strong></div>
+      <div>User: <strong id="c2pModalUser">—</strong></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
+      <div>
+        <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:.25rem;">Gross Fee (₹) <span style="color:#dc2626;">*</span></label>
+        <input type="number" id="c2pGross" value="500" step="0.01" style="width:100%;border:1px solid #e5e7eb;border-radius:.5rem;padding:.45rem .65rem;font-size:.85rem;box-sizing:border-box;font-family:inherit;">
+      </div>
+      <div>
+        <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:.25rem;">Consultant Payout (₹) <span style="color:#dc2626;">*</span></label>
+        <input type="number" id="c2pPayout" value="500" step="0.01" style="width:100%;border:1px solid #e5e7eb;border-radius:.5rem;padding:.45rem .65rem;font-size:.85rem;box-sizing:border-box;font-family:inherit;">
+      </div>
+    </div>
+
+    <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:.25rem;">Razorpay Payment ID (Optional)</label>
+    <input type="text" id="c2pPaymentId" placeholder="e.g. pay_XXXXX" style="width:100%;border:1px solid #e5e7eb;border-radius:.5rem;padding:.45rem .65rem;font-size:.85rem;margin-bottom:.75rem;box-sizing:border-box;font-family:inherit;">
+
+    <label style="font-size:.8rem;font-weight:600;color:#374151;display:block;margin-bottom:.25rem;">Admin Notes (Optional)</label>
+    <textarea id="c2pNotes" placeholder="Reason or details…" style="width:100%;border:1px solid #e5e7eb;border-radius:.5rem;padding:.45rem .65rem;font-size:.85rem;margin-bottom:1rem;box-sizing:border-box;font-family:inherit;resize:vertical;height:55px;"></textarea>
+    
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+      <button onclick="document.getElementById('convertToPaidModal').style.display='none'" style="padding:.45rem 1rem;border:1.5px solid #e5e7eb;border-radius:.5rem;background:#fff;cursor:pointer;font-size:.82rem;font-weight:600;">Cancel</button>
+      <button id="c2pConfirmBtn" onclick="confirmConvertToPaid()" style="padding:.45rem 1.2rem;background:#0d9488;color:#fff;border:none;border-radius:.5rem;cursor:pointer;font-size:.82rem;font-weight:700;">Save & Convert</button>
     </div>
   </div>
 </div>
@@ -439,6 +546,11 @@ function switchTab(tab) {
   document.getElementById('panel-all').style.display = tab === 'all' ? '' : 'none';
   document.getElementById('panel-consultants').style.display = tab === 'consultants' ? '' : 'none';
   document.getElementById('panel-sessions').style.display = tab === 'sessions' ? '' : 'none';
+  const panelQc = document.getElementById('panel-quickconsult');
+  if (panelQc) panelQc.style.display = tab === 'quickconsult' ? '' : 'none';
+  if (tab === 'quickconsult') {
+    loadAdminQuickConsultations();
+  }
   if (tab === 'sessions' && !asLoaded) {
     asLoaded = true;
     populateSessionFilters();
@@ -625,13 +737,13 @@ function loadSessions(page) {
   if (from)         url += `&date_from=${from}`;
   if (to)           url += `&date_to=${to}`;
 
-  document.getElementById('sessionsBody').innerHTML = '<tr><td colspan="8" class="empty-state">Loading…</td></tr>';
+  document.getElementById('sessionsBody').innerHTML = '<tr><td colspan="9" class="empty-state">Loading…</td></tr>';
 
   fetch(url).then(r => r.json()).then(data => {
     asTotal = data.total || 0;
     const rows = data.sessions || [];
     if (!rows.length) {
-      document.getElementById('sessionsBody').innerHTML = '<tr><td colspan="8" class="empty-state">No appointment sessions found.</td></tr>';
+      document.getElementById('sessionsBody').innerHTML = '<tr><td colspan="9" class="empty-state">No appointment sessions found.</td></tr>';
       document.getElementById('asPageInfo').textContent = '0 results';
       document.getElementById('asBtnPrev').disabled = true;
       document.getElementById('asBtnNext').disabled = true;
@@ -655,14 +767,38 @@ function loadSessions(page) {
       if (s.txn_status === 'refunded') {
         amtPaid += ` <span class="badge badge-refunded" style="font-size:.62rem;padding:.1rem .35rem;margin-left:.25rem;">Refunded</span>`;
       }
-      // Amount due to consultant
-      const amtConsultant = s.consultant_payout > 0 ? `<strong style="color:#059669;">${fmt(s.consultant_payout)}</strong>` : (s.is_free ? '<span style="color:#9ca3af;">—</span>' : `<span style="color:#9ca3af;">${fmt(s.consultant_payout)}</span>`);
+      
+      // Amount due to consultant & Payout badge & Action cell
+      let amtConsultant = '<span style="color:#9ca3af;">—</span>';
+      let payoutBadge = '<span style="color:#d1d5db;font-size:.72rem;">—</span>';
+      let actionCell = '<span style="color:#9ca3af;font-size:.72rem;">—</span>';
 
-
-      // Payout status badge
-      const payoutBadge = s.payout_status
-        ? `<span class="badge badge-${s.payout_status}" style="font-size:.66rem;">${s.payout_status}</span>`
-        : '<span style="color:#d1d5db;font-size:.72rem;">—</span>';
+      if (s.is_free) {
+        actionCell = `<button class="btn-sm" onclick="openConvertToPaidModal(${s.appointment_id}, '${(s.consultant_name||'').replace(/'/g,"\\'")}', '${(s.user_name||'').replace(/'/g,"\\'")}')" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;padding:.2rem .5rem;border-radius:.35rem;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;">🔄 Convert to Paid</button>`;
+      } else if (s.earning_id) {
+        if (!s.is_approved) {
+          amtConsultant = `<div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;"><span style="font-size:.75rem;font-weight:700;color:#059669;">₹</span><input type="number" id="as-payout-${s.earning_id}" value="${s.consultant_payout}" step="0.01" style="width:75px;border:1.5px solid #10b981;border-radius:.35rem;padding:.15rem .3rem;font-size:.78rem;font-weight:700;text-align:right;color:#059669;background:#f0fdf4;"></div>`;
+          payoutBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;font-size:.66rem;">⏳ Awaiting Approval</span>`;
+          actionCell = `<button onclick="approvePayoutFromSessions(${s.earning_id})" style="background:#059669;color:#fff;border:none;padding:.25rem .6rem;border-radius:.35rem;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;">✓ Approve</button>`;
+        } else {
+          amtConsultant = s.consultant_payout > 0 ? `<strong style="color:#059669;">${fmt(s.consultant_payout)}</strong>` : `<span style="color:#9ca3af;">${fmt(s.consultant_payout)}</span>`;
+          payoutBadge = s.payout_status
+            ? `<span class="badge badge-${s.payout_status}" style="font-size:.66rem;">${s.payout_status}</span> <span style="color:#059669;font-size:.68rem;font-weight:700;">✓ Approved</span>`
+            : '<span style="color:#059669;font-size:.68rem;font-weight:700;">✓ Approved</span>';
+          if (s.payout_status === 'pending' || s.payout_status === 'processing') {
+            actionCell = `<select class="action-dropdown" onchange="handlePayoutAction(this, ${s.earning_id}, ${s.consultant_user_id})">
+              <option value="" selected disabled>Actions</option>
+              <option value="mark_paid">Mark it Paid</option>
+              <option value="mark_free">Mark it Free</option>
+            </select>`;
+          } else if (s.payout_status === 'free') {
+            actionCell = `<select class="action-dropdown" onchange="handlePayoutAction(this, ${s.earning_id}, ${s.consultant_user_id})">
+              <option value="" selected disabled>Actions</option>
+              <option value="restore_pending">Mark it Paid (Restore)</option>
+            </select>`;
+          }
+        }
+      }
 
       // Consultant avatar initials
       const cInit = (s.consultant_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
@@ -691,6 +827,7 @@ function loadSessions(page) {
         <td style="text-align:right;">${amtPaid}</td>
         <td style="text-align:right;">${amtConsultant}</td>
         <td>${payoutBadge}</td>
+        <td>${actionCell}</td>
       </tr>`;
     }).join('');
 
@@ -700,7 +837,7 @@ function loadSessions(page) {
     document.getElementById('asBtnPrev').disabled = page <= 1;
     document.getElementById('asBtnNext').disabled = end >= asTotal;
   }).catch(e => {
-    document.getElementById('sessionsBody').innerHTML = `<tr><td colspan="8" class="empty-state">Error: ${e.message}</td></tr>`;
+    document.getElementById('sessionsBody').innerHTML = `<tr><td colspan="9" class="empty-state">Error: ${e.message}</td></tr>`;
   });
 }
 
@@ -853,21 +990,32 @@ function loadConsultantEarnings() {
             <span style="font-size:.7rem;color:#9ca3af;">(${e.platform_fee_pct}%)</span>
           ` : '<span style="color:#6b7280;">₹0.00</span>'}
         </td>
-        <td style="text-align:right;font-weight:700;color:#059669;">${fmt(e.consultant_payout)}</td>
+        <td style="text-align:right;font-weight:700;color:#059669;">
+          ${!e.is_approved ? `
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:.3rem;">
+              <span style="font-size:.75rem;font-weight:700;color:#059669;">₹</span>
+              <input type="number" id="payout-val-${e.id}" value="${e.consultant_payout}" step="0.01" style="width:85px;border:1.5px solid #10b981;border-radius:.35rem;padding:.2rem .4rem;font-size:.82rem;font-weight:700;text-align:right;color:#059669;background:#f0fdf4;">
+            </div>
+          ` : fmt(e.consultant_payout)}
+        </td>
         <td style="font-family:monospace;font-size:.75rem;color:#0d9488;">${e.invoice_number || '—'}</td>
         <td>
-          ${e.payout_status === 'on_hold' ? `
+          ${!e.is_approved ? `
+            <span class="badge" style="background:#fef3c7;color:#92400e;border:1px solid #fde68a;">⏳ Awaiting Approval</span>
+          ` : (e.payout_status === 'on_hold' ? `
             <span class="badge badge-on_hold">⛔ Refunded — payout frozen</span>
             ${e.admin_notes ? `<div style="font-size:.68rem;color:#92400e;margin-top:.25rem;font-style:italic;" title="${e.admin_notes}">${e.admin_notes.slice(0,80)}${e.admin_notes.length>80?'…':''}</div>` : ''}
           ` : `
-            <span class="badge badge-${e.payout_status}">${e.payout_status}</span>
+            <span class="badge badge-${e.payout_status}">${e.payout_status}</span> <span style="color:#059669;font-size:.68rem;font-weight:700;">✓ Approved</span>
             ${e.payout_date ? `<div style="font-size:.7rem;color:#9ca3af;">${fmtDate(e.payout_date)}</div>` : ''}
             ${e.payout_reference ? `<div style="font-size:.7rem;color:#6b7280;font-family:monospace;">${e.payout_reference}</div>` : ''}
             ${e.admin_notes && e.payout_status === 'free' ? `<div style="font-size:.68rem;color:#6b7280;margin-top:.25rem;font-style:italic;" title="${e.admin_notes}">${e.admin_notes}</div>` : ''}
-          `}
+          `)}
         </td>
         <td>
-          ${(e.payout_status === 'pending' || e.payout_status === 'processing') ? `
+          ${!e.is_approved ? `
+            <button onclick="approvePayout(${e.id}, ${selectedConsultantId})" style="background:#059669;color:#fff;border:none;padding:.35rem .75rem;border-radius:.4rem;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.05);">✓ Approve</button>
+          ` : ((e.payout_status === 'pending' || e.payout_status === 'processing') ? `
             <select class="action-dropdown" onchange="handlePayoutAction(this, ${e.id}, ${selectedConsultantId})">
               <option value="" selected disabled>Actions</option>
               <option value="mark_paid">Mark it Paid</option>
@@ -878,7 +1026,7 @@ function loadConsultantEarnings() {
               <option value="" selected disabled>Actions</option>
               <option value="restore_pending">Mark it Paid (Restore)</option>
             </select>
-          ` : '—')}
+          ` : '—'))}
         </td>
       </tr>
     `).join('');
@@ -989,6 +1137,246 @@ function handlePayoutAction(selectEl, earningId, consultantUserId) {
   
   // Reset select element back to placeholder option
   selectEl.value = "";
+}
+
+// ── Quick Consultations ──────────────────────────────────────────────────────
+function loadAdminQuickConsultations() {
+  const search = encodeURIComponent(document.getElementById('qc-search')?.value || '');
+  const callStatus = encodeURIComponent(document.getElementById('qc-call-status')?.value || '');
+  const payStatus = encodeURIComponent(document.getElementById('qc-pay-status')?.value || '');
+
+  const tbody = document.getElementById('qcTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="10" class="empty-state">Loading quick consultations…</td></tr>';
+
+  fetch(`/api/admin/quick-consultations?search=${search}&status=${callStatus}&payment_status=${payStatus}`)
+    .then(r => r.json())
+    .then(data => {
+      const rows = data.quick_consultations || [];
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No quick consultations found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(qc => {
+        let callBadge = `<span class="badge" style="background:#f3f4f6;color:#374151;">${qc.call_status}</span>`;
+        if (qc.call_status === 'completed') {
+          callBadge = `<span class="badge" style="background:#d1fae5;color:#065f46;">📞 Completed</span>`;
+        } else if (qc.call_status === 'in_progress') {
+          callBadge = `<span class="badge" style="background:#e0e7ff;color:#3730a3;">🔄 In Progress</span>`;
+        } else if (qc.call_status === 'initiated') {
+          callBadge = `<span class="badge" style="background:#fef3c7;color:#92400e;">⚡ Dialing</span>`;
+        } else if (qc.call_status === 'consultant_no_answer') {
+          callBadge = `<span class="badge" style="background:#fee2e2;color:#991b1b;">⚠️ Consultant Missed</span>`;
+        } else if (qc.call_status === 'user_no_answer') {
+          callBadge = `<span class="badge" style="background:#fee2e2;color:#991b1b;">⚠️ Client Missed</span>`;
+        } else if (qc.call_status === 'failed') {
+          callBadge = `<span class="badge" style="background:#fee2e2;color:#991b1b;">❌ Call Failed</span>`;
+        }
+
+        let payBadge = `<span class="badge badge-${qc.payment_status}">${qc.payment_status}</span>`;
+        if (qc.payment_status === 'refunded') {
+          payBadge = `<span class="badge" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;">💸 Refunded</span>`;
+        }
+
+        return `
+        <tr>
+          <td>
+            <div style="font-family:monospace;font-weight:700;color:#0f766e;font-size:.82rem;">${qc.qc_id}</div>
+            <div style="font-size:.7rem;color:#9ca3af;font-family:monospace;">${qc.razorpay_payment_id ? qc.razorpay_payment_id.slice(0,14)+'…' : ''}</div>
+          </td>
+          <td style="white-space:nowrap;font-size:.8rem;">${qc.appointment_time_ist}</td>
+          <td style="font-weight:600;color:#111827;">${qc.phone_number}</td>
+          <td>
+            <div style="font-weight:600;color:#111827;">${qc.consultant_name}</div>
+            ${qc.consultant_notes ? `<div style="font-size:.7rem;color:#6b7280;margin-top:2px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${qc.consultant_notes}">📝 ${qc.consultant_notes}</div>` : ''}
+          </td>
+          <td><span style="font-size:.78rem;font-weight:600;">${qc.duration_minutes} mins</span></td>
+          <td style="text-align:right;font-weight:700;color:#111827;">${fmt(qc.amount_paid)}</td>
+          <td style="text-align:right;font-weight:700;color:#059669;">${fmt(qc.consultant_payout)}</td>
+          <td>${callBadge}</td>
+          <td>${payBadge}</td>
+          <td style="white-space:nowrap;">
+            ${qc.payment_status === 'completed' ? `
+              <button class="btn-sm btn-refund" onclick="openQcRefund('${qc.qc_id}', ${qc.amount_paid})" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;padding:.25rem .55rem;border-radius:.35rem;font-size:.75rem;font-weight:700;cursor:pointer;">
+                💸 Refund
+              </button>
+            ` : (qc.payment_status === 'refunded' ? '<span style="font-size:.72rem;color:#9ca3af;">Refunded</span>' : '—')}
+          </td>
+        </tr>`;
+      }).join('');
+    })
+    .catch(err => {
+      tbody.innerHTML = `<tr><td colspan="10" class="empty-state" style="color:#dc2626;">Error: ${err.message}</td></tr>`;
+    });
+}
+
+function openQcRefund(qcId, amount) {
+  document.getElementById('qcRefundTargetId').value = qcId;
+  document.getElementById('qcRefundModalId').textContent = qcId;
+  document.getElementById('qcRefundModalAmt').textContent = fmt(amount);
+  document.getElementById('qcRefundReason').value = '';
+  document.getElementById('qcRefundModal').style.display = 'flex';
+}
+
+function confirmQcRefund() {
+  const qcId = document.getElementById('qcRefundTargetId').value;
+  const reason = document.getElementById('qcRefundReason').value.trim() || 'Quick Consultation refund by admin';
+  const btn = document.getElementById('qcRefundConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'Processing Refund…';
+
+  fetch(`/api/admin/quick-consult/${qcId}/refund`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: reason })
+  })
+  .then(r => r.json())
+  .then(d => {
+    btn.disabled = false;
+    btn.textContent = 'Issue Full Refund';
+    if (d.success) {
+      document.getElementById('qcRefundModal').style.display = 'none';
+      alert(`✅ ${d.message || 'Refund successfully issued!'}`);
+      loadAdminQuickConsultations();
+      loadSummary();
+    } else {
+      alert(`❌ Error: ${d.detail || d.error || 'Failed to issue refund.'}`);
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Issue Full Refund';
+    alert(`❌ Network error: ${err.message}`);
+  });
+}
+
+// ── Approval & Conversion Handlers ──────────────────────────────────────────
+function approvePayout(earningId, consultantUserId) {
+  const inputEl = document.getElementById(`payout-val-${earningId}`);
+  const payoutVal = inputEl ? parseFloat(inputEl.value) : null;
+  if (payoutVal === null || isNaN(payoutVal) || payoutVal < 0) {
+    alert('Please enter a valid payout amount.');
+    return;
+  }
+  
+  if (!confirm(`Approve consultant payout of ₹${payoutVal.toFixed(2)}?\nOnce approved, this payout will immediately reflect in the consultant\'s earnings and portal.`)) {
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('consultant_payout', payoutVal);
+  
+  fetch(`/api/admin/finance/consultant-earnings/${earningId}/approve`, {
+    method: 'POST',
+    body: fd
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      alert(`✅ Payout of ₹${d.consultant_payout.toFixed(2)} approved successfully!`);
+      loadConsultantEarnings();
+      loadSummary();
+      loadConsultantList();
+    } else {
+      alert(`❌ Error: ${d.error || 'Failed to approve payout.'}`);
+    }
+  })
+  .catch(err => alert(`❌ Network error: ${err.message}`));
+}
+
+function approvePayoutFromSessions(earningId) {
+  const inputEl = document.getElementById(`as-payout-${earningId}`);
+  const payoutVal = inputEl ? parseFloat(inputEl.value) : null;
+  if (payoutVal === null || isNaN(payoutVal) || payoutVal < 0) {
+    alert('Please enter a valid payout amount.');
+    return;
+  }
+  
+  if (!confirm(`Approve consultant payout of ₹${payoutVal.toFixed(2)}?\nOnce approved, this payout will immediately reflect in the consultant\'s earnings and portal.`)) {
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('consultant_payout', payoutVal);
+  
+  fetch(`/api/admin/finance/consultant-earnings/${earningId}/approve`, {
+    method: 'POST',
+    body: fd
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      alert(`✅ Payout of ₹${d.consultant_payout.toFixed(2)} approved successfully!`);
+      loadSessions(asPage);
+      loadSummary();
+    } else {
+      alert(`❌ Error: ${d.error || 'Failed to approve payout.'}`);
+    }
+  })
+  .catch(err => alert(`❌ Network error: ${err.message}`));
+}
+
+function openConvertToPaidModal(apptId, cName, uName) {
+  document.getElementById('c2pAppointmentId').value = apptId;
+  document.getElementById('c2pModalApptId').textContent = '#' + apptId;
+  document.getElementById('c2pModalConsultant').textContent = cName || '—';
+  document.getElementById('c2pModalUser').textContent = uName || '—';
+  document.getElementById('c2pGross').value = '500';
+  document.getElementById('c2pPayout').value = '500';
+  document.getElementById('c2pPaymentId').value = '';
+  document.getElementById('c2pNotes').value = '';
+  document.getElementById('convertToPaidModal').style.display = 'flex';
+}
+
+function confirmConvertToPaid() {
+  const apptId = document.getElementById('c2pAppointmentId').value;
+  const gross = parseFloat(document.getElementById('c2pGross').value);
+  const payout = parseFloat(document.getElementById('c2pPayout').value);
+  const rzpId = document.getElementById('c2pPaymentId').value.trim();
+  const notes = document.getElementById('c2pNotes').value.trim();
+
+  if (isNaN(gross) || gross <= 0) {
+    alert('Please enter a valid gross fee.');
+    return;
+  }
+  if (isNaN(payout) || payout < 0) {
+    alert('Please enter a valid consultant payout.');
+    return;
+  }
+
+  const btn = document.getElementById('c2pConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const fd = new FormData();
+  fd.append('gross_amount', gross);
+  fd.append('consultant_payout', payout);
+  if (rzpId) fd.append('razorpay_payment_id', rzpId);
+  if (notes) fd.append('admin_notes', notes);
+  fd.append('auto_approve', 'true');
+
+  fetch(`/api/admin/finance/appointments/${apptId}/convert-to-paid`, {
+    method: 'POST',
+    body: fd
+  })
+  .then(r => r.json())
+  .then(d => {
+    btn.disabled = false;
+    btn.textContent = 'Save & Convert';
+    if (d.success) {
+      document.getElementById('convertToPaidModal').style.display = 'none';
+      alert(`✅ Consultation #${apptId} converted to Paid successfully!\nConsultant Payout: ₹${d.consultant_payout.toFixed(2)} (Approved)`);
+      loadSessions(asPage);
+      loadSummary();
+    } else {
+      alert(`❌ Error: ${d.error || 'Failed to convert appointment.'}`);
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Save & Convert';
+    alert(`❌ Network error: ${err.message}`);
+  });
 }
 </script>
 {% endblock %}

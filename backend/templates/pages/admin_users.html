@@ -157,7 +157,12 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                {% if u.is_active %}
+                                {% if u.is_blocked %}
+                                <span
+                                    class="px-2.5 py-1 inline-flex text-xs leading-5 font-bold rounded-full bg-red-600 text-white" title="{{ u.blocked_reason or 'Blocked by Admin' }}">
+                                    🚫 Blocked
+                                </span>
+                                {% elif u.is_active %}
                                 <span
                                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                     Active
@@ -185,14 +190,25 @@
                                         <i data-lucide="eye" class="w-4 h-4 inline"></i>
                                     </button>
                                     <button onclick="toggleUserStatus({{ u.id }}, {{ 'true' if u.is_active else 'false' }})"
-                                        class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-yellow-600 hover:text-yellow-900 shadow-sm transition" title="Toggle Status">
+                                        class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-yellow-600 hover:text-yellow-900 shadow-sm transition" title="Toggle Active Status">
                                         <i data-lucide="power" class="w-4 h-4 inline"></i>
                                     </button>
                                     {% if u.user_type != 'admin' %}
-                                    <button onclick="deleteUser({{ u.id }})" class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-red-600 hover:text-red-900 shadow-sm transition"
-                                        title="Delete User">
-                                        <i data-lucide="trash-2" class="w-4 h-4 inline"></i>
-                                    </button>
+                                        {% if u.is_blocked %}
+                                        <button onclick="unblockUser({{ u.id }}, '{{ u.name|escape }}')"
+                                            class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-700 shadow-sm transition" title="Unblock User">
+                                            <i data-lucide="shield-check" class="w-4 h-4 inline"></i>
+                                        </button>
+                                        {% else %}
+                                        <button onclick="openBlockUserModal({{ u.id }}, '{{ u.name|escape }}')"
+                                            class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 shadow-sm transition" title="Block User">
+                                            <i data-lucide="ban" class="w-4 h-4 inline"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button onclick="deleteUser({{ u.id }})" class="table-action-btn inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-red-600 hover:text-red-900 shadow-sm transition"
+                                            title="Delete User">
+                                            <i data-lucide="trash-2" class="w-4 h-4 inline"></i>
+                                        </button>
                                     {% endif %}
                                 </div>
 
@@ -215,9 +231,18 @@
                                             <i data-lucide="power" class="w-4 h-4 inline mr-2"></i> Toggle Status
                                         </button>
                                         {% if u.user_type != 'admin' %}
-                                        <button onclick="deleteUser({{ u.id }})">
-                                            <i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i> Delete User
-                                        </button>
+                                            {% if u.is_blocked %}
+                                            <button onclick="unblockUser({{ u.id }}, '{{ u.name|escape }}')">
+                                                <i data-lucide="shield-check" class="w-4 h-4 inline mr-2 text-teal-600"></i> Unblock User
+                                            </button>
+                                            {% else %}
+                                            <button onclick="openBlockUserModal({{ u.id }}, '{{ u.name|escape }}')">
+                                                <i data-lucide="ban" class="w-4 h-4 inline mr-2 text-red-600"></i> Block User
+                                            </button>
+                                            {% endif %}
+                                            <button onclick="deleteUser({{ u.id }})">
+                                                <i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i> Delete User
+                                            </button>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -1650,6 +1675,77 @@
         }
     }
 
+    // ── Block / Unblock User ──────────────────────────────────────────────────
+    function openBlockUserModal(userId, userName) {
+        document.getElementById('block-user-id').value = userId;
+        document.getElementById('block-user-name').textContent = userName || 'User';
+        document.getElementById('block-user-reason').value = '';
+        
+        const modal = document.getElementById('block-user-modal');
+        const content = document.getElementById('block-user-modal-content');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 10);
+    }
+
+    function closeBlockUserModal() {
+        const modal = document.getElementById('block-user-modal');
+        const content = document.getElementById('block-user-modal-content');
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }, 300);
+    }
+
+    async function submitBlockUser(event) {
+        event.preventDefault();
+        const userId = document.getElementById('block-user-id').value;
+        const reason = document.getElementById('block-user-reason').value.trim() || 'Blocked by Admin';
+
+        try {
+            const res = await fetch(`/api/admin/users/${userId}/block`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reason })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message || 'User has been blocked.');
+                window.location.reload();
+            } else {
+                alert(`Error: ${data.error || 'Failed to block user'}`);
+            }
+        } catch (e) {
+            alert('Connection error. Please try again.');
+        }
+    }
+
+    async function unblockUser(userId, userName) {
+        if (!confirm(`Are you sure you want to unblock ${userName || 'this user'}? They will be able to log in and use the platform again.`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/admin/users/${userId}/unblock`, {
+                method: 'POST'
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message || 'User has been unblocked.');
+                window.location.reload();
+            } else {
+                alert(`Error: ${data.error || 'Failed to unblock user'}`);
+            }
+        } catch (e) {
+            alert('Connection error. Please try again.');
+        }
+    }
+
     // Safe lucide helper — library is deferred so may not be ready yet
     function safeCreateIcons() {
         if (typeof lucide !== 'undefined') {
@@ -1693,6 +1789,38 @@
                 </button>
                 <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition">
                     Update Email
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Block User Modal -->
+<div id="block-user-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-100 transform transition-all duration-300 scale-95 opacity-0" id="block-user-modal-content">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-bold text-red-600 flex items-center gap-2">
+                <i data-lucide="ban" class="w-5 h-5 text-red-600"></i> Block User Access
+            </h3>
+            <button onclick="closeBlockUserModal()" class="text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <p class="text-xs text-gray-600 mb-4">
+            Are you sure you want to block <strong id="block-user-name" class="text-gray-900">User</strong>? Blocked users will immediately be denied login and access across web and mobile.
+        </p>
+        <form id="block-user-form" onsubmit="submitBlockUser(event)" class="space-y-4">
+            <input type="hidden" id="block-user-id">
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Reason for Blocking</label>
+                <textarea id="block-user-reason" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="e.g. Terms violation, fraudulent activity, requested suspension…"></textarea>
+            </div>
+            <div class="flex gap-2 justify-end pt-2">
+                <button type="button" onclick="closeBlockUserModal()" class="px-4 py-2 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition">
+                    Block User
                 </button>
             </div>
         </form>

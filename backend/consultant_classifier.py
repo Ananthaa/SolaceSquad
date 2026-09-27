@@ -201,8 +201,15 @@ def get_earliest_slot_details(consultant, db, tz_name: str = "Asia/Kolkata") -> 
                 "has_active_schedule": False
             }
 
-        # Paid consultants require at least 24 hours advance notice
-        min_booking_ist = now_ist.replace(tzinfo=None) + timedelta(hours=24)
+        accepts_short_notice = bool(getattr(consultant, 'accepts_short_notice', False))
+        if accepts_short_notice:
+            # For short notice consultants, allow booking today (15 mins from now)
+            min_booking_ist = now_ist.replace(tzinfo=None) + timedelta(minutes=15)
+            start_day_offset = 0
+        else:
+            # Paid consultants require at least 24 hours advance notice
+            min_booking_ist = now_ist.replace(tzinfo=None) + timedelta(hours=24)
+            start_day_offset = 1
 
         future_cutoff_utc = now_utc + timedelta(days=14)
         existing_appts = db.query(Appointment).filter(
@@ -222,8 +229,8 @@ def get_earliest_slot_details(consultant, db, tz_name: str = "Asia/Kolkata") -> 
                 except Exception:
                     pass
 
-        # Start search from day_offset = 1 (Tomorrow) up to 14 days ahead
-        for day_offset in range(1, 15):
+        # Start search from start_day_offset (0 for short notice, 1 for normal) up to 14 days ahead
+        for day_offset in range(start_day_offset, 15):
             check_date = today_ist + timedelta(days=day_offset)
             weekday = check_date.weekday()
 
@@ -248,7 +255,9 @@ def get_earliest_slot_details(consultant, db, tz_name: str = "Asia/Kolkata") -> 
                     delta = (slot_dt - now_ist.replace(tzinfo=None))
                     hours_until = max(0.0, delta.total_seconds() / 3600.0)
 
-                    if days_diff == 1:
+                    if days_diff == 0:
+                        slot_str = f"Today at {time_part}"
+                    elif days_diff == 1:
                         slot_str = f"Tomorrow at {time_part}"
                     else:
                         slot_str = f"{slot_dt.strftime('%a, %d %b')} at {time_part}"
@@ -261,7 +270,12 @@ def get_earliest_slot_details(consultant, db, tz_name: str = "Asia/Kolkata") -> 
                     }
                 except Exception:
                     days_diff = (check_date - today_ist).days
-                    slot_str = f"Tomorrow at {slot_time_str}" if days_diff == 1 else f"{check_date.strftime('%a, %d %b')} at {slot_time_str}"
+                    if days_diff == 0:
+                        slot_str = f"Today at {slot_time_str}"
+                    elif days_diff == 1:
+                        slot_str = f"Tomorrow at {slot_time_str}"
+                    else:
+                        slot_str = f"{check_date.strftime('%a, %d %b')} at {slot_time_str}"
                     return {
                         "slot_str": slot_str,
                         "days_until": float(days_diff),

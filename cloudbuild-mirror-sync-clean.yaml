@@ -1,0 +1,88 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Cloud Build — Mirror DB Sync (Cleaned Import)
+# ─────────────────────────────────────────────────────────────────────────────
+steps:
+  # Step 1: Export production DB to GCS
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        EXPORT_URI="gs://abiding-idea-485817-k2-mirror-sync/prod-snapshot.sql"
+        echo "Exporting prod DB to $$EXPORT_URI ..."
+        gcloud sql export sql solacesquad-login-data1 "$$EXPORT_URI" \
+          --database=solacesquad_prod \
+          --project=$PROJECT_ID \
+          --offload
+
+  # Step 2: Download snapshot from GCS, clean it, and upload clean version back
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        echo "Downloading snapshot..."
+        gsutil cp gs://abiding-idea-485817-k2-mirror-sync/prod-snapshot.sql /workspace/prod-snapshot.sql
+        
+        echo "Cleaning SQL dump..."
+        cat << 'EOF' > /workspace/clean_sql.py
+        import sys
+        with open('/workspace/prod-snapshot.sql', 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+        clean = []
+        for line in lines:
+            s = line.strip()
+            # Skip owner, grant, revoke, and default privilege commands
+            if 'OWNER TO' in s or s.startswith('GRANT ') or s.startswith('REVOKE ') or 'DEFAULT PRIVILEGES' in s:
+                continue
+            clean.append(line)
+        with open('/workspace/prod-snapshot-clean.sql', 'w', encoding='utf-8') as f:
+            f.writelines(clean)
+        print("SQL clean completed.")
+        EOF
+        
+        python3 /workspace/clean_sql.py
+        
+        echo "Uploading clean snapshot to GCS..."
+        gsutil cp /workspace/prod-snapshot-clean.sql gs://abiding-idea-485817-k2-mirror-sync/prod-snapshot-clean.sql
+
+  # Step 3: Ensure mirror DB exists
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        gcloud sql databases create solacesquad_mirror \
+          --instance=solacesquad-login-data1 \
+          --project=$PROJECT_ID \
+          2>/dev/null || echo "DB already exists..."
+
+  # Step 4: Drop existing tables in mirror DB
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        apt-get install -y postgresql-client wget 2>/dev/null
+        wget -q https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.14.2/cloud-sql-proxy.linux.amd64 -O /usr/local/bin/cloud-sql-proxy
+        chmod +x /usr/local/bin/cloud-sql-proxy
+        /usr/local/bin/cloud-sql-proxy --port=5433 abiding-idea-485817-k2:us-central1:solacesquad-login-data1 &
+        sleep 5
+        echo "Dropping tables..."
+        PGPASSWORD="SoulSquad2024x" psql -h 127.0.0.1 -p 5433 -U Admin -d solacesquad_mirror -c \
+          "DO \$\$ DECLARE r RECORD; BEGIN FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE'; END LOOP; END \$\$;"
+
+  # Step 5: Import clean snapshot into mirror DB
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        echo "Importing clean snapshot..."
+        gcloud sql import sql solacesquad-login-data1 "gs://abiding-idea-485817-k2-mirror-sync/prod-snapshot-clean.sql" \
+          --database=solacesquad_mirror \
+          --project=$PROJECT_ID \
+          --quiet
+
+logsBucket: 'gs://abiding-idea-485817-k2-build-logs'
+timeout: 1800s

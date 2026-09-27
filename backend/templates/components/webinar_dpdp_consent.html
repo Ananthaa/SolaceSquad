@@ -1,0 +1,19 @@
+<!-- DPDP Act, 2023 Consent & Privacy Notice -->
+<div class="border border-violet-100 rounded-xl bg-violet-50/40 p-3 my-3">
+    <button type="button" onclick="toggleWebinarDpdpaNotice(event)" class="w-full flex items-center justify-between text-[11px] font-semibold text-violet-800 focus:outline-none">
+        <span class="flex items-center gap-1">🛡️ Privacy Notice (DPDPA 2023)</span>
+        <span class="webinar-dpdpa-chevron transition-transform duration-200" style="transform: rotate(-90deg)">▼</span>
+    </button>
+    <div class="webinar-dpdpa-content mt-2 text-[10px] text-gray-600 space-y-2 text-left hidden">
+        <p>SolaceSquad collects your name, email, and phone number to verify identity, manage webinar attendance, and send calendar invites.</p>
+        <p><strong>Your Rights:</strong> You can access, edit, or withdraw consent and delete your data anytime via your account settings dashboard.</p>
+        <p><strong>Grievance:</strong> grievance@solacesquad.com</p>
+    </div>
+</div>
+
+<div class="flex items-start gap-2 mb-3 text-left">
+    <input type="checkbox" onchange="toggleWebinarConsent(event)" required class="webinar-consent-chk mt-1 h-3.5 w-3.5 text-[#2d6a5a] border-gray-300 rounded focus:ring-[#2d6a5a]">
+    <label class="text-[11px] text-gray-500 leading-normal">
+        I consent to Solace Squad collecting my details for webinar registration and account management in accordance with the DPDPA 2023.
+    </label>
+</div>

@@ -303,6 +303,37 @@
         {% endif %}
     </div>
 
+    <!-- Admin Booking Settings: Short-Notice / Quick Consultations -->
+    <div class="detail-card" style="border-left:4px solid #0d9488; background:#f0fdfa;">
+        <div class="section-head" style="color:#0f766e; margin-bottom:0.6rem; font-size:0.85rem;">
+            ⚡ Quick Consultations &amp; Short-Notice Booking
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+            <div style="flex:1; min-width:280px;">
+                <div style="font-weight:700; color:#134e4a; font-size:0.95rem; display:flex; align-items:center; gap:0.5rem;">
+                    <span>Accept Short-Notice Bookings (Relax 24h Advance Rule)</span>
+                    <span id="shortNoticeBadge" style="font-size:0.7rem; font-weight:700; padding:2px 8px; border-radius:9999px; {% if profile.accepts_short_notice %}background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;{% else %}background:#f3f4f6; color:#6b7280; border:1px solid #e5e7eb;{% endif %}">
+                        {% if profile.accepts_short_notice %}ACTIVE{% else %}DISABLED{% endif %}
+                    </span>
+                </div>
+                <div style="font-size:0.8rem; color:#4b5563; margin-top:0.25rem; line-height:1.4;">
+                    When enabled, users can book this consultant with <strong>short notice (starting 15 minutes ahead)</strong> without requiring the mandatory 24-hour advance booking rule.
+                </div>
+            </div>
+            
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+                <!-- Toggle Switch -->
+                <label style="position:relative; display:inline-block; width:50px; height:26px; cursor:pointer; margin:0;" title="Toggle short-notice booking">
+                    <input type="checkbox" id="acceptsShortNoticeToggle" {% if profile.accepts_short_notice %}checked{% endif %}
+                           onchange="handleShortNoticeToggleChange(this.checked)" style="opacity:0; width:0; height:0;">
+                    <span id="toggleSlider" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:{% if profile.accepts_short_notice %}#0d9488{% else %}#cbd5e1{% endif %}; transition:.3s; border-radius:34px;">
+                        <span id="toggleDot" style="position:absolute; content:''; height:18px; width:18px; left:4px; bottom:4px; background-color:white; transition:.3s; border-radius:50%; transform:{% if profile.accepts_short_notice %}translateX(24px){% else %}translateX(0){% endif %}; box-shadow:0 1px 3px rgba(0,0,0,0.2);"></span>
+                    </span>
+                </label>
+            </div>
+        </div>
+    </div>
+
     <!-- S1: Personal Details -->
     <div class="detail-card">
         <div class="section-head"><span class="badge-num">1</span> Personal Details</div>
@@ -619,10 +650,29 @@ function handleAdminPhotoSelect(event) {
     handleAdminSaveAll('auto');
 }
 
+function handleShortNoticeToggleChange(checked) {
+    const slider = document.getElementById('toggleSlider');
+    const dot = document.getElementById('toggleDot');
+    const badge = document.getElementById('shortNoticeBadge');
+    
+    if (slider) slider.style.backgroundColor = checked ? '#0d9488' : '#cbd5e1';
+    if (dot) dot.style.transform = checked ? 'translateX(24px)' : 'translateX(0)';
+    if (badge) {
+        badge.innerText = checked ? 'ACTIVE' : 'DISABLED';
+        badge.style.background = checked ? '#dcfce7' : '#f3f4f6';
+        badge.style.color = checked ? '#15803d' : '#6b7280';
+        badge.style.border = checked ? '1px solid #bbf7d0' : '1px solid #e5e7eb';
+    }
+
+    // Auto-save immediately
+    handleAdminSaveAll('auto');
+}
+
 async function handleAdminSaveAll(triggerSource) {
     const topSaveBtn = document.getElementById('topSaveBtn');
     const bottomSaveBtn = document.getElementById('bottomSaveBtn');
     const rateInput = document.getElementById('topHourlyRate');
+    const shortNoticeToggle = document.getElementById('acceptsShortNoticeToggle');
     const alertBox = document.getElementById('globalSaveAlert');
     const statusMsg = document.getElementById('photoStatusMsg');
     const photoImg = document.getElementById('consultantPhotoImg');
@@ -634,6 +684,9 @@ async function handleAdminSaveAll(triggerSource) {
     const formData = new FormData();
     if (rateInput && rateInput.value) {
         formData.append('hourly_rate', rateInput.value);
+    }
+    if (shortNoticeToggle) {
+        formData.append('accepts_short_notice', shortNoticeToggle.checked ? 'true' : 'false');
     }
     if (stagedPhotoFile) {
         formData.append('photo', stagedPhotoFile);

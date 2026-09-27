@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Boolean, ForeignKey, Text, Date
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Boolean, ForeignKey, Text, Date, or_, and_, not_
 from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, deferred
@@ -29,6 +29,11 @@ class User(Base):
     phone_number = Column(String(20), unique=True, index=True, nullable=True)
     email_verified = Column(Boolean, default=False, nullable=False)  # Email OTP confirmed at signup
     timezone = Column(String(100), nullable=True, default='UTC')  # User's detected timezone
+
+    # Account status & block fields
+    is_blocked           = Column(Boolean, default=False, nullable=False, server_default='false')
+    blocked_reason       = Column(Text, nullable=True)
+    blocked_at           = Column(DateTime, nullable=True)
 
     # DPDPA Consent Fields
     consent_account      = Column(Boolean, default=True,  nullable=False, server_default='true')
@@ -317,6 +322,10 @@ class ConsultantProfile(Base):
     bank_name             = deferred(Column(String(100),  nullable=True))
     upi_id                = deferred(Column(String(100),  nullable=True))
 
+    # ── Quick consultation / Short-notice booking flag ──
+    accepts_short_notice  = Column(Boolean, default=False, nullable=True)
+
+
 class ConsultantSchedule(Base):
     """Consultant availability schedule"""
     __tablename__ = "consultant_schedules"
@@ -357,7 +366,8 @@ class Appointment(Base):
     appointment_date = Column(DateTime, nullable=False)
     duration_minutes = Column(Integer, default=60)
     status = Column(String(50), default="scheduled")  # scheduled, completed, cancelled
-    notes = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)  # Client booking notes / concerns
+    consultant_observations = Column(Text, nullable=True)  # Observations recorded by consultant during/after session
     consent_to_record = Column(Boolean, default=False, nullable=True)
     consent_to_share_data = Column(Boolean, default=False, nullable=True)
     is_test = Column(Boolean, nullable=False, default=False, server_default='false')
@@ -871,6 +881,7 @@ class Voucher(Base):
     applies_to_id        = Column(String(50), nullable=True)  # Plan ID or Pack ID (e.g. "S", "M", "L")
     assigned_user_emails = Column(Text, nullable=True)  # comma-separated list of allowed user emails (null = all)
     valid_until          = Column(DateTime, nullable=True)  # expiration date
+    max_uses             = Column(Integer, nullable=True)   # Maximum total redemptions (null = unlimited)
     is_active            = Column(Boolean, nullable=False, default=True)
     created_at           = Column(DateTime, default=datetime.utcnow)
     updated_at           = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -888,7 +899,7 @@ class PaymentTransaction(Base):
     __tablename__ = "payment_transactions"
 
     id                   = Column(Integer, primary_key=True, index=True)
-    user_id              = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id              = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
 
     transaction_type     = Column(String(50), nullable=False)
     # "subscription" | "top_up" | "consultation" | "refund"
@@ -903,7 +914,7 @@ class PaymentTransaction(Base):
     razorpay_signature   = Column(String(300), nullable=True)
 
     # What this payment is for
-    related_entity_type  = Column(String(50), nullable=True)   # "subscription" | "top_up" | "appointment"
+    related_entity_type  = Column(String(50), nullable=True)   # "subscription" | "top_up" | "appointment" | "quick_consultation"
     related_entity_id    = Column(Integer, nullable=True)       # FK to that table's id
 
     # Human-readable description
@@ -961,16 +972,24 @@ class ConsultantEarning(Base):
     # True if this earning was generated through the Mirror/test environment
     is_test                = Column(Boolean, nullable=False, default=False)
 
+    # Admin approval workflow
+    is_approved            = Column(Boolean, nullable=False, default=False, server_default='false')
+    approved_at            = Column(DateTime, nullable=True)
+    approved_by_user_id    = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     created_at             = Column(DateTime, default=datetime.utcnow)
     updated_at             = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     event_workshop_id      = Column(Integer, ForeignKey("event_workshops.id"), nullable=True)
+    quick_consultation_id  = Column(Integer, ForeignKey("quick_consultations.id"), nullable=True)
 
     # Relationships
-    consultant = relationship("User", backref="consultant_earnings")
+    consultant = relationship("User", foreign_keys=[consultant_user_id], backref="consultant_earnings")
+    approved_by = relationship("User", foreign_keys=[approved_by_user_id])
     appointment = relationship("Appointment", backref="earning")
     transaction = relationship("PaymentTransaction", backref="earning")
     event_workshop = relationship("EventWorkshop", backref="earnings")
+    quick_consultation = relationship("QuickConsultation", backref="earnings")
 
 
 # ── Blog Platform ─────────────────────────────────────────────────────────────
@@ -1130,4 +1149,60 @@ class PushNotificationSchedule(Base):
     day_of_month = Column(Integer, nullable=True) # 1-31 for monthly
     threshold_value = Column(Integer, nullable=True) # e.g. 5 messages, 3 days before recharge
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class QuickConsultation(Base):
+    """
+    Dedicated quick consultation model for short-notice sessions booked without registration.
+    Complies with DPDP Act (2023) consent tracking and HIPAA medical privacy for clinical notes.
+    """
+    __tablename__ = "quick_consultations"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    qc_id               = Column(String(20), unique=True, index=True, nullable=False) # e.g. "SS_A8K9X" (8 chars)
+    phone_number        = Column(String(20), index=True, nullable=False)
+    appointment_date    = Column(DateTime, nullable=False) # UTC
+    duration_minutes    = Column(Integer, nullable=False, default=30) # 30 or 60
+
+    consultant_id       = Column(Integer, ForeignKey("consultant_profiles.id"), nullable=False, index=True)
+    consultant_name     = Column(String(255), nullable=False)
+
+    base_amount         = Column(Float, nullable=False, default=0.0)
+    surcharge_amount    = Column(Float, nullable=False, default=100.0) # Rs 100 quick consult surcharge
+    taxes               = Column(Float, nullable=False, default=0.0)   # 18% GST
+    amount_paid         = Column(Float, nullable=False, default=0.0)   # Gross Total
+    discount_amount     = Column(Float, nullable=False, default=0.0)   # Voucher / Promo discount
+    voucher_code        = Column(String(50), nullable=True, index=True) # Applied Voucher Code
+
+    razorpay_order_id   = Column(String(100), nullable=True, index=True)
+    razorpay_payment_id = Column(String(100), nullable=True, index=True)
+    razorpay_signature  = Column(String(300), nullable=True)
+    payment_status      = Column(String(30), nullable=False, default="pending") # pending | completed | failed | refunded
+
+    call_status         = Column(String(30), nullable=False, default="pending") # pending | scheduled | initiated | completed | failed | cancelled
+    # Consultation Mode: "telephony" (Exotel PSTN bridge) vs "webrtc" (In-browser Agora WebRTC room)
+    consultation_mode   = Column(String(30), nullable=False, default="telephony")
+
+    # DPDP Act (2023) Consent tracking
+    consent_timestamp   = Column(DateTime, default=datetime.utcnow)
+    consent_ip          = Column(String(50), nullable=True)
+
+    # HIPAA protected clinical observations / notes
+    consultant_notes    = Column(Text, nullable=True)
+
+    # WebRTC Single-Client Device Limiting & Transfer Tracking
+    client_device_token     = Column(String(100), nullable=True)
+    client_device_last_seen = Column(DateTime, nullable=True)
+    pending_device_token    = Column(String(100), nullable=True)
+    pending_device_at       = Column(DateTime, nullable=True)
+    switch_decision         = Column(String(20), nullable=True, default="none")
+
+    # Environment mode flag
+    is_test             = Column(Boolean, nullable=False, default=False)
+
+    created_at          = Column(DateTime, default=datetime.utcnow)
+    updated_at          = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    consultant = relationship("ConsultantProfile", backref="quick_consultations")
 

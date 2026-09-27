@@ -27,7 +27,11 @@ __pycache__/
 # Docs and planning docs (not needed in build)
 docs/
 backups/
+*backup*/
+*Backup*/
+MIrror2/
 frontend/
+android-wrapper/
 
 # Node modules (if any)
 node_modules/

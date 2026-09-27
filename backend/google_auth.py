@@ -184,6 +184,12 @@ def google_callback(request: Request, db: Session = Depends(get_db)):
     is_new_user = user is None
 
     if user:
+        if getattr(user, "is_blocked", False):
+            request.session.clear()
+            reason = user.blocked_reason or "Your account has been blocked. Please contact support."
+            import urllib.parse
+            return RedirectResponse(f"/login?error={urllib.parse.quote(reason)}", status_code=303)
+
         # ── Existing user — check if signup role matches their actual account type ──
         if signup_role and signup_role in ("user", "consultant") and user.user_type != signup_role:
             existing_label = "Wellbeing Consultant" if user.user_type == "consultant" else "User"

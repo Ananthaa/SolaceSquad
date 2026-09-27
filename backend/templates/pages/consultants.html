@@ -157,6 +157,11 @@
                         <span>Sexual Wellness</span>
                     </span>
                     {% endif %}
+                    {% if consultant.accepts_short_notice %}
+                    <span class="wellness-badge" style="background:#ecfdf5;border-color:#a7f3d0;color:#047857;font-weight:700;" title="Accepts short-notice & same-day quick consultations">
+                        ⚡ Quick Consult
+                    </span>
+                    {% endif %}
                 </div>
 
             </div>
@@ -440,6 +445,25 @@
             <form id="bookingForm" novalidate>
 
                 <input type="hidden" id="consultantId" name="consultant_id">
+
+                {% if is_impersonating %}
+                <div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:0.75rem; padding:0.85rem; margin-bottom:1.25rem;">
+                    <div style="font-size:0.82rem; font-weight:700; color:#1e40af; margin-bottom:0.4rem; display:flex; align-items:center; gap:0.35rem;">
+                        <span>🛡️</span> Admin Booking Options
+                    </div>
+                    <div style="font-size:0.75rem; color:#475569; margin-bottom:0.6rem;">Select whether this session should be marked as Paid (generates a payout record for Admin approval) or Free (complimentary).</div>
+                    <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+                        <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.82rem; font-weight:600; color:#1e293b; cursor:pointer;">
+                            <input type="radio" name="admin_booking_type" value="paid" checked>
+                            <span>💳 Paid Consultation (Collected offline / link)</span>
+                        </label>
+                        <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.82rem; font-weight:600; color:#1e293b; cursor:pointer;">
+                            <input type="radio" name="admin_booking_type" value="free">
+                            <span>🎁 Free (Complimentary)</span>
+                        </label>
+                    </div>
+                </div>
+                {% endif %}
 
 
 
@@ -3259,12 +3283,21 @@
                                 }
                             }
                         } else {
-                            {% if is_first_consultation %}
-                            durationNote.innerHTML = '<span style="color:#0d9488;font-weight:700;">🎁 Your first 15 minutes are free!</span><br>Sessions must be booked at least 24 hours in advance.';
-                            {% else %}
-                            durationNote.textContent = 'Sessions must be booked at least 24 hours in advance.';
-                            {% endif %}
-                            durationNote.style.color = '#d97706';
+                            if (d.accepts_short_notice) {
+                                {% if is_first_consultation %}
+                                durationNote.innerHTML = '<span style="color:#0d9488;font-weight:700;">🎁 Your first 15 minutes are free!</span><br><span style="color:#059669;font-weight:700;">⚡ Quick Consultation: Same-day / short-notice slots available!</span>';
+                                {% else %}
+                                durationNote.innerHTML = '<span style="color:#059669;font-weight:700;">⚡ Quick Consultation: Same-day / short-notice slots available!</span>';
+                                {% endif %}
+                                durationNote.style.color = '#059669';
+                            } else {
+                                {% if is_first_consultation %}
+                                durationNote.innerHTML = '<span style="color:#0d9488;font-weight:700;">🎁 Your first 15 minutes are free!</span><br>Sessions must be booked at least 24 hours in advance.';
+                                {% else %}
+                                durationNote.textContent = 'Sessions must be booked at least 24 hours in advance.';
+                                {% endif %}
+                                durationNote.style.color = '#d97706';
+                            }
 
                             if (d.min_booking_date) {
                                 // min_booking_date is "YYYY-MM-DDTHH:MM" IST — extract date part only
@@ -3338,6 +3371,12 @@
             fd.append('notes',            notes);
             fd.append('consent_to_record', consentRecord ? 'true' : 'false');
             fd.append('consent_to_share_data', consentShare ? 'true' : 'false');
+            if (isImpersonating) {
+                var adminBookingTypeEl = document.querySelector('input[name="admin_booking_type"]:checked');
+                if (adminBookingTypeEl) {
+                    fd.append('admin_booking_type', adminBookingTypeEl.value);
+                }
+            }
 
             var urlParams = new URLSearchParams(window.location.search);
             var isReschedule = urlParams.get('reschedule') === 'true';
@@ -3538,17 +3577,61 @@
 
             });
 
-            var dur = a.duration_minutes < 60
+            var durMins = a.duration_minutes || 30;
 
-                ? a.duration_minutes + ' min'
+            var dur = durMins < 60
 
-                : Math.floor(a.duration_minutes / 60) + 'h'
+                ? durMins + ' min'
 
-                + (a.duration_minutes % 60 ? ' ' + (a.duration_minutes % 60) + 'min' : '');
+                : Math.floor(durMins / 60) + 'h'
+
+                + (durMins % 60 ? ' ' + (durMins % 60) + 'min' : '');
+
+            if (a.is_quick_consult) {
+
+                var isWebRTC = a.consultation_mode === 'webrtc';
+
+                var joinUrl = a.join_url || ('/quick-consult/room/' + (a.qc_id || ''));
+
+                var quickAction = '';
+
+                if (showCancel && (a.status === 'scheduled' || a.status === 'in_progress')) {
+
+                    if (isWebRTC) {
+
+                        quickAction = '<a href="' + joinUrl + '" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:6px;background:#0d9488;color:#fff;text-decoration:none;font-size:12px;font-weight:600;margin-left:auto;">&#127916; Join Video</a>';
+
+                    } else {
+
+                        quickAction = '<span style="font-size:11px;color:#059669;font-weight:600;margin-left:auto;">&#128222; Phone Consult</span>';
+
+                    }
+
+                }
+
+                return '<div class="appt-card" id="appt-' + a.id + '" style="border-left: 4px solid #0d9488;">'
+
+                    + '<div class="appt-info">'
+
+                    + '<div style="margin-bottom:4px;"><span style="background:#ccfbf1;color:#0f766e;font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;border:1px solid #99f6e4;">&#9889; Quick Consult (30 Mins)</span> <span style="font-size:11px;color:#6b7280;margin-left:4px;">#' + (a.qc_id || '') + '</span></div>'
+
+                    + '<div class="appt-consultant">&#129658; ' + a.consultant_name
+
+                    + ' <span style="color:#718096;font-weight:400;">(' + (a.consultant_specialization || '') + ')</span></div>'
+
+                    + '<div class="appt-meta">&#128197; ' + label + ' &nbsp;&middot;&nbsp; &#9201; ' + dur + '</div>'
+
+                    + '</div>'
+
+                    + '<span class="appt-status ' + a.status + '">' + a.status + '</span>'
+
+                    + quickAction + '</div>';
+
+            }
 
             var cancelBtn = (showCancel && a.status === 'scheduled')
 
-                ? '<button class="btn-cancel-appt" onclick="cancelAppointment(' + a.id + ')">&times; Cancel</button>'
+                ? '<button class="btn-cancel-appt" onclick="cancelAppointment(\'' + a.id + '\')">&times; Cancel</button>'
 
                 : '';
 
@@ -3616,7 +3699,7 @@
 
                         var apptEnd = new Date(new Date(a.appointment_date).getTime() + (a.duration_minutes || 60) * 60000);
 
-                        if (a.status === 'scheduled' && apptEnd > now) {
+                        if ((a.status === 'scheduled' || a.status === 'in_progress') && apptEnd > now) {
 
                             upcoming.push(a);
 

@@ -36,7 +36,7 @@
     <nav class="container-custom">
         <div class="flex items-center justify-between h-20">
             <!-- Logo -->
-            <a href="/" class="flex items-center gap-2 group">
+            <a href="/" class="app-logo-link flex items-center gap-2 group" onclick="if(window.AndroidBridge||window.iOSBridge||/SolaceSquadApp/i.test(navigator.userAgent)){if(window.location.pathname.startsWith('/user-dashboard')||window.location.pathname.startsWith('/consultant-dashboard')){window.location.reload();return false;}else{window.location.href='/app-start';return false;}}">
                 <img src="/static/images/logo.png" alt="SolaceSquad" class="h-12 w-auto">
             </a>
 
@@ -73,8 +73,9 @@
                 <a href="/login" style="display:inline-flex;align-items:center;padding:0.45rem 1.1rem;border:1.5px solid #2d6a5a;border-radius:8px;color:#2d6a5a;font-weight:600;font-size:0.9rem;text-decoration:none;background:#fff;transition:background 0.2s,color 0.2s;white-space:nowrap;" onmouseover="this.style.background='#2d6a5a';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#2d6a5a'">
                     Login
                 </a>
-                <a href="/signup" style="display:inline-flex;align-items:center;padding:0.45rem 1.2rem;background:#2d6a5a;border-radius:8px;color:#fff;font-weight:600;font-size:0.9rem;text-decoration:none;border:none;box-shadow:0 2px 8px rgba(45,106,90,0.28);transition:background 0.2s,box-shadow 0.2s;white-space:nowrap;" onmouseover="this.style.background='#1e4d40';this.style.boxShadow='0 4px 14px rgba(45,106,90,0.40)'" onmouseout="this.style.background='#2d6a5a';this.style.boxShadow='0 2px 8px rgba(45,106,90,0.28)'">
-                    Get Started
+                <a href="/signup" style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.45rem 1.2rem;background:#2d6a5a;border-radius:8px;color:#fff;font-weight:600;font-size:0.9rem;text-decoration:none;border:none;box-shadow:0 2px 8px rgba(45,106,90,0.28);transition:background 0.2s,box-shadow 0.2s;white-space:nowrap;" onmouseover="this.style.background='#1e4d40';this.style.boxShadow='0 4px 14px rgba(45,106,90,0.40)'" onmouseout="this.style.background='#2d6a5a';this.style.boxShadow='0 2px 8px rgba(45,106,90,0.28)'">
+                    <i data-lucide="user-plus" style="width:1rem;height:1rem;display:inline-block;vertical-align:middle;"></i>
+                    <span>Get Started</span>
                 </a>
             </div>
 
@@ -220,8 +221,9 @@
                     <a href="/login" style="display:flex;align-items:center;justify-content:center;padding:0.3rem 0.6rem;border:1.5px solid #2d6a5a;border-radius:8px;color:#2d6a5a;font-weight:600;font-size:0.72rem;text-decoration:none;background:#fff;text-align:center;">
                         Login
                     </a>
-                    <a href="/signup" style="display:flex;align-items:center;justify-content:center;padding:0.3rem 0.6rem;background:#2d6a5a;border-radius:8px;color:#fff;font-weight:600;font-size:0.72rem;text-decoration:none;text-align:center;">
-                        Get Started
+                    <a href="/signup" style="display:flex;align-items:center;justify-content:center;gap:0.3rem;padding:0.3rem 0.6rem;background:#2d6a5a;border-radius:8px;color:#fff;font-weight:600;font-size:0.72rem;text-decoration:none;text-align:center;">
+                        <i data-lucide="user-plus" style="width:0.85rem;height:0.85rem;"></i>
+                        <span>Get Started</span>
                     </a>
                 </div><!-- /mob-cta-row -->
             </div><!-- /container-custom -->

@@ -342,20 +342,62 @@
                             <i data-lucide="message-square" class="w-3 h-3 text-indigo-400 mt-0.5 flex-shrink-0"></i>
                             <span class="text-xs text-gray-600 italic">${a.notes}</span>
                         </div>` : '';
+                    
+                    const isQC = a.is_quick_consult === true;
+                    const isWebRTC = a.consultation_mode === 'webrtc';
+                    
+                    const rawStatus = (a.raw_call_status || a.call_status || a.status || 'scheduled').toLowerCase();
+                    const completedStatuses = [
+                        'completed', 'expired', 'cancelled', 'failed',
+                        'consultant_no_answer', 'user_no_answer', 'consultant_unreachable'
+                    ];
+                    const isPastSlot = a.appointment_date && (new Date() > new Date(new Date(a.appointment_date).getTime() + (a.duration_minutes || 30) * 60000));
+                    const isFinished = completedStatuses.includes(rawStatus) || (isPastSlot && rawStatus !== 'in_progress');
+
+                    let actionsHtml = '';
+                    if (isFinished) {
+                        actionsHtml = `
+                            <a href="${isQC ? '/app/consultant-dashboard' : ('/consultant/patient/' + (a.client_id || ''))}"
+                                class="w-full flex items-center justify-center gap-1 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-lg py-1.5 hover:bg-gray-50 transition-colors">
+                                <i data-lucide="info" class="w-3 h-3"></i>Details
+                            </a>
+                        `;
+                    } else if (isQC) {
+                        if (isWebRTC) {
+                            actionsHtml = `
+                                <a href="/quick-consult/room/${a.qc_id}" target="_blank"
+                                    class="w-full flex items-center justify-center gap-1 text-xs font-bold text-white rounded-lg py-1.5 transition-colors bg-indigo-600 hover:bg-indigo-700">
+                                    <i data-lucide="video" class="w-3 h-3"></i> 🌐 Join Web Call
+                                </a>
+                            `;
+                        } else {
+                            actionsHtml = `
+                                <a href="/app/consultant-dashboard"
+                                    class="w-full flex items-center justify-center gap-1 text-xs font-bold text-white rounded-lg py-1.5 transition-colors bg-[#2d6a5a] hover:bg-[#1e4d40]">
+                                    <i data-lucide="phone" class="w-3 h-3"></i> 📞 Phone Call Scheduled
+                                </a>
+                            `;
+                        }
+                    } else {
+                        actionsHtml = `
+                            <a href="/consultant/patient/${a.client_id}"
+                                class="flex-1 flex items-center justify-center gap-1 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-lg py-1.5 hover:bg-gray-50 transition-colors">
+                                <i data-lucide="info" class="w-3 h-3"></i>Details
+                            </a>
+                            <a href="/app/call/${a.id}"
+                                class="flex-1 flex items-center justify-center gap-1 text-xs font-bold text-white rounded-lg py-1.5 transition-colors"
+                                style="background:#4f46e5;">
+                                <i data-lucide="phone" class="w-3 h-3"></i> Join Call
+                            </a>
+                        `;
+                    }
+
                     return `<div class="p-3 mb-2 bg-indigo-50 border border-indigo-100 rounded-xl">
                     <div class="text-sm font-semibold text-gray-800">${a.client_name}</div>
                     <div class="text-xs text-gray-500 mt-0.5">${date} · ${time} · ${a.duration_minutes} min</div>
                     ${notesHtml}
                     <div class="mt-2 flex gap-2">
-                        <a href="/consultant/patient/${a.client_id}"
-                            class="flex-1 flex items-center justify-center gap-1 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded-lg py-1.5 hover:bg-gray-50 transition-colors">
-                            <i data-lucide="info" class="w-3 h-3"></i>Details
-                        </a>
-                        <a href="/app/call/${a.id}"
-                            class="flex-1 flex items-center justify-center gap-1 text-xs font-bold text-white rounded-lg py-1.5 transition-colors"
-                            style="background:#4f46e5;">
-                            <i data-lucide="phone" class="w-3 h-3"></i> Join Call
-                        </a>
+                        ${actionsHtml}
                     </div>
                 </div>`;
                 }).join('');

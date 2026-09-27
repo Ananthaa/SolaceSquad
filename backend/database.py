@@ -192,6 +192,83 @@ def init_db():
                     print("[Migration] Added column discount_pct to consultant_earnings table")
             except Exception as _ce_err:
                 print(f"[Migration] Note: Adding consultant_earnings columns failed (non-fatal): {_ce_err}")
+
+            # Add max_uses column to vouchers table
+            try:
+                result_v = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'vouchers'"))
+                columns_v = [row[0] for row in result_v.fetchall()]
+                if "max_uses" not in columns_v:
+                    conn.execute(text("ALTER TABLE vouchers ADD COLUMN max_uses INTEGER DEFAULT NULL"))
+                    print("[Migration] Added column max_uses to vouchers table")
+            except Exception as _v_err:
+                print(f"[Migration] Note: Adding vouchers columns failed (non-fatal): {_v_err}")
+
+            # Add consultant_observations column to appointments table
+            try:
+                result_appts = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'appointments'"))
+                columns_appts = [row[0] for row in result_appts.fetchall()]
+                if "consultant_observations" not in columns_appts:
+                    conn.execute(text("ALTER TABLE appointments ADD COLUMN consultant_observations TEXT"))
+                    print("[Migration] Added column consultant_observations to appointments table")
+            except Exception as _appts_err:
+                print(f"[Migration] Note: Adding consultant_observations column failed (non-fatal): {_appts_err}")
+
+            # Add is_approved, approved_at, approved_by_user_id to consultant_earnings
+            try:
+                result_ce_app = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'consultant_earnings'"))
+                cols_ce = [row[0] for row in result_ce_app.fetchall()]
+                if "is_approved" not in cols_ce:
+                    conn.execute(text("ALTER TABLE consultant_earnings ADD COLUMN is_approved BOOLEAN NOT NULL DEFAULT FALSE"))
+                    conn.execute(text("UPDATE consultant_earnings SET is_approved = TRUE WHERE is_approved IS FALSE"))
+                    print("[Migration] Added is_approved column to consultant_earnings table")
+                if "approved_at" not in cols_ce:
+                    conn.execute(text("ALTER TABLE consultant_earnings ADD COLUMN approved_at TIMESTAMP"))
+                if "approved_by_user_id" not in cols_ce:
+                    conn.execute(text("ALTER TABLE consultant_earnings ADD COLUMN approved_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL"))
+            except Exception as _ce_app_err:
+                print(f"[Migration] Note: Adding is_approved to consultant_earnings failed (non-fatal): {_ce_app_err}")
+
+            # Add is_blocked, blocked_reason, blocked_at to users
+            try:
+                result_u_blk = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"))
+                cols_u = [row[0] for row in result_u_blk.fetchall()]
+                if "is_blocked" not in cols_u:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN is_blocked BOOLEAN NOT NULL DEFAULT FALSE"))
+                    print("[Migration] Added is_blocked column to users table")
+                if "blocked_reason" not in cols_u:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN blocked_reason TEXT"))
+                if "blocked_at" not in cols_u:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN blocked_at TIMESTAMP"))
+            except Exception as _u_blk_err:
+                print(f"[Migration] Note: Adding is_blocked to users failed (non-fatal): {_u_blk_err}")
+
+            # Add voucher_code and discount_amount to quick_consultations
+            try:
+                result_qc = conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'quick_consultations'"))
+                cols_qc = [row[0] for row in result_qc.fetchall()]
+                if "voucher_code" not in cols_qc:
+                    conn.execute(text("ALTER TABLE quick_consultations ADD COLUMN voucher_code VARCHAR(50)"))
+                    print("[Migration] Added voucher_code column to quick_consultations table")
+                if "discount_amount" not in cols_qc:
+                    conn.execute(text("ALTER TABLE quick_consultations ADD COLUMN discount_amount FLOAT DEFAULT 0.0"))
+                    print("[Migration] Added discount_amount column to quick_consultations table")
+                if "client_device_token" not in cols_qc:
+                    conn.execute(text("ALTER TABLE quick_consultations ADD COLUMN client_device_token VARCHAR(100)"))
+                    print("[Migration] Added client_device_token column to quick_consultations table")
+                if "client_device_last_seen" not in cols_qc:
+                    conn.execute(text("ALTER TABLE quick_consultations ADD COLUMN client_device_last_seen TIMESTAMP"))
+                    print("[Migration] Added client_device_last_seen column to quick_consultations table")
+                if "pending_device_token" not in cols_qc:
+                    conn.execute(text("ALTER TABLE quick_consultations ADD COLUMN pending_device_token VARCHAR(100)"))
+                    print("[Migration] Added pending_device_token column to quick_consultations table")
+                if "pending_device_at" not in cols_qc:
+                    conn.execute(text("ALTER TABLE quick_consultations ADD COLUMN pending_device_at TIMESTAMP"))
+                    print("[Migration] Added pending_device_at column to quick_consultations table")
+                if "switch_decision" not in cols_qc:
+                    conn.execute(text("ALTER TABLE quick_consultations ADD COLUMN switch_decision VARCHAR(20) DEFAULT 'none'"))
+                    print("[Migration] Added switch_decision column to quick_consultations table")
+            except Exception as _qc_err:
+                print(f"[Migration] Note: Adding quick_consultations voucher/device columns failed (non-fatal): {_qc_err}")
     except Exception as e:
         print(f"[Migration] Warning: Migration check/alter failed: {e}")
         
