@@ -38,11 +38,7 @@ public class AppEnvironment: ObservableObject {
     }
     
     public init() {
-        #if DEBUG
-        let defaultEnv = EnvironmentType.staging
-        #else
         let defaultEnv = EnvironmentType.production
-        #endif
         
         let savedEnv = UserDefaults.standard.string(forKey: kSelectedEnv) ?? defaultEnv.rawValue
         self.currentEnv = EnvironmentType(rawValue: savedEnv) ?? defaultEnv
@@ -61,7 +57,7 @@ public class AppEnvironment: ObservableObject {
     }
     
     public var appStartURL: URL {
-        URL(string: "\(baseURL)/app-start")!
+        URL(string: "\(baseURL)/login")!
     }
     
     public var bundleId: String {
