@@ -3695,6 +3695,10 @@ async def ai_chat_page(request: Request, db: Session = Depends(get_db)):
         }
     )
 
+@app.get("/profile")
+async def profile_redirect():
+    return RedirectResponse(url="/app/profile", status_code=302)
+
 @app.get("/app/profile", response_class=HTMLResponse)
 async def user_profile(request: Request, db: Session = Depends(get_db)):
     """User profile page"""

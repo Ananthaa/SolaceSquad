@@ -38,11 +38,11 @@ public class NavigationManager: ObservableObject {
         case .home:
             path = "/user-dashboard"
         case .quickConsult:
-            path = "/quickconsult"
+            path = "/quick-consult-web"
         case .specialists:
             path = "/consultants"
         case .profile:
-            path = "/user-dashboard#profile"
+            path = "/app/profile"
         }
         
         if let targetURL = URL(string: "\(baseURL)\(path)") {
@@ -67,10 +67,12 @@ public class NavigationManager: ObservableObject {
                 self.showBottomBar = !isAuthOrCall
             }
             
-            if path.contains("quickconsult") {
+            if path.contains("quick-consult") || path.contains("quickconsult") {
                 self.selectedTab = .quickConsult
             } else if path.contains("consultant") {
                 self.selectedTab = .specialists
+            } else if path.contains("profile") {
+                self.selectedTab = .profile
             } else if path.contains("dashboard") {
                 self.selectedTab = .home
             }
@@ -78,7 +80,7 @@ public class NavigationManager: ObservableObject {
     }
 }
 
-// MARK: - Native iOS Bottom Tab Bar View
+// MARK: - Native iOS Bottom Tab Bar View (Compact & Unobtrusive)
 struct NativeTabBarView: View {
     @ObservedObject var navManager = NavigationManager.shared
     let baseURL: String
@@ -88,7 +90,7 @@ struct NativeTabBarView: View {
             // Tab 1: Home
             tabButton(tab: .home)
             
-            // Tab 2: Quick Consult (Prominent Center Action)
+            // Tab 2: Quick Consult (Compact Accent Button)
             quickConsultButton
             
             // Tab 3: Specialists
@@ -97,13 +99,13 @@ struct NativeTabBarView: View {
             // Tab 4: Profile
             tabButton(tab: .profile)
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 8)
-        .padding(.bottom, 22)
+        .padding(.horizontal, 10)
+        .padding(.top, 5)
+        .padding(.bottom, 8)
         .background(
             Color(.systemBackground)
-                .opacity(0.97)
-                .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: -4)
+                .opacity(0.98)
+                .shadow(color: Color.black.opacity(0.06), radius: 6, x: 0, y: -2)
         )
     }
     
@@ -111,11 +113,11 @@ struct NativeTabBarView: View {
         Button(action: {
             navManager.navigate(to: tab, baseURL: baseURL)
         }) {
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 Image(systemName: tab.iconName)
-                    .font(.system(size: 20, weight: navManager.selectedTab == tab ? .bold : .regular))
+                    .font(.system(size: 17, weight: navManager.selectedTab == tab ? .bold : .regular))
                 Text(tab.rawValue)
-                    .font(.system(size: 11, weight: navManager.selectedTab == tab ? .semibold : .medium))
+                    .font(.system(size: 10, weight: navManager.selectedTab == tab ? .semibold : .medium))
             }
             .foregroundColor(navManager.selectedTab == tab ? Color(red: 0.05, green: 0.46, blue: 0.43) : Color(.secondaryLabel))
             .frame(maxWidth: .infinity)
@@ -126,7 +128,7 @@ struct NativeTabBarView: View {
         Button(action: {
             navManager.navigate(to: .quickConsult, baseURL: baseURL)
         }) {
-            VStack(spacing: 3) {
+            VStack(spacing: 2) {
                 ZStack {
                     Circle()
                         .fill(
@@ -136,19 +138,19 @@ struct NativeTabBarView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 48, height: 48)
-                        .shadow(color: Color(red: 0.05, green: 0.46, blue: 0.43).opacity(0.35), radius: 6, x: 0, y: 3)
+                        .frame(width: 38, height: 38)
+                        .shadow(color: Color(red: 0.05, green: 0.46, blue: 0.43).opacity(0.3), radius: 4, x: 0, y: 2)
                     
                     Image(systemName: "bolt.fill")
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.system(size: 17, weight: .bold))
                         .foregroundColor(.white)
                 }
-                .offset(y: -10)
+                .offset(y: -4)
                 
                 Text("Quick Consult")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundColor(navManager.selectedTab == .quickConsult ? Color(red: 0.05, green: 0.46, blue: 0.43) : Color(.secondaryLabel))
-                    .offset(y: -10)
+                    .offset(y: -4)
             }
             .frame(maxWidth: .infinity)
         }
@@ -170,15 +172,17 @@ struct SolaceSquadApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ZStack(alignment: .bottom) {
-                SolaceWebView(initialURL: appEnv.appStartURL)
-                    .ignoresSafeArea(.all, edges: .top)
-                
-                // Native iOS Bottom Navigation Tab Bar
-                if navManager.showBottomBar {
-                    NativeTabBarView(baseURL: appEnv.baseURL)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+            ZStack {
+                // Stack WebView vertically above TabBar so web content/chat inputs are never covered
+                VStack(spacing: 0) {
+                    SolaceWebView(initialURL: appEnv.appStartURL)
+                    
+                    if navManager.showBottomBar {
+                        NativeTabBarView(baseURL: appEnv.baseURL)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
+                .ignoresSafeArea(.keyboard, edges: .bottom)
                 
                 // HIPAA Privacy Shield in App Switcher / Background
                 if scenePhase != .active {
