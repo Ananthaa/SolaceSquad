@@ -49,6 +49,7 @@ public class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
         
         // Allow all internal web URLs
+        NavigationManager.shared.updateForURL(url)
         decisionHandler(.allow)
     }
     
@@ -71,6 +72,10 @@ public class WebViewCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         webView.scrollView.refreshControl?.endRefreshing()
+        
+        if let currentURL = webView.url {
+            NavigationManager.shared.updateForURL(currentURL)
+        }
         
         // Expose iOS native bridge for Apple Health sync
         let bridgePolyfill = """

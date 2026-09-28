@@ -40,6 +40,7 @@ public struct SolaceWebView: UIViewRepresentable {
         JavaScriptBridge.shared.activeWebView = webView
         HealthSyncService.shared.activeWebView = webView
         RazorpayPaymentManager.shared.activeWebView = webView
+        NavigationManager.shared.activeWebView = webView
         
         let request = URLRequest(url: initialURL)
         webView.load(request)

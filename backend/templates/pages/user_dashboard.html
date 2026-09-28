@@ -564,6 +564,100 @@
         transform: scale(1.1);
         box-shadow: 0 4px 15px rgba(0, 0, 0, .15);
     }
+
+    /* ── Native Mobile App Specific Compaction ───────────────────────── */
+    .is-mobile-app .db-root {
+        padding-bottom: 95px !important;
+        gap: 0.75rem !important;
+    }
+    .is-mobile-app .db-header {
+        padding-top: 0.25rem !important;
+        margin-bottom: 0.15rem !important;
+    }
+    .is-mobile-app .db-greeting h1 {
+        font-size: 1.3rem !important;
+        line-height: 1.2 !important;
+    }
+    .is-mobile-app .db-greeting p {
+        font-size: 0.78rem !important;
+    }
+    /* Compact THRYVEQ Band — Single Horizontal Glanceable Row */
+    .is-mobile-app .ws-band {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 0.35rem !important;
+    }
+    .is-mobile-app .ws-tile {
+        border-radius: 0.75rem !important;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+    }
+    .is-mobile-app .ws-tile-hd {
+        padding: 4px 6px !important;
+        font-size: 0.55rem !important;
+        text-align: center !important;
+        letter-spacing: 0.04em !important;
+    }
+    .is-mobile-app .ws-tile-bd {
+        padding: 6px 3px 5px !important;
+        gap: 2px !important;
+    }
+    .is-mobile-app .ws-score {
+        font-size: 1.35rem !important;
+        line-height: 1 !important;
+    }
+    .is-mobile-app .ws-badge {
+        font-size: 0.52rem !important;
+        padding: 1px 4px !important;
+        border-radius: 4px !important;
+    }
+    .is-mobile-app .ws-compare {
+        font-size: 0.52rem !important;
+    }
+    /* Horizontal Vitals Scroll with Smooth Snap */
+    .is-mobile-app .vitals-row {
+        display: flex !important;
+        overflow-x: auto !important;
+        scroll-snap-type: x mandatory !important;
+        -webkit-overflow-scrolling: touch !important;
+        gap: 0.5rem !important;
+        padding-bottom: 4px !important;
+        scrollbar-width: none !important;
+    }
+    .is-mobile-app .vitals-row::-webkit-scrollbar {
+        display: none !important;
+    }
+    .is-mobile-app .vital-chip {
+        min-width: 92px !important;
+        flex: 0 0 auto !important;
+        scroll-snap-align: start !important;
+        padding: 0.65rem 0.4rem !important;
+        border-radius: 0.75rem !important;
+    }
+    .is-mobile-app .vital-chip-val {
+        font-size: 1.05rem !important;
+    }
+    .is-mobile-app .vital-chip-label {
+        font-size: 0.6rem !important;
+    }
+    /* Card Padding & Density */
+    .is-mobile-app .db-card {
+        padding: 0.9rem !important;
+        border-radius: 0.9rem !important;
+    }
+    .is-mobile-app .db-card-title {
+        font-size: 0.92rem !important;
+        margin-bottom: 0.65rem !important;
+    }
+    /* De-duplicate: Hide redundant in-page Quick Consult promo blocks */
+    .is-mobile-app .qc-promo-banner,
+    .is-mobile-app .db-qc-banner {
+        display: none !important;
+    }
+    /* Hide website marketing footers completely */
+    .is-mobile-app footer,
+    .is-mobile-app .site-footer {
+        display: none !important;
+    }
 </style>
 
 <div class="db-root">
