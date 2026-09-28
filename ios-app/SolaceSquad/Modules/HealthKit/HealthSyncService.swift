@@ -69,7 +69,7 @@ public class HealthSyncService: ObservableObject {
     }
     
     private func postToBackend(payload: [String: Any], completion: ((Bool) -> Void)?) {
-        guard let url = URL(string: AppEnvironment.syncXPushEndpoint),
+        guard let url = URL(string: AppEnvironment.shared.syncXPushEndpoint),
               let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
             completion?(false)
             return
