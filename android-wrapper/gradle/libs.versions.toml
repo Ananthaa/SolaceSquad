@@ -46,6 +46,7 @@ firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics
 androidx-biometric = { module = "androidx.biometric:biometric", version = "1.1.0" }
 androidx-security-crypto = { module = "androidx.security:security-crypto", version = "1.1.0-alpha06" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+androidx-health-connect = { module = "androidx.health.connect:connect-client", version = "1.1.0-alpha11" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }

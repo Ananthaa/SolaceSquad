@@ -9,7 +9,7 @@ android {
     compileSdk = 36
     defaultConfig {
         applicationId = "com.ssq2_and.solacesquad"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 36
         versionCode = 3
         versionName = "1.2"
@@ -107,6 +107,9 @@ dependencies {
   implementation(libs.androidx.biometric)
   implementation(libs.androidx.security.crypto)
   implementation(libs.androidx.compose.material.icons.extended)
+
+  // Health Connect
+  implementation(libs.androidx.health.connect)
 
   // Razorpay Android SDK
   implementation("com.razorpay:checkout:1.6.41")

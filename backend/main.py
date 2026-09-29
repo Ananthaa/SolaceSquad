@@ -708,8 +708,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
 app.add_middleware(
     SessionMiddleware,
     secret_key=SECRET_KEY,
-    https_only=True,       # cookie only sent over HTTPS (required for SameSite=None)
-    same_site="none",      # none: cookie sent for all requests incl. POST from PWA/mobile
+    https_only=True,
+    same_site="lax",       # lax: protects cookie from Safari ITP and modern browser third-party cookie blocking
     max_age=7776000,       # 90-day persistent session expiry for mobile app and web
 )
 
@@ -5109,6 +5109,8 @@ async def save_consultant_profile(request: Request, db: Session = Depends(get_db
 async def logout(request: Request):
     """Clear session and redirect to home page."""
     request.session.clear()
+    if _is_mobile_app_request(request):
+        return RedirectResponse(url="/login", status_code=303)
     return RedirectResponse(url="/", status_code=303)
 
 
@@ -7470,6 +7472,66 @@ async def verify_login_otp_api(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         print(f"Login OTP Verify error: {e}")
         return JSONResponse({"success": False, "error": "Verification failed"}, status_code=500)
+
+
+def generate_device_auth_token(user_id: int) -> str:
+    """Generate 180-day persistent auth token for native Android and iOS apps."""
+    import jwt
+    payload = {
+        "user_id": user_id,
+        "iat": datetime.utcnow(),
+        "exp": datetime.utcnow() + timedelta(days=180)
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+
+@app.get("/api/auth/device-token")
+async def get_device_token(request: Request):
+    """Retrieve long-lived device token for active authenticated mobile app user."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=401)
+    token = generate_device_auth_token(int(str(user_id)))
+    return {
+        "success": True,
+        "token": token,
+        "user_id": user_id,
+        "user_name": request.session.get("user_name", ""),
+        "user_email": request.session.get("user_email", ""),
+    }
+
+
+@app.post("/api/auth/token-login")
+async def token_login(request: Request, db: Session = Depends(get_db)):
+    """Silent token login for native mobile apps using Android Keystore / iOS Keychain."""
+    try:
+        data = await request.json()
+        token = (data.get("token") or "").strip()
+        if not token:
+            return JSONResponse({"success": False, "error": "Token required"}, status_code=400)
+
+        import jwt
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        user_id = payload.get("user_id")
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user or not user.is_active or getattr(user, "is_blocked", False):
+            return JSONResponse({"success": False, "error": "Invalid or blocked account"}, status_code=401)
+
+        # Re-establish session
+        request.session["user_id"] = user.id
+        request.session["user_name"] = user.name
+        request.session["user_email"] = user.email
+        request.session["user_type"] = user.user_type
+
+        return {
+            "success": True,
+            "user_id": user.id,
+            "user_name": user.name,
+            "user_type": user.user_type,
+            "redirect_url": "/consultant" if user.user_type == "consultant" else "/user-dashboard"
+        }
+    except Exception as e:
+        return JSONResponse({"success": False, "error": f"Invalid token: {str(e)}"}, status_code=401)
 
 
 # ============================================================================

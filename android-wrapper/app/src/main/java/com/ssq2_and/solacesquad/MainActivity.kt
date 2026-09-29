@@ -3,6 +3,7 @@ package com.ssq2_and.solacesquad
 import android.Manifest
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.widget.Toast
@@ -12,13 +13,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,6 +28,8 @@ import com.ssq2_and.solacesquad.core.security.SecurityHelper
 import com.ssq2_and.solacesquad.theme.SolaceSquadTheme
 import com.ssq2_and.solacesquad.ui.TokenBridge
 import com.ssq2_and.solacesquad.ui.WebViewWrapper
+import com.ssq2_and.solacesquad.ui.navigation.NativeBottomBar
+import com.ssq2_and.solacesquad.ui.navigation.TabItem
 import kotlinx.coroutines.delay
 
 class MainActivity : FragmentActivity(), PaymentResultWithDataListener {
@@ -120,8 +120,14 @@ fun AppScreen(initialPath: String? = null) {
     var isAuthenticated by remember { mutableStateOf(!SecurityHelper.isBiometricsAvailable(context)) }
     var authErrorMsg by remember { mutableStateOf<String?>(null) }
 
-    // Token bridge definition with activity reference for native Razorpay Checkout
-    val tokenBridge = remember { TokenBridge(context, activityProvider = { activity }) }
+    // Token bridge definition with activity and webView reference
+    val tokenBridge = remember { 
+        TokenBridge(
+            context = context, 
+            activityProvider = { activity },
+            webViewProvider = { webViewInstance }
+        ) 
+    }
 
     // Double back press exit logic
     var backPressCount by remember { mutableStateOf(0) }
@@ -197,7 +203,21 @@ fun AppScreen(initialPath: String? = null) {
 
     // Base URL definition
     val baseUrl = context.getString(R.string.app_base_url)
-    var currentUrl by remember { mutableStateOf("$baseUrl/login") }
+    var currentUrl by remember { mutableStateOf("$baseUrl/app-start") }
+    var selectedTab by remember { mutableStateOf(TabItem.HOME) }
+    val showBottomBar = remember(currentUrl) { !TabItem.isAuthOrCallRoom(currentUrl) }
+
+    // Call Room Wake Lock management
+    LaunchedEffect(currentUrl) {
+        val inCall = currentUrl.contains("call_room") ||
+                     currentUrl.contains("call-room") ||
+                     currentUrl.contains("quick-consult/room")
+        if (inCall) {
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
 
     // Intercept back button
     BackHandler(enabled = true) {
@@ -237,18 +257,34 @@ fun AppScreen(initialPath: String? = null) {
         }
     }
 
-    val startUrl = if (!initialPath.isNullOrEmpty()) baseUrl + initialPath else "$baseUrl/login"
+    val startUrl = if (!initialPath.isNullOrEmpty()) baseUrl + initialPath else "$baseUrl/app-start"
 
-    WebViewWrapper(
-        url = startUrl,
-        tokenBridge = tokenBridge,
-        modifier = Modifier.fillMaxSize(),
-        onUrlChanged = { newUrl ->
-            currentUrl = newUrl
-        },
-        onWebViewCreated = { webView ->
-            webViewInstance = webView
-            (activity as? MainActivity)?.currentWebView = webView
+    Scaffold(
+        bottomBar = {
+            NativeBottomBar(
+                selectedTab = selectedTab,
+                isVisible = showBottomBar,
+                onTabSelected = { tab ->
+                    selectedTab = tab
+                    webViewInstance?.loadUrl(baseUrl + tab.path)
+                }
+            )
         }
-    )
+    ) { paddingValues ->
+        WebViewWrapper(
+            url = startUrl,
+            tokenBridge = tokenBridge,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            onUrlChanged = { newUrl ->
+                currentUrl = newUrl
+                selectedTab = TabItem.fromUrl(newUrl)
+            },
+            onWebViewCreated = { webView ->
+                webViewInstance = webView
+                (activity as? MainActivity)?.currentWebView = webView
+            }
+        )
+    }
 }

@@ -31,12 +31,26 @@ object SecurityHelper {
         getEncryptedPrefs(context).edit().putString(KEY_AUTH_TOKEN, token).apply()
     }
 
+    fun saveUserDetails(context: Context, email: String, name: String) {
+        getEncryptedPrefs(context).edit()
+            .putString("user_email", email)
+            .putString("user_name", name)
+            .apply()
+    }
+
+    fun getUserEmail(context: Context): String? = getEncryptedPrefs(context).getString("user_email", null)
+    fun getUserName(context: Context): String? = getEncryptedPrefs(context).getString("user_name", null)
+
     fun getAuthToken(context: Context): String? {
         return getEncryptedPrefs(context).getString(KEY_AUTH_TOKEN, null)
     }
 
     fun clearAuthToken(context: Context) {
-        getEncryptedPrefs(context).edit().remove(KEY_AUTH_TOKEN).apply()
+        getEncryptedPrefs(context).edit()
+            .remove(KEY_AUTH_TOKEN)
+            .remove("user_email")
+            .remove("user_name")
+            .apply()
     }
 
     fun isBiometricsAvailable(context: Context): Boolean {

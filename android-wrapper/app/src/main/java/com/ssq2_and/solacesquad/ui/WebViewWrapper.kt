@@ -127,26 +127,7 @@ fun WebViewWrapper(
                                 WebView.setWebContentsDebuggingEnabled(true)
                             }
 
-                            // Version-based cache clearing
-                            try {
-                                val packageInfo = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
-                                @Suppress("DEPRECATION")
-                                val currentVersion = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                                    packageInfo.longVersionCode
-                                } else {
-                                    packageInfo.versionCode.toLong()
-                                }
-                                val sharedPref = ctx.getSharedPreferences("ssq_app_prefs", Context.MODE_PRIVATE)
-                                val savedVersion = sharedPref.getLong("ssq_app_version", -1)
-                                if (savedVersion < currentVersion) {
-                                    clearCache(true)
-                                    sharedPref.edit().putLong("ssq_app_version", currentVersion).apply()
-                                }
-                            } catch (e: Exception) {
-                                // Ignore
-                            }
-
-                            // Setup Cookies
+                            // Setup Cookies with persistent storage
                             val cookieManager = CookieManager.getInstance()
                             cookieManager.setAcceptCookie(true)
                             cookieManager.setAcceptThirdPartyCookies(this, true)
@@ -161,12 +142,21 @@ fun WebViewWrapper(
                                     val urlString = uri.toString()
                                     val isMainFrame = request.isForMainFrame
 
-                                    android.util.Log.e(
+                                    android.util.Log.d(
                                         "WebViewClientFlow",
                                         "shouldOverrideUrlLoading: url=$urlString, isMainFrame=$isMainFrame"
                                     )
 
-                                    // Let standard HTTP/HTTPS page loads and iframes load naturally
+                                    // Intercept root marketing homepage leak -> route to dashboard
+                                    val path = uri.path ?: "/"
+                                    val host = uri.host ?: ""
+                                    if (isMainFrame && host.contains("solacesquad") && (path == "/" || path.isEmpty())) {
+                                        val baseUrl = ctx.getString(com.ssq2_and.solacesquad.R.string.app_base_url)
+                                        view?.loadUrl("$baseUrl/user-dashboard")
+                                        return true
+                                    }
+
+                                    // Let standard HTTP/HTTPS page loads load naturally
                                     if (urlString.startsWith("http://") || urlString.startsWith("https://")) {
                                         return false
                                     }

@@ -396,6 +396,21 @@
     poll(); // immediate first poll
     setInterval(poll, POLL_MS);
   });
+
+  // Sync persistent auth token with native Android / iOS shell
+  (async function() {
+    if (window.AndroidBridge && typeof window.AndroidBridge.saveAuthToken === 'function') {
+      try {
+        const res = await fetch('/api/auth/device-token');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.token) {
+            window.AndroidBridge.saveAuthToken(data.token, data.user_email || '', data.user_name || '');
+          }
+        }
+      } catch(e) {}
+    }
+  })();
 })();
 </script>
 {% endblock %}
