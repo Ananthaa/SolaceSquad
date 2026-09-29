@@ -28,9 +28,11 @@ except ImportError:
     _GENAI_AVAILABLE = False
 
 _GCP_PROJECT   = os.getenv("GCP_PROJECT_ID", "abiding-idea-485817-k2")
-_GCP_LOCATION  = os.getenv("GCP_LOCATION",   "global")   # gemini-2.5-flash requires "global"
-_VERTEX_MODEL  = "gemini-2.5-flash"
-_GEMINI_MODEL  = "gemini-2.5-flash"                       # Primary direct API model
+_GCP_LOCATION  = os.getenv("GCP_LOCATION",   "us-central1")
+if not _GCP_LOCATION or _GCP_LOCATION == "global":
+    _GCP_LOCATION = "us-central1"
+_VERTEX_MODEL  = os.getenv("VERTEX_MODEL", "gemini-2.0-flash")
+_GEMINI_MODEL  = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 _GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
 
@@ -52,6 +54,7 @@ def _load_system_prompt() -> str:
             "acknowledge their difficulty first. "
             "Never mention external helplines. If someone needs urgent help, "
             "direct them to book a SolaceSquad consultant. "
+            "If the user states they do not want to book or speak with a consultant, respect that boundary completely and do not suggest one. "
             "If you get confused or are unsure about how to spell a user's name, address them as 'pal', ask how they would like you to address them (say by first or last name), and invite them to speak their name on the mic so you can hear and pronounce it the same way. "
             "AUTOMATICALLY detect the language the user is speaking in, and ALWAYS respond accordingly in that exact same language. AT THE END of your response, ALWAYS append a tag in the format `[LANG: xx-IN]` indicating the language you are replying in. Use Sarvam language codes like hi-IN (Hindi), ta-IN (Tamil), bn-IN (Bengali), mr-IN (Marathi), gu-IN (Gujarati), pa-IN (Punjabi), te-IN (Telugu), kn-IN (Kannada), ml-IN (Malayalam), or-IN (Odia), or en-IN (English)."
         )
@@ -66,18 +69,22 @@ class GeminiChat:
 
         # ── Tier 1: Vertex AI (HIPAA-eligible) ───────────────────────────────
         if _VERTEX_AVAILABLE:
-            for v_loc in [_GCP_LOCATION, "global", "us-central1"]:
+            for v_loc in [_GCP_LOCATION, "us-central1", "us-east4"]:
                 try:
                     vertexai.init(project=_GCP_PROJECT, location=v_loc)
-                    for vm in [_VERTEX_MODEL, "gemini-2.0-flash", "gemini-1.5-flash"]:
+                    for vm in [_VERTEX_MODEL, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"]:
                         try:
-                            m = _VXModel(vm, system_instruction=self.system_prompt)
+                            try:
+                                m = _VXModel(vm, system_instruction=self.system_prompt)
+                            except TypeError:
+                                m = _VXModel(vm)
                             m.generate_content("hi", generation_config={"max_output_tokens": 5})
                             self.vertex_model = m
                             self.available = True
                             print(f"[Emora] [OK] Tier 1 Vertex AI ready: {vm} (location={v_loc})")
                             break
-                        except Exception:
+                        except Exception as ve:
+                            print(f"[Emora] [DEBUG] Tier 1 model {vm} at {v_loc} failed: {ve}")
                             continue
                     if self.vertex_model:
                         break
@@ -88,9 +95,12 @@ class GeminiChat:
         if _GENAI_AVAILABLE and _GEMINI_API_KEY:
             try:
                 genai.configure(api_key=_GEMINI_API_KEY)
-                for gm in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+                for gm in [_GEMINI_MODEL, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"]:
                     try:
-                        m = genai.GenerativeModel(gm, system_instruction=self.system_prompt)
+                        try:
+                            m = genai.GenerativeModel(gm, system_instruction=self.system_prompt)
+                        except TypeError:
+                            m = genai.GenerativeModel(gm)
                         m.generate_content("hi", generation_config={"max_output_tokens": 5})
                         self.genai_model = m
                         self.available = True

@@ -22,13 +22,13 @@ email-validator==2.1.0
 requests==2.31.0
 sendgrid==6.11.0
 slowapi==0.1.9
-google-generativeai==0.3.2
+google-generativeai>=0.8.3
 reportlab==4.1.0
 pypdf2==3.0.1
 python-docx==1.1.2
 
 # GCP Services (all HIPAA-eligible under GCP BAA)
-google-cloud-aiplatform==1.42.1
+google-cloud-aiplatform>=1.60.0
 google-cloud-storage==2.14.0
 firebase-admin==6.4.0
 cloud-sql-python-connector==1.13.0
