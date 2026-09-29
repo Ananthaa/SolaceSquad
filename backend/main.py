@@ -2284,6 +2284,7 @@ async def canvas_preview_page(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/app", response_class=HTMLResponse)
+@app.get("/user-dashboard", response_class=HTMLResponse)
 async def user_dashboard(request: Request, db: Session = Depends(get_db)):
     """User dashboard - main authenticated area"""
     # TODO: Add authentication check
@@ -4686,6 +4687,7 @@ async def general_dashboard_redirect(request: Request, db: Session = Depends(get
 
 @app.get("/consultant", response_class=HTMLResponse)
 @app.get("/consultant/dashboard", response_class=HTMLResponse)
+@app.get("/consultant-dashboard", response_class=HTMLResponse)
 async def consultant_dashboard(request: Request, db: Session = Depends(get_db)):
     """Consultant dashboard - main authenticated area"""
     user_id = request.session.get("user_id")
