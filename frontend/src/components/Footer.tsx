@@ -26,16 +26,13 @@ export default function Footer() {
                             Professional wellbeing consultants trained to support you with empathy, care, and love.
                         </p>
                         <div className="flex gap-3">
-                            <a href="#" className="p-2 bg-gray-800 rounded-lg hover:bg-primary-600 transition-colors">
+                            <a href="https://www.facebook.com/share/1Bzx8GJWBN/" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 rounded-lg hover:bg-primary-600 transition-colors">
                                 <Facebook className="w-4 h-4" />
                             </a>
-                            <a href="#" className="p-2 bg-gray-800 rounded-lg hover:bg-primary-600 transition-colors">
-                                <Twitter className="w-4 h-4" />
-                            </a>
-                            <a href="#" className="p-2 bg-gray-800 rounded-lg hover:bg-primary-600 transition-colors">
+                            <a href="https://www.instagram.com/solacesquad_in?igsh=MWl0bnV0MmdzeXQwdg%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 rounded-lg hover:bg-primary-600 transition-colors">
                                 <Instagram className="w-4 h-4" />
                             </a>
-                            <a href="#" className="p-2 bg-gray-800 rounded-lg hover:bg-primary-600 transition-colors">
+                            <a href="https://www.linkedin.com/company/solacesquad" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 rounded-lg hover:bg-primary-600 transition-colors">
                                 <Linkedin className="w-4 h-4" />
                             </a>
                         </div>

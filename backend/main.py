@@ -1487,7 +1487,7 @@ async def home(request: Request, db: Session = Depends(get_db)):
             _SOCIAL = {
                 'facebook':  'https://www.facebook.com/share/1Bzx8GJWBN/',
                 'instagram': 'https://www.instagram.com/solacesquad_in?igsh=MWl0bnV0MmdzeXQwdg%3D%3D&utm_source=qr',
-                'linkedin':  'https://www.linkedin.com/in/solace-squad-67a251296?utm_source=share_via&utm_content=profile&utm_medium=member_ios',
+                'linkedin':  'https://www.linkedin.com/company/solacesquad',
             }
             def _patch_social(m):
                 tag = m.group(0)
