@@ -72,19 +72,15 @@ app.add_middleware(
 # Google will de-index .in and transfer its authority to .com over time.
 class DomainRedirectMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        host = request.headers.get("host", "")
-        # Redirect .in → .com (301 permanent)
-        if "solacesquad.in" in host:
-            url = str(request.url)
-            new_url = url.replace("solacesquad.in", "solacesquad.com", 1)
+        host = (request.headers.get("host") or "").split(":")[0].lower()
+        # Redirect .in → .com and non-www → www strictly over HTTPS
+        if host in ("solacesquad.in", "solacesquad.com"):
+            path = request.url.path
+            query = f"?{request.url.query}" if request.url.query else ""
+            target_url = f"https://www.solacesquad.com{path}{query}"
             from starlette.responses import RedirectResponse as _DR
-            return _DR(url=new_url, status_code=301)
-        # Redirect non-www → www (301 permanent) — fixes duplicate content warning
-        if host == "solacesquad.com":
-            url = str(request.url)
-            new_url = url.replace("//solacesquad.com", "//www.solacesquad.com", 1)
-            from starlette.responses import RedirectResponse as _DR
-            return _DR(url=new_url, status_code=301)
+            status_code = 308 if request.method in ("POST", "PUT", "PATCH") else 301
+            return _DR(url=target_url, status_code=status_code)
         return await call_next(request)
 
 app.add_middleware(DomainRedirectMiddleware)
@@ -6435,7 +6431,7 @@ async def consultant_onboarding_get(request: Request, db: Session = Depends(get_
     """Consultant onboarding questionnaire â€” shown right after signup"""
     user_id = request.session.get("user_id")
     if not user_id:
-        return RedirectResponse(url="/signup", status_code=303)
+        return RedirectResponse(url="/login?next=/consultant/onboarding", status_code=303)
     user = db.query(User).filter(User.id == user_id).first()
     if not user or user.user_type != "consultant":
         return RedirectResponse(url="/app", status_code=303)
@@ -6608,7 +6604,7 @@ async def consultant_onboarding_post(request: Request, db: Session = Depends(get
     """Save consultant questionnaire answers to Cloud DB"""
     user_id = request.session.get("user_id")
     if not user_id:
-        return RedirectResponse(url="/signup", status_code=303)
+        return RedirectResponse(url="/login?next=/consultant/onboarding", status_code=303)
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user or user.user_type != "consultant":
