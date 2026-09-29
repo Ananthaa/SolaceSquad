@@ -267,6 +267,9 @@ def init_db():
                 if "switch_decision" not in cols_qc:
                     conn.execute(text("ALTER TABLE quick_consultations ADD COLUMN switch_decision VARCHAR(20) DEFAULT 'none'"))
                     print("[Migration] Added switch_decision column to quick_consultations table")
+                if "consultant_joined_at" not in cols_qc:
+                    conn.execute(text("ALTER TABLE quick_consultations ADD COLUMN consultant_joined_at TIMESTAMP"))
+                    print("[Migration] Added consultant_joined_at column to quick_consultations table")
             except Exception as _qc_err:
                 print(f"[Migration] Note: Adding quick_consultations voucher/device columns failed (non-fatal): {_qc_err}")
     except Exception as e:

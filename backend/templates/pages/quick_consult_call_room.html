@@ -150,9 +150,9 @@
          ─────────────────────────────────────────────────────────────────────── -->
     <div class="max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center backdrop-blur-xl relative">
       
-      <!-- Consultant Badge -->
+      <!-- Remote Partner Badge -->
       <div class="relative inline-block mx-auto mb-4">
-        <img src="{{ consultant_photo }}" alt="{{ consultant_name }}" class="w-20 h-20 rounded-2xl object-cover border-2 border-emerald-500/30 shadow-lg mx-auto" onerror="this.src='/static/images/default-avatar.png'">
+        <img src="{{ remote_partner_photo }}" alt="{{ remote_partner_name }}" class="w-20 h-20 rounded-2xl object-cover border-2 border-emerald-500/30 shadow-lg mx-auto" onerror="this.src='/static/images/default-avatar.png'">
         <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-400 border-2 border-slate-900"></span>
       </div>
 
@@ -162,7 +162,7 @@
       </div>
 
       <h1 class="text-xl font-extrabold text-white mb-1">
-        Consultation with {{ consultant_name }}
+        Consultation with {{ remote_partner_name }}
       </h1>
       <p class="text-xs text-slate-400 mb-6">
         Scheduled for <strong class="text-emerald-400 font-bold">{{ appointment_time_str }}</strong> (30 Mins)
@@ -273,21 +273,29 @@
         
         <!-- Remote Video Container (Agora) -->
         <div id="remoteVideoContainer" class="w-full h-full absolute inset-0 flex items-center justify-center">
-          <!-- Placeholder when remote user hasn't joined or has camera off -->
+          <!-- Placeholder when remote partner hasn't joined or has camera off -->
           <div id="remotePlaceholder" class="text-center p-6">
             <div class="relative inline-block mb-3">
-              <img src="{{ consultant_photo }}" alt="{{ consultant_name }}" class="w-24 h-24 rounded-full object-cover border-4 border-slate-700 shadow-2xl mx-auto" onerror="this.src='/static/images/default-avatar.png'">
+              <img id="remotePartnerAvatar" src="{{ remote_partner_photo }}" alt="{{ remote_partner_name }}" class="w-24 h-24 rounded-full object-cover border-4 border-slate-700 shadow-2xl mx-auto" onerror="this.src='/static/images/default-avatar.png'">
               <span id="remoteStatusDot" class="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-amber-400 border-2 border-slate-900 animate-pulse"></span>
             </div>
-            <h3 class="text-lg font-extrabold text-white">{{ consultant_name }}</h3>
-            <p id="remoteStatusText" class="text-xs text-slate-400 mt-1">Connecting to secure encrypted room...</p>
+            <h3 id="remotePartnerName" class="text-lg font-extrabold text-white">{{ remote_partner_name }}</h3>
+            <p id="remotePartnerRole" class="text-[11px] text-teal-400 font-semibold mb-1">{{ remote_partner_role }}</p>
+            <p id="remoteStatusText" class="text-xs text-slate-400 mt-1">
+              {% if is_consultant %}
+              Waiting for user to connect...
+              {% else %}
+              Connecting to secure encrypted room...
+              {% endif %}
+            </p>
           </div>
         </div>
 
         <!-- Local Picture-in-Picture Video -->
         <div id="localVideoContainer" class="pip-video">
-          <div id="localPlaceholder" class="w-full h-full flex items-center justify-center bg-slate-800 text-slate-400 text-xs font-bold">
+          <div id="localPlaceholder" class="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-300 text-xs font-bold p-1 text-center">
             <span>You</span>
+            <span class="text-[10px] text-slate-400 font-normal truncate max-w-full">({{ local_name }})</span>
           </div>
         </div>
 
@@ -409,7 +417,9 @@
       const CHANNEL_NAME = "{{ channel_name }}";
       const QC_ID = "{{ qc.qc_id }}";
       const IS_CONSULTANT = {{ 'true' if is_consultant else 'false' }};
-      let sessionSecondsRemaining = {{ seconds_remaining }};
+      let sessionSecondsRemaining = {{ seconds_remaining | default(1800) }};
+      let isTimerRunning = {{ 'true' if timer_running else 'false' }};
+      let consultantJoined = {{ 'true' if consultant_joined else 'false' }};
 
       let agoraClient = null;
       let localAudioTrack = null;
@@ -439,6 +449,7 @@
         if (IS_CONSULTANT) {
           showCallStage();
           await initAgoraCall();
+          startHeartbeat();
         } else {
           await verifyDeviceSession();
         }
@@ -558,7 +569,6 @@
       }
 
       function startHeartbeat() {
-        if (IS_CONSULTANT) return;
         if (heartbeatTimer) clearInterval(heartbeatTimer);
         heartbeatTimer = setInterval(async () => {
           try {
@@ -573,7 +583,24 @@
               // Active session was transferred to another device
               teardownLocalMedia();
               showSwitchedScreen();
-            } else if (data.conflict_pending) {
+              return;
+            }
+
+            if (data.consultant_joined !== undefined) {
+              consultantJoined = data.consultant_joined;
+            }
+            if (data.timer_running !== undefined) {
+              isTimerRunning = data.timer_running;
+            }
+            if (data.seconds_remaining !== undefined && isTimerRunning) {
+              // Drift sync: if client differs from server by > 2s, align with server
+              if (Math.abs(sessionSecondsRemaining - data.seconds_remaining) > 2) {
+                sessionSecondsRemaining = data.seconds_remaining;
+                renderTimerText();
+              }
+            }
+
+            if (data.conflict_pending) {
               // Another device has opened the link!
               const modal = document.getElementById('deviceConflictModal');
               if (modal) {
@@ -627,26 +654,52 @@
         if (agoraClient) { agoraClient.leave().catch(() => {}); }
       }
 
-      function initSessionCountdown() {
+      let timerInterval = null;
+
+      function renderTimerText() {
         const timerDisplay = document.getElementById('sessionTimerDisplay');
-        const interval = setInterval(() => {
+        if (!timerDisplay) return;
+
+        if (!consultantJoined && !IS_CONSULTANT) {
+          timerDisplay.textContent = "30:00 (Waiting)";
+          return;
+        }
+
+        if (!isTimerRunning) {
+          timerDisplay.textContent = "30:00";
+          return;
+        }
+
+        const mins = Math.floor(sessionSecondsRemaining / 60);
+        const secs = sessionSecondsRemaining % 60;
+        timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+        if (sessionSecondsRemaining <= 300) {
+          timerDisplay.parentElement.className = "flex items-center gap-2 bg-amber-500/20 border border-amber-500/40 px-3.5 py-1.5 rounded-full text-xs font-bold";
+        }
+      }
+
+      function initSessionCountdown() {
+        renderTimerText();
+        if (timerInterval) clearInterval(timerInterval);
+
+        timerInterval = setInterval(() => {
+          if (!isTimerRunning) {
+            renderTimerText();
+            return;
+          }
+
           if (sessionSecondsRemaining <= 0) {
-            clearInterval(interval);
-            timerDisplay.textContent = "00:00";
+            clearInterval(timerInterval);
+            const timerDisplay = document.getElementById('sessionTimerDisplay');
+            if (timerDisplay) timerDisplay.textContent = "00:00";
             alert("This 30-minute consultation has reached its scheduled conclusion.");
             leaveCall(false);
             return;
           }
 
-          const mins = Math.floor(sessionSecondsRemaining / 60);
-          const secs = sessionSecondsRemaining % 60;
-          timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-
-          if (sessionSecondsRemaining === 300) {
-            timerDisplay.parentElement.className = "flex items-center gap-2 bg-amber-500/20 border border-amber-500/40 px-3.5 py-1.5 rounded-full text-xs font-bold";
-          }
-
           sessionSecondsRemaining--;
+          renderTimerText();
         }, 1000);
       }
 
@@ -680,14 +733,21 @@
           agoraClient.on("user-joined", () => {
             const statusText = document.getElementById("remoteStatusText");
             const statusDot = document.getElementById("remoteStatusDot");
-            if (statusText) statusText.textContent = "Connected & Active";
+            const partnerLabel = IS_CONSULTANT ? "User" : "Consultant";
+            if (statusText) statusText.textContent = `${partnerLabel} Connected & Active`;
             if (statusDot) statusDot.className = "absolute bottom-1 right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-slate-900";
+
+            // Partner joined: activate 30-min countdown
+            consultantJoined = true;
+            isTimerRunning = true;
+            renderTimerText();
           });
 
           agoraClient.on("user-left", () => {
             const statusText = document.getElementById("remoteStatusText");
             const statusDot = document.getElementById("remoteStatusDot");
-            if (statusText) statusText.textContent = "Partner disconnected";
+            const partnerLabel = IS_CONSULTANT ? "User" : "Consultant";
+            if (statusText) statusText.textContent = `${partnerLabel} disconnected`;
             if (statusDot) statusDot.className = "absolute bottom-1 right-1 w-5 h-5 rounded-full bg-slate-500 border-2 border-slate-900";
           });
 

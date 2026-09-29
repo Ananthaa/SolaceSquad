@@ -1197,6 +1197,9 @@ class QuickConsultation(Base):
     pending_device_at       = Column(DateTime, nullable=True)
     switch_decision         = Column(String(20), nullable=True, default="none")
 
+    # Dynamic 30-min call timing: tracks when consultant joined the room
+    consultant_joined_at    = Column(DateTime, nullable=True)
+
     # Environment mode flag
     is_test             = Column(Boolean, nullable=False, default=False)
 

@@ -1472,6 +1472,75 @@ def register_quick_consult_routes(app: FastAPI, templates: Jinja2Templates, get_
     # ──────────────────────────────────────────────────────────────────────────
     # 4.5. WebRTC Call Room (/quick-consult/room/{qc_id} or /quick-consult/room?id=...)
     # ──────────────────────────────────────────────────────────────────────────
+    def _is_consultant_caller(req: Request, qc_obj: QuickConsultation, db_session: Session) -> bool:
+        session_uid = req.session.get("user_id")
+        user_type = req.session.get("user_type", "")
+        if session_uid:
+            try:
+                session_uid_int = int(session_uid)
+            except (ValueError, TypeError):
+                session_uid_int = session_uid
+
+            if user_type == "consultant":
+                return True
+            if qc_obj.consultant and qc_obj.consultant.user_id == session_uid_int:
+                return True
+            u = db_session.query(User).filter(User.id == session_uid_int).first()
+            if u and u.user_type == "consultant":
+                return True
+        return False
+
+    def _get_qc_timer_state(qc_obj: QuickConsultation, now_dt: datetime):
+        """
+        Calculates dynamic 30-min timer:
+        - If consultant joins after scheduled start -> timer starts when consultant joins.
+        - If consultant joins on-time or before -> timer starts on-time at scheduled start.
+        - If consultant has not joined yet -> timer is paused at full duration (30 mins).
+        """
+        appt_start_utc = qc_obj.appointment_date
+        duration_minutes = qc_obj.duration_minutes or 30
+        duration_seconds = duration_minutes * 60
+        consultant_joined_at = getattr(qc_obj, "consultant_joined_at", None)
+
+        if consultant_joined_at:
+            if consultant_joined_at > appt_start_utc:
+                # Consultant joined late (after scheduled start) -> Timer starts when consultant joined
+                timer_started_at = consultant_joined_at
+            else:
+                # Consultant joined on-time or early -> Timer starts on-time at scheduled start
+                timer_started_at = appt_start_utc
+        else:
+            # Consultant has not joined yet -> Timer has not started yet
+            timer_started_at = None
+
+        if timer_started_at is None:
+            timer_running = False
+            seconds_remaining = duration_seconds
+            # Allow ample window (up to 45 mins past appointment start) for consultant to enter
+            effective_end_utc = appt_start_utc + timedelta(minutes=duration_minutes + 30)
+            session_expiry_utc = effective_end_utc + timedelta(minutes=15)
+        else:
+            effective_end_utc = timer_started_at + timedelta(seconds=duration_seconds)
+            session_expiry_utc = effective_end_utc + timedelta(minutes=10)
+            if now_dt < timer_started_at:
+                # Early arrival before appointment time
+                timer_running = False
+                seconds_remaining = duration_seconds
+            else:
+                # Timer actively counting down
+                timer_running = True
+                elapsed_seconds = int((now_dt - timer_started_at).total_seconds())
+                seconds_remaining = max(0, duration_seconds - elapsed_seconds)
+
+        return {
+            "timer_started_at": timer_started_at,
+            "timer_running": timer_running,
+            "seconds_remaining": seconds_remaining,
+            "effective_end_utc": effective_end_utc,
+            "session_expiry_utc": session_expiry_utc,
+            "consultant_joined": bool(consultant_joined_at),
+        }
+
     @app.get("/quick-consult/room", response_class=HTMLResponse)
     async def quick_consult_call_room_query(
         request: Request,
@@ -1506,23 +1575,7 @@ def register_quick_consult_routes(app: FastAPI, templates: Jinja2Templates, get_
             c_photo = f"/{c_photo}"
         c_spec = consultant.specialization if (consultant and consultant.specialization) else "Wellness Expert"
 
-        session_uid = request.session.get("user_id")
-        user_type = request.session.get("user_type", "")
-        is_consultant = False
-        if session_uid:
-            try:
-                session_uid_int = int(session_uid)
-            except (ValueError, TypeError):
-                session_uid_int = session_uid
-
-            if user_type == "consultant":
-                is_consultant = True
-            elif consultant and consultant.user_id == session_uid_int:
-                is_consultant = True
-            else:
-                u = db.query(User).filter(User.id == session_uid_int).first()
-                if u and u.user_type == "consultant":
-                    is_consultant = True
+        is_consultant = _is_consultant_caller(request, qc, db)
 
         # Ensure payment was completed (or free voucher)
         if qc.payment_status != "completed":
@@ -1538,11 +1591,56 @@ def register_quick_consult_routes(app: FastAPI, templates: Jinja2Templates, get_
             )
 
         now_utc = datetime.utcnow()
-        now_ist = now_utc + timedelta(hours=5, minutes=30)
+
+        # Mark consultant join time if caller is the consultant
+        if is_consultant and not getattr(qc, "consultant_joined_at", None):
+            qc.consultant_joined_at = now_utc
+            try:
+                db.commit()
+                db.refresh(qc)
+            except Exception as ce:
+                db.rollback()
+                print(f"[QC] Failed saving consultant_joined_at: {ce}")
+
+        # Resolve Client Info (check for registered user linked to this phone number or session)
+        client_name = ""
+        client_phone = qc.phone_number or ""
+        clean_phone = client_phone.replace("+91", "").replace(" ", "").replace("-", "").strip()
+        try:
+            reg_user = db.query(User).filter(
+                or_(
+                    User.phone_number == client_phone,
+                    User.phone_number == clean_phone,
+                    User.phone_number == f"+91{clean_phone}",
+                )
+            ).first()
+            if reg_user and reg_user.name:
+                client_name = reg_user.name.strip()
+        except Exception as u_err:
+            pass
+
+        client_display_name = client_name if client_name else "User"
+        consultant_display_name = qc.consultant_name or (consultant.full_name if consultant else "Consultant")
+
+        # Remote partner view vs Local view
+        if is_consultant:
+            remote_partner_name = client_display_name
+            remote_partner_photo = "/static/images/default-avatar.png"
+            remote_partner_role = "User"
+            local_name = consultant_display_name
+            local_role = "Consultant"
+        else:
+            remote_partner_name = consultant_display_name
+            remote_partner_photo = c_photo
+            remote_partner_role = c_spec or "Consultant"
+            local_name = client_display_name
+            local_role = "User"
+
+        timer_state = _get_qc_timer_state(qc, now_utc)
+
         appt_start_utc = qc.appointment_date
-        appt_end_utc = appt_start_utc + timedelta(minutes=30)
         unlock_window_start_utc = appt_start_utc - timedelta(minutes=5)
-        session_expiry_utc = appt_end_utc + timedelta(minutes=10) # 10 min grace period
+        session_expiry_utc = timer_state["session_expiry_utc"]
 
         appt_ist = appt_start_utc + timedelta(hours=5, minutes=30)
         appt_ist_str = appt_ist.strftime("%d %b %Y at %I:%M %p")
@@ -1551,69 +1649,58 @@ def register_quick_consult_routes(app: FastAPI, templates: Jinja2Templates, get_
         agora_app_id = os.getenv("AGORA_APP_ID", "3ee48a30328245bcb0b7ac7d6099b721")
         channel_name = f"qc_{qc.qc_id.lower()}"
 
+        base_context = {
+            "request": request,
+            "is_consultant": is_consultant,
+            "qc": qc,
+            "consultant_name": consultant_display_name,
+            "consultant_photo": c_photo,
+            "consultant_spec": c_spec,
+            "client_name": client_display_name,
+            "remote_partner_name": remote_partner_name,
+            "remote_partner_photo": remote_partner_photo,
+            "remote_partner_role": remote_partner_role,
+            "local_name": local_name,
+            "local_role": local_role,
+            "appointment_time_str": appt_ist_str,
+            "appointment_time_short": appt_time_short,
+            "agora_app_id": agora_app_id,
+            "channel_name": channel_name,
+        }
+
         if now_utc < unlock_window_start_utc:
             # ── STATE 1: Waiting Room (Time-Gated: > 5 mins before call) ──
             seconds_until_unlock = max(1, int((unlock_window_start_utc - now_utc).total_seconds()))
             seconds_until_start = max(1, int((appt_start_utc - now_utc).total_seconds()))
-            return templates.TemplateResponse(
-                "pages/quick_consult_call_room.html",
-                {
-                    "request": request,
-                    "status": "waiting",
-                    "is_locked": True,
-                    "is_consultant": is_consultant,
-                    "qc": qc,
-                    "consultant_name": qc.consultant_name,
-                    "consultant_photo": c_photo,
-                    "consultant_spec": c_spec,
-                    "appointment_time_str": appt_ist_str,
-                    "appointment_time_short": appt_time_short,
-                    "seconds_until_unlock": seconds_until_unlock,
-                    "seconds_until_start": seconds_until_start,
-                    "agora_app_id": agora_app_id,
-                    "channel_name": channel_name,
-                }
-            )
+            context = {
+                **base_context,
+                "status": "waiting",
+                "is_locked": True,
+                "seconds_until_unlock": seconds_until_unlock,
+                "seconds_until_start": seconds_until_start,
+            }
+            return templates.TemplateResponse("pages/quick_consult_call_room.html", context)
 
         elif unlock_window_start_utc <= now_utc <= session_expiry_utc:
             # ── STATE 2: Active WebRTC Call Room (5 mins before start up to end) ──
-            seconds_remaining = max(60, int((appt_end_utc - now_utc).total_seconds()))
-            return templates.TemplateResponse(
-                "pages/quick_consult_call_room.html",
-                {
-                    "request": request,
-                    "status": "active",
-                    "is_locked": False,
-                    "is_consultant": is_consultant,
-                    "qc": qc,
-                    "consultant_name": qc.consultant_name,
-                    "consultant_photo": c_photo,
-                    "consultant_spec": c_spec,
-                    "appointment_time_str": appt_ist_str,
-                    "appointment_time_short": appt_time_short,
-                    "seconds_remaining": seconds_remaining,
-                    "agora_app_id": agora_app_id,
-                    "channel_name": channel_name,
-                }
-            )
+            context = {
+                **base_context,
+                "status": "active",
+                "is_locked": False,
+                "seconds_remaining": timer_state["seconds_remaining"],
+                "timer_running": timer_state["timer_running"],
+                "consultant_joined": timer_state["consultant_joined"],
+            }
+            return templates.TemplateResponse("pages/quick_consult_call_room.html", context)
 
         else:
             # ── STATE 3: Expired / Completed Session ──
-            return templates.TemplateResponse(
-                "pages/quick_consult_call_room.html",
-                {
-                    "request": request,
-                    "status": "expired",
-                    "is_locked": True,
-                    "is_consultant": is_consultant,
-                    "qc": qc,
-                    "consultant_name": qc.consultant_name,
-                    "consultant_photo": c_photo,
-                    "consultant_spec": c_spec,
-                    "appointment_time_str": appt_ist_str,
-                    "appointment_time_short": appt_time_short,
-                }
-            )
+            context = {
+                **base_context,
+                "status": "expired",
+                "is_locked": True,
+            }
+            return templates.TemplateResponse("pages/quick_consult_call_room.html", context)
 
     # ──────────────────────────────────────────────────────────────────────────
     # 4.6. Silent Background Recording Receiver Endpoint
@@ -1650,24 +1737,6 @@ def register_quick_consult_routes(app: FastAPI, templates: Jinja2Templates, get_
     # ──────────────────────────────────────────────────────────────────────────
     # 4.7. WebRTC Single-Client Device Session Gating & Transfer Endpoints
     # ──────────────────────────────────────────────────────────────────────────
-    def _is_consultant_caller(req: Request, qc_obj: QuickConsultation, db_session: Session) -> bool:
-        session_uid = req.session.get("user_id")
-        user_type = req.session.get("user_type", "")
-        if session_uid:
-            try:
-                session_uid_int = int(session_uid)
-            except (ValueError, TypeError):
-                session_uid_int = session_uid
-
-            if user_type == "consultant":
-                return True
-            if qc_obj.consultant and qc_obj.consultant.user_id == session_uid_int:
-                return True
-            u = db_session.query(User).filter(User.id == session_uid_int).first()
-            if u and u.user_type == "consultant":
-                return True
-        return False
-
     @app.post("/api/quick-consult/room/{qc_id}/session-check")
     async def quick_consult_session_check(
         qc_id: str,
@@ -1682,8 +1751,17 @@ def register_quick_consult_routes(app: FastAPI, templates: Jinja2Templates, get_
         if not qc:
             raise HTTPException(status_code=404, detail="Quick consultation not found")
 
+        now_utc = datetime.utcnow()
+
         # Consultants bypass client device token restrictions
         if _is_consultant_caller(request, qc, db):
+            if not getattr(qc, "consultant_joined_at", None):
+                qc.consultant_joined_at = now_utc
+                try:
+                    db.commit()
+                    db.refresh(qc)
+                except Exception:
+                    db.rollback()
             return {"status": "allowed", "is_consultant": True}
 
         try:
@@ -1696,7 +1774,6 @@ def register_quick_consult_routes(app: FastAPI, templates: Jinja2Templates, get_
         if not device_token:
             return {"status": "error", "message": "Missing device token"}
 
-        now_utc = datetime.utcnow()
         last_seen = getattr(qc, "client_device_last_seen", None)
         active_token = getattr(qc, "client_device_token", None)
         pending_token = getattr(qc, "pending_device_token", None)
@@ -1763,8 +1840,26 @@ def register_quick_consult_routes(app: FastAPI, templates: Jinja2Templates, get_
         if not qc:
             raise HTTPException(status_code=404, detail="Quick consultation not found")
 
+        now_utc = datetime.utcnow()
+        timer_state = _get_qc_timer_state(qc, now_utc)
+
         if _is_consultant_caller(request, qc, db):
-            return {"status": "ok", "is_consultant": True}
+            if not getattr(qc, "consultant_joined_at", None):
+                qc.consultant_joined_at = now_utc
+                try:
+                    db.commit()
+                    db.refresh(qc)
+                except Exception:
+                    db.rollback()
+                timer_state = _get_qc_timer_state(qc, now_utc)
+
+            return {
+                "status": "ok",
+                "is_consultant": True,
+                "consultant_joined": True,
+                "seconds_remaining": timer_state["seconds_remaining"],
+                "timer_running": timer_state["timer_running"],
+            }
 
         try:
             body = await request.json()
@@ -1774,7 +1869,6 @@ def register_quick_consult_routes(app: FastAPI, templates: Jinja2Templates, get_
         if not device_token:
             return {"status": "error", "message": "Missing device token"}
 
-        now_utc = datetime.utcnow()
         active_token = getattr(qc, "client_device_token", None)
         pending_token = getattr(qc, "pending_device_token", None)
         pending_at = getattr(qc, "pending_device_at", None)
@@ -1792,7 +1886,13 @@ def register_quick_consult_routes(app: FastAPI, templates: Jinja2Templates, get_
                 and (now_utc - pending_at) < timedelta(seconds=60)
             )
             db.commit()
-            return {"status": "ok", "conflict_pending": has_pending}
+            return {
+                "status": "ok",
+                "conflict_pending": has_pending,
+                "consultant_joined": timer_state["consultant_joined"],
+                "seconds_remaining": timer_state["seconds_remaining"],
+                "timer_running": timer_state["timer_running"],
+            }
 
         # Otherwise, this device is no longer the active device (kicked / switched out)
         return {
