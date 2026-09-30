@@ -229,9 +229,9 @@
             {% if consultant.pro_videos_count and consultant.pro_videos_count > 0 %}
             <button type="button" class="btn pro-video-tile-btn"
                 onclick="handleCardProVideoClick(event, {{ consultant.id }}, '{{ consultant.name | replace("'", "\\'") }}')"
-                title="Watch {{ consultant.pro_videos_count }} exclusive Pro Video{{ 's' if consultant.pro_videos_count > 1 else '' }} by {{ consultant.name }}">
+                title="Watch {{ consultant.pro_videos_count }} exclusive Pro Tip{{ 's' if consultant.pro_videos_count > 1 else '' }} by {{ consultant.name }}">
                 <span class="pro-video-tile-icon">🎬</span>
-                <span>Pro Videos</span>
+                <span>Pro Tips</span>
                 <span class="pro-video-count-badge">{{ consultant.pro_videos_count }}</span>
             </button>
             {% endif %}
@@ -386,18 +386,18 @@
 
             <hr class="pm-divider" id="pmProVideosDivider" style="display:none;">
 
-            <!-- Pro Videos Section -->
+            <!-- Pro Tips Section -->
             <div class="pm-section" id="pmProVideosSection" style="display:none;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
                     <h4 class="pm-section-title" style="margin-bottom:0;">
-                        <span class="pm-section-icon">🎬</span> Pro Videos by <span id="pmProVideosConsultantName">Consultant</span>
+                        <span class="pm-section-icon">🎬</span> Pro Tips by <span id="pmProVideosConsultantName">Consultant</span>
                     </h4>
                     <span class="pro-pill-badge" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:999px;">
                         PAID EXCLUSIVE
                     </span>
                 </div>
                 <div id="pmProVideosList" class="pm-pro-videos-grid">
-                    <div class="pm-loading">Loading Pro Videos…</div>
+                    <div class="pm-loading">Loading Pro Tips…</div>
                 </div>
             </div>
 
@@ -423,7 +423,7 @@
         <div class="pv-stream-header">
             <div style="min-width:0;">
                 <div style="display:flex;align-items:center;gap:6px;">
-                    <span class="pro-pill-badge" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.65rem;font-weight:800;padding:1px 6px;border-radius:999px;">PRO VIDEO</span>
+                    <span class="pro-pill-badge" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.65rem;font-weight:800;padding:1px 6px;border-radius:999px;">PRO TIP</span>
                     <h3 id="pvModalTitle" class="pv-stream-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Video Title</h3>
                 </div>
                 <p id="pvModalConsultant" style="font-size:0.75rem;color:#2dd4bf;font-weight:600;margin-top:2px;"></p>
@@ -452,10 +452,10 @@
         <div class="pv-upgrade-icon">👑</div>
         <h3 class="pv-upgrade-title">Exclusive to Paid Members</h3>
         <p class="pv-upgrade-text">
-            Consultant Pro Videos are bite-sized expert masterclasses and tips created exclusively for our <strong>White &amp; Green Plan</strong> members.
+            Consultant Pro Tips are bite-sized expert masterclasses and tips created exclusively for our <strong>White &amp; Green Plan</strong> members.
         </p>
         <div class="pv-upgrade-perks">
-            <div class="pv-perk-item">✓ Unlimited access to all Consultant Pro short videos</div>
+            <div class="pv-perk-item">✓ Unlimited access to all Consultant Pro short videos &amp; tips</div>
             <div class="pv-perk-item">✓ Practical daily techniques from verified experts</div>
             <div class="pv-perk-item">✓ Free &amp; discounted live 1-on-1 consultations</div>
         </div>
@@ -4284,7 +4284,7 @@
                     pvSection.style.display = 'none';
                     if (pvDivider) pvDivider.style.display = 'none';
                     if (pvName) pvName.textContent = name;
-                    pvList.innerHTML = '<div class="pm-loading">Loading Pro Videos\u2026</div>';
+                    pvList.innerHTML = '<div class="pm-loading">Loading Pro Tips\u2026</div>';
 
                     fetch('/api/consultants/' + id + '/pro-videos')
                         .then(function(r) { return r.json(); })
@@ -4368,7 +4368,7 @@
                 .then(function(r) { return r.json(); })
                 .then(function(d) {
                     if (!d.success || !d.videos || d.videos.length === 0) {
-                        alert('No Pro Videos currently available for this consultant.');
+                        alert('No Pro Tips currently available for this consultant.');
                         return;
                     }
                     if (d.videos.length === 1) {
@@ -4400,7 +4400,7 @@
             var titleEl = document.getElementById('pvModalTitle');
             var consEl = document.getElementById('pvModalConsultant');
             var descEl = document.getElementById('pvModalDesc');
-            if (titleEl) titleEl.textContent = title || 'Consultant Pro Video';
+            if (titleEl) titleEl.textContent = title || 'Consultant Pro Tip';
             if (consEl) consEl.textContent = consultantName ? 'By ' + consultantName : '';
             if (descEl) {
                 descEl.textContent = description || '';

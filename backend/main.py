@@ -13517,12 +13517,12 @@ async def stream_pro_video(request: Request, video_id: int, db: Session = Depend
     if not is_authorized:
         raise HTTPException(
             status_code=403,
-            detail="Paid subscription required to access Consultant Pro Videos. Please upgrade your plan."
+            detail="Paid subscription required to access Consultant Pro Tips. Please upgrade your plan."
         )
 
     video = db.query(ConsultantProVideo).filter(ConsultantProVideo.id == video_id, ConsultantProVideo.is_active == True).first()
     if not video:
-        raise HTTPException(status_code=404, detail="Pro Video not found")
+        raise HTTPException(status_code=404, detail="Pro Tip not found")
 
     if "storage.googleapis.com/" not in video.video_url:
         raise HTTPException(status_code=404, detail="Invalid GCS video URL")
