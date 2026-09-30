@@ -1,0 +1,450 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<style>
+  /* ── Card & layout ─────────────────────────────────────── */
+  .pv-header        { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:2rem; }
+  .pv-title         { font-size:1.75rem; font-weight:800; color:#111827; line-height:1.2; display:flex; align-items:center; gap:0.5rem; }
+  .pv-subtitle      { font-size:.875rem; color:#6b7280; margin-top:.25rem; }
+  .pro-pill-badge   { background:linear-gradient(135deg, #f59e0b, #d97706); color:#fff; font-size:.7rem; font-weight:800; padding:2px 8px; border-radius:999px; letter-spacing:.05em; vertical-align:middle; display:inline-block; }
+
+  /* ── Form elements ──────────────────────────────────────── */
+  .field-label      { font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem; display:block; }
+  .field-input      { width:100%; padding:.65rem .9rem; border:1.5px solid #e5e7eb; border-radius:.65rem; font-size:.875rem; color:#111827; transition:border-color .15s; box-sizing:border-box; background:#fff; }
+  .field-input:focus { outline:none; border-color:#0d9488; box-shadow:0 0 0 3px rgba(13,148,136,.15); }
+  .form-row         { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  @media(max-width:700px) { .form-row { grid-template-columns:1fr; } }
+
+  /* ── Upload Area ────────────────────────────────────────── */
+  .upload-box {
+    border: 2px dashed #cbd5e1;
+    border-radius: 0.85rem;
+    padding: 1.75rem 1rem;
+    text-align: center;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .upload-box:hover, .upload-box.dragover {
+    border-color: #0d9488;
+    background: #f0fdfa;
+  }
+  .upload-icon {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto .75rem;
+    background: #ccfbf1;
+    color: #0f766e;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Upload progress bar ────────────────────────────────── */
+  #upload-progress-wrap { display:none; margin-top:.85rem; }
+  #upload-progress-bar  { height:8px; border-radius:999px; background:linear-gradient(90deg, #14b8a6, #0d9488); width:0%; transition:width .2s ease; }
+  #upload-progress-track { height:8px; border-radius:999px; background:#e2e8f0; overflow:hidden; }
+  #upload-size-label    { font-size:.78rem; font-weight:600; color:#475569; margin-top:.4rem; display:flex; justify-content:space-between; }
+
+  /* ── Submit button ──────────────────────────────────────── */
+  .save-btn         { width:100%; padding:.75rem 1.25rem; border-radius:.75rem; border:none; background:linear-gradient(135deg,#0d9488,#0f766e); color:#fff; font-size:.92rem; font-weight:700; cursor:pointer; margin-top:1.25rem; transition:opacity .2s, transform .15s; display:flex; align-items:center; justify-content:center; gap:0.5rem; }
+  .save-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 4px 12px rgba(13,148,136,.25); }
+  .save-btn:disabled { opacity:.55; cursor:not-allowed; }
+
+  /* ── Videos table ───────────────────────────────────────── */
+  .vid-table        { width:100%; border-collapse:collapse; margin-top:1.5rem; font-size:.85rem; }
+  .vid-table th     { text-align:left; padding:.75rem .85rem; font-weight:700; font-size:.75rem; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid #f1f5f9; background:#f8fafc; }
+  .vid-table td     { padding:.85rem; border-bottom:1px solid #f1f5f9; color:#374151; vertical-align:middle; }
+  .vid-table tr:hover td { background:#fafafa; }
+
+  .consultant-tag-pill { display:inline-flex; align-items:center; gap:.45rem; background:#f0fdfa; border:1px solid #99f6e4; padding:.3rem .65rem; border-radius:999px; font-weight:700; font-size:.78rem; color:#0f766e; }
+  .consultant-mini-avatar { width:22px; height:22px; border-radius:50%; object-fit:cover; background:#ccfbf1; }
+
+  .duration-pill { font-size:.72rem; font-weight:700; background:#f1f5f9; color:#475569; padding:2px 7px; border-radius:6px; display:inline-block; }
+
+  .action-btn { padding:.35rem .75rem; border-radius:.5rem; font-size:.78rem; font-weight:700; cursor:pointer; transition:all .15s; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }
+  .preview-btn { border:1.5px solid #99f6e4; background:#f0fdfa; color:#0d9488; margin-right:4px; }
+  .preview-btn:hover { background:#ccfbf1; }
+  .del-btn { border:1.5px solid #fca5a5; background:#fef2f2; color:#991b1b; }
+  .del-btn:hover { background:#fee2e2; }
+
+  /* ── Modal ──────────────────────────────────────────────── */
+  .pv-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.75); align-items:center; justify-content:center; padding:1rem; backdrop-filter:blur(3px); }
+  .pv-modal.active { display:flex; }
+  .pv-modal-card { background:#fff; border-radius:1rem; max-width:640px; width:100%; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,.3); position:relative; }
+  .pv-modal-header { padding:1rem 1.25rem; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; }
+  .pv-modal-title { font-size:1rem; font-weight:700; color:#111827; }
+  .pv-modal-close { background:none; border:none; font-size:1.4rem; color:#6b7280; cursor:pointer; line-height:1; }
+
+  .toast { position:fixed; bottom:1.5rem; right:1.5rem; padding:.75rem 1.25rem; border-radius:.75rem; font-size:.875rem; font-weight:600; z-index:99999; box-shadow:0 4px 16px rgba(0,0,0,.15); opacity:0; transform:translateY(1rem); transition:all .3s; pointer-events:none; }
+  .toast.show { opacity:1; transform:translateY(0); }
+  .toast-success { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+  .toast-error { background:#fef2f2; color:#991b1b; border:1px solid #fca5a5; }
+</style>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Header -->
+  <div class="pv-header">
+    <div>
+      <h1 class="pv-title">
+        <i data-lucide="sparkles" class="w-7 h-7 text-amber-500"></i>
+        Consultant Pro Videos
+        <span class="pro-pill-badge">PAID EXCLUSIVE</span>
+      </h1>
+      <p class="pv-subtitle">Upload short expert guidance videos, tag specific consultants, and deliver exclusive value to paid subscribers.</p>
+    </div>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="card px-6 py-6 border-l-4 border-teal-600 bg-white rounded-xl shadow-sm mb-8">
+    <h2 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+      <i data-lucide="video" class="w-5 h-5 text-teal-600"></i>
+      Upload a New Consultant Pro Video
+    </h2>
+
+    <form id="proVideoForm" onsubmit="handleProVideoUpload(event)">
+      <!-- Row 1: Consultant Tag & Duration -->
+      <div class="form-row mb-4">
+        <div>
+          <label class="field-label" for="consultantSelect">
+            Tag Consultant <span class="text-red-500">*</span>
+          </label>
+          <select id="consultantSelect" name="consultant_id" required class="field-input">
+            <option value="" disabled selected>-- Select a Consultant --</option>
+            {% for c in consultants %}
+            <option value="{{ c.id }}">
+              {{ c.name }} ({{ c.specialization or 'Wellbeing Consultant' }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="field-label" for="durationDisplay">
+            Duration Tag (e.g. 0:45, 1:15)
+          </label>
+          <input type="text" id="durationDisplay" name="duration" placeholder="e.g. 1:00" class="field-input" value="1:00">
+        </div>
+      </div>
+
+      <!-- Row 2: Video Title -->
+      <div class="mb-4">
+        <label class="field-label" for="videoTitle">
+          Video Title <span class="text-red-500">*</span>
+        </label>
+        <input type="text" id="videoTitle" name="title" required placeholder="e.g. 3 Quick Breathing Techniques for Immediate Calm" class="field-input">
+      </div>
+
+      <!-- Row 3: Description -->
+      <div class="mb-4">
+        <label class="field-label" for="videoDesc">
+          Short Description (Optional)
+        </label>
+        <textarea id="videoDesc" name="description" rows="2" placeholder="Brief summary of what the user will learn in this quick video..." class="field-input"></textarea>
+      </div>
+
+      <!-- Row 4: Direct Video File Upload -->
+      <div class="mb-2">
+        <label class="field-label">
+          Video File <span class="text-red-500">*</span>
+          <span class="text-xs text-gray-500 font-normal">(MP4, WebM, MOV — Max 100MB)</span>
+        </label>
+        <div class="upload-box" id="dropArea" onclick="document.getElementById('videoFileInput').click()">
+          <div class="upload-icon">
+            <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+          </div>
+          <p class="text-sm font-semibold text-gray-700" id="fileChosenLabel">
+            Click to select or drag & drop video file here
+          </p>
+          <p class="text-xs text-gray-400 mt-1">MP4, WebM or MOV</p>
+        </div>
+        <input type="file" id="videoFileInput" name="file" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo" style="display:none;" onchange="handleFileSelect(this)">
+      </div>
+
+      <!-- Upload Progress -->
+      <div id="upload-progress-wrap">
+        <div id="upload-progress-track">
+          <div id="upload-progress-bar"></div>
+        </div>
+        <div id="upload-size-label">
+          <span id="uploadPercent">0%</span>
+          <span id="uploadSize">Uploading...</span>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" id="submitBtn" class="save-btn">
+        <i data-lucide="upload" class="w-4 h-4"></i>
+        <span>Upload Pro Video</span>
+      </button>
+    </form>
+  </div>
+
+  <!-- Existing Pro Videos Table -->
+  <div class="card px-6 py-6 bg-white rounded-xl shadow-sm">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+      <div>
+        <h2 class="text-base font-bold text-gray-800 flex items-center gap-2">
+          <i data-lucide="film" class="w-5 h-5 text-teal-600"></i>
+          Uploaded Pro Videos ({{ videos | length }})
+        </h2>
+        <p class="text-xs text-gray-500 mt-0.5">These videos are dynamically linked to consultant profiles and accessible to paid members.</p>
+      </div>
+    </div>
+
+    {% if videos %}
+    <div class="overflow-x-auto">
+      <table class="vid-table">
+        <thead>
+          <tr>
+            <th>Consultant</th>
+            <th>Video Title & Summary</th>
+            <th>Duration</th>
+            <th>Uploaded</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in videos %}
+          <tr id="video-row-{{ v.id }}">
+            <td>
+              <div class="consultant-tag-pill">
+                {% if v.consultant_photo %}
+                <img src="{{ v.consultant_photo }}" class="consultant-mini-avatar" alt="">
+                {% else %}
+                <span class="consultant-mini-avatar flex items-center justify-center font-bold text-[10px] text-teal-700">
+                  {{ v.consultant_name[:2] | upper }}
+                </span>
+                {% endif %}
+                <span>{{ v.consultant_name }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="font-bold text-gray-900">{{ v.title }}</div>
+              {% if v.description %}
+              <div class="text-xs text-gray-500 mt-0.5 line-clamp-1">{{ v.description }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <span class="duration-pill">{{ v.duration_display or '1:00' }}</span>
+            </td>
+            <td class="text-xs text-gray-500">
+              {{ v.created_at.strftime('%d %b %Y') if v.created_at else '--' }}
+            </td>
+            <td style="text-align:right; white-space:nowrap;">
+              <button type="button" class="action-btn preview-btn" onclick="openPreviewModal({{ v.id }}, '{{ v.title | replace("'", "\\'") }}', '{{ v.consultant_name | replace("'", "\\'") }}')">
+                <i data-lucide="play" class="w-3.5 h-3.5"></i> Preview
+              </button>
+              <button type="button" class="action-btn del-btn" onclick="deleteProVideo({{ v.id }})">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12 text-gray-400">
+      <i data-lucide="video-off" class="w-12 h-12 mx-auto mb-3 opacity-40"></i>
+      <p class="font-medium">No Pro Videos uploaded yet.</p>
+      <p class="text-xs mt-1">Tag a consultant and upload their short video above to get started.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Preview Modal with Protected Stream Player -->
+<div id="previewModal" class="pv-modal" onclick="closePreviewModal(event)">
+  <div class="pv-modal-card" onclick="event.stopPropagation()">
+    <div class="pv-modal-header">
+      <div>
+        <h3 id="modalVideoTitle" class="pv-modal-title">Video Preview</h3>
+        <p id="modalConsultantName" class="text-xs text-teal-700 font-semibold"></p>
+      </div>
+      <button class="pv-modal-close" onclick="closePreviewModal()">&times;</button>
+    </div>
+    <div style="background:#000; position:relative; aspect-ratio:16/9; display:flex; align-items:center; justify-content:center;">
+      <video id="previewPlayer"
+             controls
+             controlsList="nodownload noplaybackrate"
+             disablePictureInPicture
+             oncontextmenu="return false;"
+             style="width:100%; height:100%; object-fit:contain;">
+      </video>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + (isError ? 'toast-error' : 'toast-success');
+    setTimeout(() => { t.className = 'toast'; }, 3500);
+  }
+
+  function handleFileSelect(input) {
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const mb = (file.size / (1024 * 1024)).toFixed(1);
+      document.getElementById('fileChosenLabel').innerHTML = `
+        <span class="text-teal-700 font-bold">✓ Selected:</span> ${file.name} (${mb} MB)
+      `;
+    }
+  }
+
+  // Drag and drop support
+  const dropArea = document.getElementById('dropArea');
+  if (dropArea) {
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropArea.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropArea.classList.add('dragover');
+      }, false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropArea.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropArea.classList.remove('dragover');
+      }, false);
+    });
+    dropArea.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      if (files.length) {
+        document.getElementById('videoFileInput').files = files;
+        handleFileSelect(document.getElementById('videoFileInput'));
+      }
+    });
+  }
+
+  async function handleProVideoUpload(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('videoFileInput');
+    if (!fileInput.files || !fileInput.files[0]) {
+      showToast('Please select a video file to upload.', true);
+      return;
+    }
+
+    const consultantId = document.getElementById('consultantSelect').value;
+    const title = document.getElementById('videoTitle').value.trim();
+    const duration = document.getElementById('durationDisplay').value.trim() || '1:00';
+    const description = document.getElementById('videoDesc').value.trim();
+
+    if (!consultantId) {
+      showToast('Please select a consultant to tag.', true);
+      return;
+    }
+    if (!title) {
+      showToast('Please enter a video title.', true);
+      return;
+    }
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+
+    const progressWrap = document.getElementById('upload-progress-wrap');
+    const progressBar = document.getElementById('upload-progress-bar');
+    const progressPercent = document.getElementById('uploadPercent');
+    const progressSize = document.getElementById('uploadSize');
+
+    progressWrap.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressPercent.textContent = '0%';
+    progressSize.textContent = 'Starting upload...';
+
+    const fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    fd.append('consultant_id', consultantId);
+    fd.append('title', title);
+    fd.append('duration', duration);
+    fd.append('description', description);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/admin/pro-videos');
+
+    xhr.upload.onprogress = (evt) => {
+      if (evt.lengthComputable) {
+        const percent = Math.round((evt.loaded / evt.total) * 100);
+        progressBar.style.width = percent + '%';
+        progressPercent.textContent = percent + '%';
+        const loadedMb = (evt.loaded / (1024 * 1024)).toFixed(1);
+        const totalMb = (evt.total / (1024 * 1024)).toFixed(1);
+        progressSize.textContent = `${loadedMb} / ${totalMb} MB`;
+      }
+    };
+
+    xhr.onload = () => {
+      submitBtn.disabled = false;
+      progressWrap.style.display = 'none';
+      try {
+        const res = JSON.parse(xhr.responseText);
+        if (xhr.status === 200 && res.success) {
+          showToast('Pro Video uploaded successfully!');
+          setTimeout(() => { window.location.reload(); }, 1000);
+        } else {
+          showToast(res.error || 'Upload failed. Please try again.', true);
+        }
+      } catch (err) {
+        showToast('Upload error. Please check file format and size.', true);
+      }
+    };
+
+    xhr.onerror = () => {
+      submitBtn.disabled = false;
+      progressWrap.style.display = 'none';
+      showToast('Network error during upload.', true);
+    };
+
+    xhr.send(fd);
+  }
+
+  function openPreviewModal(videoId, title, consultantName) {
+    document.getElementById('modalVideoTitle').textContent = title;
+    document.getElementById('modalConsultantName').textContent = 'By ' + consultantName;
+    const player = document.getElementById('previewPlayer');
+    player.src = `/api/pro-videos/${videoId}/stream`;
+    document.getElementById('previewModal').classList.add('active');
+    player.play().catch(() => {});
+  }
+
+  function closePreviewModal(e) {
+    const modal = document.getElementById('previewModal');
+    const player = document.getElementById('previewPlayer');
+    player.pause();
+    player.src = '';
+    modal.classList.remove('active');
+  }
+
+  async function deleteProVideo(videoId) {
+    if (!confirm('Are you sure you want to delete this Pro Video?')) return;
+    try {
+      const res = await fetch(`/api/admin/pro-videos/${videoId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Pro Video deleted successfully.');
+        const row = document.getElementById(`video-row-${videoId}`);
+        if (row) row.remove();
+      } else {
+        showToast(data.error || 'Failed to delete video.', true);
+      }
+    } catch (err) {
+      showToast('Error deleting video.', true);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) {
+      window.lucide.createIcons();
+    }
+  });
+</script>
+{% endblock %}

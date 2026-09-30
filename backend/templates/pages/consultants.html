@@ -226,6 +226,16 @@
                 View Profile
             </button>
 
+            {% if consultant.pro_videos_count and consultant.pro_videos_count > 0 %}
+            <button type="button" class="btn pro-video-tile-btn"
+                onclick="handleCardProVideoClick(event, {{ consultant.id }}, '{{ consultant.name | replace("'", "\\'") }}')"
+                title="Watch {{ consultant.pro_videos_count }} exclusive Pro Video{{ 's' if consultant.pro_videos_count > 1 else '' }} by {{ consultant.name }}">
+                <span class="pro-video-tile-icon">🎬</span>
+                <span>Pro Videos</span>
+                <span class="pro-video-count-badge">{{ consultant.pro_videos_count }}</span>
+            </button>
+            {% endif %}
+
 
 
             <div class="consultant-details">
@@ -365,7 +375,7 @@
             <!-- Overall Rating -->
             <div class="pm-section">
                 <h4 class="pm-section-title">
-                    <span class="pm-section-icon">â­</span> Overall Rating
+                    <span class="pm-section-icon">⭐</span> Overall Rating
                 </h4>
                 <div class="pm-rating-row">
                     <div id="pmStars" class="pm-stars"></div>
@@ -374,12 +384,29 @@
                 </div>
             </div>
 
+            <hr class="pm-divider" id="pmProVideosDivider" style="display:none;">
+
+            <!-- Pro Videos Section -->
+            <div class="pm-section" id="pmProVideosSection" style="display:none;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+                    <h4 class="pm-section-title" style="margin-bottom:0;">
+                        <span class="pm-section-icon">🎬</span> Pro Videos by <span id="pmProVideosConsultantName">Consultant</span>
+                    </h4>
+                    <span class="pro-pill-badge" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:999px;">
+                        PAID EXCLUSIVE
+                    </span>
+                </div>
+                <div id="pmProVideosList" class="pm-pro-videos-grid">
+                    <div class="pm-loading">Loading Pro Videos…</div>
+                </div>
+            </div>
+
             <hr class="pm-divider">
 
             <!-- Client Feedback -->
             <div class="pm-section">
                 <h4 class="pm-section-title">
-                    <span class="pm-section-icon">ðŸ’¬</span> Client Feedback
+                    <span class="pm-section-icon">💬</span> Client Feedback
                 </h4>
                 <div id="pmReviewsList" class="pm-reviews-list">
                     <div class="pm-loading">Loading reviews...</div>
@@ -387,6 +414,56 @@
             </div>
 
         </div>
+    </div>
+</div>
+
+<!-- Pro Video Player Modal (Protected / Anti-Download) -->
+<div id="proVideoPlayerModal" class="pv-stream-modal" onclick="closeProVideoPlayerModal(event)">
+    <div class="pv-stream-card" onclick="event.stopPropagation()">
+        <div class="pv-stream-header">
+            <div style="min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span class="pro-pill-badge" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.65rem;font-weight:800;padding:1px 6px;border-radius:999px;">PRO VIDEO</span>
+                    <h3 id="pvModalTitle" class="pv-stream-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Video Title</h3>
+                </div>
+                <p id="pvModalConsultant" style="font-size:0.75rem;color:#2dd4bf;font-weight:600;margin-top:2px;"></p>
+            </div>
+            <button class="pv-stream-close" onclick="closeProVideoPlayerModal()" aria-label="Close">&times;</button>
+        </div>
+        <div class="pv-video-wrapper">
+            <video id="proVideoProtectedPlayer"
+                   controls
+                   controlsList="nodownload noplaybackrate"
+                   disablePictureInPicture
+                   oncontextmenu="return false;"
+                   playsinline
+                   webkit-playsinline>
+            </video>
+        </div>
+        <div id="pvModalDesc" class="pv-stream-desc"></div>
+    </div>
+</div>
+
+<!-- Pro Video Paywall Upgrade Modal -->
+<div id="proVideoUpgradeModal" class="pv-stream-modal" onclick="closeProVideoUpgradeModal(event)">
+    <div class="pv-upgrade-card" onclick="event.stopPropagation()">
+        <button class="pv-stream-close" onclick="closeProVideoUpgradeModal()" style="position:absolute;top:1rem;right:1rem;color:#9ca3af;" aria-label="Close">&times;</button>
+        <div class="pv-upgrade-icon">👑</div>
+        <h3 class="pv-upgrade-title">Exclusive to Paid Members</h3>
+        <p class="pv-upgrade-text">
+            Consultant Pro Videos are bite-sized expert masterclasses and tips created exclusively for our <strong>White &amp; Green Plan</strong> members.
+        </p>
+        <div class="pv-upgrade-perks">
+            <div class="pv-perk-item">✓ Unlimited access to all Consultant Pro short videos</div>
+            <div class="pv-perk-item">✓ Practical daily techniques from verified experts</div>
+            <div class="pv-perk-item">✓ Free &amp; discounted live 1-on-1 consultations</div>
+        </div>
+        <a href="/app/billing" class="pv-upgrade-btn">
+            Upgrade Plan Now &rarr;
+        </a>
+        <button type="button" class="pv-upgrade-secondary" onclick="closeProVideoUpgradeModal()">
+            Maybe Later
+        </button>
     </div>
 </div>
 
@@ -1558,6 +1635,275 @@
         font-size: 0.85rem;
         padding: 1.25rem;
         font-style: italic;
+    }
+
+    /* ── Pro Video Button on Consultant Card ── */
+    .pro-video-tile-btn {
+        width: 100%;
+        margin-top: 0.5rem;
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border: 1.5px solid #fcd34d;
+        color: #92400e;
+        font-weight: 700;
+        font-size: 0.8rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: 0.65rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .pro-video-tile-btn:hover {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border-color: #f59e0b;
+        color: #78350f;
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(245, 158, 11, 0.2);
+    }
+    .pro-video-tile-icon { font-size: 0.95rem; line-height: 1; }
+    .pro-video-count-badge {
+        background: #f59e0b;
+        color: #fff;
+        font-size: 0.68rem;
+        font-weight: 800;
+        padding: 1px 6px;
+        border-radius: 999px;
+    }
+
+    /* ── Pro Video Section in Profile Modal ── */
+    .pm-pro-videos-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.65rem;
+    }
+    .pm-pro-video-card {
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.8rem 0.95rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        transition: all 0.2s ease;
+    }
+    .pm-pro-video-card:hover {
+        border-color: #cbd5e1;
+        background: #ffffff;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .pm-pro-video-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .pm-pro-video-title {
+        font-weight: 700;
+        font-size: 0.875rem;
+        color: #1e293b;
+        margin-bottom: 0.15rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .pm-pro-video-desc {
+        font-size: 0.76rem;
+        color: #64748b;
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .pm-pro-video-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-top: 0.35rem;
+    }
+    .pm-pro-duration {
+        font-size: 0.68rem;
+        font-weight: 700;
+        background: #e2e8f0;
+        color: #475569;
+        padding: 1px 6px;
+        border-radius: 4px;
+    }
+    .pm-pro-play-btn {
+        flex-shrink: 0;
+        background: linear-gradient(135deg, #0d9488, #0f766e);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 0.45rem 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        cursor: pointer;
+        transition: transform 0.15s, opacity 0.15s;
+    }
+    .pm-pro-play-btn:hover {
+        transform: scale(1.03);
+        opacity: 0.95;
+    }
+
+    /* ── Pro Video Stream & Upgrade Modals ── */
+    .pv-stream-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        background: rgba(0, 0, 0, 0.8);
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        backdrop-filter: blur(4px);
+    }
+    .pv-stream-modal.active { display: flex; }
+    .pv-stream-card {
+        background: #111827;
+        border-radius: 1rem;
+        max-width: 640px;
+        width: 100%;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        color: #fff;
+        position: relative;
+    }
+    .pv-stream-header {
+        padding: 0.85rem 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        background: #1f2937;
+    }
+    .pv-stream-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #f3f4f6;
+    }
+    .pv-stream-close {
+        background: none;
+        border: none;
+        color: #9ca3af;
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0 0.25rem;
+    }
+    .pv-stream-close:hover { color: #fff; }
+    .pv-video-wrapper {
+        position: relative;
+        background: #000;
+        aspect-ratio: 16/9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    .pv-video-wrapper video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    .pv-stream-desc {
+        padding: 0.75rem 1.25rem;
+        font-size: 0.82rem;
+        color: #9ca3af;
+        line-height: 1.5;
+        background: #111827;
+        max-height: 80px;
+        overflow-y: auto;
+    }
+
+    /* ── Upgrade Paywall Modal ── */
+    .pv-upgrade-card {
+        background: #ffffff;
+        border-radius: 1.25rem;
+        max-width: 440px;
+        width: 100%;
+        padding: 2rem 1.75rem;
+        text-align: center;
+        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        position: relative;
+    }
+    .pv-upgrade-icon {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 1rem;
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+        border: 2px solid #fcd34d;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+    }
+    .pv-upgrade-title {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #111827;
+        margin-bottom: 0.5rem;
+    }
+    .pv-upgrade-text {
+        font-size: 0.875rem;
+        color: #4b5563;
+        line-height: 1.5;
+        margin-bottom: 1.25rem;
+    }
+    .pv-upgrade-perks {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        padding: 0.85rem 1rem;
+        text-align: left;
+        margin-bottom: 1.5rem;
+        font-size: 0.8rem;
+        color: #334155;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+    }
+    .pv-perk-item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font-weight: 600;
+    }
+    .pv-upgrade-btn {
+        display: block;
+        width: 100%;
+        padding: 0.8rem 1.25rem;
+        background: linear-gradient(135deg, #0d9488, #0f766e);
+        color: #fff;
+        border-radius: 0.75rem;
+        font-weight: 700;
+        font-size: 0.92rem;
+        text-decoration: none;
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .pv-upgrade-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
+        color: #fff;
+    }
+    .pv-upgrade-secondary {
+        margin-top: 0.75rem;
+        background: none;
+        border: none;
+        color: #6b7280;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+    .pv-upgrade-secondary:hover {
+        color: #111827;
+        text-decoration: underline;
     }
 
     /* Disabled booking button */
@@ -3927,6 +4273,51 @@
                         document.getElementById('pmReviewsList').innerHTML =
                             '<div class="pm-no-reviews">Could not load reviews.</div>';
                     });
+
+                // Reset and fetch Pro Videos for this consultant
+                var pvSection = document.getElementById('pmProVideosSection');
+                var pvDivider = document.getElementById('pmProVideosDivider');
+                var pvName = document.getElementById('pmProVideosConsultantName');
+                var pvList = document.getElementById('pmProVideosList');
+                if (pvSection && pvList) {
+                    pvSection.style.display = 'none';
+                    if (pvDivider) pvDivider.style.display = 'none';
+                    if (pvName) pvName.textContent = name;
+                    pvList.innerHTML = '<div class="pm-loading">Loading Pro Videos\u2026</div>';
+
+                    fetch('/api/consultants/' + id + '/pro-videos')
+                        .then(function(r) { return r.json(); })
+                        .then(function(d) {
+                            if (d.success && d.videos && d.videos.length > 0) {
+                                pvSection.style.display = 'block';
+                                if (pvDivider) pvDivider.style.display = 'block';
+                                pvList.innerHTML = d.videos.map(function(v) {
+                                    return '<div class="pm-pro-video-card">' +
+                                        '<div class="pm-pro-video-info">' +
+                                            '<div class="pm-pro-video-title">' + escapeHtml(v.title) + '</div>' +
+                                            (v.description ? '<div class="pm-pro-video-desc">' + escapeHtml(v.description) + '</div>' : '') +
+                                            '<div class="pm-pro-video-meta">' +
+                                                '<span class="pm-pro-duration">' + escapeHtml(v.duration_display || '1:00') + '</span>' +
+                                                (v.created_at ? '<span style="font-size:0.7rem;color:#94a3b8;">' + escapeHtml(v.created_at) + '</span>' : '') +
+                                            '</div>' +
+                                        '</div>' +
+                                        '<button type="button" class="pm-pro-play-btn" onclick="playProVideo(' + v.id + ', \'' + escapeQuotes(v.title) + '\', \'' + escapeQuotes(name) + '\', \'' + escapeQuotes(v.description || '') + '\', ' + (d.is_paid ? 'true' : 'false') + ')">' +
+                                            '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>' +
+                                            '<span>Watch</span>' +
+                                        '</button>' +
+                                    '</div>';
+                                }).join('');
+                            } else {
+                                pvSection.style.display = 'none';
+                                if (pvDivider) pvDivider.style.display = 'none';
+                            }
+                        })
+                        .catch(function(err) {
+                            console.error('[ProVideos] Fetch error:', err);
+                            pvSection.style.display = 'none';
+                            if (pvDivider) pvDivider.style.display = 'none';
+                        });
+                }
             }
 
             // Attach click handlers to all View Profile buttons
@@ -3949,6 +4340,108 @@
                 if (e.key === 'Escape' && profileModal.classList.contains('active')) closeProfileModal();
             });
         })();
+
+        // ── Pro Video Player & Paywall Upgrade Logic ─────────────────────────
+        var IS_PAID_USER = {{ 'true' if is_paid_user else 'false' }};
+
+        function escapeQuotes(str) {
+            if (!str) return '';
+            return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        window.handleCardProVideoClick = function(e, consultantId, consultantName) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            if (!IS_PAID_USER) {
+                openProVideoUpgradeModal();
+                return;
+            }
+            fetch('/api/consultants/' + consultantId + '/pro-videos')
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    if (!d.success || !d.videos || d.videos.length === 0) {
+                        alert('No Pro Videos currently available for this consultant.');
+                        return;
+                    }
+                    if (d.videos.length === 1) {
+                        var v = d.videos[0];
+                        playProVideo(v.id, v.title, consultantName, v.description, d.is_paid);
+                    } else {
+                        var btn = document.querySelector('.view-profile-btn[data-id="' + consultantId + '"]');
+                        if (btn) {
+                            btn.click();
+                            setTimeout(function() {
+                                var sec = document.getElementById('pmProVideosSection');
+                                if (sec) sec.scrollIntoView({ behavior: 'smooth' });
+                            }, 350);
+                        }
+                    }
+                })
+                .catch(function(err) {
+                    console.error('[ProVideo] Error:', err);
+                });
+        };
+
+        window.playProVideo = function(videoId, title, consultantName, description, isPaid) {
+            if (!isPaid && !IS_PAID_USER) {
+                openProVideoUpgradeModal();
+                return;
+            }
+            var playerModal = document.getElementById('proVideoPlayerModal');
+            var player = document.getElementById('proVideoProtectedPlayer');
+            var titleEl = document.getElementById('pvModalTitle');
+            var consEl = document.getElementById('pvModalConsultant');
+            var descEl = document.getElementById('pvModalDesc');
+            if (titleEl) titleEl.textContent = title || 'Consultant Pro Video';
+            if (consEl) consEl.textContent = consultantName ? 'By ' + consultantName : '';
+            if (descEl) {
+                descEl.textContent = description || '';
+                descEl.style.display = description ? 'block' : 'none';
+            }
+            if (player) {
+                player.src = '/api/pro-videos/' + videoId + '/stream';
+                player.play().catch(function() {});
+            }
+            if (playerModal) {
+                playerModal.classList.add('active');
+            }
+        };
+
+        window.closeProVideoPlayerModal = function(e) {
+            var playerModal = document.getElementById('proVideoPlayerModal');
+            var player = document.getElementById('proVideoProtectedPlayer');
+            if (player) {
+                player.pause();
+                player.src = '';
+            }
+            if (playerModal) {
+                playerModal.classList.remove('active');
+            }
+        };
+
+        window.openProVideoUpgradeModal = function() {
+            var m = document.getElementById('proVideoUpgradeModal');
+            if (m) m.classList.add('active');
+        };
+
+        window.closeProVideoUpgradeModal = function(e) {
+            var m = document.getElementById('proVideoUpgradeModal');
+            if (m) m.classList.remove('active');
+        };
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeProVideoPlayerModal();
+                closeProVideoUpgradeModal();
+            }
+        });
 
         // ── Auto-open booking modal for rescheduling ──
         (function initRescheduleMode() {

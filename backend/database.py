@@ -330,6 +330,28 @@ def init_db():
     except Exception as e:
         print(f"[Migration] Google Health backfill failed: {e}")
 
+    # Ensure consultant_pro_videos table exists
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS consultant_pro_videos (
+                    id SERIAL PRIMARY KEY,
+                    consultant_id INTEGER NOT NULL REFERENCES consultant_profiles(id) ON DELETE CASCADE,
+                    title VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    video_url VARCHAR(500) NOT NULL,
+                    thumbnail_url VARCHAR(500),
+                    duration_seconds INTEGER DEFAULT 0,
+                    duration_display VARCHAR(20) DEFAULT '1:00',
+                    is_active BOOLEAN DEFAULT TRUE,
+                    view_count INTEGER DEFAULT 0,
+                    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS ix_consultant_pro_videos_consultant_id ON consultant_pro_videos (consultant_id);
+            """))
+    except Exception as _cpv_err:
+        print(f"[Migration] consultant_pro_videos check note: {_cpv_err}")
+
     print("Database initialized successfully!")
 
 

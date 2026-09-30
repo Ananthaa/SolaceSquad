@@ -62,3 +62,21 @@ def upload_demo_video(file_bytes: bytes, original_filename: str) -> Optional[str
     content_type = ct_map.get(ext, "video/mp4")
     return upload_to_gcs(file_bytes, original_filename, content_type, "demo-videos")
 
+
+def upload_pro_video(file_bytes: bytes, original_filename: str) -> Optional[str]:
+    """Upload a consultant Pro video (MP4/WEBM/MOV) to GCS and return its URL.
+    The file is stored under 'pro-videos/' prefix in the consultant-uploads bucket path.
+    Access is strictly proxied through the /api/pro-videos/{id}/stream backend endpoint.
+    """
+    ext = original_filename.rsplit(".", 1)[-1].lower() if "." in original_filename else "mp4"
+    ct_map = {
+        "mp4": "video/mp4",
+        "webm": "video/webm",
+        "mov": "video/quicktime",
+        "avi": "video/x-msvideo",
+        "m4v": "video/mp4",
+    }
+    content_type = ct_map.get(ext, "video/mp4")
+    return upload_to_gcs(file_bytes, original_filename, content_type, "pro-videos")
+
+

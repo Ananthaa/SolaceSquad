@@ -22,7 +22,7 @@ load_dotenv()
 
 # Import database and models
 from database import init_db, get_db, get_db_session
-from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, ScheduleBreak, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile, VideoFolder, Video, UserExerciseLog, HomePageSection, ConsultantRating, WorkoutLog, DailyWellnessScore, UsagePlan, PlanFeatureCap, UserSubscription, FeatureUsageLog, FeatureUsageTopUp, DemoVideo, DiagnosisReport, UserDeviceToken
+from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, ScheduleBreak, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile, VideoFolder, Video, UserExerciseLog, HomePageSection, ConsultantRating, WorkoutLog, DailyWellnessScore, UsagePlan, PlanFeatureCap, UserSubscription, FeatureUsageLog, FeatureUsageTopUp, DemoVideo, DiagnosisReport, UserDeviceToken, ConsultantProVideo
 # Version 2.2 - Homepage Builder Feature - Fresh Deploy
 
 
@@ -848,6 +848,7 @@ def get_nav_items(user_type: str) -> list:
             {'icon': 'users', 'label': 'Users', 'href': '/admin/users', 'key': 'users'},
             {'icon': 'video', 'label': 'Video Library', 'href': '/admin/videos', 'key': 'videos'},
             {'icon': 'play-circle', 'label': 'Demo Videos', 'href': '/admin/demo-videos', 'key': 'demo-videos'},
+            {'icon': 'sparkles', 'label': 'Pro Videos', 'href': '/admin/pro-videos', 'key': 'pro-videos'},
             {'icon': 'layout', 'label': 'Home Page Builder', 'href': '/admin/homepage-builder', 'key': 'homepage-builder'},
             {'icon': 'shield', 'label': 'Admins', 'href': '/admin/admins', 'key': 'admins'},
             {'icon': 'package', 'label': 'Usage Plans', 'href': '/admin/plans', 'key': 'plans'},
@@ -8057,6 +8058,12 @@ async def list_consultants(request: Request, db: Session = Depends(get_db)):
             or "sexual wellness" in bio_text or "sexual health" in bio_text or "sex therapy" in bio_text or "sexologist" in bio_text
         )
 
+        # Count active pro videos for this consultant
+        pro_videos_count = db.query(ConsultantProVideo).filter(
+            ConsultantProVideo.consultant_id == profile.id,
+            ConsultantProVideo.is_active == True
+        ).count()
+
         consultant_list.append({
             "id":                     profile.id,
             "user_id":                user.id,
@@ -8077,6 +8084,7 @@ async def list_consultants(request: Request, db: Session = Depends(get_db)):
             "is_active":              user.is_active,
             "is_approved":            profile.is_approved,
             "accepts_short_notice":   bool(getattr(profile, "accepts_short_notice", False)),
+            "pro_videos_count":       pro_videos_count,
         })
 
     from models import Appointment
@@ -8085,6 +8093,13 @@ async def list_consultants(request: Request, db: Session = Depends(get_db)):
         Appointment.status.in_(["scheduled", "completed", "in_progress"]),
         Appointment.is_test == False
     ).count() == 0
+
+    from subscription_routes import get_active_subscription
+    sub = get_active_subscription(user_id, db)
+    is_paid_user = (
+        (current_user and current_user.user_type in ("admin", "consultant")) or
+        bool(sub and sub.plan and not sub.plan.is_free and sub.status in ("active", "trialing"))
+    )
 
     return templates.TemplateResponse(
         "pages/consultants.html",
@@ -8097,6 +8112,7 @@ async def list_consultants(request: Request, db: Session = Depends(get_db)):
             "active_page":    "consultants",
             "consultants":    consultant_list,
             "is_first_consultation": is_first_consultation,
+            "is_paid_user":   is_paid_user,
             "is_impersonating": request.session.get("impersonate_user_id") is not None,
         },
         headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
@@ -13167,6 +13183,284 @@ async def stream_demo_video(request: Request, video_id: int, db: Session = Depen
     return _BinResp(
         content=video_bytes, media_type=content_type,
         headers={"Accept-Ranges": "bytes", "Content-Length": str(total)},
+    )
+
+
+# ============================================================================
+# ADMIN CONSULTANT PRO VIDEO ROUTES & STREAMING ENDPOINTS
+# ============================================================================
+
+@app.get("/admin/pro-videos", response_class=HTMLResponse)
+async def admin_pro_videos_page(request: Request, db: Session = Depends(get_db)):
+    """Admin dashboard page for managing consultant pro videos."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+
+    # Approved consultants for tagging dropdown
+    consultant_records = db.query(ConsultantProfile, User).join(
+        User, ConsultantProfile.user_id == User.id
+    ).filter(
+        User.user_type == "consultant",
+        User.is_active == True,
+        ConsultantProfile.is_approved == True
+    ).order_by(User.name.asc()).all()
+
+    consultants_list = [
+        {
+            "id": cp.id,
+            "name": u.name,
+            "specialization": cp.specialization or "Wellbeing Consultant",
+        }
+        for cp, u in consultant_records
+    ]
+
+    videos = db.query(ConsultantProVideo).order_by(ConsultantProVideo.created_at.desc()).all()
+    videos_list = []
+    for v in videos:
+        cp = v.consultant
+        u = cp.user if cp else None
+        c_name = u.name if u else "Unknown Consultant"
+        c_photo = f"/api/profile-photo/{u.id}" if (u and cp and cp.photo_url) else ""
+        videos_list.append({
+            "id": v.id,
+            "consultant_id": v.consultant_id,
+            "consultant_name": c_name,
+            "consultant_photo": c_photo,
+            "title": v.title,
+            "description": v.description,
+            "duration_display": v.duration_display or "1:00",
+            "created_at": v.created_at,
+            "view_count": v.view_count or 0,
+            "stream_url": f"/api/pro-videos/{v.id}/stream",
+        })
+
+    return templates.TemplateResponse(
+        "pages/admin_pro_videos.html",
+        {
+            "request": request,
+            "page_title": "Consultant Pro Videos — Admin",
+            "user_name": admin.name,
+            "user_initials": get_initials(admin.name),
+            "user_type": "admin",
+            "active_page": "pro-videos",
+            "nav_items": get_nav_items("admin"),
+            "consultants": consultants_list,
+            "videos": videos_list,
+        }
+    )
+
+
+@app.post("/api/admin/pro-videos")
+async def admin_create_pro_video(
+    request: Request,
+    db: Session = Depends(get_db),
+    file: UploadFile = File(...),
+    consultant_id: int = Form(...),
+    title: str = Form(...),
+    duration: str = Form("1:00"),
+    description: str = Form(""),
+):
+    """Upload a new consultant Pro Video to GCS and associate it with a consultant."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    if not file or not file.filename:
+        return JSONResponse({"success": False, "error": "Video file is required"}, status_code=400)
+
+    # Validate file extension
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in (".mp4", ".webm", ".mov", ".m4v"):
+        return JSONResponse({"success": False, "error": f"Unsupported video format '{ext}'. Allowed: MP4, WebM, MOV."}, status_code=400)
+
+    profile = db.query(ConsultantProfile).filter(ConsultantProfile.id == consultant_id).first()
+    if not profile:
+        return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
+
+    try:
+        from gcs_uploads import upload_pro_video
+        file_bytes = await file.read()
+        if len(file_bytes) > 105 * 1024 * 1024:
+            return JSONResponse({"success": False, "error": "File size exceeds 100MB limit"}, status_code=400)
+
+        gcs_url = upload_pro_video(file_bytes, file.filename)
+        if not gcs_url:
+            return JSONResponse({"success": False, "error": "GCS upload failed"}, status_code=500)
+    except Exception as e:
+        print(f"[ProVideo] Upload error: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+    video = ConsultantProVideo(
+        consultant_id=consultant_id,
+        title=title.strip(),
+        description=description.strip() if description else "",
+        video_url=gcs_url,
+        duration_display=duration.strip() if duration else "1:00",
+        is_active=True,
+    )
+    db.add(video)
+    db.commit()
+    db.refresh(video)
+    return JSONResponse({"success": True, "video_id": video.id})
+
+
+@app.delete("/api/admin/pro-videos/{video_id}")
+async def admin_delete_pro_video(request: Request, video_id: int, db: Session = Depends(get_db)):
+    """Delete a consultant pro video record."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    video = db.query(ConsultantProVideo).filter(ConsultantProVideo.id == video_id).first()
+    if not video:
+        return JSONResponse({"success": False, "error": "Video not found"}, status_code=404)
+
+    db.delete(video)
+    db.commit()
+    return JSONResponse({"success": True})
+
+
+@app.get("/api/consultants/{consultant_id}/pro-videos")
+async def get_consultant_pro_videos(request: Request, consultant_id: int, db: Session = Depends(get_db)):
+    """Return all active Pro Videos for a given consultant profile ID with paid-access status."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"success": False, "error": "Authentication required"}, status_code=401)
+
+    current_user = db.query(User).filter(User.id == user_id).first()
+    if not current_user:
+        return JSONResponse({"success": False, "error": "User not found"}, status_code=401)
+
+    is_paid = False
+    if current_user.user_type in ("admin", "consultant"):
+        is_paid = True
+    else:
+        from subscription_routes import get_active_subscription
+        sub = get_active_subscription(current_user.id, db)
+        if sub and sub.plan and not sub.plan.is_free and sub.status in ("active", "trialing"):
+            is_paid = True
+
+    videos = db.query(ConsultantProVideo).filter(
+        ConsultantProVideo.consultant_id == consultant_id,
+        ConsultantProVideo.is_active == True
+    ).order_by(ConsultantProVideo.created_at.desc()).all()
+
+    items = []
+    for v in videos:
+        items.append({
+            "id": v.id,
+            "title": v.title,
+            "description": v.description or "",
+            "duration_display": v.duration_display or "1:00",
+            "created_at": v.created_at.strftime("%d %b %Y") if v.created_at else "",
+            "stream_url": f"/api/pro-videos/{v.id}/stream" if is_paid else None,
+            "view_count": v.view_count or 0,
+        })
+
+    return JSONResponse({
+        "success": True,
+        "is_paid": is_paid,
+        "count": len(items),
+        "videos": items,
+    })
+
+
+@app.get("/api/pro-videos/{video_id}/stream")
+async def stream_pro_video(request: Request, video_id: int, db: Session = Depends(get_db)):
+    """Stream protected GCS Pro Video with chunked range support, anti-download headers, and paid-user verification."""
+    import asyncio
+    from fastapi.responses import StreamingResponse as _StreamResp, Response as _BinResp
+    from google.cloud import storage as gcs_storage
+
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    current_user = db.query(User).filter(User.id == user_id).first()
+    if not current_user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    is_authorized = False
+    if current_user.user_type in ("admin", "consultant"):
+        is_authorized = True
+    else:
+        from subscription_routes import get_active_subscription
+        sub = get_active_subscription(current_user.id, db)
+        if sub and sub.plan and not sub.plan.is_free and sub.status in ("active", "trialing"):
+            is_authorized = True
+
+    if not is_authorized:
+        raise HTTPException(
+            status_code=403,
+            detail="Paid subscription required to access Consultant Pro Videos. Please upgrade your plan."
+        )
+
+    video = db.query(ConsultantProVideo).filter(ConsultantProVideo.id == video_id, ConsultantProVideo.is_active == True).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Pro Video not found")
+
+    if "storage.googleapis.com/" not in video.video_url:
+        raise HTTPException(status_code=404, detail="Invalid GCS video URL")
+
+    # Safe view counter bump
+    try:
+        video.view_count = (video.view_count or 0) + 1
+        db.commit()
+    except Exception:
+        pass
+
+    after = video.video_url.split("storage.googleapis.com/", 1)[1]
+    bucket_name, blob_path = after.split("/", 1)
+
+    def _download():
+        client = gcs_storage.Client()
+        blob = client.bucket(bucket_name).blob(blob_path)
+        return blob.download_as_bytes(), blob.content_type or "video/mp4"
+
+    video_bytes, content_type = await asyncio.get_event_loop().run_in_executor(None, _download)
+    total = len(video_bytes)
+
+    anti_download_headers = {
+        "Content-Disposition": "inline",
+        "Cache-Control": "private, no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "Accept-Ranges": "bytes",
+    }
+
+    range_header = request.headers.get("range")
+    if range_header:
+        byte_start, byte_end = 0, total - 1
+        try:
+            parts = range_header.replace("bytes=", "").split("-")
+            byte_start = int(parts[0])
+            byte_end = int(parts[1]) if parts[1] else byte_end
+        except Exception:
+            pass
+        chunk = video_bytes[byte_start: byte_end + 1]
+        headers = dict(anti_download_headers)
+        headers["Content-Range"] = f"bytes {byte_start}-{byte_end}/{total}"
+        headers["Content-Length"] = str(len(chunk))
+        return _StreamResp(
+            iter([chunk]),
+            status_code=206,
+            headers=headers,
+            media_type=content_type,
+        )
+
+    headers = dict(anti_download_headers)
+    headers["Content-Length"] = str(total)
+    return _BinResp(
+        content=video_bytes,
+        media_type=content_type,
+        headers=headers,
     )
 
 

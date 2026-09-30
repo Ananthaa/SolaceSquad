@@ -649,6 +649,26 @@ class DemoVideo(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ConsultantProVideo(Base):
+    """Admin-uploaded short expert/guidance videos tagged to specific consultants for paid users"""
+    __tablename__ = "consultant_pro_videos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    consultant_id = Column(Integer, ForeignKey("consultant_profiles.id"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    video_url = Column(String(500), nullable=False)  # GCS URL
+    thumbnail_url = Column(String(500), nullable=True)
+    duration_seconds = Column(Integer, default=0, nullable=False, server_default='0')
+    duration_display = Column(String(20), nullable=True, default="1:00")  # e.g. "0:45"
+    is_active = Column(Boolean, default=True, nullable=False, server_default='true')
+    view_count = Column(Integer, default=0, nullable=False, server_default='0')
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    consultant = relationship("ConsultantProfile", backref="pro_videos")
+
+
 
 class HomePageSection(Base):
     """Model for storing dynamic homepage sections"""
