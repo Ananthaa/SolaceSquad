@@ -13309,6 +13309,89 @@ async def admin_create_pro_video(
     return JSONResponse({"success": True, "video_id": video.id})
 
 
+@app.post("/api/admin/pro-videos/chunk")
+async def admin_upload_pro_video_chunk(
+    request: Request,
+    db: Session = Depends(get_db),
+    chunk: UploadFile = File(...),
+    upload_id: str = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    consultant_id: int = Form(...),
+    title: str = Form(...),
+    duration: str = Form("1:00"),
+    description: str = Form(""),
+    original_filename: str = Form("video.mp4"),
+):
+    """Receive a chunk (<=10MB) of a large Pro Video to bypass Cloud Run's 32MB single-request limit."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    # Sanitize upload_id
+    import re
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", upload_id):
+        return JSONResponse({"success": False, "error": "Invalid upload ID format"}, status_code=400)
+
+    # Validate file extension
+    ext = os.path.splitext(original_filename)[1].lower()
+    if ext not in (".mp4", ".webm", ".mov", ".m4v"):
+        return JSONResponse({"success": False, "error": f"Unsupported format '{ext}'. Allowed: MP4, WebM, MOV."}, status_code=400)
+
+    profile = db.query(ConsultantProfile).filter(ConsultantProfile.id == consultant_id).first()
+    if not profile:
+        return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
+
+    import tempfile
+    temp_dir = os.path.join(tempfile.gettempdir(), "pro_video_chunks", upload_id)
+    os.makedirs(temp_dir, exist_ok=True)
+
+    chunk_path = os.path.join(temp_dir, f"part_{chunk_index:04d}")
+    content = await chunk.read()
+    with open(chunk_path, "wb") as f:
+        f.write(content)
+
+    # Check if all chunks have arrived
+    parts = sorted([p for p in os.listdir(temp_dir) if p.startswith("part_")])
+    if len(parts) == total_chunks:
+        import shutil
+        try:
+            full_bytes = bytearray()
+            for p in parts:
+                with open(os.path.join(temp_dir, p), "rb") as pf:
+                    full_bytes.extend(pf.read())
+
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+            if len(full_bytes) > 105 * 1024 * 1024:
+                return JSONResponse({"success": False, "error": "Total file size exceeds 100MB limit"}, status_code=400)
+
+            from gcs_uploads import upload_pro_video
+            gcs_url = upload_pro_video(bytes(full_bytes), original_filename)
+            if not gcs_url:
+                return JSONResponse({"success": False, "error": "GCS upload failed"}, status_code=500)
+
+            video = ConsultantProVideo(
+                consultant_id=consultant_id,
+                title=title.strip(),
+                description=description.strip() if description else "",
+                video_url=gcs_url,
+                duration_display=duration.strip() if duration else "1:00",
+                is_active=True,
+            )
+            db.add(video)
+            db.commit()
+            db.refresh(video)
+            return JSONResponse({"success": True, "video_id": video.id, "status": "completed"})
+        except Exception as e:
+            print(f"[ProVideoChunk] Assembly error: {e}")
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+    return JSONResponse({"success": True, "status": "chunk_received", "chunk_index": chunk_index})
+
+
 @app.delete("/api/admin/pro-videos/{video_id}")
 async def admin_delete_pro_video(request: Request, video_id: int, db: Session = Depends(get_db)):
     """Delete a consultant pro video record."""

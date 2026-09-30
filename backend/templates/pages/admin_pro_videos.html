@@ -318,22 +318,29 @@
     });
     dropArea.addEventListener('drop', (e) => {
       const dt = e.dataTransfer;
-      const files = dt.files;
-      if (files.length) {
-        document.getElementById('videoFileInput').files = files;
+      const files = dt ? dt.files : null;
+      if (files && files.length) {
+        try {
+          document.getElementById('videoFileInput').files = files;
+        } catch (err) {
+          const dtObj = new DataTransfer();
+          dtObj.items.add(files[0]);
+          document.getElementById('videoFileInput').files = dtObj.files;
+        }
         handleFileSelect(document.getElementById('videoFileInput'));
       }
     });
   }
 
   async function handleProVideoUpload(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const fileInput = document.getElementById('videoFileInput');
     if (!fileInput.files || !fileInput.files[0]) {
       showToast('Please select a video file to upload.', true);
       return;
     }
 
+    const file = fileInput.files[0];
     const consultantId = document.getElementById('consultantSelect').value;
     const title = document.getElementById('videoTitle').value.trim();
     const duration = document.getElementById('durationDisplay').value.trim() || '1:00';
@@ -345,6 +352,12 @@
     }
     if (!title) {
       showToast('Please enter a video title.', true);
+      return;
+    }
+
+    const MAX_BYTES = 105 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      showToast('Video exceeds 100MB limit. Please compress the file.', true);
       return;
     }
 
@@ -361,50 +374,93 @@
     progressPercent.textContent = '0%';
     progressSize.textContent = 'Starting upload...';
 
-    const fd = new FormData();
-    fd.append('file', fileInput.files[0]);
-    fd.append('consultant_id', consultantId);
-    fd.append('title', title);
-    fd.append('duration', duration);
-    fd.append('description', description);
+    // Chunk upload with 10MB chunks to avoid Cloud Run 32MB payload limit
+    const CHUNK_SIZE = 10 * 1024 * 1024;
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const uploadId = 'up_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/admin/pro-videos');
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      const start = chunkIndex * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const chunkBlob = file.slice(start, end);
 
-    xhr.upload.onprogress = (evt) => {
-      if (evt.lengthComputable) {
-        const percent = Math.round((evt.loaded / evt.total) * 100);
-        progressBar.style.width = percent + '%';
-        progressPercent.textContent = percent + '%';
-        const loadedMb = (evt.loaded / (1024 * 1024)).toFixed(1);
-        const totalMb = (evt.total / (1024 * 1024)).toFixed(1);
-        progressSize.textContent = `${loadedMb} / ${totalMb} MB`;
-      }
-    };
+      const fd = new FormData();
+      fd.append('chunk', chunkBlob, file.name);
+      fd.append('upload_id', uploadId);
+      fd.append('chunk_index', chunkIndex);
+      fd.append('total_chunks', totalChunks);
+      fd.append('consultant_id', consultantId);
+      fd.append('title', title);
+      fd.append('duration', duration);
+      fd.append('description', description);
+      fd.append('original_filename', file.name);
 
-    xhr.onload = () => {
-      submitBtn.disabled = false;
-      progressWrap.style.display = 'none';
       try {
-        const res = JSON.parse(xhr.responseText);
-        if (xhr.status === 200 && res.success) {
+        const res = await uploadSingleChunk(fd, start, file.size, progressBar, progressPercent, progressSize);
+        if (!res.success) {
+          throw new Error(res.error || 'Upload error');
+        }
+        if (res.status === 'completed') {
+          progressBar.style.width = '100%';
+          progressPercent.textContent = '100%';
+          progressSize.textContent = 'Processing & saving...';
           showToast('Pro Video uploaded successfully!');
-          setTimeout(() => { window.location.reload(); }, 1000);
-        } else {
-          showToast(res.error || 'Upload failed. Please try again.', true);
+          setTimeout(() => { window.location.reload(); }, 1200);
+          return;
         }
       } catch (err) {
-        showToast('Upload error. Please check file format and size.', true);
+        submitBtn.disabled = false;
+        progressWrap.style.display = 'none';
+        showToast(err.message || 'Error during upload.', true);
+        return;
       }
-    };
+    }
+  }
 
-    xhr.onerror = () => {
-      submitBtn.disabled = false;
-      progressWrap.style.display = 'none';
-      showToast('Network error during upload.', true);
-    };
+  function uploadSingleChunk(fd, chunkStart, totalFileSize, progressBar, progressPercent, progressSize) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/admin/pro-videos/chunk');
 
-    xhr.send(fd);
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable) {
+          const currentTotal = chunkStart + evt.loaded;
+          const percent = Math.min(99, Math.round((currentTotal / totalFileSize) * 100));
+          progressBar.style.width = percent + '%';
+          progressPercent.textContent = percent + '%';
+          const loadedMb = (currentTotal / (1024 * 1024)).toFixed(1);
+          const totalMb = (totalFileSize / (1024 * 1024)).toFixed(1);
+          progressSize.textContent = `${loadedMb} / ${totalMb} MB`;
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 413) {
+          reject(new Error('File chunk exceeded server limit.'));
+          return;
+        }
+        if (xhr.status === 403) {
+          reject(new Error('Unauthorized. Please ensure you are logged in as admin.'));
+          return;
+        }
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300 && res.success) {
+            resolve(res);
+          } else {
+            reject(new Error(res.error || res.detail || ('Upload failed with status ' + xhr.status)));
+          }
+        } catch (err) {
+          reject(new Error('Server error (' + xhr.status + '). Please try again.'));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Network error during chunk upload.'));
+      };
+
+      xhr.send(fd);
+    });
   }
 
   function openPreviewModal(videoId, title, consultantName) {
