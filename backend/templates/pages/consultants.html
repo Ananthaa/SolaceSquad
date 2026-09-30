@@ -437,7 +437,8 @@
                    disablePictureInPicture
                    oncontextmenu="return false;"
                    playsinline
-                   webkit-playsinline>
+                   webkit-playsinline
+                   preload="metadata">
             </video>
         </div>
         <div id="pvModalDesc" class="pv-stream-desc"></div>
@@ -4407,7 +4408,13 @@
             }
             if (player) {
                 player.src = '/api/pro-videos/' + videoId + '/stream';
-                player.play().catch(function() {});
+                player.load();
+                var p = player.play();
+                if (p !== undefined) {
+                    p.catch(function(err) {
+                        console.warn('Autoplay wait/deferred:', err);
+                    });
+                }
             }
             if (playerModal) {
                 playerModal.classList.add('active');
@@ -4419,7 +4426,8 @@
             var player = document.getElementById('proVideoProtectedPlayer');
             if (player) {
                 player.pause();
-                player.src = '';
+                player.removeAttribute('src');
+                player.load();
             }
             if (playerModal) {
                 playerModal.classList.remove('active');

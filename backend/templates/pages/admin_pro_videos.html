@@ -468,15 +468,20 @@
     document.getElementById('modalConsultantName').textContent = 'By ' + consultantName;
     const player = document.getElementById('previewPlayer');
     player.src = `/api/pro-videos/${videoId}/stream`;
+    player.load();
     document.getElementById('previewModal').classList.add('active');
-    player.play().catch(() => {});
+    const p = player.play();
+    if (p !== undefined) {
+      p.catch((err) => { console.warn('Autoplay wait/deferred:', err); });
+    }
   }
 
   function closePreviewModal(e) {
     const modal = document.getElementById('previewModal');
     const player = document.getElementById('previewPlayer');
     player.pause();
-    player.src = '';
+    player.removeAttribute('src');
+    player.load();
     modal.classList.remove('active');
   }
 

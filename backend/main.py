@@ -13153,28 +13153,59 @@ async def stream_demo_video(request: Request, video_id: int, db: Session = Depen
     def _download():
         client = gcs_storage.Client()
         blob = client.bucket(bucket_name).blob(blob_path)
-        return blob.download_as_bytes(), blob.content_type or "video/mp4"
+        ct = blob.content_type
+        if not ct or ct in ("application/octet-stream", "binary/octet-stream"):
+            low = blob_path.lower()
+            if low.endswith(".mp4"):
+                ct = "video/mp4"
+            elif low.endswith(".webm"):
+                ct = "video/webm"
+            elif low.endswith(".mov"):
+                ct = "video/quicktime"
+            else:
+                ct = "video/mp4"
+        return blob.download_as_bytes(), ct
 
     video_bytes, content_type = await asyncio.get_event_loop().run_in_executor(None, _download)
     total = len(video_bytes)
 
     range_header = request.headers.get("range")
-    if range_header:
+    if range_header and range_header.startswith("bytes="):
+        raw_range = range_header.replace("bytes=", "").strip()
         byte_start, byte_end = 0, total - 1
         try:
-            parts = range_header.replace("bytes=", "").split("-")
-            byte_start = int(parts[0])
-            byte_end = int(parts[1]) if parts[1] else byte_end
+            if raw_range.startswith("-"):
+                suffix_len = int(raw_range[1:])
+                byte_start = max(0, total - suffix_len)
+                byte_end = total - 1
+            elif "-" in raw_range:
+                parts = raw_range.split("-", 1)
+                byte_start = int(parts[0]) if parts[0] else 0
+                byte_end = int(parts[1]) if parts[1] else (total - 1)
         except Exception:
-            pass
+            byte_start, byte_end = 0, total - 1
+
+        if byte_start >= total:
+            from fastapi.responses import Response as _BinResp
+            return _BinResp(status_code=416, headers={"Content-Range": f"bytes */{total}"})
+        byte_end = min(byte_end, total - 1)
+        if byte_end < byte_start:
+            byte_end = byte_start
+
+        max_chunk = 8 * 1024 * 1024
+        if (byte_end - byte_start + 1) > max_chunk:
+            byte_end = byte_start + max_chunk - 1
+
         chunk = video_bytes[byte_start: byte_end + 1]
         return _StreamResp(
             iter([chunk]),
             status_code=206,
             headers={
+                "Content-Disposition": "inline",
                 "Content-Range": f"bytes {byte_start}-{byte_end}/{total}",
                 "Accept-Ranges": "bytes",
                 "Content-Length": str(len(chunk)),
+                "Cache-Control": "private, max-age=3600",
             },
             media_type=content_type,
         )
@@ -13182,7 +13213,12 @@ async def stream_demo_video(request: Request, video_id: int, db: Session = Depen
     from fastapi.responses import Response as _BinResp
     return _BinResp(
         content=video_bytes, media_type=content_type,
-        headers={"Accept-Ranges": "bytes", "Content-Length": str(total)},
+        headers={
+            "Content-Disposition": "inline",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(total),
+            "Cache-Control": "private, max-age=3600",
+        },
     )
 
 
@@ -13504,33 +13540,58 @@ async def stream_pro_video(request: Request, video_id: int, db: Session = Depend
     def _download():
         client = gcs_storage.Client()
         blob = client.bucket(bucket_name).blob(blob_path)
-        return blob.download_as_bytes(), blob.content_type or "video/mp4"
+        ct = blob.content_type
+        if not ct or ct in ("application/octet-stream", "binary/octet-stream"):
+            low = blob_path.lower()
+            if low.endswith(".mp4"):
+                ct = "video/mp4"
+            elif low.endswith(".webm"):
+                ct = "video/webm"
+            elif low.endswith(".mov"):
+                ct = "video/quicktime"
+            else:
+                ct = "video/mp4"
+        return blob.download_as_bytes(), ct
 
     video_bytes, content_type = await asyncio.get_event_loop().run_in_executor(None, _download)
     total = len(video_bytes)
 
-    anti_download_headers = {
-        "Content-Disposition": "inline",
-        "Cache-Control": "private, no-cache, no-store, must-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0",
-        "X-Content-Type-Options": "nosniff",
-        "Accept-Ranges": "bytes",
-    }
-
     range_header = request.headers.get("range")
-    if range_header:
+    if range_header and range_header.startswith("bytes="):
+        raw_range = range_header.replace("bytes=", "").strip()
         byte_start, byte_end = 0, total - 1
         try:
-            parts = range_header.replace("bytes=", "").split("-")
-            byte_start = int(parts[0])
-            byte_end = int(parts[1]) if parts[1] else byte_end
+            if raw_range.startswith("-"):
+                # Suffix byte range, e.g. bytes=-65536 (last 64KB)
+                suffix_len = int(raw_range[1:])
+                byte_start = max(0, total - suffix_len)
+                byte_end = total - 1
+            elif "-" in raw_range:
+                parts = raw_range.split("-", 1)
+                byte_start = int(parts[0]) if parts[0] else 0
+                byte_end = int(parts[1]) if parts[1] else (total - 1)
         except Exception:
-            pass
+            byte_start, byte_end = 0, total - 1
+
+        if byte_start >= total:
+            return _BinResp(status_code=416, headers={"Content-Range": f"bytes */{total}"})
+        byte_end = min(byte_end, total - 1)
+        if byte_end < byte_start:
+            byte_end = byte_start
+
+        # Cap chunk size to 8MB max for responsive streaming
+        max_chunk = 8 * 1024 * 1024
+        if (byte_end - byte_start + 1) > max_chunk:
+            byte_end = byte_start + max_chunk - 1
+
         chunk = video_bytes[byte_start: byte_end + 1]
-        headers = dict(anti_download_headers)
-        headers["Content-Range"] = f"bytes {byte_start}-{byte_end}/{total}"
-        headers["Content-Length"] = str(len(chunk))
+        headers = {
+            "Content-Disposition": "inline",
+            "Accept-Ranges": "bytes",
+            "Content-Range": f"bytes {byte_start}-{byte_end}/{total}",
+            "Content-Length": str(len(chunk)),
+            "Cache-Control": "private, max-age=3600",
+        }
         return _StreamResp(
             iter([chunk]),
             status_code=206,
@@ -13538,8 +13599,12 @@ async def stream_pro_video(request: Request, video_id: int, db: Session = Depend
             media_type=content_type,
         )
 
-    headers = dict(anti_download_headers)
-    headers["Content-Length"] = str(total)
+    headers = {
+        "Content-Disposition": "inline",
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(total),
+        "Cache-Control": "private, max-age=3600",
+    }
     return _BinResp(
         content=video_bytes,
         media_type=content_type,
