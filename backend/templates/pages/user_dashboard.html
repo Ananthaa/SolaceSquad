@@ -73,13 +73,14 @@
     /* ── THRYVEQ score band ─────────────── */
     .ws-band {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: .75rem;
+        width: 100%;
     }
 
     @media (max-width: 600px) {
         .ws-band {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
 
@@ -239,19 +240,24 @@
     /* ── Vitals row ─────────────────────── */
     .vitals-row {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: .65rem;
+        width: 100%;
     }
 
     @media (max-width: 700px) {
         .vitals-row {
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: .45rem;
         }
-    }
-
-    @media (max-width: 420px) {
-        .vitals-row {
-            grid-template-columns: repeat(2, 1fr);
+        .vital-chip:nth-child(1),
+        .vital-chip:nth-child(2),
+        .vital-chip:nth-child(3) {
+            grid-column: span 2;
+        }
+        .vital-chip:nth-child(4),
+        .vital-chip:nth-child(5) {
+            grid-column: span 3;
         }
     }
 
@@ -259,12 +265,15 @@
         background: #f9fafb;
         border: 1px solid #e5e7eb;
         border-radius: .85rem;
-        padding: .85rem .6rem;
+        padding: .85rem .5rem;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: .35rem;
         text-align: center;
+        min-width: 0;
+        overflow: hidden;
+        box-sizing: border-box;
     }
 
     .vital-chip-icon {
@@ -274,6 +283,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        flex-shrink: 0;
     }
 
     .vital-chip-icon i {
@@ -286,6 +296,7 @@
         font-weight: 800;
         color: #111827;
         line-height: 1;
+        white-space: nowrap;
     }
 
     .vital-chip-val span {
@@ -299,44 +310,62 @@
         color: #6b7280;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: .04em;
+        letter-spacing: .03em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
 
     /* ── Sub-score cards ────────────────── */
     .sub-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: .65rem;
+        width: 100%;
     }
 
     .sub-card {
         border-radius: .85rem;
-        padding: .9rem;
+        padding: .75rem .65rem;
+        min-width: 0;
+        overflow: hidden;
+        box-sizing: border-box;
     }
 
     .sub-card-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: .5rem;
+        margin-bottom: .4rem;
+        min-width: 0;
+        gap: .25rem;
     }
 
     .sub-card-label {
         font-size: .67rem;
         font-weight: 800;
-        letter-spacing: .06em;
+        letter-spacing: .03em;
         text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        flex: 1 1 auto;
     }
 
     .sub-card-num {
-        font-size: 1.35rem;
+        font-size: 1.25rem;
         font-weight: 900;
+        flex-shrink: 0;
+        line-height: 1;
     }
 
     .sub-bar {
         border-radius: 999px;
         height: 5px;
         overflow: hidden;
+        width: 100%;
     }
 
     .sub-bar-fill {
@@ -348,30 +377,37 @@
     .sub-card-note {
         font-size: .65rem;
         margin-top: .35rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     /* ── Mood picker ─────────────────────── */
     .mood-row {
         display: flex;
-        gap: .4rem;
+        gap: .35rem;
         flex-wrap: nowrap;
-        overflow-x: visible;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .mood-btn {
-        flex: 1;
+        flex: 1 1 0;
         min-width: 0;
-        padding: .55rem .15rem;
+        width: 0;
+        padding: .5rem .1rem;
         background: #fff;
         border: 2px solid #e5e7eb;
         border-radius: .85rem;
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
         gap: .2rem;
         cursor: pointer;
         transition: all .18s;
         font-family: inherit;
+        box-sizing: border-box;
     }
 
     .mood-btn:hover {
@@ -381,14 +417,19 @@
     }
 
     .mood-btn .mood-emoji {
-        font-size: 1.75rem;
+        font-size: 1.6rem;
         line-height: 1;
     }
 
     .mood-btn .mood-label {
-        font-size: .67rem;
+        font-size: .65rem;
         font-weight: 600;
         color: #6b7280;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        text-align: center;
     }
 
     /* ── Quick Actions ──────────────────── */
@@ -565,10 +606,247 @@
         box-shadow: 0 4px 15px rgba(0, 0, 0, .15);
     }
 
-    /* ── Native Mobile App Specific Compaction ───────────────────────── */
+    /* ── Mobile Layout & Native Mobile App Specific Compaction ───────────────────────── */
+    @media (max-width: 640px) {
+        .db-root {
+            gap: 0.75rem !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+        }
+        .db-header {
+            padding-top: 0.25rem !important;
+            margin-bottom: 0.15rem !important;
+        }
+        .db-greeting h1 {
+            font-size: 1.3rem !important;
+            line-height: 1.2 !important;
+        }
+        .db-greeting p {
+            font-size: 0.78rem !important;
+        }
+        /* Card Padding & Density */
+        .db-card {
+            padding: 0.75rem 0.65rem !important;
+            border-radius: 0.85rem !important;
+            overflow: hidden !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+        .db-card-title {
+            font-size: 0.88rem !important;
+            margin-bottom: 0.6rem !important;
+        }
+        /* THRYVEQ Band — 4 Compact Tiles */
+        .ws-band {
+            display: grid !important;
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 0.25rem !important;
+            width: 100% !important;
+        }
+        .ws-tile {
+            border-radius: 0.65rem !important;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+            width: 100% !important;
+        }
+        .ws-tile-hd {
+            padding: 4px 2px !important;
+            font-size: 0.52rem !important;
+            text-align: center !important;
+            letter-spacing: 0.02em !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        .ws-tile-bd {
+            padding: 5px 2px 4px !important;
+            gap: 2px !important;
+        }
+        .ws-score {
+            font-size: 1.25rem !important;
+            line-height: 1 !important;
+        }
+        .ws-badge {
+            font-size: 0.5rem !important;
+            padding: 1px 3px !important;
+            border-radius: 3px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            max-width: 100% !important;
+        }
+        .ws-compare {
+            font-size: 0.48rem !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            max-width: 100% !important;
+        }
+        /* Vitals 6-column balanced grid: 3 top (span 2), 2 bottom (span 3) */
+        .vitals-row {
+            display: grid !important;
+            grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+            gap: 0.4rem !important;
+            overflow-x: visible !important;
+            width: 100% !important;
+            padding-bottom: 0 !important;
+        }
+        .vital-chip {
+            min-width: 0 !important;
+            flex: initial !important;
+            padding: 0.55rem 0.35rem !important;
+            border-radius: 0.75rem !important;
+            gap: 0.25rem !important;
+            box-sizing: border-box !important;
+        }
+        .vital-chip:nth-child(1),
+        .vital-chip:nth-child(2),
+        .vital-chip:nth-child(3) {
+            grid-column: span 2 !important;
+        }
+        .vital-chip:nth-child(4),
+        .vital-chip:nth-child(5) {
+            grid-column: span 3 !important;
+        }
+        .vital-chip-icon {
+            width: 30px !important;
+            height: 30px !important;
+            border-radius: 0.5rem !important;
+        }
+        .vital-chip-icon i {
+            width: 15px !important;
+            height: 15px !important;
+        }
+        .vital-chip-val {
+            font-size: 0.95rem !important;
+            line-height: 1 !important;
+        }
+        .vital-chip-val span {
+            font-size: 0.6rem !important;
+        }
+        .vital-chip-label {
+            font-size: 0.58rem !important;
+            font-weight: 700 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            max-width: 100% !important;
+        }
+        /* Score Breakdown 2-column grid */
+        .sub-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 0.45rem !important;
+            width: 100% !important;
+        }
+        .sub-card {
+            padding: 0.65rem 0.55rem !important;
+            border-radius: 0.75rem !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+        .sub-card-head {
+            margin-bottom: 0.35rem !important;
+            gap: 0.25rem !important;
+            min-width: 0 !important;
+        }
+        .sub-card-label {
+            font-size: 0.62rem !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.02em !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            min-width: 0 !important;
+            flex: 1 1 auto !important;
+        }
+        .sub-card-num {
+            font-size: 1.15rem !important;
+            font-weight: 900 !important;
+            flex-shrink: 0 !important;
+            line-height: 1 !important;
+        }
+        .sub-bar {
+            height: 4px !important;
+            width: 100% !important;
+        }
+        /* Mood 5 buttons equal flex row */
+        .mood-row {
+            display: flex !important;
+            gap: 0.25rem !important;
+            width: 100% !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+        }
+        .mood-btn {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+            width: 0 !important;
+            padding: 0.45rem 0.1rem !important;
+            border: 1.5px solid #e5e7eb !important;
+            border-radius: 0.65rem !important;
+            gap: 0.15rem !important;
+            box-sizing: border-box !important;
+        }
+        .mood-btn .mood-emoji {
+            font-size: 1.35rem !important;
+            line-height: 1 !important;
+        }
+        .mood-btn .mood-label {
+            font-size: 0.58rem !important;
+            font-weight: 700 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            max-width: 100% !important;
+            text-align: center !important;
+            line-height: 1.1 !important;
+        }
+        /* Quick Actions Grid */
+        .qa-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 0.45rem !important;
+        }
+        .qa-btn {
+            padding: 0.6rem 0.45rem !important;
+            gap: 0.45rem !important;
+            min-width: 0 !important;
+            border-radius: 0.75rem !important;
+        }
+        .qa-icon {
+            width: 30px !important;
+            height: 30px !important;
+            border-radius: 0.5rem !important;
+        }
+        .qa-icon i {
+            width: 15px !important;
+            height: 15px !important;
+        }
+        .qa-text-title {
+            font-size: 0.75rem !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        .qa-text-sub {
+            font-size: 0.62rem !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+    }
+
+    /* ── Native Mobile App Specific Compaction (when rendered inside APK or iOS App) ── */
     .is-mobile-app .db-root {
         padding-bottom: 95px !important;
         gap: 0.75rem !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
     }
     .is-mobile-app .db-header {
         padding-top: 0.25rem !important;
@@ -584,69 +862,215 @@
     /* Compact THRYVEQ Band — Single Horizontal Glanceable Row */
     .is-mobile-app .ws-band {
         display: grid !important;
-        grid-template-columns: repeat(4, 1fr) !important;
-        gap: 0.35rem !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 0.25rem !important;
+        width: 100% !important;
     }
     .is-mobile-app .ws-tile {
-        border-radius: 0.75rem !important;
+        border-radius: 0.65rem !important;
         box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05) !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        width: 100% !important;
     }
     .is-mobile-app .ws-tile-hd {
-        padding: 4px 6px !important;
-        font-size: 0.55rem !important;
+        padding: 4px 2px !important;
+        font-size: 0.52rem !important;
         text-align: center !important;
-        letter-spacing: 0.04em !important;
+        letter-spacing: 0.02em !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
     .is-mobile-app .ws-tile-bd {
-        padding: 6px 3px 5px !important;
+        padding: 5px 2px 4px !important;
         gap: 2px !important;
     }
     .is-mobile-app .ws-score {
-        font-size: 1.35rem !important;
+        font-size: 1.25rem !important;
         line-height: 1 !important;
     }
     .is-mobile-app .ws-badge {
-        font-size: 0.52rem !important;
-        padding: 1px 4px !important;
-        border-radius: 4px !important;
+        font-size: 0.5rem !important;
+        padding: 1px 3px !important;
+        border-radius: 3px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
     }
     .is-mobile-app .ws-compare {
-        font-size: 0.52rem !important;
+        font-size: 0.48rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
     }
-    /* Horizontal Vitals Scroll with Smooth Snap */
+    /* Vitals in mobile app: 6-column balanced grid */
     .is-mobile-app .vitals-row {
-        display: flex !important;
-        overflow-x: auto !important;
-        scroll-snap-type: x mandatory !important;
-        -webkit-overflow-scrolling: touch !important;
-        gap: 0.5rem !important;
-        padding-bottom: 4px !important;
-        scrollbar-width: none !important;
-    }
-    .is-mobile-app .vitals-row::-webkit-scrollbar {
-        display: none !important;
+        display: grid !important;
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        gap: 0.4rem !important;
+        overflow-x: visible !important;
+        width: 100% !important;
+        padding-bottom: 0 !important;
     }
     .is-mobile-app .vital-chip {
-        min-width: 92px !important;
-        flex: 0 0 auto !important;
-        scroll-snap-align: start !important;
-        padding: 0.65rem 0.4rem !important;
+        min-width: 0 !important;
+        flex: initial !important;
+        padding: 0.55rem 0.35rem !important;
         border-radius: 0.75rem !important;
+        gap: 0.25rem !important;
+        box-sizing: border-box !important;
+    }
+    .is-mobile-app .vital-chip:nth-child(1),
+    .is-mobile-app .vital-chip:nth-child(2),
+    .is-mobile-app .vital-chip:nth-child(3) {
+        grid-column: span 2 !important;
+    }
+    .is-mobile-app .vital-chip:nth-child(4),
+    .is-mobile-app .vital-chip:nth-child(5) {
+        grid-column: span 3 !important;
+    }
+    .is-mobile-app .vital-chip-icon {
+        width: 30px !important;
+        height: 30px !important;
+        border-radius: 0.5rem !important;
+    }
+    .is-mobile-app .vital-chip-icon i {
+        width: 15px !important;
+        height: 15px !important;
     }
     .is-mobile-app .vital-chip-val {
-        font-size: 1.05rem !important;
+        font-size: 0.95rem !important;
+        line-height: 1 !important;
+    }
+    .is-mobile-app .vital-chip-val span {
+        font-size: 0.6rem !important;
     }
     .is-mobile-app .vital-chip-label {
-        font-size: 0.6rem !important;
+        font-size: 0.58rem !important;
+        font-weight: 700 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
     }
     /* Card Padding & Density */
     .is-mobile-app .db-card {
-        padding: 0.9rem !important;
-        border-radius: 0.9rem !important;
+        padding: 0.75rem 0.65rem !important;
+        border-radius: 0.85rem !important;
+        overflow: hidden !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
     .is-mobile-app .db-card-title {
-        font-size: 0.92rem !important;
-        margin-bottom: 0.65rem !important;
+        font-size: 0.88rem !important;
+        margin-bottom: 0.6rem !important;
+    }
+    /* Score Breakdown */
+    .is-mobile-app .sub-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.45rem !important;
+        width: 100% !important;
+    }
+    .is-mobile-app .sub-card {
+        padding: 0.65rem 0.55rem !important;
+        border-radius: 0.75rem !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .is-mobile-app .sub-card-head {
+        margin-bottom: 0.35rem !important;
+        gap: 0.25rem !important;
+        min-width: 0 !important;
+    }
+    .is-mobile-app .sub-card-label {
+        font-size: 0.62rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.02em !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+    }
+    .is-mobile-app .sub-card-num {
+        font-size: 1.15rem !important;
+        font-weight: 900 !important;
+        flex-shrink: 0 !important;
+        line-height: 1 !important;
+    }
+    .is-mobile-app .sub-bar {
+        height: 4px !important;
+        width: 100% !important;
+    }
+    /* Mood 5 buttons equal flex row */
+    .is-mobile-app .mood-row {
+        display: flex !important;
+        gap: 0.25rem !important;
+        width: 100% !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+    }
+    .is-mobile-app .mood-btn {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        width: 0 !important;
+        padding: 0.45rem 0.1rem !important;
+        border: 1.5px solid #e5e7eb !important;
+        border-radius: 0.65rem !important;
+        gap: 0.15rem !important;
+        box-sizing: border-box !important;
+    }
+    .is-mobile-app .mood-btn .mood-emoji {
+        font-size: 1.35rem !important;
+        line-height: 1 !important;
+    }
+    .is-mobile-app .mood-btn .mood-label {
+        font-size: 0.58rem !important;
+        font-weight: 700 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
+        text-align: center !important;
+        line-height: 1.1 !important;
+    }
+    /* Quick Actions */
+    .is-mobile-app .qa-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 0.45rem !important;
+    }
+    .is-mobile-app .qa-btn {
+        padding: 0.6rem 0.45rem !important;
+        gap: 0.45rem !important;
+        min-width: 0 !important;
+        border-radius: 0.75rem !important;
+    }
+    .is-mobile-app .qa-icon {
+        width: 30px !important;
+        height: 30px !important;
+        border-radius: 0.5rem !important;
+    }
+    .is-mobile-app .qa-icon i {
+        width: 15px !important;
+        height: 15px !important;
+    }
+    .is-mobile-app .qa-text-title {
+        font-size: 0.75rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    .is-mobile-app .qa-text-sub {
+        font-size: 0.62rem !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
     /* De-duplicate: Hide redundant in-page Quick Consult promo blocks */
     .is-mobile-app .qc-promo-banner,
