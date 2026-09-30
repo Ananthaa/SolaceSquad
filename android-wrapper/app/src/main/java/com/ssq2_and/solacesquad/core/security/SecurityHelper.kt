@@ -14,50 +14,103 @@ object SecurityHelper {
     private const val KEY_AUTH_TOKEN = "session_auth_token"
 
     private fun getEncryptedPrefs(context: Context): SharedPreferences {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
+        return try {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
 
-        return EncryptedSharedPreferences.create(
-            context,
-            PREFS_FILE,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+            EncryptedSharedPreferences.create(
+                context,
+                PREFS_FILE,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("SecurityHelper", "EncryptedSharedPreferences init failed, resetting corrupted keystore prefs", e)
+            try {
+                context.deleteSharedPreferences(PREFS_FILE)
+                val masterKey = MasterKey.Builder(context)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
+                EncryptedSharedPreferences.create(
+                    context,
+                    PREFS_FILE,
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            } catch (e2: Exception) {
+                android.util.Log.e("SecurityHelper", "Falling back to standard private SharedPreferences", e2)
+                context.getSharedPreferences("solacesquad_fallback_prefs", Context.MODE_PRIVATE)
+            }
+        }
     }
 
     fun saveAuthToken(context: Context, token: String) {
-        getEncryptedPrefs(context).edit().putString(KEY_AUTH_TOKEN, token).apply()
+        try {
+            getEncryptedPrefs(context).edit().putString(KEY_AUTH_TOKEN, token).apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SecurityHelper", "Error saving auth token", e)
+        }
     }
 
     fun saveUserDetails(context: Context, email: String, name: String) {
-        getEncryptedPrefs(context).edit()
-            .putString("user_email", email)
-            .putString("user_name", name)
-            .apply()
+        try {
+            getEncryptedPrefs(context).edit()
+                .putString("user_email", email)
+                .putString("user_name", name)
+                .apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SecurityHelper", "Error saving user details", e)
+        }
     }
 
-    fun getUserEmail(context: Context): String? = getEncryptedPrefs(context).getString("user_email", null)
-    fun getUserName(context: Context): String? = getEncryptedPrefs(context).getString("user_name", null)
+    fun getUserEmail(context: Context): String? {
+        return try {
+            getEncryptedPrefs(context).getString("user_email", null)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun getUserName(context: Context): String? {
+        return try {
+            getEncryptedPrefs(context).getString("user_name", null)
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     fun getAuthToken(context: Context): String? {
-        return getEncryptedPrefs(context).getString(KEY_AUTH_TOKEN, null)
+        return try {
+            getEncryptedPrefs(context).getString(KEY_AUTH_TOKEN, null)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun clearAuthToken(context: Context) {
-        getEncryptedPrefs(context).edit()
-            .remove(KEY_AUTH_TOKEN)
-            .remove("user_email")
-            .remove("user_name")
-            .apply()
+        try {
+            getEncryptedPrefs(context).edit()
+                .remove(KEY_AUTH_TOKEN)
+                .remove("user_email")
+                .remove("user_name")
+                .apply()
+        } catch (e: Exception) {
+            android.util.Log.e("SecurityHelper", "Error clearing auth token", e)
+        }
     }
 
     fun isBiometricsAvailable(context: Context): Boolean {
-        val biometricManager = BiometricManager.from(context)
-        return biometricManager.canAuthenticate(
-            BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
-        ) == BiometricManager.BIOMETRIC_SUCCESS
+        return try {
+            val biometricManager = BiometricManager.from(context)
+            biometricManager.canAuthenticate(
+                BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            ) == BiometricManager.BIOMETRIC_SUCCESS
+        } catch (e: Throwable) {
+            false
+        }
     }
 
     fun authenticate(
@@ -67,42 +120,46 @@ object SecurityHelper {
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit
     ) {
-        if (!isBiometricsAvailable(activity)) {
-            // Fallback immediately if biometrics aren't configured or supported
-            onSuccess()
-            return
-        }
-
-        val executor = ContextCompat.getMainExecutor(activity)
-        val biometricPrompt = BiometricPrompt(
-            activity,
-            executor,
-            object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    super.onAuthenticationError(errorCode, errString)
-                    onFailure(errString.toString())
-                }
-
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    super.onAuthenticationSucceeded(result)
-                    onSuccess()
-                }
-
-                override fun onAuthenticationFailed() {
-                    super.onAuthenticationFailed()
-                    onFailure("Authentication failed. Please try again.")
-                }
+        try {
+            if (!isBiometricsAvailable(activity)) {
+                onSuccess()
+                return
             }
-        )
 
-        val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle(title)
-            .setSubtitle(subtitle)
-            .setAllowedAuthenticators(
-                BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            val executor = ContextCompat.getMainExecutor(activity)
+            val biometricPrompt = BiometricPrompt(
+                activity,
+                executor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        super.onAuthenticationError(errorCode, errString)
+                        onFailure(errString.toString())
+                    }
+
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        super.onAuthenticationSucceeded(result)
+                        onSuccess()
+                    }
+
+                    override fun onAuthenticationFailed() {
+                        super.onAuthenticationFailed()
+                        onFailure("Authentication failed. Please try again.")
+                    }
+                }
             )
-            .build()
 
-        biometricPrompt.authenticate(promptInfo)
+            val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                .setTitle(title)
+                .setSubtitle(subtitle)
+                .setAllowedAuthenticators(
+                    BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                )
+                .build()
+
+            biometricPrompt.authenticate(promptInfo)
+        } catch (e: Throwable) {
+            android.util.Log.e("SecurityHelper", "Biometric authentication failed to initialize", e)
+            onSuccess() // Fallback gracefully if prompt crashes
+        }
     }
 }

@@ -39,6 +39,13 @@ class MainActivity : FragmentActivity(), PaymentResultWithDataListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Uncaught exception logger
+        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            android.util.Log.e("SolaceSquadCrash", "FATAL CRASH on ${thread.name}", throwable)
+            defaultHandler?.uncaughtException(thread, throwable)
+        }
+
         // Read path from notification click intent
         val path = intent?.getStringExtra("path")
         if (!path.isNullOrEmpty()) {
@@ -116,10 +123,6 @@ fun AppScreen(initialPath: String? = null) {
     val context = LocalContext.current
     val activity = context as FragmentActivity
 
-    // Secure authentication flow status
-    var isAuthenticated by remember { mutableStateOf(!SecurityHelper.isBiometricsAvailable(context)) }
-    var authErrorMsg by remember { mutableStateOf<String?>(null) }
-
     // Token bridge definition with activity and webView reference
     val tokenBridge = remember { 
         TokenBridge(
@@ -149,56 +152,6 @@ fun AppScreen(initialPath: String? = null) {
         } catch (e: Exception) {
             // Firebase may not be configured locally
         }
-    }
-
-    // Biometric Security Lock activation
-    if (!isAuthenticated) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "SolaceSquad Secure Lock",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                
-                authErrorMsg?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        SecurityHelper.authenticate(
-                            activity = activity,
-                            onSuccess = { isAuthenticated = true },
-                            onFailure = { err -> authErrorMsg = err }
-                        )
-                    }
-                ) {
-                    Text("Unlock App")
-                }
-            }
-        }
-
-        LaunchedEffect(Unit) {
-            SecurityHelper.authenticate(
-                activity = activity,
-                onSuccess = { isAuthenticated = true },
-                onFailure = { err -> authErrorMsg = err }
-            )
-        }
-        return
     }
 
     // Base URL definition

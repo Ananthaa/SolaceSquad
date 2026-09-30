@@ -18,27 +18,47 @@ import java.time.temporal.ChronoUnit
 class HealthConnectManager(private val context: Context) {
 
     val healthConnectClient: HealthConnectClient? by lazy {
-        if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
-            HealthConnectClient.getOrCreate(context)
-        } else {
+        try {
+            if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
+                HealthConnectClient.getOrCreate(context)
+            } else {
+                null
+            }
+        } catch (e: Throwable) {
+            android.util.Log.w("HealthConnect", "HealthConnectClient not available on this device", e)
             null
         }
     }
 
-    val permissions = setOf(
-        HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(HeartRateRecord::class),
-        HealthPermission.getReadPermission(OxygenSaturationRecord::class)
-    )
+    val permissions: Set<String> by lazy {
+        try {
+            setOf(
+                HealthPermission.getReadPermission(StepsRecord::class),
+                HealthPermission.getReadPermission(HeartRateRecord::class),
+                HealthPermission.getReadPermission(OxygenSaturationRecord::class)
+            )
+        } catch (e: Throwable) {
+            android.util.Log.w("HealthConnect", "Health permissions could not be registered", e)
+            emptySet()
+        }
+    }
 
     fun isAvailable(): Boolean {
-        return HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
+        return try {
+            HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
+        } catch (e: Throwable) {
+            false
+        }
     }
 
     suspend fun hasPermissions(): Boolean {
-        val client = healthConnectClient ?: return false
-        val granted = client.permissionController.getGrantedPermissions()
-        return granted.containsAll(permissions)
+        return try {
+            val client = healthConnectClient ?: return false
+            val granted = client.permissionController.getGrantedPermissions()
+            permissions.isNotEmpty() && granted.containsAll(permissions)
+        } catch (e: Throwable) {
+            false
+        }
     }
 
     suspend fun readTodaySteps(): Long {
