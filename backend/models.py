@@ -878,6 +878,10 @@ class UserSubscription(Base):
     pause_started_at     = Column(DateTime, nullable=True)   # when subscription was paused
     voucher_code         = Column(String(50), nullable=True)
     is_test              = Column(Boolean, nullable=False, default=_is_test_mode_default, server_default='false')
+    # ── Expiry & Renewal Notification Tracking ────────────────────────────
+    expiry_reminder_7d_sent = Column(Boolean, nullable=False, default=False, server_default='false')  # 7-day pre-expiry email sent
+    expiry_notice_sent      = Column(Boolean, nullable=False, default=False, server_default='false')  # post-expiry email sent
+    last_push_reminder_date = Column(Date,    nullable=True)  # date of last push notification (max 1/day in final week)
 
     # Relationships
     user = relationship("User", backref="subscriptions")

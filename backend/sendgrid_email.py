@@ -2105,3 +2105,144 @@ Dashboard: {dashboard_url}
         return False
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Subscription Expiry & Renewal Reminders
+# ──────────────────────────────────────────────────────────────────────────────
+
+def send_subscription_expiry_reminder_email(
+    to_email: str,
+    user_name: str,
+    plan_name: str,
+    days_left: int,
+    expiry_date: str,
+    amount: float = 0.0,
+) -> bool:
+    """Send an automated reminder email before the user's plan expires (e.g. 7 days prior)."""
+    base_url = os.getenv("APP_BASE_URL", "https://solacesquad.in")
+    renew_url = base_url + "/app/plans"
+    subject = f"Your SolaceSquad {plan_name} Plan Expires in {days_left} Days ⏳"
+    
+    amount_row = ""
+    if amount and amount > 0:
+        amount_row = f"""<tr><td style="padding:8px 0;color:#6b7280;">Renewal Price</td>
+            <td style="padding:8px 0;text-align:right;"><strong>&#8377;{amount:,.0f}</strong></td></tr>"""
+
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f3f4f6;margin:0;padding:24px;">
+<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);border:1px solid #e5e7eb;">
+  <div style="background:linear-gradient(135deg,#0f766e,#0d9488);padding:36px 28px;text-align:center;color:#fff;">
+    <div style="font-size:2.8rem;margin-bottom:8px;">⏳</div>
+    <h1 style="margin:0;font-size:1.45rem;font-weight:700;">Plan Expiring Soon</h1>
+    <p style="margin:6px 0 0;opacity:.9;font-size:.9rem;">Keep your wellness momentum uninterrupted</p>
+  </div>
+  <div style="padding:32px 28px;">
+    <p style="color:#111827;margin-top:0;font-size:16px;">Hi <strong>{user_name}</strong>,</p>
+    <p style="color:#374151;font-size:15px;line-height:1.6;">
+      Your <strong>{plan_name} Plan</strong> subscription on SolaceSquad is scheduled to expire in <strong>{days_left} days</strong> on <strong>{expiry_date}</strong>.
+    </p>
+    
+    <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:20px;margin:24px 0;">
+      <h3 style="margin:0 0 12px;color:#0f766e;font-size:14px;text-transform:uppercase;letter-spacing:0.5px;">Subscription Summary</h3>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;color:#1f2937;">
+        <tr><td style="padding:6px 0;color:#6b7280;width:45%;">Current Plan</td>
+            <td style="padding:6px 0;text-align:right;"><strong>{plan_name}</strong></td></tr>
+        <tr><td style="padding:6px 0;color:#6b7280;">Expiry Date</td>
+            <td style="padding:6px 0;text-align:right;"><span style="color:#b91c1c;font-weight:700;">{expiry_date}</span></td></tr>
+        {amount_row}
+      </table>
+    </div>
+
+    <p style="color:#4b5563;font-size:14px;line-height:1.6;">
+      Renew today to continue enjoying uninterrupted access to your AI Wellness Companion, premium soundscapes & music library, unlimited consultations, and smart health metrics.
+    </p>
+
+    <div style="text-align:center;margin:32px 0 20px;">
+      <a href="{renew_url}" style="display:inline-block;background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;box-shadow:0 4px 12px rgba(13,148,136,.3);">
+        Renew Subscription Now &rarr;
+      </a>
+    </div>
+
+    <p style="color:#9ca3af;font-size:12px;text-align:center;margin-top:24px;">
+      Need help or have questions? Reach out to us anytime at <a href="mailto:support@solacesquad.com" style="color:#0d9488;">support@solacesquad.com</a>.<br>
+      <em>— The SolaceSquad Team</em>
+    </p>
+  </div>
+  <div style="background:#f9fafb;padding:16px;text-align:center;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;">
+    &copy; 2026 SolaceSquad Technologies. All rights reserved.
+  </div>
+</div></body></html>"""
+
+    text = (
+        f"Hi {user_name},\n\n"
+        f"Your SolaceSquad {plan_name} Plan will expire in {days_left} days on {expiry_date}.\n\n"
+        f"To renew your plan and keep your health tracking and premium features uninterrupted, please visit:\n"
+        f"{renew_url}\n\n"
+        f"— The SolaceSquad Team"
+    )
+    return _send_raw_appt(to_email, subject, html, text)
+
+
+def send_subscription_expired_email(
+    to_email: str,
+    user_name: str,
+    plan_name: str,
+    expired_date: str,
+) -> bool:
+    """Send an automated notice when a user's subscription expires and transitions to Free tier."""
+    base_url = os.getenv("APP_BASE_URL", "https://solacesquad.in")
+    renew_url = base_url + "/app/plans"
+    subject = f"Your SolaceSquad {plan_name} Plan has Expired"
+
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f3f4f6;margin:0;padding:24px;">
+<div style="max-width:540px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);border:1px solid #e5e7eb;">
+  <div style="background:linear-gradient(135deg,#475569,#334155);padding:36px 28px;text-align:center;color:#fff;">
+    <div style="font-size:2.8rem;margin-bottom:8px;">📦</div>
+    <h1 style="margin:0;font-size:1.45rem;font-weight:700;">Plan Expired</h1>
+    <p style="margin:6px 0 0;opacity:.9;font-size:.9rem;">Your account is now on the Free Plan</p>
+  </div>
+  <div style="padding:32px 28px;">
+    <p style="color:#111827;margin-top:0;font-size:16px;">Hi <strong>{user_name}</strong>,</p>
+    <p style="color:#374151;font-size:15px;line-height:1.6;">
+      Your <strong>{plan_name} Plan</strong> subscription expired on <strong>{expired_date}</strong>. Your account has now been transitioned to the <strong>Free Plan</strong>.
+    </p>
+    
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:24px 0;">
+      <h3 style="margin:0 0 8px;color:#334155;font-size:14px;font-weight:700;">💚 Your Health Data & History are Safe</h3>
+      <p style="margin:0;color:#64748b;font-size:13px;line-height:1.5;">
+        All your vitals records, consultation notes, exercise history, and chat logs are safely preserved.
+      </p>
+    </div>
+
+    <p style="color:#4b5563;font-size:14px;line-height:1.6;">
+      You can renew your {plan_name} plan or choose any other subscription at any time to regain full access to premium features.
+    </p>
+
+    <div style="text-align:center;margin:32px 0 20px;">
+      <a href="{renew_url}" style="display:inline-block;background:linear-gradient(135deg,#0f766e,#0d9488);color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;box-shadow:0 4px 12px rgba(13,148,136,.3);">
+        Renew or Choose Plan &rarr;
+      </a>
+    </div>
+
+    <p style="color:#9ca3af;font-size:12px;text-align:center;margin-top:24px;">
+      Questions or feedback? We are here for you at <a href="mailto:support@solacesquad.com" style="color:#0d9488;">support@solacesquad.com</a>.<br>
+      <em>— The SolaceSquad Team</em>
+    </p>
+  </div>
+  <div style="background:#f9fafb;padding:16px;text-align:center;font-size:12px;color:#9ca3af;border-top:1px solid #e5e7eb;">
+    &copy; 2026 SolaceSquad Technologies. All rights reserved.
+  </div>
+</div></body></html>"""
+
+    text = (
+        f"Hi {user_name},\n\n"
+        f"Your SolaceSquad {plan_name} Plan expired on {expired_date}. Your account has been transitioned to the Free Plan.\n\n"
+        f"Your historical records and vitals are completely safe.\n\n"
+        f"To renew or explore plans at any time, visit:\n"
+        f"{renew_url}\n\n"
+        f"— The SolaceSquad Team"
+    )
+    return _send_raw_appt(to_email, subject, html, text)
+
+
+

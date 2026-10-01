@@ -49,6 +49,9 @@
             <div class="px-6 py-5 border-b border-gray-100 flex justify-between items-center flex-wrap gap-3">
                 <h3 class="text-lg font-semibold text-gray-900">All Users</h3>
                 <div class="flex items-center gap-2 flex-wrap">
+                    <button onclick="runPlanExpiryCheck(this)" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-teal-300 rounded-lg bg-teal-50 text-teal-800 hover:bg-teal-100 transition shadow-sm" title="Check for expired plans, auto-downgrade to Free, send 7-day reminders & push alerts">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Run Plan Expiry Check
+                    </button>
                     <a href="/api/admin/bulk-users/template" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 transition">
                         <i data-lucide="download" class="w-3.5 h-3.5"></i> Template
                     </a>
@@ -1743,6 +1746,34 @@
             }
         } catch (e) {
             alert('Connection error. Please try again.');
+        }
+    }
+
+    async function runPlanExpiryCheck(btn) {
+        if (!confirm("Run subscription expiry and renewal check now?\n\nThis will:\n- Identify expired paid plans and transition users to Free tier\n- Dispatch 7-day pre-expiry reminder emails\n- Dispatch daily push alerts\n- Send plan-expired email notifications")) {
+            return;
+        }
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-3.5 w-3.5 text-teal-700 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Checking...`;
+        try {
+            const resp = await fetch("/api/admin/subscriptions/run-expiry-check", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" }
+            });
+            const data = await resp.json();
+            if (data.success) {
+                const res = data.results || {};
+                alert(`✅ Subscription Check Complete!\n\n• Expired Plans Downgraded: ${res.expired_downgrades || 0}\n• Expiration Notices Sent: ${res.expired_emails_sent || 0}\n• 7-Day Pre-Expiry Emails Sent: ${res.pre_expiry_7d_emails_sent || 0}\n• Daily Push Reminders Sent: ${res.daily_push_reminders_sent || 0}\n• Auto-Renewals Succeeded: ${res.renewals_succeeded || 0}`);
+                window.location.reload();
+            } else {
+                alert("❌ Error: " + (data.error || "Failed to run check"));
+            }
+        } catch (err) {
+            alert("❌ Network Error: " + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
         }
     }
 

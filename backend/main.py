@@ -494,6 +494,12 @@ async def startup_event():
                  "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(100)"),
                 ("payment_status on user_subscriptions",
                  "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30)"),
+                ("expiry_reminder_7d_sent on user_subscriptions",
+                 "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS expiry_reminder_7d_sent BOOLEAN NOT NULL DEFAULT FALSE"),
+                ("expiry_notice_sent on user_subscriptions",
+                 "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS expiry_notice_sent BOOLEAN NOT NULL DEFAULT FALSE"),
+                ("last_push_reminder_date on user_subscriptions",
+                 "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS last_push_reminder_date DATE DEFAULT NULL"),
                 ("widen month_key on feature_usage_logs",
                  "ALTER TABLE feature_usage_logs ALTER COLUMN month_key TYPE VARCHAR(25)"),
                 ("widen month_key on feature_usage_top_ups",
@@ -14562,10 +14568,17 @@ async def admin_users(request: Request, db: Session = Depends(get_db)):
     ).order_by(User.created_at.desc()).all()
     
     from models import UserSubscription, UsagePlan
-    # Query all active subscriptions for users
+    now = datetime.utcnow()
+    # Query all active, unexpired subscriptions for users
     active_subs = db.query(UserSubscription, UsagePlan).join(
         UsagePlan, UserSubscription.plan_id == UsagePlan.id
-    ).filter(UserSubscription.status == "active").all()
+    ).filter(
+        UserSubscription.status == "active",
+        or_(
+            UserSubscription.expires_at.is_(None),
+            UserSubscription.expires_at >= now
+        )
+    ).all()
     
     # Map user_id to active plan name
     user_plan_map = {sub.user_id: plan.name for sub, plan in active_subs}

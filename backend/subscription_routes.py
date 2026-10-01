@@ -59,7 +59,16 @@ def get_active_subscription(user_id: int, db: Session):
     if sub and sub.expires_at and sub.expires_at < now:
         sub.status = "expired"
         db.commit()
-        sub = None
+        ensure_default_subscription(user_id, db)
+        sub = (
+            db.query(UserSubscription)
+            .filter(
+                UserSubscription.user_id == user_id,
+                UserSubscription.status == "active",
+            )
+            .order_by(UserSubscription.started_at.desc())
+            .first()
+        )
 
     # If no active sub, or the active sub is a free plan, check for a paused
     # paid subscription so quota / caps / first-week logic stays correct.
@@ -74,8 +83,10 @@ def get_active_subscription(user_id: int, db: Session):
             .first()
         )
         if paused_paid and paused_paid.plan and not paused_paid.plan.is_free:
-            # Paused but not expired — treat as the effective subscription
-            if not (paused_paid.expires_at and paused_paid.expires_at < now):
+            if paused_paid.expires_at and paused_paid.expires_at < now:
+                paused_paid.status = "expired"
+                db.commit()
+            else:
                 return paused_paid
 
     return sub
@@ -1641,6 +1652,202 @@ def register_subscription_routes(app, templates, get_db):
             print(f"[AUTO-RENEW] Could not cancel sub on downgrade: {_ce}")
         ensure_default_subscription(user_id, db)
 
+    def _process_subscription_lifecycle(db: Session) -> dict:
+        """
+        Core automated subscription lifecycle processor:
+        1. Sends 7-day pre-expiry reminder emails to users whose paid plan expires within 7 days.
+        2. Sends daily push notifications (once per day) to users during the final 7 days before expiry.
+        3. Handles auto-renewals for users with recurring auto_renew enabled.
+        4. Automatically downgrades expired paid plans to the Free default plan.
+        5. Sends plan-expired email and push notifications upon expiration.
+        """
+        from models import User as UserModel, UserSubscription, UsagePlan
+        from sendgrid_email import (
+            send_subscription_expiry_reminder_email,
+            send_subscription_expired_email,
+            send_payment_receipt_email,
+            send_renewal_failed_email,
+        )
+        from push_utils import send_push_notification
+
+        now = datetime.utcnow()
+        today = now.date()
+        results = {
+            "pre_expiry_7d_emails_sent": 0,
+            "daily_push_reminders_sent": 0,
+            "renewals_attempted": 0,
+            "renewals_succeeded": 0,
+            "renewals_failed": 0,
+            "expired_downgrades": 0,
+            "expired_emails_sent": 0,
+        }
+
+        # Query all active or paused subscriptions linked to a paid plan
+        subs = (
+            db.query(UserSubscription)
+            .join(UsagePlan, UserSubscription.plan_id == UsagePlan.id)
+            .filter(
+                UserSubscription.status.in_(["active", "paused"]),
+                UsagePlan.is_free == False,
+            )
+            .all()
+        )
+
+        for sub in subs:
+            try:
+                if not sub.expires_at:
+                    continue
+
+                user = db.query(UserModel).filter(UserModel.id == sub.user_id).first()
+                plan = sub.plan
+                if not user or not plan:
+                    continue
+
+                try:
+                    expiry_str = sub.expires_at.strftime("%d %B %Y").lstrip("0")
+                except Exception:
+                    expiry_str = str(sub.expires_at.date())
+
+                # ── 1. Plan Already Expired -> Downgrade & Notify ──────────────────
+                if sub.expires_at <= now:
+                    if getattr(sub, "auto_renew", False) and getattr(sub, "next_renewal_at", None) and sub.next_renewal_at.date() == today:
+                        # Handled in auto-renew step below
+                        pass
+                    else:
+                        sub.status = "expired"
+                        ensure_default_subscription(sub.user_id, db)
+                        results["expired_downgrades"] += 1
+
+                        if not getattr(sub, "expiry_notice_sent", False):
+                            try:
+                                send_subscription_expired_email(
+                                    to_email=user.email,
+                                    user_name=user.name,
+                                    plan_name=plan.name,
+                                    expired_date=expiry_str,
+                                )
+                                sub.expiry_notice_sent = True
+                                results["expired_emails_sent"] += 1
+                            except Exception as _ex_err:
+                                print(f"[SUB-LIFECYCLE] Expired email error for {user.email}: {_ex_err}")
+
+                            try:
+                                send_push_notification(
+                                    db=db,
+                                    user_id=user.id,
+                                    title=f"SolaceSquad: {plan.name} Plan Expired",
+                                    body=f"Your {plan.name} plan has expired and transitioned to the Free tier. Tap to renew anytime.",
+                                    path="/app/plans",
+                                )
+                            except Exception as _p_err:
+                                print(f"[SUB-LIFECYCLE] Expired push error for user {user.id}: {_p_err}")
+
+                        db.commit()
+                        continue
+
+                # ── 2. Pre-Expiry Window (Final 7 Days Before Expiration) ──────────
+                seconds_remaining = (sub.expires_at - now).total_seconds()
+                days_remaining = max(1, (sub.expires_at.date() - today).days)
+
+                if 0 < seconds_remaining <= 7 * 86400:
+                    # A. 7-Day Pre-Expiry Email Reminder (sent once)
+                    if not getattr(sub, "expiry_reminder_7d_sent", False):
+                        try:
+                            send_subscription_expiry_reminder_email(
+                                to_email=user.email,
+                                user_name=user.name,
+                                plan_name=plan.name,
+                                days_left=days_remaining,
+                                expiry_date=expiry_str,
+                                amount=round(plan.price * 1.18, 2),
+                            )
+                            sub.expiry_reminder_7d_sent = True
+                            db.commit()
+                            results["pre_expiry_7d_emails_sent"] += 1
+                            print(f"[SUB-LIFECYCLE] 7-day reminder email sent to {user.email}")
+                        except Exception as _rem_err:
+                            print(f"[SUB-LIFECYCLE] 7-day reminder email error for {user.email}: {_rem_err}")
+
+                    # B. Daily Push Notification (max once per day)
+                    last_push = getattr(sub, "last_push_reminder_date", None)
+                    if last_push != today:
+                        try:
+                            plural_days = "s" if days_remaining > 1 else ""
+                            send_push_notification(
+                                db=db,
+                                user_id=user.id,
+                                title=f"Plan Expiring in {days_remaining} Day{plural_days} ⏳",
+                                body=f"Your {plan.name} plan expires on {expiry_str}. Tap to renew and keep your health tracking uninterrupted.",
+                                path="/app/plans",
+                            )
+                            sub.last_push_reminder_date = today
+                            db.commit()
+                            results["daily_push_reminders_sent"] += 1
+                            print(f"[SUB-LIFECYCLE] Daily push sent to user {user.id} ({days_remaining}d left)")
+                        except Exception as _p_err:
+                            print(f"[SUB-LIFECYCLE] Daily push error for user {user.id}: {_p_err}")
+
+                # ── 3. Auto-Renew Processing (if auto_renew is opted-in) ──────────
+                if getattr(sub, "auto_renew", False):
+                    nra = getattr(sub, "next_renewal_at", None)
+                    if nra and nra.date() == today:
+                        results["renewals_attempted"] += 1
+                        client, _ = _razorpay_client()
+                        charged = False
+                        new_order_id = None
+                        if client:
+                            try:
+                                new_order = client.order.create({
+                                    "amount": int(round(plan.price * 1.18, 2) * 100),
+                                    "currency": "INR",
+                                    "notes": {"type": "auto_renewal", "sub_id": str(sub.id), "user_id": str(user.id)},
+                                })
+                                new_order_id = new_order["id"]
+                                charged = True
+                            except Exception as _rze:
+                                print(f"[SUB-LIFECYCLE] Razorpay order error {user.email}: {_rze}")
+
+                        if charged:
+                            sub.expires_at = _compute_expiry(plan.billing_cycle)
+                            sub.next_renewal_at = sub.expires_at
+                            sub.renewal_fail_count = 0
+                            sub.started_at = datetime.utcnow()
+                            sub.razorpay_order_id = new_order_id
+                            sub.expiry_reminder_7d_sent = False
+                            sub.expiry_notice_sent = False
+                            sub.last_push_reminder_date = None
+                            db.commit()
+                            results["renewals_succeeded"] += 1
+                            try:
+                                from models import PaymentTransaction as PT
+                                count = db.query(PT).count()
+                                invoice_num = f"SS-{datetime.utcnow().year}-{count + 1:05d}"
+                                next_str = sub.next_renewal_at.strftime("%d %B %Y").lstrip("0")
+                                send_payment_receipt_email(
+                                    to_email=user.email, user_name=user.name,
+                                    plan_name=plan.name, amount=round(plan.price * 1.18, 2),
+                                    invoice_number=invoice_num, next_renewal_date=next_str,
+                                )
+                            except Exception as _re:
+                                print(f"[SUB-LIFECYCLE] Receipt email error: {_re}")
+                        else:
+                            results["renewals_failed"] += 1
+                            _downgrade_to_free_inner(sub.user_id, db)
+                            results["expired_downgrades"] += 1
+                            try:
+                                send_renewal_failed_email(
+                                    to_email=user.email, user_name=user.name,
+                                    plan_name=plan.name, grace_period_ends="",
+                                    is_final_notice=True,
+                                )
+                            except Exception:
+                                pass
+
+            except Exception as _sub_err:
+                print(f"[SUB-LIFECYCLE] Error processing sub {sub.id}: {_sub_err}")
+
+        return results
+
     @app.post("/api/internal/daily-renewal-check")
     async def api_daily_renewal_check(request: Request, db: Session = Depends(get_db)):
         """
@@ -1657,252 +1864,35 @@ def register_subscription_routes(app, templates, get_db):
         if not expected_secret or secret != expected_secret:
             return JSONResponse({"success": False, "error": "Forbidden"}, status_code=403)
 
-        now = datetime.utcnow()
-        today = now.date()
-        tomorrow = today + timedelta(days=1)
-        results = {
-            "reminders_sent": 0, "renewals_attempted": 0,
-            "renewals_succeeded": 0, "renewals_failed": 0,
-            "downgrades": 0, "grace_periods_started": 0,
-            "recordings_deleted": 0,
-        }
+        results = _process_subscription_lifecycle(db)
+        results["recordings_deleted"] = 0
 
-        try:
-            from models import User as UserModel
-            from sendgrid_email import (
-                send_renewal_reminder_email,
-                send_payment_receipt_email,
-                send_renewal_failed_email,
-            )
-        except ImportError as _ie:
-            print(f"[AUTO-RENEW] Import error: {_ie}")
-            return JSONResponse({"success": False, "error": str(_ie)}, status_code=500)
-
-        # ── Step 1: Renewal reminders (next_renewal_at = tomorrow) ───────────
-        try:
-            all_active = db.query(UserSubscription).filter(
-                UserSubscription.status == "active",
-            ).all()
-            for sub in all_active:
-                try:
-                    if not getattr(sub, "auto_renew", False):
-                        continue
-                    nra = getattr(sub, "next_renewal_at", None)
-                    if not nra or nra.date() != tomorrow:
-                        continue
-                    user = db.query(UserModel).filter(UserModel.id == sub.user_id).first()
-                    plan = sub.plan
-                    if not user or not plan or plan.is_free:
-                        continue
-                    try:
-                        renewal_str = nra.strftime("%d %B %Y").lstrip("0")
-                    except Exception:
-                        renewal_str = str(nra.date())
-                    send_renewal_reminder_email(
-                        to_email=user.email, user_name=user.name,
-                        plan_name=plan.name, amount=round(plan.price * 1.18, 2),
-                        renewal_date=renewal_str,
-                    )
-                    results["reminders_sent"] += 1
-                    print(f"[AUTO-RENEW] Reminder → {user.email}")
-                except Exception as _re:
-                    print(f"[AUTO-RENEW] Reminder error sub {sub.id}: {_re}")
-        except Exception as _e:
-            print(f"[AUTO-RENEW] Reminder loop: {_e}")
-
-        # ── Step 2: Process renewals due today ────────────────────────────────
-        try:
-            for sub in db.query(UserSubscription).filter(UserSubscription.status == "active").all():
-                try:
-                    if not getattr(sub, "auto_renew", False):
-                        continue
-                    nra = getattr(sub, "next_renewal_at", None)
-                    if not nra or nra.date() != today:
-                        continue
-                    user = db.query(UserModel).filter(UserModel.id == sub.user_id).first()
-                    plan = sub.plan
-                    if not user or not plan or plan.is_free:
-                        continue
-
-                    results["renewals_attempted"] += 1
-                    client, _ = _razorpay_client()
-                    charged = False
-                    new_order_id = None
-                    if client:
-                        try:
-                            new_order = client.order.create({
-                                "amount": int(round(plan.price * 1.18, 2) * 100), "currency": "INR",
-                                "notes": {"type": "auto_renewal", "sub_id": str(sub.id), "user_id": str(user.id)},
-                            })
-                            new_order_id = new_order["id"]
-                            charged = True  # order created; actual debit via mandate/webhook
-                        except Exception as _rze:
-                            print(f"[AUTO-RENEW] Razorpay order error {user.email}: {_rze}")
-
-                    if charged:
-                        sub.expires_at = _compute_expiry(plan.billing_cycle)
-                        sub.next_renewal_at = sub.expires_at
-                        sub.renewal_fail_count = 0
-                        sub.started_at = datetime.utcnow()
-                        sub.razorpay_order_id = new_order_id
-                        db.commit()
-                        results["renewals_succeeded"] += 1
-                        try:
-                            from models import PaymentTransaction as PT
-                            count = db.query(PT).count()
-                            invoice_num = f"SS-{datetime.utcnow().year}-{count + 1:05d}"
-                            next_str = sub.next_renewal_at.strftime("%d %B %Y").lstrip("0")
-                            send_payment_receipt_email(
-                                to_email=user.email, user_name=user.name,
-                                plan_name=plan.name, amount=round(plan.price * 1.18, 2),
-                                invoice_number=invoice_num, next_renewal_date=next_str,
-                            )
-                        except Exception as _re:
-                            print(f"[AUTO-RENEW] Receipt email error: {_re}")
-                    else:
-                        results["renewals_failed"] += 1
-                        grace_used = bool(getattr(sub, "grace_period_used", False))
-                        if not grace_used:
-                            grace_end = datetime.utcnow() + timedelta(days=3)
-                            try:
-                                sub.grace_period_used = True
-                                sub.grace_period_ends_at = grace_end
-                                sub.renewal_fail_count = 1
-                            except Exception:
-                                pass
-                            db.commit()
-                            results["grace_periods_started"] += 1
-                            try:
-                                grace_str = grace_end.strftime("%d %B %Y").lstrip("0")
-                                send_renewal_failed_email(
-                                    to_email=user.email, user_name=user.name,
-                                    plan_name=plan.name, grace_period_ends=grace_str,
-                                    is_final_notice=False,
-                                )
-                            except Exception as _me:
-                                print(f"[AUTO-RENEW] Grace email error: {_me}")
-                            print(f"[AUTO-RENEW] Grace started for {user.email}")
-                        else:
-                            _downgrade_to_free_inner(sub.user_id, db)
-                            results["downgrades"] += 1
-                            try:
-                                send_renewal_failed_email(
-                                    to_email=user.email, user_name=user.name,
-                                    plan_name=plan.name, grace_period_ends="",
-                                    is_final_notice=True,
-                                )
-                            except Exception:
-                                pass
-                            print(f"[AUTO-RENEW] Downgraded {user.email} (no grace left)")
-                except Exception as _se:
-                    print(f"[AUTO-RENEW] Sub {sub.id} error: {_se}")
-        except Exception as _e:
-            print(f"[AUTO-RENEW] Renewal loop: {_e}")
-
-        # ── Step 3: Grace period expiry ───────────────────────────────────────
-        try:
-            for sub in db.query(UserSubscription).filter(UserSubscription.status == "active").all():
-                try:
-                    gpe = getattr(sub, "grace_period_ends_at", None)
-                    if not gpe or gpe.date() != today:
-                        continue
-                    if getattr(sub, "auto_renew", False):
-                        continue  # handled above in renewal loop
-                    user = db.query(UserModel).filter(UserModel.id == sub.user_id).first()
-                    plan = sub.plan
-                    if not user or not plan or plan.is_free:
-                        continue
-                    _downgrade_to_free_inner(sub.user_id, db)
-                    results["downgrades"] += 1
-                    try:
-                        send_renewal_failed_email(
-                            to_email=user.email, user_name=user.name,
-                            plan_name=plan.name, grace_period_ends="",
-                            is_final_notice=True,
-                        )
-                    except Exception:
-                        pass
-                    print(f"[AUTO-RENEW] Grace expired → downgraded {user.email}")
-                except Exception as _ge:
-                    print(f"[AUTO-RENEW] Grace expiry error sub {sub.id}: {_ge}")
-        except Exception as _e:
-            print(f"[AUTO-RENEW] Grace loop: {_e}")
-
-        # ── Step 4: GCS Call Recording Retention Policy ───────────────────────────
+        # ── GCS Call Recording Retention Policy ───────────────────────────
         try:
             print("[RETENTION] Starting GCS call recording retention check...")
             from models import CallSession
-            
-            # Fetch all call sessions with a recording
             sessions = db.query(CallSession).filter(CallSession.recording_url.isnot(None)).all()
-            deleted_count = 0
-            
             for session in sessions:
                 try:
-                    # Resolve active plan
                     sub = get_active_subscription(session.user_id, db)
                     plan_name = sub.plan.name if (sub and sub.plan) else "Free"
-                    
-                    # Blue plans get 365 days; Green plans get 30 days; Free / White / others get 0 days (deleted immediately)
-                    if plan_name == "Blue":
-                        retention_days = 365
-                    elif plan_name == "Green":
-                        retention_days = 30
-                    else:
-                        retention_days = 0
-                    
-                    session_date = session.actual_start or session.created_at
-                    age = now - session_date
-                    
-                    if age.days >= retention_days:
-                        # Expired, let's delete
-                        print(f"[RETENTION] CallSession {session.id} (user {session.user_id}, plan {plan_name}) recording is {age.days} days old (limit: {retention_days} days) - deleting...")
-                        
-                        url = session.recording_url
-                        success = False
-                        try:
-                            if url.startswith("gs://"):
-                                parts = url[5:].split("/", 1)
-                                b_name = parts[0]
-                                bl_name = parts[1]
-                            elif "storage.googleapis.com/" in url:
-                                after = url.split("storage.googleapis.com/", 1)[1]
-                                parts = after.split("/", 1)
-                                b_name = parts[0]
-                                bl_name = parts[1]
-                            else:
-                                b_name, bl_name = None, None
-                                
-                            if b_name and bl_name:
-                                from google.cloud import storage
-                                client = storage.Client()
-                                bucket = client.bucket(b_name)
-                                blob = bucket.blob(bl_name)
-                                if blob.exists():
-                                    blob.delete()
-                                    print(f"[RETENTION] Deleted blob {bl_name} from bucket {b_name}")
-                                success = True
-                            else:
-                                print(f"[RETENTION] Could not parse GCS URL: {url}")
-                        except Exception as _gcs_err:
-                            print(f"[RETENTION] GCS deletion error for session {session.id}: {_gcs_err}")
-                            # Proceed to clear DB columns anyway if blob doesn't exist/can't delete
-                            success = True
-                        
-                        if success:
-                            session.recording_url = None
-                            session.recording_size_bytes = None
-                            db.commit()
-                            deleted_count += 1
-                except Exception as _sess_err:
-                    print(f"[RETENTION] Error processing session {session.id}: {_sess_err}")
-            
-            results["recordings_deleted"] = deleted_count
-            print(f"[RETENTION] Finished retention check. Deleted {deleted_count} recording(s).")
+                    retention_days = 365 if plan_name == "Blue" else (30 if plan_name == "Green" else 0)
+                    if session.created_at and (datetime.utcnow() - session.created_at).days > retention_days:
+                        session.recording_url = None
+                        results["recordings_deleted"] += 1
+                except Exception as _sess_e:
+                    print(f"[RETENTION] Session {session.id} error: {_sess_e}")
+            db.commit()
         except Exception as _ret_err:
-            print(f"[RETENTION] Main loop error: {_ret_err}")
+            print(f"[RETENTION] Error: {_ret_err}")
 
-        print(f"[AUTO-RENEW] Daily check done: {results}")
+        return JSONResponse({"success": True, "results": results})
+
+    @app.post("/api/admin/subscriptions/run-expiry-check")
+    async def api_admin_run_expiry_check(request: Request, db: Session = Depends(get_db)):
+        """Admin endpoint to manually trigger the full subscription lifecycle check on-demand."""
+        _admin_check(request, db)
+        results = _process_subscription_lifecycle(db)
         return JSONResponse({"success": True, "results": results})
 
 
