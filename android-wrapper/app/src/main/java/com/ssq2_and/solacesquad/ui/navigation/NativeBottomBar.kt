@@ -26,10 +26,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MedicalServices
+
 enum class TabItem(val title: String, val path: String, val icon: ImageVector) {
     HOME("Home", "/user-dashboard", Icons.Default.Home),
+    VITALS("Vital Scan", "/vitals", Icons.Default.Favorite),
     QUICK_CONSULT("Quick Consult", "/quick-consult-web", Icons.Default.Bolt),
-    SPECIALISTS("Specialists", "/consultants", Icons.Default.MedicalServices),
+    CONSULT("Book Consult", "/consultants", Icons.Default.MedicalServices),
     PROFILE("Profile", "/app/profile", Icons.Default.Person);
 
     companion object {
@@ -37,7 +41,8 @@ enum class TabItem(val title: String, val path: String, val icon: ImageVector) {
             val lower = url.lowercase()
             return when {
                 lower.contains("quick-consult") || lower.contains("quickconsult") -> QUICK_CONSULT
-                lower.contains("consultant") -> SPECIALISTS
+                lower.contains("vitals") -> VITALS
+                lower.contains("consultant") -> CONSULT
                 lower.contains("profile") -> PROFILE
                 lower.contains("dashboard") || lower.contains("/app") -> HOME
                 else -> HOME
@@ -52,11 +57,7 @@ enum class TabItem(val title: String, val path: String, val icon: ImageVector) {
                    lower.contains("forgot-password") ||
                    lower.contains("call_room") ||
                    lower.contains("call-room") ||
-                   lower.contains("quick-consult/room") ||
-                   lower.endsWith(".com/") ||
-                   lower.endsWith(".in/") ||
-                   lower == "https://solacesquad.com" ||
-                   lower == "https://www.solacesquad.com"
+                   lower.contains("quick-consult/room")
         }
     }
 }
@@ -91,7 +92,7 @@ fun NativeBottomBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -106,28 +107,39 @@ fun NativeBottomBar(
                     modifier = Modifier.weight(1f)
                 )
 
-                // Tab 2: Quick Consult (Center elevated action)
+                // Tab 2: Vital Scan
+                TabButton(
+                    tab = TabItem.VITALS,
+                    isSelected = selectedTab == TabItem.VITALS,
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        onTabSelected(TabItem.VITALS)
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Tab 3: Quick Consult (Center elevated action)
                 QuickConsultCenterButton(
                     isSelected = selectedTab == TabItem.QUICK_CONSULT,
                     onClick = {
                         view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
                         onTabSelected(TabItem.QUICK_CONSULT)
                     },
-                    modifier = Modifier.weight(1.2f)
+                    modifier = Modifier.weight(1.15f)
                 )
 
-                // Tab 3: Specialists
+                // Tab 4: Book Consultation
                 TabButton(
-                    tab = TabItem.SPECIALISTS,
-                    isSelected = selectedTab == TabItem.SPECIALISTS,
+                    tab = TabItem.CONSULT,
+                    isSelected = selectedTab == TabItem.CONSULT,
                     onClick = {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                        onTabSelected(TabItem.SPECIALISTS)
+                        onTabSelected(TabItem.CONSULT)
                     },
                     modifier = Modifier.weight(1f)
                 )
 
-                // Tab 4: Profile
+                // Tab 5: Profile
                 TabButton(
                     tab = TabItem.PROFILE,
                     isSelected = selectedTab == TabItem.PROFILE,

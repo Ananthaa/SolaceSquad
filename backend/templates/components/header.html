@@ -36,7 +36,7 @@
     <nav class="container-custom">
         <div class="flex items-center justify-between h-20">
             <!-- Logo -->
-            <a href="/" class="app-logo-link flex items-center gap-2 group" onclick="if(window.AndroidBridge||window.iOSBridge||/SolaceSquadApp/i.test(navigator.userAgent)){if(window.location.pathname.startsWith('/user-dashboard')||window.location.pathname.startsWith('/consultant-dashboard')){window.location.reload();return false;}else{window.location.href='/app-start';return false;}}">
+            <a href="https://www.solacesquad.com" class="app-logo-link flex items-center gap-2 group" onclick="if(window.isMobileApp || window.AndroidBridge || window.iOSBridge || /SolaceSquadApp/i.test(navigator.userAgent)){ return openSolaceWebsite(event); }">
                 <img src="/static/images/logo.png" alt="SolaceSquad" class="h-12 w-auto">
             </a>
 

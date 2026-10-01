@@ -9,10 +9,17 @@ public class JavaScriptBridge: NSObject, WKScriptMessageHandler {
         controller.add(self, name: "openRazorpay")
         controller.add(self, name: "syncAppleHealth")
         controller.add(self, name: "getApnsToken")
+        controller.add(self, name: "openExternalBrowser")
     }
     
     public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         switch message.name {
+        case "openExternalBrowser":
+            if let urlString = message.body as? String, let url = URL(string: urlString) {
+                DispatchQueue.main.async {
+                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                }
+            }
         case "openRazorpay":
             if let jsonString = message.body as? String {
                 RazorpayPaymentManager.shared.openCheckout(optionsJson: jsonString)

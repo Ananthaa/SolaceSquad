@@ -72,11 +72,40 @@
       }
     </style>
     <script>
+      function openSolaceWebsite(e) {
+        if (e && typeof e.preventDefault === 'function') {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        var targetUrl = 'https://www.solacesquad.com';
+        if (window.AndroidBridge && typeof window.AndroidBridge.openExternalBrowser === 'function') {
+          window.AndroidBridge.openExternalBrowser(targetUrl);
+          return false;
+        }
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openExternalBrowser) {
+          window.webkit.messageHandlers.openExternalBrowser.postMessage(targetUrl);
+          return false;
+        }
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        return false;
+      }
+
       (function() {
         if (window.AndroidBridge !== undefined || window.iOSBridge !== undefined || /SolaceSquadApp/i.test(navigator.userAgent)) {
           document.documentElement.classList.add('is-mobile-app');
           window.isMobileApp = true;
         }
+
+        // Global logo click interception in native mobile app wrappers
+        document.addEventListener('click', function(e) {
+          if (!window.isMobileApp && !window.AndroidBridge && !window.iOSBridge && !/SolaceSquadApp/i.test(navigator.userAgent)) {
+            return;
+          }
+          var link = e.target.closest('a.app-logo-link, a[href="/"], a[href="/user-dashboard"], a[href="/consultant-dashboard"], a[href="https://www.solacesquad.com"], a[href="https://solacesquad.com"]');
+          if (link && (link.classList.contains('app-logo-link') || link.querySelector('img[src*="logo.png"]') || (e.target.tagName === 'IMG' && e.target.src.indexOf('logo.png') !== -1))) {
+            openSolaceWebsite(e);
+          }
+        }, true);
       })();
     </script>
 

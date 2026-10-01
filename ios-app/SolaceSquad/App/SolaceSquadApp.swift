@@ -4,15 +4,17 @@ import WebKit
 // MARK: - Native Navigation Manager
 public enum TabItem: String, CaseIterable {
     case home = "Home"
+    case vitals = "Vital Scan"
     case quickConsult = "Quick Consult"
-    case specialists = "Specialists"
+    case consult = "Book Consult"
     case profile = "Profile"
     
     public var iconName: String {
         switch self {
         case .home: return "house.fill"
+        case .vitals: return "heart.text.square.fill"
         case .quickConsult: return "bolt.fill"
-        case .specialists: return "stethoscope"
+        case .consult: return "stethoscope"
         case .profile: return "person.crop.circle.fill"
         }
     }
@@ -37,9 +39,11 @@ public class NavigationManager: ObservableObject {
         switch tab {
         case .home:
             path = "/user-dashboard"
+        case .vitals:
+            path = "/vitals"
         case .quickConsult:
             path = "/quick-consult-web"
-        case .specialists:
+        case .consult:
             path = "/consultants"
         case .profile:
             path = "/app/profile"
@@ -69,8 +73,10 @@ public class NavigationManager: ObservableObject {
             
             if path.contains("quick-consult") || path.contains("quickconsult") {
                 self.selectedTab = .quickConsult
+            } else if path.contains("vitals") {
+                self.selectedTab = .vitals
             } else if path.contains("consultant") {
-                self.selectedTab = .specialists
+                self.selectedTab = .consult
             } else if path.contains("profile") {
                 self.selectedTab = .profile
             } else if path.contains("dashboard") {
@@ -90,16 +96,19 @@ struct NativeTabBarView: View {
             // Tab 1: Home
             tabButton(tab: .home)
             
-            // Tab 2: Quick Consult (Compact Accent Button)
+            // Tab 2: Vital Scan
+            tabButton(tab: .vitals)
+            
+            // Tab 3: Quick Consult (Center elevated action)
             quickConsultButton
             
-            // Tab 3: Specialists
-            tabButton(tab: .specialists)
+            // Tab 4: Book Consult
+            tabButton(tab: .consult)
             
-            // Tab 4: Profile
+            // Tab 5: Profile
             tabButton(tab: .profile)
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 6)
         .padding(.top, 5)
         .padding(.bottom, 8)
         .background(
@@ -115,9 +124,10 @@ struct NativeTabBarView: View {
         }) {
             VStack(spacing: 3) {
                 Image(systemName: tab.iconName)
-                    .font(.system(size: 17, weight: navManager.selectedTab == tab ? .bold : .regular))
+                    .font(.system(size: 16, weight: navManager.selectedTab == tab ? .bold : .regular))
                 Text(tab.rawValue)
-                    .font(.system(size: 10, weight: navManager.selectedTab == tab ? .semibold : .medium))
+                    .font(.system(size: 9.5, weight: navManager.selectedTab == tab ? .semibold : .medium))
+                    .lineLimit(1)
             }
             .foregroundColor(navManager.selectedTab == tab ? Color(red: 0.05, green: 0.46, blue: 0.43) : Color(.secondaryLabel))
             .frame(maxWidth: .infinity)
@@ -138,19 +148,20 @@ struct NativeTabBarView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 38, height: 38)
+                        .frame(width: 36, height: 36)
                         .shadow(color: Color(red: 0.05, green: 0.46, blue: 0.43).opacity(0.3), radius: 4, x: 0, y: 2)
                     
                     Image(systemName: "bolt.fill")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.white)
                 }
                 .offset(y: -4)
                 
                 Text("Quick Consult")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 9.5, weight: .bold))
                     .foregroundColor(navManager.selectedTab == .quickConsult ? Color(red: 0.05, green: 0.46, blue: 0.43) : Color(.secondaryLabel))
                     .offset(y: -4)
+                    .lineLimit(1)
             }
             .frame(maxWidth: .infinity)
         }

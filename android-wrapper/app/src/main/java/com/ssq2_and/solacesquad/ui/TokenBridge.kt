@@ -2,6 +2,8 @@ package com.ssq2_and.solacesquad.ui
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -69,6 +71,22 @@ class TokenBridge(
                 }
             } catch (e: Exception) {
                 Log.e("TokenBridge", "Error syncing health data", e)
+            }
+        }
+    }
+
+    @JavascriptInterface
+    fun openExternalBrowser(url: String) {
+        Log.i("TokenBridge", "openExternalBrowser invoked for URL: $url")
+        val activity = activityProvider() ?: (context as? Activity)
+        activity?.runOnUiThread {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Log.e("TokenBridge", "Failed to open external browser", e)
             }
         }
     }
