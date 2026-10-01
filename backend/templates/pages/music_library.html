@@ -1,0 +1,335 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<style>
+  .music-hero-card {
+    background: linear-gradient(135deg, #064e3b 0%, #0f766e 50%, #042f2e 100%);
+    border-radius: 1.5rem;
+    padding: 2.25rem;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.25);
+    margin-bottom: 2rem;
+  }
+  .music-hero-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 320px;
+    height: 320px;
+    background: radial-gradient(circle, rgba(45, 212, 191, 0.25) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .music-cat-card {
+    background: white;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+  }
+  .music-cat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.1);
+    border-color: #99f6e4;
+  }
+  .music-cat-thumb-wrap {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #111827;
+    overflow: hidden;
+  }
+  .music-cat-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+  }
+  .music-cat-card:hover .music-cat-thumb {
+    transform: scale(1.05);
+  }
+  .music-cat-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(15, 23, 42, 0.8) 0%, transparent 60%);
+    display: flex;
+    align-items: flex-end;
+    padding: 1rem;
+  }
+  .music-play-floating-btn {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: #0d9488;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+    transition: all 0.2s ease;
+    text-decoration: none;
+  }
+  .music-cat-card:hover .music-play-floating-btn {
+    background: #0f766e;
+    transform: scale(1.1);
+  }
+  .music-paywall-banner {
+    background: linear-gradient(135deg, #78350f 0%, #b45309 50%, #d97706 100%);
+    border-radius: 1.25rem;
+    padding: 1.75rem;
+    color: white;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 20px -4px rgba(217, 119, 6, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+  }
+  .music-pill-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+
+  /* ── Paywall Upgrade Modal ── */
+  .m-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .m-modal.active { display: flex; }
+  .m-modal-card {
+    background: #fff;
+    border-radius: 1.25rem;
+    width: 100%;
+    max-width: 460px;
+    padding: 2rem;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: mModalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes mModalIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .m-upgrade-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+  .m-upgrade-title { font-size: 1.35rem; font-weight: 800; color: #111827; margin-bottom: 0.5rem; }
+  .m-upgrade-text { font-size: 0.875rem; color: #4b5563; line-height: 1.5; margin-bottom: 1.25rem; }
+  .m-upgrade-perks { text-align: left; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 0.75rem; padding: 0.875rem 1rem; margin-bottom: 1.5rem; }
+  .m-perk-item { font-size: 0.8rem; color: #166534; font-weight: 600; margin-bottom: 0.35rem; }
+  .m-perk-item:last-child { margin-bottom: 0; }
+  .m-upgrade-btn {
+    display: block; width: 100%;
+    background: linear-gradient(135deg, #0d9488, #0f766e);
+    color: #fff; font-weight: 700; font-size: 0.95rem;
+    padding: 0.75rem 1.25rem; border-radius: 0.75rem;
+    text-decoration: none; transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+  }
+  .m-upgrade-btn:hover { background: linear-gradient(135deg, #0f766e, #115e59); }
+  .m-upgrade-secondary {
+    display: block; width: 100%;
+    background: transparent; color: #6b7280;
+    font-size: 0.85rem; font-weight: 600;
+    margin-top: 0.6rem; border: none; cursor: pointer;
+  }
+</style>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24">
+
+  <!-- Hero Header -->
+  <div class="music-hero-card">
+    <div class="relative z-10 max-w-2xl">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="music-pill-badge">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-300"></i>
+          SOUNDSCAPES &amp; MUSIC
+        </span>
+        <span class="music-pill-badge" style="background:linear-gradient(135deg,#f59e0b,#d97706);">
+          PAID EXCLUSIVE
+        </span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-display font-extrabold tracking-tight mb-2">
+        Music &amp; Soundscapes Library
+      </h1>
+      <p class="text-teal-100 text-sm sm:text-base leading-relaxed">
+        Immerse yourself in therapeutic ambient soundscapes, 432Hz healing frequencies, delta waves for deep sleep, and binaural beats for laser focus.
+      </p>
+    </div>
+  </div>
+
+  {% if not is_paid %}
+  <!-- Paywall Upgrade Banner for Free Users -->
+  <div class="music-paywall-banner">
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0 text-2xl">
+        👑
+      </div>
+      <div>
+        <h3 class="text-lg font-bold">Exclusive to White &amp; Green Plan Members</h3>
+        <p class="text-amber-100 text-xs sm:text-sm mt-0.5 max-w-xl">
+          Upgrade your plan to unlock unlimited background listening across all relaxation, sleep, focus, and meditation soundscapes.
+        </p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="/app/billing" class="btn bg-white text-amber-900 font-bold hover:bg-amber-50 text-sm px-5 py-2.5 rounded-xl shadow-sm">
+        Upgrade Plan &rarr;
+      </a>
+      <button type="button" onclick="openMusicUpgradeModal()" class="text-white text-xs underline font-medium">
+        View Perks
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Categories Grid Section -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+        <i data-lucide="disc" class="w-5 h-5 text-teal-600"></i>
+        Browse Soundscape Categories
+      </h2>
+      <p class="text-xs text-gray-500 mt-0.5">Select a category to explore audio tracks and continuous ambient playlists.</p>
+    </div>
+    <span class="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+      {{ categories | length }} Categories
+    </span>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for cat in categories %}
+    <div class="music-cat-card">
+      <div class="music-cat-thumb-wrap">
+        {% if cat.thumbnail_url %}
+        <img src="{{ cat.thumbnail_url }}" alt="{{ cat.name }}" class="music-cat-thumb">
+        {% else %}
+        <div class="w-full h-full flex items-center justify-center bg-teal-900 text-teal-300">
+          <i data-lucide="music" class="w-12 h-12 opacity-50"></i>
+        </div>
+        {% endif %}
+        <div class="music-cat-overlay">
+          <span class="text-xs text-teal-200 font-semibold bg-black/50 backdrop-blur-sm px-2.5 py-1 rounded-full flex items-center gap-1.5">
+            <i data-lucide="headphones" class="w-3 h-3"></i>
+            {{ cat.track_count }} {{ 'Tracks' if cat.track_count != 1 else 'Track' }}
+          </span>
+        </div>
+
+        {% if is_paid %}
+        <a href="/music/category/{{ cat.id }}" class="music-play-floating-btn" title="Listen to {{ cat.name }}">
+          <i data-lucide="play" class="w-4 h-4 fill-white ml-0.5"></i>
+        </a>
+        {% else %}
+        <button type="button" onclick="openMusicUpgradeModal()" class="music-play-floating-btn" title="Unlock with Paid Plan">
+          <i data-lucide="lock" class="w-4 h-4 text-white"></i>
+        </button>
+        {% endif %}
+      </div>
+
+      <div class="p-5 flex flex-col flex-grow">
+        <h3 class="text-base font-bold text-gray-900 mb-1 line-clamp-1">
+          {% if is_paid %}
+          <a href="/music/category/{{ cat.id }}" class="hover:text-teal-600 transition-colors">
+            {{ cat.name }}
+          </a>
+          {% else %}
+          <span onclick="openMusicUpgradeModal()" class="cursor-pointer hover:text-teal-600 transition-colors">
+            {{ cat.name }}
+          </span>
+          {% endif %}
+        </h3>
+        <p class="text-xs text-gray-500 line-clamp-2 mb-4 flex-grow">
+          {{ cat.description or 'Curated ambient soundscapes and frequencies.' }}
+        </p>
+
+        <div class="pt-3 border-t border-gray-100 flex items-center justify-between">
+          <span class="text-xs text-gray-400 font-medium flex items-center gap-1">
+            <i data-lucide="music-2" class="w-3.5 h-3.5"></i>
+            Ambient Soundscape
+          </span>
+          {% if is_paid %}
+          <a href="/music/category/{{ cat.id }}" class="text-xs font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1">
+            Listen Now <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </a>
+          {% else %}
+          <button type="button" onclick="openMusicUpgradeModal()" class="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1">
+            <i data-lucide="lock" class="w-3 h-3"></i> Unlock &rarr;
+          </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-span-full text-center py-16 bg-white rounded-2xl border border-gray-200">
+      <i data-lucide="music" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
+      <h3 class="text-base font-semibold text-gray-800">No Soundscape Categories Available</h3>
+      <p class="text-xs text-gray-500 mt-1">Please check back soon or ask your administrator to upload audio collections.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<!-- Paywall Upgrade Modal -->
+<div id="musicUpgradeModal" class="m-modal" onclick="closeMusicUpgradeModal(event)">
+  <div class="m-modal-card" onclick="event.stopPropagation()">
+    <button type="button" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onclick="closeMusicUpgradeModal()">&times;</button>
+    <div class="m-upgrade-icon">👑</div>
+    <h3 class="m-upgrade-title">Exclusive to Paid Members</h3>
+    <p class="m-upgrade-text">
+      The Music &amp; Soundscapes Library is a premium benefit created exclusively for our <strong>White &amp; Green Plan</strong> members to support mental recovery, focus, and peaceful sleep.
+    </p>
+    <div class="m-upgrade-perks">
+      <div class="m-perk-item">✓ Unlimited background listening across all audio soundscapes</div>
+      <div class="m-perk-item">✓ 432Hz healing sound baths &amp; delta sleep wave frequencies</div>
+      <div class="m-perk-item">✓ Focus binaural beats, ambient rain &amp; nature collections</div>
+      <div class="m-perk-item">✓ Continuous playback with repeat &amp; loop capabilities</div>
+    </div>
+    <a href="/app/billing" class="m-upgrade-btn">
+      Upgrade Plan Now &rarr;
+    </a>
+    <button type="button" class="m-upgrade-secondary" onclick="closeMusicUpgradeModal()">
+      Maybe Later
+    </button>
+  </div>
+</div>
+
+<script>
+  function openMusicUpgradeModal() {
+    const m = document.getElementById('musicUpgradeModal');
+    if (m) m.classList.add('active');
+  }
+
+  function closeMusicUpgradeModal(e) {
+    const m = document.getElementById('musicUpgradeModal');
+    if (m) m.classList.remove('active');
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMusicUpgradeModal();
+  });
+</script>
+{% endblock %}

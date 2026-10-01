@@ -80,3 +80,30 @@ def upload_pro_video(file_bytes: bytes, original_filename: str) -> Optional[str]
     return upload_to_gcs(file_bytes, original_filename, content_type, "pro-videos")
 
 
+def upload_music_track(file_bytes: bytes, original_filename: str) -> Optional[str]:
+    """Upload an audio soundscape/music track (MP3/WAV/M4A/AAC/OGG/FLAC) to GCS.
+    Stored under 'music-library/tracks/' prefix in GCS bucket.
+    Access is strictly proxied through the authenticated /api/music/tracks/{id}/stream endpoint.
+    """
+    ext = original_filename.rsplit(".", 1)[-1].lower() if "." in original_filename else "mp3"
+    ct_map = {
+        "mp3": "audio/mpeg",
+        "wav": "audio/wav",
+        "m4a": "audio/mp4",
+        "aac": "audio/aac",
+        "ogg": "audio/ogg",
+        "flac": "audio/flac",
+        "webm": "audio/webm",
+    }
+    content_type = ct_map.get(ext, "audio/mpeg")
+    return upload_to_gcs(file_bytes, original_filename, content_type, "music-library/tracks")
+
+
+def upload_music_cover(file_bytes: bytes, original_filename: str) -> Optional[str]:
+    """Upload a music category or track cover image to GCS."""
+    ext = original_filename.rsplit(".", 1)[-1].lower() if "." in original_filename else "jpg"
+    ct_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
+    content_type = ct_map.get(ext, "image/jpeg")
+    return upload_to_gcs(file_bytes, original_filename, content_type, "music-library/covers")
+
+

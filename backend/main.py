@@ -22,7 +22,7 @@ load_dotenv()
 
 # Import database and models
 from database import init_db, get_db, get_db_session
-from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, ScheduleBreak, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile, VideoFolder, Video, UserExerciseLog, HomePageSection, ConsultantRating, WorkoutLog, DailyWellnessScore, UsagePlan, PlanFeatureCap, UserSubscription, FeatureUsageLog, FeatureUsageTopUp, DemoVideo, DiagnosisReport, UserDeviceToken, ConsultantProVideo
+from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, ScheduleBreak, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile, VideoFolder, Video, UserExerciseLog, HomePageSection, ConsultantRating, WorkoutLog, DailyWellnessScore, UsagePlan, PlanFeatureCap, UserSubscription, FeatureUsageLog, FeatureUsageTopUp, DemoVideo, DiagnosisReport, UserDeviceToken, ConsultantProVideo, MusicCategory, MusicTrack
 # Version 2.2 - Homepage Builder Feature - Fresh Deploy
 
 
@@ -848,7 +848,8 @@ def get_nav_items(user_type: str) -> list:
             {'icon': 'users', 'label': 'Users', 'href': '/admin/users', 'key': 'users'},
             {'icon': 'video', 'label': 'Video Library', 'href': '/admin/videos', 'key': 'videos'},
             {'icon': 'play-circle', 'label': 'Demo Videos', 'href': '/admin/demo-videos', 'key': 'demo-videos'},
-            {'icon': 'sparkles', 'label': 'Pro Videos', 'href': '/admin/pro-videos', 'key': 'pro-videos'},
+            {'icon': 'sparkles', 'label': 'Pro Tips', 'href': '/admin/pro-videos', 'key': 'pro-videos'},
+            {'icon': 'music-2', 'label': 'Music Library', 'href': '/admin/music', 'key': 'music'},
             {'icon': 'layout', 'label': 'Home Page Builder', 'href': '/admin/homepage-builder', 'key': 'homepage-builder'},
             {'icon': 'shield', 'label': 'Admins', 'href': '/admin/admins', 'key': 'admins'},
             {'icon': 'package', 'label': 'Usage Plans', 'href': '/admin/plans', 'key': 'plans'},
@@ -868,6 +869,7 @@ def get_nav_items(user_type: str) -> list:
             {'icon': 'book-open', 'label': 'Daily Journal', 'href': '/app/daily-journal', 'key': 'journal'},
             {'icon': 'message-square', 'label': 'Emora - Your buddy', 'href': '/app/ai-chat', 'key': 'ai-chat'},
             {'icon': 'dumbbell', 'label': 'Exercise', 'href': '/exercises', 'key': 'exercise'},
+            {'icon': 'music-2', 'label': 'Music & Soundscapes', 'href': '/music', 'key': 'music'},
             {'icon': 'clipboard-list', 'label': 'Workout Log', 'href': '/app/workout-log', 'key': 'workout-log'},
             {'icon': 'file-text', 'label': 'My Reports (Lab Upload)', 'href': '/app/reports', 'key': 'reports'},
             {'icon': 'file-text', 'label': 'Wellness Summary Report', 'href': '/prescriptions', 'key': 'prescriptions'},
@@ -13610,6 +13612,553 @@ async def stream_pro_video(request: Request, video_id: int, db: Session = Depend
         media_type=content_type,
         headers=headers,
     )
+
+
+# ============================================================================
+# MUSIC & SOUNDSCAPES LIBRARY ROUTES (PAID EXCLUSIVE & ADMIN STUDIO)
+# ============================================================================
+
+@app.get("/music", response_class=HTMLResponse)
+async def music_library_page(request: Request, db: Session = Depends(get_db)):
+    """User-facing Music & Soundscapes Library catalog."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+
+    # Check paid subscription status (White/Green plan or Admin/Consultant)
+    is_paid = False
+    if user.user_type in ("admin", "consultant"):
+        is_paid = True
+    else:
+        from subscription_routes import get_active_subscription
+        sub = get_active_subscription(user.id, db)
+        if sub and sub.plan and not sub.plan.is_free and sub.status in ("active", "trialing"):
+            is_paid = True
+
+    from sqlalchemy import func
+    categories_raw = (
+        db.query(
+            MusicCategory,
+            func.count(MusicTrack.id).filter(MusicTrack.is_active == True).label("track_count")
+        )
+        .outerjoin(MusicTrack, (MusicTrack.category_id == MusicCategory.id))
+        .filter(MusicCategory.is_active == True)
+        .group_by(MusicCategory.id)
+        .order_by(MusicCategory.display_order.asc(), MusicCategory.created_at.desc())
+        .all()
+    )
+
+    categories_data = []
+    for cat, count in categories_raw:
+        categories_data.append({
+            "id": cat.id,
+            "name": cat.name,
+            "description": cat.description or "",
+            "thumbnail_url": cat.thumbnail_url or "",
+            "track_count": count or 0,
+        })
+
+    return templates.TemplateResponse(
+        "pages/music_library.html",
+        {
+            "request": request,
+            "page_title": "Music & Soundscapes Library - SolaceSquad",
+            "user": user,
+            "user_name": user.name,
+            "user_initials": get_initials(user.name),
+            "user_type": user.user_type,
+            "active_user_type": user.user_type,
+            "active_page": "music",
+            "is_paid": is_paid,
+            "categories": categories_data,
+        }
+    )
+
+
+@app.get("/music/category/{category_id}", response_class=HTMLResponse)
+async def music_category_playlist_page(request: Request, category_id: int, db: Session = Depends(get_db)):
+    """Category playlist view with continuous ambient audio player."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+
+    # Enforce paid access
+    is_paid = False
+    if user.user_type in ("admin", "consultant"):
+        is_paid = True
+    else:
+        from subscription_routes import get_active_subscription
+        sub = get_active_subscription(user.id, db)
+        if sub and sub.plan and not sub.plan.is_free and sub.status in ("active", "trialing"):
+            is_paid = True
+
+    if not is_paid:
+        return RedirectResponse(url="/music?upgrade=true", status_code=303)
+
+    category = db.query(MusicCategory).filter(MusicCategory.id == category_id, MusicCategory.is_active == True).first()
+    if not category:
+        return RedirectResponse(url="/music", status_code=303)
+
+    tracks = (
+        db.query(MusicTrack)
+        .filter(MusicTrack.category_id == category_id, MusicTrack.is_active == True)
+        .order_by(MusicTrack.id.asc())
+        .all()
+    )
+
+    return templates.TemplateResponse(
+        "pages/music_category.html",
+        {
+            "request": request,
+            "page_title": f"{category.name} - Soundscapes",
+            "user": user,
+            "user_name": user.name,
+            "user_initials": get_initials(user.name),
+            "user_type": user.user_type,
+            "active_user_type": user.user_type,
+            "active_page": "music",
+            "is_paid": is_paid,
+            "category": category,
+            "tracks": tracks,
+        }
+    )
+
+
+@app.get("/api/music/categories")
+async def api_music_categories(request: Request, db: Session = Depends(get_db)):
+    """JSON list of music categories with track counts."""
+    from sqlalchemy import func
+    categories_raw = (
+        db.query(
+            MusicCategory,
+            func.count(MusicTrack.id).filter(MusicTrack.is_active == True).label("track_count")
+        )
+        .outerjoin(MusicTrack, (MusicTrack.category_id == MusicCategory.id))
+        .filter(MusicCategory.is_active == True)
+        .group_by(MusicCategory.id)
+        .order_by(MusicCategory.display_order.asc(), MusicCategory.created_at.desc())
+        .all()
+    )
+
+    items = []
+    for cat, count in categories_raw:
+        items.append({
+            "id": cat.id,
+            "name": cat.name,
+            "description": cat.description or "",
+            "thumbnail_url": cat.thumbnail_url or "",
+            "track_count": count or 0,
+        })
+
+    return JSONResponse({"success": True, "categories": items})
+
+
+@app.get("/api/music/categories/{category_id}/tracks")
+async def api_music_category_tracks(request: Request, category_id: int, db: Session = Depends(get_db)):
+    """JSON list of tracks in a specific category."""
+    user_id = request.session.get("user_id")
+    is_paid = False
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user and user.user_type in ("admin", "consultant"):
+            is_paid = True
+        elif user:
+            from subscription_routes import get_active_subscription
+            sub = get_active_subscription(user.id, db)
+            if sub and sub.plan and not sub.plan.is_free and sub.status in ("active", "trialing"):
+                is_paid = True
+
+    tracks = (
+        db.query(MusicTrack)
+        .filter(MusicTrack.category_id == category_id, MusicTrack.is_active == True)
+        .order_by(MusicTrack.id.asc())
+        .all()
+    )
+
+    items = []
+    for t in tracks:
+        items.append({
+            "id": t.id,
+            "title": t.title,
+            "artist": t.artist or "SolaceSquad Acoustics",
+            "description": t.description or "",
+            "duration_display": t.duration_display or "10:00",
+            "thumbnail_url": t.thumbnail_url or "",
+            "stream_url": f"/api/music/tracks/{t.id}/stream" if is_paid else None,
+            "play_count": t.play_count or 0,
+        })
+
+    return JSONResponse({
+        "success": True,
+        "is_paid": is_paid,
+        "count": len(items),
+        "tracks": items,
+    })
+
+
+@app.get("/api/music/tracks/{track_id}/stream")
+async def stream_music_track(request: Request, track_id: int, db: Session = Depends(get_db)):
+    """Stream protected GCS soundscape/audio track with RFC 7233 byte-range support and anti-download protection."""
+    import asyncio
+    from fastapi.responses import StreamingResponse as _StreamResp, Response as _BinResp
+    from google.cloud import storage as gcs_storage
+
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    current_user = db.query(User).filter(User.id == user_id).first()
+    if not current_user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    is_authorized = False
+    if current_user.user_type in ("admin", "consultant"):
+        is_authorized = True
+    else:
+        from subscription_routes import get_active_subscription
+        sub = get_active_subscription(current_user.id, db)
+        if sub and sub.plan and not sub.plan.is_free and sub.status in ("active", "trialing"):
+            is_authorized = True
+
+    if not is_authorized:
+        raise HTTPException(
+            status_code=403,
+            detail="Paid subscription required to access the Music & Soundscapes Library. Please upgrade your plan."
+        )
+
+    track = db.query(MusicTrack).filter(MusicTrack.id == track_id, MusicTrack.is_active == True).first()
+    if not track:
+        raise HTTPException(status_code=404, detail="Audio track not found")
+
+    if "storage.googleapis.com/" not in track.audio_url:
+        raise HTTPException(status_code=404, detail="Invalid GCS audio URL")
+
+    # Safe play counter bump
+    try:
+        track.play_count = (track.play_count or 0) + 1
+        db.commit()
+    except Exception:
+        pass
+
+    after = track.audio_url.split("storage.googleapis.com/", 1)[1]
+    bucket_name, blob_path = after.split("/", 1)
+
+    def _download():
+        client = gcs_storage.Client()
+        blob = client.bucket(bucket_name).blob(blob_path)
+        ct = blob.content_type
+        if not ct or ct in ("application/octet-stream", "binary/octet-stream"):
+            low = blob_path.lower()
+            if low.endswith(".mp3"):
+                ct = "audio/mpeg"
+            elif low.endswith(".wav"):
+                ct = "audio/wav"
+            elif low.endswith(".m4a"):
+                ct = "audio/mp4"
+            elif low.endswith(".aac"):
+                ct = "audio/aac"
+            elif low.endswith(".ogg"):
+                ct = "audio/ogg"
+            elif low.endswith(".flac"):
+                ct = "audio/flac"
+            else:
+                ct = "audio/mpeg"
+        return blob.download_as_bytes(), ct
+
+    audio_bytes, content_type = await asyncio.get_event_loop().run_in_executor(None, _download)
+    total = len(audio_bytes)
+
+    range_header = request.headers.get("range")
+    if range_header and range_header.startswith("bytes="):
+        raw_range = range_header.replace("bytes=", "").strip()
+        byte_start, byte_end = 0, total - 1
+        try:
+            if raw_range.startswith("-"):
+                # Suffix byte range: e.g. bytes=-65536
+                suffix_len = int(raw_range[1:])
+                byte_start = max(0, total - suffix_len)
+                byte_end = total - 1
+            elif "-" in raw_range:
+                parts = raw_range.split("-", 1)
+                byte_start = int(parts[0]) if parts[0] else 0
+                byte_end = int(parts[1]) if parts[1] else (total - 1)
+        except Exception:
+            byte_start, byte_end = 0, total - 1
+
+        if byte_start >= total:
+            return _BinResp(status_code=416, headers={"Content-Range": f"bytes */{total}"})
+        byte_end = min(byte_end, total - 1)
+        if byte_end < byte_start:
+            byte_end = byte_start
+
+        # Cap chunk size to 8MB max for responsive streaming
+        max_chunk = 8 * 1024 * 1024
+        if (byte_end - byte_start + 1) > max_chunk:
+            byte_end = byte_start + max_chunk - 1
+
+        chunk = audio_bytes[byte_start: byte_end + 1]
+        headers = {
+            "Content-Disposition": "inline",
+            "Accept-Ranges": "bytes",
+            "Content-Range": f"bytes {byte_start}-{byte_end}/{total}",
+            "Content-Length": str(len(chunk)),
+            "Cache-Control": "private, max-age=3600",
+        }
+        return _StreamResp(
+            iter([chunk]),
+            status_code=206,
+            headers=headers,
+            media_type=content_type,
+        )
+
+    headers = {
+        "Content-Disposition": "inline",
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(total),
+        "Cache-Control": "private, max-age=3600",
+    }
+    return _BinResp(
+        content=audio_bytes,
+        media_type=content_type,
+        headers=headers,
+    )
+
+
+@app.post("/api/music/tracks/{track_id}/play")
+async def api_record_music_play(track_id: int, db: Session = Depends(get_db)):
+    """Increment play counter for a music track."""
+    track = db.query(MusicTrack).filter(MusicTrack.id == track_id).first()
+    if track:
+        track.play_count = (track.play_count or 0) + 1
+        db.commit()
+    return JSONResponse({"success": True})
+
+
+# ============================================================================
+# ADMIN MUSIC & SOUNDSCAPES STUDIO ROUTES
+# ============================================================================
+
+@app.get("/admin/music", response_class=HTMLResponse)
+async def admin_music_studio_page(request: Request, db: Session = Depends(get_db)):
+    """Admin dashboard page for managing music categories and uploading tracks."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+
+    from sqlalchemy import func
+    categories_raw = (
+        db.query(
+            MusicCategory,
+            func.count(MusicTrack.id).label("track_count")
+        )
+        .outerjoin(MusicTrack, (MusicTrack.category_id == MusicCategory.id))
+        .group_by(MusicCategory.id)
+        .order_by(MusicCategory.display_order.asc(), MusicCategory.created_at.desc())
+        .all()
+    )
+
+    categories_data = []
+    for cat, count in categories_raw:
+        categories_data.append({
+            "id": cat.id,
+            "name": cat.name,
+            "description": cat.description or "",
+            "thumbnail_url": cat.thumbnail_url or "",
+            "track_count": count or 0,
+        })
+
+    tracks_raw = (
+        db.query(MusicTrack, MusicCategory.name.label("category_name"))
+        .join(MusicCategory, MusicCategory.id == MusicTrack.category_id)
+        .order_by(MusicTrack.created_at.desc())
+        .all()
+    )
+
+    tracks_data = []
+    for t, cat_name in tracks_raw:
+        tracks_data.append({
+            "id": t.id,
+            "category_id": t.category_id,
+            "category_name": cat_name,
+            "title": t.title,
+            "artist": t.artist or "SolaceSquad Acoustics",
+            "description": t.description or "",
+            "duration_display": t.duration_display or "10:00",
+            "play_count": t.play_count or 0,
+            "created_at": t.created_at,
+        })
+
+    return templates.TemplateResponse(
+        "pages/admin_music.html",
+        {
+            "request": request,
+            "page_title": "Music Library Studio - Admin",
+            "user": admin,
+            "user_name": admin.name,
+            "user_initials": get_initials(admin.name),
+            "user_type": admin.user_type,
+            "active_user_type": admin.user_type,
+            "active_page": "music",
+            "categories": categories_data,
+            "tracks": tracks_data,
+        }
+    )
+
+
+@app.post("/api/admin/music/categories")
+async def admin_create_music_category(request: Request, db: Session = Depends(get_db)):
+    """Create a new soundscape category."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    name = (body.get("name") or "").strip()
+    description = (body.get("description") or "").strip()
+    thumbnail_url = (body.get("thumbnail_url") or "").strip()
+
+    if not name:
+        return JSONResponse({"success": False, "error": "Category name is required"}, status_code=400)
+
+    cat = MusicCategory(
+        name=name,
+        description=description if description else None,
+        thumbnail_url=thumbnail_url if thumbnail_url else None,
+        is_active=True,
+    )
+    db.add(cat)
+    db.commit()
+    db.refresh(cat)
+
+    return JSONResponse({"success": True, "category_id": cat.id})
+
+
+@app.delete("/api/admin/music/categories/{category_id}")
+async def admin_delete_music_category(request: Request, category_id: int, db: Session = Depends(get_db)):
+    """Delete a soundscape category and its child tracks."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    cat = db.query(MusicCategory).filter(MusicCategory.id == category_id).first()
+    if not cat:
+        return JSONResponse({"success": False, "error": "Category not found"}, status_code=404)
+
+    db.delete(cat)
+    db.commit()
+    return JSONResponse({"success": True})
+
+
+@app.post("/api/admin/music/tracks/chunk")
+async def admin_upload_music_track_chunk(
+    request: Request,
+    db: Session = Depends(get_db),
+    chunk: UploadFile = File(...),
+    upload_id: str = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    category_id: int = Form(...),
+    title: str = Form(...),
+    artist: str = Form("SolaceSquad Acoustics"),
+    duration: str = Form("10:00"),
+    description: str = Form(""),
+    original_filename: str = Form("audio.mp3"),
+):
+    """Receive an 8MB audio file chunk to bypass Cloud Run single-request limits."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    import re
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", upload_id):
+        return JSONResponse({"success": False, "error": "Invalid upload ID format"}, status_code=400)
+
+    category = db.query(MusicCategory).filter(MusicCategory.id == category_id).first()
+    if not category:
+        return JSONResponse({"success": False, "error": "Soundscape category not found"}, status_code=404)
+
+    import tempfile
+    temp_dir = os.path.join(tempfile.gettempdir(), "music_track_chunks", upload_id)
+    os.makedirs(temp_dir, exist_ok=True)
+
+    chunk_path = os.path.join(temp_dir, f"part_{chunk_index:04d}")
+    content = await chunk.read()
+    with open(chunk_path, "wb") as f:
+        f.write(content)
+
+    parts = sorted([p for p in os.listdir(temp_dir) if p.startswith("part_")])
+    if len(parts) == total_chunks:
+        import shutil
+        try:
+            full_bytes = bytearray()
+            for p in parts:
+                with open(os.path.join(temp_dir, p), "rb") as pf:
+                    full_bytes.extend(pf.read())
+
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+            if len(full_bytes) > 105 * 1024 * 1024:
+                return JSONResponse({"success": False, "error": "Audio file exceeds 100MB limit"}, status_code=400)
+
+            from gcs_uploads import upload_music_track
+            gcs_url = upload_music_track(bytes(full_bytes), original_filename)
+            if not gcs_url:
+                return JSONResponse({"success": False, "error": "GCS audio upload failed"}, status_code=500)
+
+            track = MusicTrack(
+                category_id=category_id,
+                title=title.strip(),
+                artist=artist.strip() if artist else "SolaceSquad Acoustics",
+                description=description.strip() if description else "",
+                audio_url=gcs_url,
+                duration_display=duration.strip() if duration else "10:00",
+                is_active=True,
+            )
+            db.add(track)
+            db.commit()
+            db.refresh(track)
+            return JSONResponse({"success": True, "track_id": track.id, "status": "completed"})
+        except Exception as e:
+            print(f"[MusicTrackChunk] Assembly error: {e}")
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+    return JSONResponse({"success": True, "status": "chunk_received", "chunk_index": chunk_index})
+
+
+@app.delete("/api/admin/music/tracks/{track_id}")
+async def admin_delete_music_track(request: Request, track_id: int, db: Session = Depends(get_db)):
+    """Delete a soundscape track record."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    track = db.query(MusicTrack).filter(MusicTrack.id == track_id).first()
+    if not track:
+        return JSONResponse({"success": False, "error": "Track not found"}, status_code=404)
+
+    db.delete(track)
+    db.commit()
+    return JSONResponse({"success": True})
 
 
 # ============================================================================

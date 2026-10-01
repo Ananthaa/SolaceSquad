@@ -1,0 +1,493 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<style>
+  .m-cat-header {
+    background: linear-gradient(135deg, #042f2e 0%, #115e59 50%, #0f766e 100%);
+    border-radius: 1.5rem;
+    padding: 2.25rem;
+    color: white;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 25px -5px rgba(15, 118, 110, 0.25);
+  }
+  .m-cat-thumb-box {
+    width: 140px;
+    height: 140px;
+    border-radius: 1rem;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    background: #064e3b;
+  }
+  .m-cat-thumb-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .m-track-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .m-track-card:hover {
+    border-color: #5eead4;
+    background: #f0fdfa;
+    transform: translateX(4px);
+  }
+  .m-track-card.active-playing {
+    border-color: #0d9488;
+    background: #ccfbf1;
+  }
+  .m-track-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #0d9488;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+  }
+  .m-track-btn:hover {
+    background: #0f766e;
+    transform: scale(1.08);
+  }
+  .m-track-btn.playing {
+    background: #042f2e;
+  }
+
+  /* ── Anti-Download Floating Audio Player Shield ── */
+  .m-player-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(15, 23, 42, 0.96);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 0.85rem 1.5rem;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .m-player-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 200px;
+    max-width: 280px;
+  }
+  .m-player-art {
+    width: 46px;
+    height: 46px;
+    border-radius: 0.5rem;
+    background: #1e293b;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .m-player-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-grow: 1;
+    max-width: 580px;
+  }
+  .m-ctrl-buttons {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-bottom: 0.35rem;
+  }
+  .m-ctrl-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease;
+  }
+  .m-ctrl-btn:hover { color: #fff; }
+  .m-ctrl-btn.active-toggle { color: #2dd4bf; }
+  .m-ctrl-play-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #2dd4bf;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .m-ctrl-play-btn:hover {
+    background: #5eead4;
+    transform: scale(1.08);
+  }
+  .m-scrubber-wrap {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.72rem;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+  }
+  .m-scrubber {
+    flex-grow: 1;
+    height: 5px;
+    border-radius: 999px;
+    background: #334155;
+    position: relative;
+    cursor: pointer;
+  }
+  .m-scrubber-fill {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 0%;
+    background: #2dd4bf;
+    border-radius: 999px;
+  }
+  .m-vol-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 140px;
+  }
+  .m-vol-slider {
+    width: 80px;
+    height: 4px;
+    accent-color: #2dd4bf;
+    cursor: pointer;
+  }
+</style>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32" oncontextmenu="return false;">
+
+  <!-- Back Nav -->
+  <div class="mb-6">
+    <a href="/music" class="inline-flex items-center gap-1.5 text-sm font-semibold text-teal-700 hover:text-teal-900 transition-colors">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i>
+      Back to Soundscape Categories
+    </a>
+  </div>
+
+  <!-- Category Banner Header -->
+  <div class="m-cat-header">
+    <div class="m-cat-thumb-box">
+      {% if category.thumbnail_url %}
+      <img src="{{ category.thumbnail_url }}" alt="{{ category.name }}">
+      {% else %}
+      <div class="w-full h-full flex items-center justify-center text-teal-300">
+        <i data-lucide="music" class="w-12 h-12 opacity-60"></i>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="flex-grow">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-teal-300">Soundscape Playlist</span>
+        <span class="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-semibold">{{ tracks | length }} Tracks</span>
+      </div>
+      <h1 class="text-2xl sm:text-3xl font-display font-extrabold mb-2">{{ category.name }}</h1>
+      <p class="text-teal-100 text-xs sm:text-sm max-w-2xl leading-relaxed">
+        {{ category.description or 'Relax, breathe, and focus with these ambient soundscapes.' }}
+      </p>
+
+      {% if tracks %}
+      <div class="mt-4 flex items-center gap-3">
+        <button type="button" class="btn bg-white text-teal-950 font-bold hover:bg-teal-50 text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-sm" onclick="playTrackByIndex(0)">
+          <i data-lucide="play" class="w-3.5 h-3.5 fill-teal-950"></i> Play Collection
+        </button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Tracks Section -->
+  <div class="mb-4 flex items-center justify-between">
+    <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+      <i data-lucide="list-music" class="w-5 h-5 text-teal-600"></i>
+      Tracks in this Category
+    </h2>
+  </div>
+
+  {% if tracks %}
+  <div class="space-y-2">
+    {% for t in tracks %}
+    <div class="m-track-card" id="track-card-{{ t.id }}" onclick="playTrack({{ t.id }}, '{{ t.title | replace("'", "\\'") }}', '{{ t.artist | replace("'", "\\'") }}', '{{ t.thumbnail_url or category.thumbnail_url or '' }}', '{{ t.duration_display or '10:00' }}', {{ loop.index0 }})">
+      <div class="flex items-center gap-3.5 min-w-0">
+        <button type="button" class="m-track-btn" id="track-btn-{{ t.id }}" aria-label="Play">
+          <i data-lucide="play" class="w-4 h-4 fill-white ml-0.5"></i>
+        </button>
+        <div class="min-w-0">
+          <h3 class="text-sm font-bold text-gray-900 truncate" id="track-title-{{ t.id }}">{{ t.title }}</h3>
+          <p class="text-xs text-gray-500 truncate mt-0.5">{{ t.artist or 'SolaceSquad Acoustics' }}{% if t.description %} &bull; {{ t.description }}{% endif %}</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4 flex-shrink-0 text-xs text-gray-400 font-semibold">
+        <span class="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">
+          {{ t.duration_display or '10:00' }}
+        </span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-16 bg-white rounded-2xl border border-gray-200">
+    <i data-lucide="music-2" class="w-10 h-10 text-gray-300 mx-auto mb-2"></i>
+    <p class="font-semibold text-gray-700">No tracks uploaded in this category yet.</p>
+    <p class="text-xs text-gray-400 mt-1">Check back soon for new soundscapes!</p>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Protected Online Audio Element (Anti-Download Shield) -->
+<audio id="ssqOnlineAudio"
+       preload="metadata"
+       controlsList="nodownload"
+       oncontextmenu="return false;"
+       style="display:none;">
+</audio>
+
+<!-- Persistent Bottom Floating Player -->
+<div id="mPlayerBar" class="m-player-bar" style="display:none;" oncontextmenu="return false;">
+  <!-- Track Info -->
+  <div class="m-player-info">
+    <img id="mPlayerArt" src="{{ category.thumbnail_url or '' }}" alt="" class="m-player-art">
+    <div class="min-w-0">
+      <div id="mPlayerTitle" class="text-xs font-bold text-white truncate">Track Title</div>
+      <div id="mPlayerArtist" class="text-[11px] text-teal-300 truncate">SolaceSquad Acoustics</div>
+    </div>
+  </div>
+
+  <!-- Player Controls & Scrubber -->
+  <div class="m-player-controls">
+    <div class="m-ctrl-buttons">
+      <button type="button" class="m-ctrl-btn" onclick="prevTrack()" title="Previous Track">
+        <i data-lucide="skip-back" class="w-4 h-4"></i>
+      </button>
+      <button type="button" id="mMainPlayBtn" class="m-ctrl-play-btn" onclick="togglePlayPause()" title="Play/Pause">
+        <i data-lucide="play" class="w-5 h-5 fill-current ml-0.5"></i>
+      </button>
+      <button type="button" class="m-ctrl-btn" onclick="nextTrack()" title="Next Track">
+        <i data-lucide="skip-forward" class="w-4 h-4"></i>
+      </button>
+      <button type="button" id="mLoopBtn" class="m-ctrl-btn" onclick="toggleLoop()" title="Loop Track">
+        <i data-lucide="repeat" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <div class="m-scrubber-wrap">
+      <span id="mCurrentTime">0:00</span>
+      <div class="m-scrubber" id="mScrubber" onclick="seekAudio(event)">
+        <div class="m-scrubber-fill" id="mScrubberFill"></div>
+      </div>
+      <span id="mTotalDuration">0:00</span>
+    </div>
+  </div>
+
+  <!-- Volume & Shield Badge -->
+  <div class="m-vol-wrap hidden sm:flex">
+    <button type="button" class="m-ctrl-btn" onclick="toggleMute()" title="Mute/Unmute">
+      <i data-lucide="volume-2" id="mVolIcon" class="w-4 h-4"></i>
+    </button>
+    <input type="range" id="mVolSlider" min="0" max="1" step="0.05" value="0.85" class="m-vol-slider" oninput="changeVolume(this.value)">
+    <span class="text-[10px] text-teal-400 font-bold ml-1 bg-teal-950/60 px-2 py-0.5 rounded border border-teal-800">
+      🔒 STREAM
+    </span>
+  </div>
+</div>
+
+<script>
+  const playlist = [
+    {% for t in tracks %}
+    {
+      id: {{ t.id }},
+      title: "{{ t.title | replace('\"', '\\\"') }}",
+      artist: "{{ t.artist | replace('\"', '\\\"') or 'SolaceSquad Acoustics' }}",
+      art: "{{ t.thumbnail_url or category.thumbnail_url or '' }}",
+      duration: "{{ t.duration_display or '10:00' }}",
+      streamUrl: "/api/music/tracks/{{ t.id }}/stream"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  let currentTrackIndex = -1;
+  let isLooping = false;
+  const audio = document.getElementById('ssqOnlineAudio');
+  const playerBar = document.getElementById('mPlayerBar');
+  const playBtn = document.getElementById('mMainPlayBtn');
+  const fill = document.getElementById('mScrubberFill');
+  const currTimeEl = document.getElementById('mCurrentTime');
+  const totalTimeEl = document.getElementById('mTotalDuration');
+
+  // Anti-download keyboard shortcut guard
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      return false;
+    }
+  });
+
+  function formatTime(sec) {
+    if (!sec || isNaN(sec)) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+
+  function playTrackByIndex(idx) {
+    if (idx < 0 || idx >= playlist.length) return;
+    const t = playlist[idx];
+    playTrack(t.id, t.title, t.artist, t.art, t.duration, idx);
+  }
+
+  function playTrack(id, title, artist, art, duration, idx) {
+    currentTrackIndex = idx;
+    document.getElementById('mPlayerTitle').textContent = title;
+    document.getElementById('mPlayerArtist').textContent = artist;
+    if (art) document.getElementById('mPlayerArt').src = art;
+    totalTimeEl.textContent = duration;
+
+    // Highlight active card
+    document.querySelectorAll('.m-track-card').forEach(c => c.classList.remove('active-playing'));
+    const card = document.getElementById(`track-card-${id}`);
+    if (card) card.classList.add('active-playing');
+
+    playerBar.style.display = 'flex';
+    audio.src = `/api/music/tracks/${id}/stream`;
+    audio.load();
+    audio.play().then(() => {
+      updatePlayButtonState(true);
+      fetch(`/api/music/tracks/${id}/play`, { method: 'POST' }).catch(() => {});
+    }).catch(err => {
+      console.warn('Autoplay defer/notice:', err);
+    });
+  }
+
+  function togglePlayPause() {
+    if (audio.paused) {
+      audio.play().then(() => updatePlayButtonState(true)).catch(() => {});
+    } else {
+      audio.pause();
+      updatePlayButtonState(false);
+    }
+  }
+
+  function updatePlayButtonState(isPlaying) {
+    if (isPlaying) {
+      playBtn.innerHTML = '<i data-lucide="pause" class="w-5 h-5 fill-current"></i>';
+    } else {
+      playBtn.innerHTML = '<i data-lucide="play" class="w-5 h-5 fill-current ml-0.5"></i>';
+    }
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function nextTrack() {
+    if (playlist.length === 0) return;
+    const nextIdx = (currentTrackIndex + 1) % playlist.length;
+    playTrackByIndex(nextIdx);
+  }
+
+  function prevTrack() {
+    if (playlist.length === 0) return;
+    const prevIdx = (currentTrackIndex - 1 + playlist.length) % playlist.length;
+    playTrackByIndex(prevIdx);
+  }
+
+  function toggleLoop() {
+    isLooping = !isLooping;
+    audio.loop = isLooping;
+    const btn = document.getElementById('mLoopBtn');
+    if (isLooping) {
+      btn.classList.add('active-toggle');
+    } else {
+      btn.classList.remove('active-toggle');
+    }
+  }
+
+  function seekAudio(e) {
+    const scrubber = document.getElementById('mScrubber');
+    const rect = scrubber.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    if (audio.duration) {
+      audio.currentTime = pos * audio.duration;
+    }
+  }
+
+  function changeVolume(val) {
+    audio.volume = parseFloat(val);
+    const icon = document.getElementById('mVolIcon');
+    if (audio.volume === 0) {
+      icon.setAttribute('data-lucide', 'volume-x');
+    } else if (audio.volume < 0.5) {
+      icon.setAttribute('data-lucide', 'volume-1');
+    } else {
+      icon.setAttribute('data-lucide', 'volume-2');
+    }
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function toggleMute() {
+    const slider = document.getElementById('mVolSlider');
+    if (audio.volume > 0) {
+      audio.dataset.prevVol = audio.volume;
+      audio.volume = 0;
+      slider.value = 0;
+    } else {
+      audio.volume = audio.dataset.prevVol || 0.85;
+      slider.value = audio.volume;
+    }
+    changeVolume(audio.volume);
+  }
+
+  audio.addEventListener('timeupdate', () => {
+    if (audio.duration) {
+      const pct = (audio.currentTime / audio.duration) * 100;
+      fill.style.width = pct + '%';
+      currTimeEl.textContent = formatTime(audio.currentTime);
+    }
+  });
+
+  audio.addEventListener('loadedmetadata', () => {
+    if (audio.duration) {
+      totalTimeEl.textContent = formatTime(audio.duration);
+    }
+  });
+
+  audio.addEventListener('ended', () => {
+    if (!isLooping) {
+      nextTrack();
+    }
+  });
+</script>
+{% endblock %}

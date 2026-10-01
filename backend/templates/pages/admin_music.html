@@ -1,0 +1,641 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<style>
+  .admin-m-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .admin-m-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .form-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+  .form-input {
+    width: 100%;
+    border-radius: 0.65rem;
+    border: 1px solid #d1d5db;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.875rem;
+    color: #111827;
+    background: #fff;
+    transition: all 0.15s ease;
+  }
+  .form-input:focus {
+    outline: none;
+    border-color: #0d9488;
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+  }
+  .upload-box {
+    border: 2px dashed #cbd5e1;
+    border-radius: 0.85rem;
+    padding: 1.75rem 1rem;
+    text-align: center;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .upload-box:hover {
+    border-color: #0d9488;
+    background: #f0fdfa;
+  }
+  .progress-track {
+    width: 100%;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 0.75rem;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #0d9488, #2dd4bf);
+    border-radius: 999px;
+    transition: width 0.15s linear;
+  }
+  .btn-teal {
+    background: linear-gradient(135deg, #0d9488, #0f766e);
+    color: white;
+    font-weight: 700;
+    font-size: 0.875rem;
+    padding: 0.65rem 1.25rem;
+    border-radius: 0.65rem;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+  }
+  .btn-teal:hover { background: linear-gradient(135deg, #0f766e, #115e59); }
+  .btn-teal:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* Table styling */
+  .m-table { width: 100%; border-collapse: collapse; text-align: left; }
+  .m-table th {
+    padding: 0.75rem 1rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+  }
+  .m-table td {
+    padding: 0.85rem 1rem;
+    font-size: 0.85rem;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+  }
+  .m-table tr:hover td { background: #f8fafc; }
+
+  /* Action buttons */
+  .tbl-btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .tbl-preview-btn { background: #f0fdfa; color: #0f766e; border-color: #99f6e4; }
+  .tbl-preview-btn:hover { background: #ccfbf1; }
+  .tbl-del-btn { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .tbl-del-btn:hover { background: #fee2e2; }
+
+  /* Toast & Modals */
+  .m-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .m-modal.active { display: flex; }
+  .m-modal-card {
+    background: white;
+    border-radius: 1.25rem;
+    max-width: 520px;
+    width: 100%;
+    padding: 1.75rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+  .toast-box {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 99999;
+    background: #0f172a;
+    color: white;
+    padding: 0.85rem 1.25rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: none;
+  }
+  .toast-box.show { display: block; animation: toastIn 0.2s ease; }
+  .toast-box.error { background: #991b1b; }
+</style>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Header -->
+  <div class="admin-m-header">
+    <div>
+      <div class="flex items-center gap-2 mb-1">
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2">
+          <i data-lucide="music-2" class="w-7 h-7 text-teal-600"></i>
+          Music &amp; Soundscapes Library Studio
+        </h1>
+        <span class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-0.5 rounded-full">PAID EXCLUSIVE</span>
+      </div>
+      <p class="text-xs sm:text-sm text-gray-500">Upload high-fidelity ambient tracks, organize categories, and curate wellness soundscapes for paid subscribers.</p>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button type="button" class="btn bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 font-semibold" onclick="openCategoryModal()">
+        <i data-lucide="folder-plus" class="w-4 h-4 text-teal-600"></i> New Category
+      </button>
+    </div>
+  </div>
+
+  <!-- Grid: Upload Audio Card & Category Quick List -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+
+    <!-- Upload Track Card (2 Columns) -->
+    <div class="lg:col-span-2 admin-m-card border-l-4 border-teal-600">
+      <h2 class="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <i data-lucide="upload" class="w-5 h-5 text-teal-600"></i>
+        Upload New Soundscape / Audio Track
+      </h2>
+
+      <form id="trackUploadForm" onsubmit="handleTrackUpload(event)">
+        <!-- Row 1: Category & Duration -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="form-label">Soundscape Category <span class="text-red-500">*</span></label>
+            <select id="trackCatSelect" name="category_id" required class="form-input">
+              <option value="" disabled selected>-- Select a Category --</option>
+              {% for c in categories %}
+              <option value="{{ c.id }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Duration Tag (e.g. 15:00, 45:00)</label>
+            <input type="text" id="trackDuration" name="duration" placeholder="e.g. 15:00" value="10:00" class="form-input">
+          </div>
+        </div>
+
+        <!-- Row 2: Title & Artist -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="form-label">Track Title <span class="text-red-500">*</span></label>
+            <input type="text" id="trackTitle" name="title" required placeholder="e.g. Deep Delta Waves for Restful Sleep" class="form-input">
+          </div>
+          <div>
+            <label class="form-label">Artist / Tag</label>
+            <input type="text" id="trackArtist" name="artist" placeholder="e.g. SolaceSquad Acoustics / 432Hz" value="SolaceSquad Acoustics" class="form-input">
+          </div>
+        </div>
+
+        <!-- Row 3: Description -->
+        <div class="mb-4">
+          <label class="form-label">Short Description</label>
+          <textarea id="trackDesc" name="description" rows="2" placeholder="Brief details on the frequency, instruments, or therapeutic intent..." class="form-input"></textarea>
+        </div>
+
+        <!-- Row 4: Audio File Input -->
+        <div class="mb-4">
+          <label class="form-label">Audio File <span class="text-red-500">*</span> <span class="text-xs text-gray-400 font-normal">(MP3, WAV, M4A, AAC, OGG — Max 100MB)</span></label>
+          <div class="upload-box" onclick="document.getElementById('audioFileInput').click()">
+            <i data-lucide="music" class="w-8 h-8 text-teal-600 mx-auto mb-1 opacity-75"></i>
+            <p class="text-sm font-semibold text-gray-700" id="fileChosenText">Click to select audio file</p>
+            <p class="text-xs text-gray-400 mt-0.5">MP3, WAV, M4A, or OGG</p>
+          </div>
+          <input type="file" id="audioFileInput" name="file" accept="audio/*" style="display:none;" onchange="handleFileSelect(this)">
+        </div>
+
+        <!-- Upload Progress -->
+        <div id="uploadProgressWrap" style="display:none;" class="mb-4">
+          <div class="flex items-center justify-between text-xs text-gray-600 font-bold mb-1">
+            <span id="uploadStatusText">Uploading audio chunks...</span>
+            <span id="uploadPercentText">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" id="uploadProgressFill"></div>
+          </div>
+        </div>
+
+        <button type="submit" id="trackSubmitBtn" class="btn-teal">
+          <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+          <span>Upload Soundscape Track</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Categories Quick Summary Card (1 Column) -->
+    <div class="admin-m-card">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-bold text-gray-900 flex items-center gap-1.5">
+          <i data-lucide="folder" class="w-5 h-5 text-teal-600"></i>
+          Categories ({{ categories | length }})
+        </h2>
+        <button type="button" class="text-xs font-bold text-teal-700 hover:text-teal-900" onclick="openCategoryModal()">
+          + Add
+        </button>
+      </div>
+
+      <div class="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+        {% for c in categories %}
+        <div class="p-3 rounded-lg border border-gray-100 hover:border-teal-300 bg-gray-50 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-3 min-w-0">
+            {% if c.thumbnail_url %}
+            <img src="{{ c.thumbnail_url }}" alt="" class="w-10 h-10 rounded-lg object-cover flex-shrink-0">
+            {% else %}
+            <div class="w-10 h-10 rounded-lg bg-teal-800 text-teal-200 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="disc" class="w-5 h-5"></i>
+            </div>
+            {% endif %}
+            <div class="min-w-0">
+              <div class="text-xs font-bold text-gray-900 truncate">{{ c.name }}</div>
+              <div class="text-[11px] text-gray-500">{{ c.track_count }} {{ 'tracks' if c.track_count != 1 else 'track' }}</div>
+            </div>
+          </div>
+          <button type="button" onclick="deleteCategory({{ c.id }}, '{{ c.name | replace("'", "\\'") }}')" class="tbl-btn tbl-del-btn" title="Delete Category">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+        {% else %}
+        <p class="text-xs text-gray-400 text-center py-6">No categories created yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Audio Tracks Table Card -->
+  <div class="admin-m-card">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+          <i data-lucide="list-music" class="w-5 h-5 text-teal-600"></i>
+          All Soundscape Tracks ({{ tracks | length }})
+        </h2>
+        <p class="text-xs text-gray-500 mt-0.5">Streamable audio tracks accessible to paid subscribers.</p>
+      </div>
+    </div>
+
+    {% if tracks %}
+    <div class="overflow-x-auto">
+      <table class="m-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Track Title &amp; Artist</th>
+            <th>Duration</th>
+            <th>Plays</th>
+            <th>Uploaded</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tracks %}
+          <tr id="track-row-{{ t.id }}">
+            <td>
+              <span class="text-xs font-bold bg-teal-50 text-teal-700 px-2.5 py-1 rounded-full border border-teal-200">
+                {{ t.category_name }}
+              </span>
+            </td>
+            <td>
+              <div class="font-bold text-gray-900">{{ t.title }}</div>
+              <div class="text-xs text-gray-500">{{ t.artist or 'SolaceSquad Acoustics' }}</div>
+            </td>
+            <td>
+              <span class="text-xs font-semibold bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                {{ t.duration_display or '10:00' }}
+              </span>
+            </td>
+            <td class="text-xs text-gray-600 font-medium">
+              {{ t.play_count or 0 }}
+            </td>
+            <td class="text-xs text-gray-500">
+              {{ t.created_at.strftime('%d %b %Y') if t.created_at else '--' }}
+            </td>
+            <td style="text-align:right; white-space:nowrap;">
+              <button type="button" class="tbl-btn tbl-preview-btn mr-1.5" onclick="openPreviewAudio({{ t.id }}, '{{ t.title | replace("'", "\\'") }}', '{{ t.artist | replace("'", "\\'") }}')">
+                <i data-lucide="play" class="w-3.5 h-3.5"></i> Preview
+              </button>
+              <button type="button" class="tbl-btn tbl-del-btn" onclick="deleteTrack({{ t.id }})">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12 text-gray-400">
+      <i data-lucide="music" class="w-10 h-10 mx-auto mb-2 opacity-40"></i>
+      <p class="font-medium text-gray-600">No tracks uploaded yet.</p>
+      <p class="text-xs text-gray-400 mt-0.5">Use the upload form above to add your first audio track.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Create Category Modal -->
+<div id="categoryModal" class="m-modal" onclick="closeCategoryModal(event)">
+  <div class="m-modal-card" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-bold text-gray-900">Create New Soundscape Category</h3>
+      <button type="button" class="text-gray-400 hover:text-gray-600" onclick="closeCategoryModal()">&times;</button>
+    </div>
+
+    <form onsubmit="handleCategoryCreate(event)">
+      <div class="mb-3">
+        <label class="form-label">Category Name <span class="text-red-500">*</span></label>
+        <input type="text" id="newCatName" required placeholder="e.g. Deep Sleep &amp; Delta Waves" class="form-input">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <textarea id="newCatDesc" rows="2" placeholder="Brief summary of the soundscapes in this category..." class="form-input"></textarea>
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Cover Image URL (Optional)</label>
+        <input type="url" id="newCatThumb" placeholder="https://images.unsplash.com/..." class="form-input">
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" class="btn bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg" onclick="closeCategoryModal()">Cancel</button>
+        <button type="submit" class="btn-teal text-xs px-4 py-2">Create Category</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Audio Preview Modal -->
+<div id="audioPreviewModal" class="m-modal" onclick="closePreviewAudio(event)">
+  <div class="m-modal-card" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 id="prevTitle" class="text-base font-bold text-gray-900">Audio Preview</h3>
+        <p id="prevArtist" class="text-xs text-teal-700 font-semibold"></p>
+      </div>
+      <button type="button" class="text-gray-400 hover:text-gray-600" onclick="closePreviewAudio()">&times;</button>
+    </div>
+    <div class="bg-gray-900 p-4 rounded-xl text-white">
+      <audio id="adminAudioPlayer" controls controlsList="nodownload" oncontextmenu="return false;" class="w-full"></audio>
+    </div>
+  </div>
+</div>
+
+<div id="toastBox" class="toast-box"></div>
+
+<script>
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toastBox');
+    t.textContent = msg;
+    t.className = 'toast-box show' + (isError ? ' error' : '');
+    setTimeout(() => { t.className = 'toast-box'; }, 3500);
+  }
+
+  function handleFileSelect(input) {
+    if (input.files && input.files[0]) {
+      const f = input.files[0];
+      const mb = (f.size / (1024 * 1024)).toFixed(1);
+      document.getElementById('fileChosenText').innerHTML = `
+        <span class="text-teal-700 font-bold">✓ Selected:</span> ${f.name} (${mb} MB)
+      `;
+    }
+  }
+
+  function openCategoryModal() {
+    document.getElementById('categoryModal').classList.add('active');
+  }
+  function closeCategoryModal() {
+    document.getElementById('categoryModal').classList.remove('active');
+  }
+
+  async function handleCategoryCreate(e) {
+    e.preventDefault();
+    const name = document.getElementById('newCatName').value.trim();
+    const description = document.getElementById('newCatDesc').value.trim();
+    const thumbnail_url = document.getElementById('newCatThumb').value.trim();
+
+    try {
+      const res = await fetch('/api/admin/music/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description, thumbnail_url })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Category created successfully!');
+        setTimeout(() => { window.location.reload(); }, 1000);
+      } else {
+        showToast(data.error || 'Failed to create category.', true);
+      }
+    } catch (err) {
+      showToast('Network error creating category.', true);
+    }
+  }
+
+  async function deleteCategory(id, name) {
+    if (!confirm(`Are you sure you want to delete the category "${name}" and all its tracks?`)) return;
+    try {
+      const res = await fetch(`/api/admin/music/categories/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Category deleted successfully.');
+        setTimeout(() => { window.location.reload(); }, 1000);
+      } else {
+        showToast(data.error || 'Failed to delete category.', true);
+      }
+    } catch (err) {
+      showToast('Network error deleting category.', true);
+    }
+  }
+
+  async function handleTrackUpload(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('audioFileInput');
+    if (!fileInput.files || !fileInput.files[0]) {
+      showToast('Please select an audio file to upload.', true);
+      return;
+    }
+    const file = fileInput.files[0];
+    const category_id = document.getElementById('trackCatSelect').value;
+    const title = document.getElementById('trackTitle').value.trim();
+    const artist = document.getElementById('trackArtist').value.trim() || 'SolaceSquad Acoustics';
+    const duration = document.getElementById('trackDuration').value.trim() || '10:00';
+    const description = document.getElementById('trackDesc').value.trim();
+
+    if (!category_id) {
+      showToast('Please select a category.', true);
+      return;
+    }
+    if (!title) {
+      showToast('Please enter a track title.', true);
+      return;
+    }
+
+    const CHUNK_SIZE = 8 * 1024 * 1024; // 8MB chunks
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    const uploadId = 'music_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+
+    const submitBtn = document.getElementById('trackSubmitBtn');
+    const progressWrap = document.getElementById('uploadProgressWrap');
+    const progressFill = document.getElementById('uploadProgressFill');
+    const percentText = document.getElementById('uploadPercentText');
+    const statusText = document.getElementById('uploadStatusText');
+
+    submitBtn.disabled = true;
+    progressWrap.style.display = 'block';
+
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const chunkBlob = file.slice(start, end);
+
+      const fd = new FormData();
+      fd.append('chunk', chunkBlob, file.name);
+      fd.append('upload_id', uploadId);
+      fd.append('chunk_index', i);
+      fd.append('total_chunks', totalChunks);
+      fd.append('category_id', category_id);
+      fd.append('title', title);
+      fd.append('artist', artist);
+      fd.append('duration', duration);
+      fd.append('description', description);
+      fd.append('original_filename', file.name);
+
+      try {
+        const res = await uploadSingleAudioChunk(fd, start, file.size, progressFill, percentText);
+        if (!res.success) {
+          throw new Error(res.error || 'Upload error');
+        }
+        if (res.status === 'completed') {
+          progressFill.style.width = '100%';
+          percentText.textContent = '100%';
+          statusText.textContent = 'Processing & saving...';
+          showToast('Soundscape track uploaded successfully!');
+          setTimeout(() => { window.location.reload(); }, 1200);
+          return;
+        }
+      } catch (err) {
+        submitBtn.disabled = false;
+        progressWrap.style.display = 'none';
+        showToast(err.message || 'Error during track upload.', true);
+        return;
+      }
+    }
+  }
+
+  function uploadSingleAudioChunk(fd, chunkStart, totalFileSize, progressFill, percentText) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/admin/music/tracks/chunk');
+
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable) {
+          const currentTotal = chunkStart + evt.loaded;
+          const pct = Math.min(99, Math.round((currentTotal / totalFileSize) * 100));
+          progressFill.style.width = pct + '%';
+          percentText.textContent = pct + '%';
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 413) {
+          reject(new Error('Chunk exceeded server limit.'));
+          return;
+        }
+        if (xhr.status === 403) {
+          reject(new Error('Unauthorized. Admin access required.'));
+          return;
+        }
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300 && res.success) {
+            resolve(res);
+          } else {
+            reject(new Error(res.error || res.detail || ('Status ' + xhr.status)));
+          }
+        } catch (err) {
+          reject(new Error('Server error (' + xhr.status + ').'));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error during chunk upload.'));
+      xhr.send(fd);
+    });
+  }
+
+  function openPreviewAudio(id, title, artist) {
+    document.getElementById('prevTitle').textContent = title;
+    document.getElementById('prevArtist').textContent = artist;
+    const player = document.getElementById('adminAudioPlayer');
+    player.src = `/api/music/tracks/${id}/stream`;
+    player.load();
+    document.getElementById('audioPreviewModal').classList.add('active');
+    player.play().catch(() => {});
+  }
+
+  function closePreviewAudio() {
+    const player = document.getElementById('adminAudioPlayer');
+    player.pause();
+    player.removeAttribute('src');
+    player.load();
+    document.getElementById('audioPreviewModal').classList.remove('active');
+  }
+
+  async function deleteTrack(id) {
+    if (!confirm('Are you sure you want to delete this soundscape track?')) return;
+    try {
+      const res = await fetch(`/api/admin/music/tracks/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Track deleted successfully.');
+        const row = document.getElementById(`track-row-${id}`);
+        if (row) row.remove();
+      } else {
+        showToast(data.error || 'Failed to delete track.', true);
+      }
+    } catch (err) {
+      showToast('Network error deleting track.', true);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) window.lucide.createIcons();
+  });
+</script>
+{% endblock %}

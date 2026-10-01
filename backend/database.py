@@ -352,6 +352,51 @@ def init_db():
     except Exception as _cpv_err:
         print(f"[Migration] consultant_pro_videos check note: {_cpv_err}")
 
+    # Music & Soundscapes Library tables
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS music_categories (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    thumbnail_url VARCHAR(500),
+                    display_order INTEGER DEFAULT 0,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS music_tracks (
+                    id SERIAL PRIMARY KEY,
+                    category_id INTEGER NOT NULL REFERENCES music_categories(id) ON DELETE CASCADE,
+                    title VARCHAR(255) NOT NULL,
+                    artist VARCHAR(255) DEFAULT 'SolaceSquad Acoustics',
+                    description TEXT,
+                    audio_url VARCHAR(500) NOT NULL,
+                    thumbnail_url VARCHAR(500),
+                    duration_seconds INTEGER DEFAULT 0,
+                    duration_display VARCHAR(20) DEFAULT '10:00',
+                    play_count INTEGER DEFAULT 0,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS ix_music_tracks_category_id ON music_tracks (category_id);
+            """))
+
+            # Seed initial popular categories if empty
+            res = conn.execute(text("SELECT COUNT(*) FROM music_categories")).scalar()
+            if res == 0:
+                conn.execute(text("""
+                    INSERT INTO music_categories (name, description, thumbnail_url, display_order) VALUES
+                    ('Deep Sleep & Delta Waves', 'Gentle delta-wave soundscapes and soothing frequencies crafted to help you fall asleep faster and sleep deeper.', 'https://images.unsplash.com/photo-1511295742362-92c96b124e52?w=800&auto=format&fit=crop&q=80', 1),
+                    ('Meditation & Mindfulness', 'Harmonic ambient tones and Tibetan singing bowl resonance for deep breathing and inner presence.', 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&auto=format&fit=crop&q=80', 2),
+                    ('Focus & Study Flow', 'Alpha waves, binaural beats, and lo-fi textures to boost mental clarity, attention, and productivity.', 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&auto=format&fit=crop&q=80', 3),
+                    ('Stress Relief & Calm', 'Warm acoustic textures, soft piano chords, and 432Hz healing sound baths to melt away anxiety.', 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?w=800&auto=format&fit=crop&q=80', 4),
+                    ('Nature Sounds & Rain', 'High-definition recordings of summer rainfall, forest breezes, ocean tides, and flowing streams.', 'https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&auto=format&fit=crop&q=80', 5)
+                """))
+    except Exception as _music_err:
+        print(f"[Migration] music library tables note: {_music_err}")
+
     print("Database initialized successfully!")
 
 

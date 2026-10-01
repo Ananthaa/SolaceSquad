@@ -669,6 +669,43 @@ class ConsultantProVideo(Base):
     consultant = relationship("ConsultantProfile", backref="pro_videos")
 
 
+class MusicCategory(Base):
+    """Categories/Folders for ambient music, soundscapes, and meditation tracks"""
+    __tablename__ = "music_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    thumbnail_url = Column(String(500), nullable=True)
+    display_order = Column(Integer, default=0, nullable=False, server_default='0')
+    is_active = Column(Boolean, default=True, nullable=False, server_default='true')
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    tracks = relationship("MusicTrack", back_populates="category", cascade="all, delete-orphan", order_by="MusicTrack.id.desc()")
+
+
+class MusicTrack(Base):
+    """Individual audio tracks and soundscapes in the Music Library"""
+    __tablename__ = "music_tracks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category_id = Column(Integer, ForeignKey("music_categories.id"), nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    artist = Column(String(255), nullable=True, default="SolaceSquad Acoustics")
+    description = Column(Text, nullable=True)
+    audio_url = Column(String(500), nullable=False)  # GCS URL
+    thumbnail_url = Column(String(500), nullable=True)
+    duration_seconds = Column(Integer, default=0, nullable=False, server_default='0')
+    duration_display = Column(String(20), nullable=True, default="10:00")  # e.g. "15:00"
+    play_count = Column(Integer, default=0, nullable=False, server_default='0')
+    is_active = Column(Boolean, default=True, nullable=False, server_default='true')
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    category = relationship("MusicCategory", back_populates="tracks")
+
+
 
 class HomePageSection(Base):
     """Model for storing dynamic homepage sections"""
