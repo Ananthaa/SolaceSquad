@@ -7,7 +7,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_, and_, not_
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -14596,6 +14596,9 @@ async def admin_users(request: Request, db: Session = Depends(get_db)):
         # Estimate chat time (assuming average 2 minutes per chat)
         u.chat_time_minutes = u.chat_count * 2
     
+    staff = db.query(User).filter(User.user_type.in_(["admin", "staff", "assistant"])).all()
+    incomplete_consultants = db.query(User).filter(User.user_type == "consultant").outerjoin(ConsultantProfile).filter(or_(ConsultantProfile.id.is_(None), ConsultantProfile.is_approved == False)).all()
+
     return templates.TemplateResponse(
         "pages/admin_users.html",
         {
@@ -14603,7 +14606,9 @@ async def admin_users(request: Request, db: Session = Depends(get_db)):
             "page_title": "Users Management - Admin",
             "user": user,
             "users": users,
-            "consultants": consultants
+            "consultants": consultants,
+            "staff": staff,
+            "incomplete_consultants": incomplete_consultants,
         }
     )
 
