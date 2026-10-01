@@ -24,6 +24,10 @@
 	<true/>
 	<key>UIRequiresFullScreen</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SolaceSquad requires access to your photo library to upload profile pictures and consultation documents.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>SolaceSquad requires camera access for telemedicine video consultations.</string>
 	<key>NSMicrophoneUsageDescription</key>
