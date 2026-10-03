@@ -2490,6 +2490,7 @@ async def get_patient_history(patient_id: int, request: Request, db: Session = D
         "consent_given": has_consent  # Let frontend know consent status for UI hints
     }
 
+@app.get("/vitals", response_class=HTMLResponse)
 @app.get("/app/vitals", response_class=HTMLResponse)
 async def vitals(request: Request, db: Session = Depends(get_db)):
     """Camera-based vitals scanning page"""
