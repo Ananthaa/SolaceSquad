@@ -191,6 +191,11 @@ struct SolaceSquadApp: App {
                     if navManager.showBottomBar {
                         NativeTabBarView(baseURL: appEnv.baseURL)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .onLongPressGesture(minimumDuration: 2.5) {
+                                let feedback = UINotificationFeedbackGenerator()
+                                feedback.notificationOccurred(.warning)
+                                showEnvSwitcher = true
+                            }
                     }
                 }
                 .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -223,6 +228,11 @@ struct SolaceSquadApp: App {
             .sheet(isPresented: $showEnvSwitcher) {
                 EnvironmentSwitcherSheet()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .deviceDidShake)) { _ in
+                let feedback = UINotificationFeedbackGenerator()
+                feedback.notificationOccurred(.warning)
+                showEnvSwitcher = true
+            }
             .onAppear {
                 healthSyncService.requestHealthKitPermissionsAndSync()
             }
@@ -238,6 +248,20 @@ struct SolaceSquadApp: App {
                     backgroundTimestamp = Date()
                 }
             }
+        }
+    }
+}
+
+// MARK: - Shake Gesture Notification Support
+extension NSNotification.Name {
+    static let deviceDidShake = NSNotification.Name("ssq_deviceDidShakeNotification")
+}
+
+extension UIWindow {
+    open override func motionEnded(_ motion: UIEvent.EventSubtype, with event: UIEvent?) {
+        super.motionEnded(motion, with: event)
+        if motion == .motionShake {
+            NotificationCenter.default.post(name: .deviceDidShake, object: nil)
         }
     }
 }
