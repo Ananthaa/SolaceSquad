@@ -1,0 +1,148 @@
+{% extends "layouts/hr_portal.html" %}
+
+{% block title %}Wellness Analytics &amp; Insights — {{ company_name | default('Acme Corp') }} | SolaceSquad Corporate{% endblock %}
+
+{% block hr_content %}
+<!-- Header -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div>
+        <h1 class="text-2xl sm:text-3xl font-display font-bold text-gray-900 tracking-tight">
+            Organizational Wellness Analytics
+        </h1>
+        <p class="text-sm text-gray-600 mt-1">
+            Aggregated, privacy-compliant health scores, vital scan participation, and stress indices across departments.
+        </p>
+    </div>
+    <div class="flex items-center gap-3">
+        <button onclick="window.print()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold shadow-xs transition-colors">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Download PDF Report</span>
+        </button>
+    </div>
+</div>
+
+<!-- Department Comparison Matrix -->
+<div class="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden mb-8">
+    <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+        <div>
+            <h3 class="text-base font-bold text-gray-900">Department Wellness Comparison</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Aggregated metrics (Departments with 5+ employees to guarantee privacy)</p>
+        </div>
+        <span class="text-xs font-semibold px-2.5 py-1 bg-teal-50 text-teal-800 rounded-lg border border-teal-200">
+            Current Quarter: Q4
+        </span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-slate-50 border-b border-gray-200 text-[0.7rem] uppercase font-bold text-gray-500 tracking-wider">
+                    <th class="py-3.5 px-6">Department</th>
+                    <th class="py-3.5 px-4 text-center">Headcount</th>
+                    <th class="py-3.5 px-4 text-center">Participation %</th>
+                    <th class="py-3.5 px-4 text-center">Avg Wellness Score</th>
+                    <th class="py-3.5 px-4 text-center">Stress Status</th>
+                    <th class="py-3.5 px-6 text-right">Top Utilized Pillar</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 text-xs sm:text-sm">
+                {% for dept in departments %}
+                <tr class="hover:bg-slate-50/70 transition-colors">
+                    <td class="py-3.5 px-6 font-bold text-gray-900 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full {{ dept.badge_color }}"></span>
+                        {{ dept.name }}
+                    </td>
+                    <td class="py-3.5 px-4 text-center text-gray-600 font-semibold">{{ dept.headcount }}</td>
+                    <td class="py-3.5 px-4 text-center font-bold text-teal-700">{{ dept.participation }}%</td>
+                    <td class="py-3.5 px-4 text-center">
+                        <div class="inline-flex items-center gap-1 font-extrabold text-gray-900">
+                            {{ dept.avg_score }}/100
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold {{ dept.stress_badge }}">
+                            {{ dept.stress_label }}
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-6 text-right text-gray-700 font-medium">
+                        {{ dept.top_pillar }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Aggregated Vital Scan & Activity Insights -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Vital Scan Aggregate Summary -->
+    <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-2xs">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-bold text-gray-900">Vital Scan Averages</h3>
+            <span class="p-1.5 rounded-lg bg-teal-50 text-teal-700"><i data-lucide="activity" class="w-4 h-4"></i></span>
+        </div>
+        <div class="space-y-4">
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <span class="text-xs font-semibold text-gray-700">Resting Heart Rate</span>
+                <span class="text-sm font-extrabold text-teal-800">72 bpm <span class="text-[0.65rem] font-normal text-emerald-600">(Normal)</span></span>
+            </div>
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <span class="text-xs font-semibold text-gray-700">Blood Oxygen (SpO2)</span>
+                <span class="text-sm font-extrabold text-teal-800">98.2% <span class="text-[0.65rem] font-normal text-emerald-600">(Optimal)</span></span>
+            </div>
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <span class="text-xs font-semibold text-gray-700">Daily Steps Average</span>
+                <span class="text-sm font-extrabold text-teal-800">7,420 steps</span>
+            </div>
+        </div>
+        <div class="mt-4 text-[0.7rem] text-gray-400">Aggregated from Apple Health, Google Fit, and camera vital scans.</div>
+    </div>
+
+    <!-- Monthly Wellness Trend -->
+    <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-200 shadow-2xs">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-base font-bold text-gray-900">Quarterly Wellness Velocity</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Average company-wide wellbeing trajectory over last 6 months</p>
+            </div>
+            <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                +14.8% Overall Growth
+            </span>
+        </div>
+
+        <!-- Monthly Bar Comparison Grid -->
+        <div class="grid grid-cols-6 gap-3 pt-6 pb-2 text-center items-end h-40 border-b border-gray-100">
+            <div>
+                <div class="bg-teal-200 hover:bg-teal-300 rounded-t-lg transition-all mx-auto w-10" style="height: 55%"></div>
+                <div class="text-[0.7rem] font-bold text-gray-500 mt-2">May</div>
+                <div class="text-xs font-extrabold text-gray-800">68</div>
+            </div>
+            <div>
+                <div class="bg-teal-300 hover:bg-teal-400 rounded-t-lg transition-all mx-auto w-10" style="height: 62%"></div>
+                <div class="text-[0.7rem] font-bold text-gray-500 mt-2">Jun</div>
+                <div class="text-xs font-extrabold text-gray-800">71</div>
+            </div>
+            <div>
+                <div class="bg-teal-400 hover:bg-teal-500 rounded-t-lg transition-all mx-auto w-10" style="height: 70%"></div>
+                <div class="text-[0.7rem] font-bold text-gray-500 mt-2">Jul</div>
+                <div class="text-xs font-extrabold text-gray-800">75</div>
+            </div>
+            <div>
+                <div class="bg-teal-500 hover:bg-teal-600 rounded-t-lg transition-all mx-auto w-10" style="height: 74%"></div>
+                <div class="text-[0.7rem] font-bold text-gray-500 mt-2">Aug</div>
+                <div class="text-xs font-extrabold text-gray-800">78</div>
+            </div>
+            <div>
+                <div class="bg-teal-600 hover:bg-teal-700 rounded-t-lg transition-all mx-auto w-10" style="height: 78%"></div>
+                <div class="text-[0.7rem] font-bold text-gray-500 mt-2">Sep</div>
+                <div class="text-xs font-extrabold text-gray-800">80</div>
+            </div>
+            <div>
+                <div class="bg-gradient-to-t from-teal-700 to-emerald-600 rounded-t-lg shadow-xs transition-all mx-auto w-10" style="height: 82%"></div>
+                <div class="text-[0.7rem] font-bold text-teal-800 mt-2">Oct (Now)</div>
+                <div class="text-xs font-extrabold text-teal-900">82</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

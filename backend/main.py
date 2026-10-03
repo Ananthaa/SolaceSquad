@@ -814,6 +814,10 @@ register_event_routes(app, templates, get_db)
 from quick_consult_routes import register_quick_consult_routes
 register_quick_consult_routes(app, templates, get_db)
 
+# ── Corporate HR / Enterprise B2B Wellness Routes ───────────────────────────────
+from hr_routes import register_hr_routes
+register_hr_routes(app, templates, get_db)
+
 # PWA Routes
 @app.get("/sw.js", include_in_schema=False)
 async def get_service_worker():
