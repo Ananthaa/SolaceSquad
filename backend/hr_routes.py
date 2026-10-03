@@ -32,7 +32,7 @@ from models import User, VitalsRecord, Appointment, EventWorkshop
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MOCK / SEED CORPORATE DATA
+# MOCK / SEED CORPORATE DATA (24 DETAILED EMPLOYEES ACROSS 3 PAGES)
 # ─────────────────────────────────────────────────────────────────────────────
 
 DEFAULT_COMPANY = "Acme Technologies India Pvt Ltd"
@@ -41,6 +41,7 @@ DEFAULT_CREDIT_BALANCE = 450
 DEFAULT_TOTAL_ENROLLED = 180
 
 SAMPLE_EMPLOYEES = [
+    # Page 1 (1 - 8)
     {
         "id": 1,
         "name": "Aarav Patel",
@@ -51,7 +52,11 @@ SAMPLE_EMPLOYEES = [
         "credits_used": 1,
         "credits_quota": 2,
         "status": "Active",
-        "last_active": "Yesterday, 4:15 PM"
+        "daily_workout_mins": 45,
+        "calories_burnt": 480,
+        "last_consultation_date": "28 Sep 2026",
+        "last_consultation_type": "Ergonomics & Desk Posture",
+        "last_active": "Today, 10:30 AM"
     },
     {
         "id": 2,
@@ -63,7 +68,11 @@ SAMPLE_EMPLOYEES = [
         "credits_used": 2,
         "credits_quota": 2,
         "status": "Active",
-        "last_active": "28 Sep 2026"
+        "daily_workout_mins": 35,
+        "calories_burnt": 390,
+        "last_consultation_date": "24 Sep 2026",
+        "last_consultation_type": "Mental Wellbeing & Anxiety",
+        "last_active": "Yesterday, 4:15 PM"
     },
     {
         "id": 3,
@@ -75,7 +84,11 @@ SAMPLE_EMPLOYEES = [
         "credits_used": 0,
         "credits_quota": 2,
         "status": "Active",
-        "last_active": "01 Oct 2026"
+        "daily_workout_mins": 25,
+        "calories_burnt": 310,
+        "last_consultation_date": "12 Sep 2026",
+        "last_consultation_type": "Sleep Optimization",
+        "last_active": "Today, 09:10 AM"
     },
     {
         "id": 4,
@@ -87,7 +100,11 @@ SAMPLE_EMPLOYEES = [
         "credits_used": 1,
         "credits_quota": 2,
         "status": "Active",
-        "last_active": "Today, 10:20 AM"
+        "daily_workout_mins": 40,
+        "calories_burnt": 440,
+        "last_consultation_date": "30 Sep 2026",
+        "last_consultation_type": "Stress & Burnout Reset",
+        "last_active": "Today, 11:20 AM"
     },
     {
         "id": 5,
@@ -99,19 +116,27 @@ SAMPLE_EMPLOYEES = [
         "credits_used": 2,
         "credits_quota": 2,
         "status": "Active",
-        "last_active": "29 Sep 2026"
+        "daily_workout_mins": 50,
+        "calories_burnt": 560,
+        "last_consultation_date": "29 Sep 2026",
+        "last_consultation_type": "Executive Performance Coaching",
+        "last_active": "Yesterday, 6:40 PM"
     },
     {
         "id": 6,
         "name": "Divya Nambiar",
         "email": "divya.n@acmetech.com",
         "department": "Operations",
-        "designation": "Support Lead",
+        "designation": "Support Team Lead",
         "joined_date": "12 Mar 2026",
         "credits_used": 0,
         "credits_quota": 2,
         "status": "Invited",
-        "last_active": "Pending Onboarding"
+        "daily_workout_mins": 20,
+        "calories_burnt": 260,
+        "last_consultation_date": "None yet",
+        "last_consultation_type": "Pending Onboarding",
+        "last_active": "Pending Invite"
     },
     {
         "id": 7,
@@ -123,7 +148,11 @@ SAMPLE_EMPLOYEES = [
         "credits_used": 1,
         "credits_quota": 2,
         "status": "Active",
-        "last_active": "Yesterday, 11:45 AM"
+        "daily_workout_mins": 30,
+        "calories_burnt": 350,
+        "last_consultation_date": "19 Sep 2026",
+        "last_consultation_type": "Mindfulness & Resilience",
+        "last_active": "Today, 08:45 AM"
     },
     {
         "id": 8,
@@ -135,7 +164,271 @@ SAMPLE_EMPLOYEES = [
         "credits_used": 0,
         "credits_quota": 2,
         "status": "Active",
+        "daily_workout_mins": 35,
+        "calories_burnt": 380,
+        "last_consultation_date": "22 Sep 2026",
+        "last_consultation_type": "Physical Ergonomics",
         "last_active": "25 Sep 2026"
+    },
+
+    # Page 2 (9 - 16)
+    {
+        "id": 9,
+        "name": "Aditya Verma",
+        "email": "aditya.v@acmetech.com",
+        "department": "Engineering",
+        "designation": "Staff Cloud Engineer",
+        "joined_date": "12 Apr 2026",
+        "credits_used": 2,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 40,
+        "calories_burnt": 420,
+        "last_consultation_date": "01 Oct 2026",
+        "last_consultation_type": "Neck & Spine Alignment",
+        "last_active": "Today, 10:05 AM"
+    },
+    {
+        "id": 10,
+        "name": "Pooja Hegde",
+        "email": "pooja.h@acmetech.com",
+        "department": "Product & Design",
+        "designation": "UX Researcher",
+        "joined_date": "19 Apr 2026",
+        "credits_used": 1,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 30,
+        "calories_burnt": 340,
+        "last_consultation_date": "15 Sep 2026",
+        "last_consultation_type": "Work-Life Balance",
+        "last_active": "Yesterday, 3:30 PM"
+    },
+    {
+        "id": 11,
+        "name": "Siddharth Rao",
+        "email": "siddharth.r@acmetech.com",
+        "department": "Sales & Marketing",
+        "designation": "Content Strategist",
+        "joined_date": "02 May 2026",
+        "credits_used": 0,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 55,
+        "calories_burnt": 590,
+        "last_consultation_date": "05 Sep 2026",
+        "last_consultation_type": "Sleep Hygiene",
+        "last_active": "Yesterday, 5:15 PM"
+    },
+    {
+        "id": 12,
+        "name": "Kavita Menon",
+        "email": "kavita.m@acmetech.com",
+        "department": "Operations",
+        "designation": "Logistics & Supply Manager",
+        "joined_date": "14 May 2026",
+        "credits_used": 1,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 25,
+        "calories_burnt": 290,
+        "last_consultation_date": "27 Sep 2026",
+        "last_consultation_type": "Stress Management",
+        "last_active": "Today, 09:40 AM"
+    },
+    {
+        "id": 13,
+        "name": "Nikhil Agarwal",
+        "email": "nikhil.a@acmetech.com",
+        "department": "Engineering",
+        "designation": "Security Specialist",
+        "joined_date": "28 May 2026",
+        "credits_used": 2,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 35,
+        "calories_burnt": 400,
+        "last_consultation_date": "20 Sep 2026",
+        "last_consultation_type": "Burnout Prevention",
+        "last_active": "28 Sep 2026"
+    },
+    {
+        "id": 14,
+        "name": "Tanvi Kapoor",
+        "email": "tanvi.k@acmetech.com",
+        "department": "Human Resources",
+        "designation": "Talent Acquisition Partner",
+        "joined_date": "05 Jun 2026",
+        "credits_used": 0,
+        "credits_quota": 2,
+        "status": "Invited",
+        "daily_workout_mins": 20,
+        "calories_burnt": 240,
+        "last_consultation_date": "None yet",
+        "last_consultation_type": "Pending Onboarding",
+        "last_active": "Pending Invite"
+    },
+    {
+        "id": 15,
+        "name": "Gaurav Bhatt",
+        "email": "gaurav.b@acmetech.com",
+        "department": "Sales & Marketing",
+        "designation": "Regional Sales Director",
+        "joined_date": "16 Jun 2026",
+        "credits_used": 2,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 60,
+        "calories_burnt": 620,
+        "last_consultation_date": "02 Oct 2026",
+        "last_consultation_type": "Executive Coaching",
+        "last_active": "Today, 11:55 AM"
+    },
+    {
+        "id": 16,
+        "name": "Ishita Sen",
+        "email": "ishita.s@acmetech.com",
+        "department": "Product & Design",
+        "designation": "Product Manager (Core App)",
+        "joined_date": "25 Jun 2026",
+        "credits_used": 1,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 40,
+        "calories_burnt": 430,
+        "last_consultation_date": "18 Sep 2026",
+        "last_consultation_type": "Anxiety & Cognitive Stamina",
+        "last_active": "Yesterday, 2:10 PM"
+    },
+
+    # Page 3 (17 - 24)
+    {
+        "id": 17,
+        "name": "Deepak Chawla",
+        "email": "deepak.c@acmetech.com",
+        "department": "Engineering",
+        "designation": "QA Automation Lead",
+        "joined_date": "02 Jul 2026",
+        "credits_used": 1,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 30,
+        "calories_burnt": 350,
+        "last_consultation_date": "25 Sep 2026",
+        "last_consultation_type": "Eye Strain & Ergonomics",
+        "last_active": "Today, 10:15 AM"
+    },
+    {
+        "id": 18,
+        "name": "Rhea Chakraborty",
+        "email": "rhea.c@acmetech.com",
+        "department": "Operations",
+        "designation": "Compliance Associate",
+        "joined_date": "11 Jul 2026",
+        "credits_used": 0,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 35,
+        "calories_burnt": 370,
+        "last_consultation_date": "14 Sep 2026",
+        "last_consultation_type": "Nutrition & Energy Focus",
+        "last_active": "29 Sep 2026"
+    },
+    {
+        "id": 19,
+        "name": "Harsh Vardhan",
+        "email": "harsh.v@acmetech.com",
+        "department": "Engineering",
+        "designation": "Data Platform Engineer",
+        "joined_date": "20 Jul 2026",
+        "credits_used": 2,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 45,
+        "calories_burnt": 490,
+        "last_consultation_date": "29 Sep 2026",
+        "last_consultation_type": "Lower Back & Spine Health",
+        "last_active": "Yesterday, 4:50 PM"
+    },
+    {
+        "id": 20,
+        "name": "Shweta Bansal",
+        "email": "shweta.b@acmetech.com",
+        "department": "Sales & Marketing",
+        "designation": "Brand Partnerships Lead",
+        "joined_date": "01 Aug 2026",
+        "credits_used": 1,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 35,
+        "calories_burnt": 380,
+        "last_consultation_date": "21 Sep 2026",
+        "last_consultation_type": "Mindful Leadership",
+        "last_active": "Today, 08:20 AM"
+    },
+    {
+        "id": 21,
+        "name": "Manish Pandey",
+        "email": "manish.p@acmetech.com",
+        "department": "Operations",
+        "designation": "IT Systems Admin",
+        "joined_date": "15 Aug 2026",
+        "credits_used": 0,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 25,
+        "calories_burnt": 290,
+        "last_consultation_date": "08 Sep 2026",
+        "last_consultation_type": "Sleep Reset",
+        "last_active": "Yesterday, 1:45 PM"
+    },
+    {
+        "id": 22,
+        "name": "Archana Saxena",
+        "email": "archana.s@acmetech.com",
+        "department": "Human Resources",
+        "designation": "Employee Engagement Lead",
+        "joined_date": "28 Aug 2026",
+        "credits_used": 2,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 50,
+        "calories_burnt": 510,
+        "last_consultation_date": "30 Sep 2026",
+        "last_consultation_type": "Psychological Safety Lab",
+        "last_active": "Today, 11:10 AM"
+    },
+    {
+        "id": 23,
+        "name": "Rajesh Nair",
+        "email": "rajesh.n@acmetech.com",
+        "department": "Engineering",
+        "designation": "Principal Mobile Engineer",
+        "joined_date": "05 Sep 2026",
+        "credits_used": 1,
+        "credits_quota": 2,
+        "status": "Active",
+        "daily_workout_mins": 40,
+        "calories_burnt": 440,
+        "last_consultation_date": "26 Sep 2026",
+        "last_consultation_type": "Ergonomics & Desk Mobility",
+        "last_active": "Yesterday, 5:30 PM"
+    },
+    {
+        "id": 24,
+        "name": "Simran Kaur",
+        "email": "simran.k@acmetech.com",
+        "department": "Product & Design",
+        "designation": "Design Systems Architect",
+        "joined_date": "15 Sep 2026",
+        "credits_used": 0,
+        "credits_quota": 2,
+        "status": "Invited",
+        "daily_workout_mins": 30,
+        "calories_burnt": 320,
+        "last_consultation_date": "None yet",
+        "last_consultation_type": "Pending Onboarding",
+        "last_active": "Pending Invite"
     }
 ]
 
@@ -297,6 +590,10 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             "credits_used": 0,
             "credits_quota": credits_quota or 2,
             "status": "Invited",
+            "daily_workout_mins": 30,
+            "calories_burnt": 350,
+            "last_consultation_date": "None yet",
+            "last_consultation_type": "Pending Onboarding",
             "last_active": "Pending Onboarding"
         }
         SAMPLE_EMPLOYEES.insert(0, new_emp)
@@ -332,6 +629,10 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                         "credits_used": 0,
                         "credits_quota": 2,
                         "status": "Invited",
+                        "daily_workout_mins": 30,
+                        "calories_burnt": 350,
+                        "last_consultation_date": "None yet",
+                        "last_consultation_type": "Pending Onboarding",
                         "last_active": "Pending Onboarding"
                     })
                     count += 1
@@ -348,7 +649,7 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         ctx.update({
             "departments": [
                 {
-                    "name": "Engineering",
+                    "name": "Engineering & Tech",
                     "badge_color": "bg-indigo-500",
                     "headcount": 64,
                     "participation": 82,
@@ -358,44 +659,44 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                     "top_pillar": "Mental & Ergonomics"
                 },
                 {
-                    "name": "Sales & Marketing",
+                    "name": "Sales & Enterprise GTM",
                     "badge_color": "bg-emerald-500",
                     "headcount": 42,
                     "participation": 89,
                     "avg_score": 85,
-                    "stress_status": "Low Stress",
+                    "stress_status": "Optimal Zone",
                     "stress_badge": "bg-emerald-50 text-emerald-700 border-emerald-200",
                     "top_pillar": "Work-Life Balance"
                 },
                 {
-                    "name": "Product & Design",
+                    "name": "Product & User Experience",
                     "badge_color": "bg-purple-500",
                     "headcount": 28,
                     "participation": 86,
                     "avg_score": 81,
-                    "stress_status": "Low Stress",
+                    "stress_status": "Optimal Zone",
                     "stress_badge": "bg-emerald-50 text-emerald-700 border-emerald-200",
                     "top_pillar": "Stress Resilience"
                 },
                 {
-                    "name": "Operations",
+                    "name": "Operations & Customer Support",
                     "badge_color": "bg-rose-500",
                     "headcount": 32,
                     "participation": 74,
                     "avg_score": 73,
-                    "stress_status": "Moderate Load",
+                    "stress_status": "Attention Needed",
                     "stress_badge": "bg-amber-50 text-amber-700 border-amber-200",
-                    "top_pillar": "Ergonomics"
+                    "top_pillar": "Sleep & Ergonomics"
                 },
                 {
-                    "name": "Human Resources",
+                    "name": "Human Resources & Talent",
                     "badge_color": "bg-teal-500",
                     "headcount": 14,
                     "participation": 94,
                     "avg_score": 91,
-                    "stress_status": "Optimal Zone",
+                    "stress_status": "Thriving Zone",
                     "stress_badge": "bg-emerald-50 text-emerald-700 border-emerald-200",
-                    "top_pillar": "Mindfulness"
+                    "top_pillar": "Mindfulness & Resilience"
                 }
             ],
             "quarterly_trend": [
@@ -408,7 +709,7 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 "resting_hr": "71 bpm",
                 "spo2": "98.4%",
                 "stress_index": "22 (Low)",
-                "active_minutes": "42m / day"
+                "active_minutes": "38m / day"
             }
         })
         
@@ -424,7 +725,7 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 "available_credits": DEFAULT_CREDIT_BALANCE,
                 "total_purchased": 1000,
                 "consumed": 550,
-                "default_monthly_quota": 2,
+                "default_monthly_quota": "₹2,000 / mo",
                 "renewal_date": "01 Nov 2026",
                 "plan_tier": "Enterprise Scaled Tier"
             },
@@ -501,7 +802,8 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             "company": DEFAULT_COMPANY,
             "enrolled": DEFAULT_TOTAL_ENROLLED,
             "credits_remaining": DEFAULT_CREDIT_BALANCE,
-            "wellness_score": 82,
+            "thryveq_score": 82,
             "participation_pct": 84,
+            "happiness_index": 84,
             "dpdp_compliant": True
         })

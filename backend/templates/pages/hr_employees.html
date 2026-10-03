@@ -10,7 +10,7 @@
             Employee Directory &amp; Roster
         </h1>
         <p class="text-sm text-gray-600 mt-1">
-            Manage your organization's employee wellness access, allocate credits, and invite new team members.
+            Manage your organization's employee wellness access, allocate ₹2,000/mo credits, and invite new team members.
         </p>
     </div>
     <div class="flex items-center gap-3">
@@ -31,7 +31,7 @@
         <!-- Search Input -->
         <div class="relative flex-1">
             <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-            <input type="text" id="emp-search" onkeyup="filterEmployees()" placeholder="Search employee name, email, or designation..." class="w-full pl-10 pr-4 py-2 text-xs sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all">
+            <input type="text" id="emp-search" onkeyup="filterEmployees()" placeholder="Search employee name, email, designation..." class="w-full pl-10 pr-4 py-2 text-xs sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all">
         </div>
 
         <!-- Filters -->
@@ -64,14 +64,15 @@
                     <th class="py-3.5 px-4 sm:px-6">Employee</th>
                     <th class="py-3.5 px-4">Department &amp; Role</th>
                     <th class="py-3.5 px-4">Status</th>
-                    <th class="py-3.5 px-4 text-center">Consultation Credits</th>
-                    <th class="py-3.5 px-4">Last Active</th>
+                    <th class="py-3.5 px-4 text-center">Avg Workout / Cals</th>
+                    <th class="py-3.5 px-4 text-center">Credits (₹2,000/mo)</th>
+                    <th class="py-3.5 px-4">Last Consultation</th>
                     <th class="py-3.5 px-4 sm:px-6 text-right">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-100 text-xs sm:text-sm">
+            <tbody class="divide-y divide-gray-100 text-xs sm:text-sm" id="employee-tbody">
                 {% for emp in employees %}
-                <tr class="hover:bg-slate-50/70 transition-colors emp-row" data-dept="{{ emp.department }}" data-status="{{ emp.status }}">
+                <tr class="hover:bg-slate-50/70 transition-colors emp-row" data-dept="{{ emp.department }}" data-status="{{ emp.status }}" data-index="{{ loop.index0 }}">
                     <!-- Name & Email -->
                     <td class="py-3.5 px-4 sm:px-6">
                         <div class="flex items-center gap-3">
@@ -98,6 +99,15 @@
                         </span>
                     </td>
 
+                    <!-- Daily Workout & Calories Burnt -->
+                    <td class="py-3.5 px-4 text-center">
+                        <div class="font-bold text-gray-900 text-xs">{{ emp.daily_workout_mins | default('35') }} mins/d</div>
+                        <div class="text-[0.7rem] text-orange-600 font-semibold flex items-center justify-center gap-0.5 mt-0.5">
+                            <i data-lucide="flame" class="w-3 h-3 text-orange-500"></i>
+                            <span>{{ emp.calories_burnt | default('420') }} kcal</span>
+                        </div>
+                    </td>
+
                     <!-- Credits Quota & Usage -->
                     <td class="py-3.5 px-4 text-center">
                         <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs font-bold text-gray-800">
@@ -107,9 +117,13 @@
                         </div>
                     </td>
 
-                    <!-- Last Active -->
-                    <td class="py-3.5 px-4 text-gray-500 text-xs">
-                        {{ emp.last_active | default('Today') }}
+                    <!-- Last Consultation Taken -->
+                    <td class="py-3.5 px-4">
+                        <div class="font-semibold text-gray-900 text-xs">{{ emp.last_consultation_date | default('28 Sep 2026') }}</div>
+                        <div class="text-[0.7rem] text-gray-500 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+                            <span>{{ emp.last_consultation_type | default('Mental Health') }}</span>
+                        </div>
                     </td>
 
                     <!-- Actions -->
@@ -129,6 +143,24 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+
+    <!-- ═══ Pagination Bar ═══ -->
+    <div class="p-4 bg-slate-50/70 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-gray-600">
+        <div id="pagination-info">
+            Showing <strong class="text-gray-900" id="page-start">1</strong> to <strong class="text-gray-900" id="page-end">8</strong> of <strong class="text-gray-900" id="total-count">{{ employees|length }}</strong> enrolled employees
+        </div>
+        <div class="flex items-center gap-1.5">
+            <button id="btn-prev" onclick="goToPage(currentPage - 1)" class="px-3 py-1.5 rounded-lg bg-white border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                Previous
+            </button>
+            <div id="page-buttons" class="flex items-center gap-1">
+                <!-- Page buttons injected via JS -->
+            </div>
+            <button id="btn-next" onclick="goToPage(currentPage + 1)" class="px-3 py-1.5 rounded-lg bg-white border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                Next
+            </button>
+        </div>
     </div>
 </div>
 
@@ -151,7 +183,7 @@
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Department</label>
-                    <select name="department" class="w-full px-3 py-2 text-xs sm:text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:border-teal-500">
+                    <select name="department" class="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:border-teal-500">
                         <option value="Engineering">Engineering</option>
                         <option value="Product & Design">Product &amp; Design</option>
                         <option value="Sales & Marketing">Sales &amp; Marketing</option>
@@ -160,13 +192,17 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Monthly Credits</label>
-                    <input type="number" name="credits" value="2" min="1" max="10" class="w-full px-3 py-2 text-xs sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-teal-500">
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Designation</label>
+                    <input type="text" name="designation" placeholder="e.g. Lead SRE" class="w-full px-3.5 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-teal-500">
                 </div>
             </div>
-            <div class="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+            <div class="p-3 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-800">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5 inline text-teal-600 mr-1"></i>
+                Employee will receive ₹2,000/mo in corporate consultation credits + Unlimited Vital Scan.
+            </div>
+            <div class="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onclick="closeInviteModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">Cancel</button>
-                <button type="submit" class="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-xs">Send Invite</button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-xs">Send Invitation</button>
             </div>
         </form>
     </div>
@@ -176,82 +212,140 @@
 <div id="bulk-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-2xs hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-gray-200 animate-in fade-in zoom-in duration-150">
         <div class="flex items-center justify-between pb-4 border-b border-gray-100">
-            <h3 class="text-lg font-bold text-gray-900">Bulk Employee Onboarding (CSV/Excel)</h3>
+            <h3 class="text-lg font-bold text-gray-900">Bulk Employee Onboarding (CSV)</h3>
             <button onclick="closeBulkModal()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
         <form method="POST" action="/hr/employees/bulk-upload" enctype="multipart/form-data" class="space-y-4 mt-4">
-            <div class="p-4 rounded-xl bg-teal-50 border border-teal-100 text-xs text-teal-800 leading-relaxed">
-                <div class="font-bold mb-1 flex items-center gap-1.5"><i data-lucide="info" class="w-4 h-4 text-teal-600"></i> CSV File Format:</div>
-                Ensure your file has headers: <code>Name, Email, Department, Designation, MonthlyCredits</code>.
-                <div class="mt-2">
-                    <a href="/static/templates/solacesquad_employee_roster_template.csv" class="font-bold underline text-teal-900 inline-flex items-center gap-1" download>
-                        <i data-lucide="download" class="w-3.5 h-3.5"></i> Download Sample CSV Template
-                    </a>
-                </div>
+            <div class="p-4 border-2 border-dashed border-gray-300 rounded-2xl text-center hover:border-teal-500 transition-colors">
+                <i data-lucide="upload-cloud" class="w-8 h-8 text-teal-600 mx-auto mb-2"></i>
+                <div class="text-xs font-bold text-gray-800">Upload CSV File</div>
+                <div class="text-[0.7rem] text-gray-500 mt-1">Headers required: <code>name</code>, <code>email</code>, <code>department</code>, <code>designation</code></div>
+                <input type="file" name="file" accept=".csv" required class="mt-3 text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
             </div>
-            <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Select CSV / Excel File</label>
-                <input type="file" name="file" accept=".csv, .xlsx, .xls" required class="w-full px-3 py-2 text-xs border border-dashed border-gray-300 rounded-xl bg-slate-50 focus:outline-none">
-            </div>
-            <div class="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+            <div class="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onclick="closeBulkModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">Cancel</button>
-                <button type="submit" class="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs">Upload &amp; Invite All</button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-xs">Process CSV</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
+    const PAGE_SIZE = 8;
+    let currentPage = 1;
+
+    function getVisibleRows() {
+        const query = (document.getElementById('emp-search').value || '').toLowerCase();
+        const dept = document.getElementById('dept-filter').value;
+        const status = document.getElementById('status-filter').value;
+        const rows = Array.from(document.querySelectorAll('.emp-row'));
+
+        return rows.filter(row => {
+            const rowDept = row.getAttribute('data-dept') || '';
+            const rowStatus = row.getAttribute('data-status') || '';
+            const rowText = row.innerText.toLowerCase();
+
+            const matchesQuery = !query || rowText.includes(query);
+            const matchesDept = dept === 'ALL' || rowDept.includes(dept);
+            const matchesStatus = status === 'ALL' || rowStatus === status;
+
+            return matchesQuery && matchesDept && matchesStatus;
+        });
+    }
+
+    function renderPagination() {
+        const visibleRows = getVisibleRows();
+        const total = visibleRows.length;
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        // Hide all rows first
+        const allRows = document.querySelectorAll('.emp-row');
+        allRows.forEach(r => r.style.display = 'none');
+
+        // Show slice for current page
+        const startIdx = (currentPage - 1) * PAGE_SIZE;
+        const endIdx = Math.min(startIdx + PAGE_SIZE, total);
+
+        for (let i = startIdx; i < endIdx; i++) {
+            if (visibleRows[i]) {
+                visibleRows[i].style.display = '';
+            }
+        }
+
+        // Update info labels
+        document.getElementById('page-start').innerText = total === 0 ? '0' : (startIdx + 1);
+        document.getElementById('page-end').innerText = endIdx;
+        document.getElementById('total-count').innerText = total;
+
+        // Update prev/next buttons
+        document.getElementById('btn-prev').disabled = currentPage === 1;
+        document.getElementById('btn-next').disabled = currentPage === totalPages;
+
+        // Render page number buttons
+        const btnContainer = document.getElementById('page-buttons');
+        btnContainer.innerHTML = '';
+        for (let p = 1; p <= totalPages; p++) {
+            const btn = document.createElement('button');
+            btn.innerText = p;
+            btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ' + 
+                (p === currentPage 
+                    ? 'bg-teal-700 text-white' 
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50');
+            btn.onclick = () => goToPage(p);
+            btnContainer.appendChild(btn);
+        }
+
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        renderPagination();
+    }
+
+    function filterEmployees() {
+        currentPage = 1;
+        renderPagination();
+    }
+
     function openInviteModal() {
         document.getElementById('invite-modal').classList.remove('hidden');
         document.getElementById('invite-modal').classList.add('flex');
+        if (window.lucide) lucide.createIcons();
     }
+
     function closeInviteModal() {
         document.getElementById('invite-modal').classList.add('hidden');
         document.getElementById('invite-modal').classList.remove('flex');
     }
+
     function openBulkModal() {
         document.getElementById('bulk-modal').classList.remove('hidden');
         document.getElementById('bulk-modal').classList.add('flex');
+        if (window.lucide) lucide.createIcons();
     }
+
     function closeBulkModal() {
         document.getElementById('bulk-modal').classList.add('hidden');
         document.getElementById('bulk-modal').classList.remove('flex');
     }
 
-    function filterEmployees() {
-        const query = document.getElementById('emp-search').value.toLowerCase();
-        const dept = document.getElementById('dept-filter').value;
-        const status = document.getElementById('status-filter').value;
-        const rows = document.querySelectorAll('.emp-row');
-
-        rows.forEach(row => {
-            const name = row.querySelector('.emp-name').textContent.toLowerCase();
-            const email = row.querySelector('.emp-email').textContent.toLowerCase();
-            const rowDept = row.getAttribute('data-dept');
-            const rowStatus = row.getAttribute('data-status');
-
-            const matchesQuery = name.includes(query) || email.includes(query);
-            const matchesDept = (dept === 'ALL' || rowDept === dept);
-            const matchesStatus = (status === 'ALL' || rowStatus === status);
-
-            if (matchesQuery && matchesDept && matchesStatus) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-    }
-
     function resendInvite(email) {
-        alert('Invitation email resent to: ' + email);
+        alert('Invitation email resent to ' + email);
     }
 
-    function editQuota(empId, name, currentQuota) {
-        const newQuota = prompt(`Update monthly consultation credits for ${name}:`, currentQuota);
-        if (newQuota !== null && !isNaN(newQuota)) {
-            alert(`Updated ${name}'s monthly credit allowance to ${newQuota}`);
+    function editQuota(id, name, quota) {
+        const newQuota = prompt('Enter monthly consultation credit quota for ' + name + ':', quota);
+        if (newQuota !== null) {
+            alert('Updated quota to ' + newQuota + ' credits.');
         }
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderPagination();
+    });
 </script>
 {% endblock %}

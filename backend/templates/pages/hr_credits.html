@@ -10,7 +10,7 @@
             Corporate Wallet &amp; Billing
         </h1>
         <p class="text-sm text-gray-600 mt-1">
-            Manage corporate wellness consultation credits, set employee allowance rules, and download GST tax invoices.
+            Manage corporate wellness consultation credits, configure employee allowance rules, and download GST tax invoices.
         </p>
     </div>
     <div class="flex items-center gap-3">
@@ -57,26 +57,34 @@
                     Policy Active
                 </span>
             </div>
-            <p class="text-xs text-gray-500 mb-4">Default monthly quotas allocated to enrolled employees</p>
+            <p class="text-xs text-gray-500 mb-4">Monthly allowances allocated to enrolled employees</p>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <div class="text-xs font-bold text-gray-700">1-on-1 Specialist Consultations</div>
-                    <div class="text-lg font-extrabold text-teal-800 mt-1">2 sessions / month</div>
-                    <div class="text-[0.7rem] text-gray-500 mt-0.5">Subsidized 100% by company</div>
+                    <div class="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                        <i data-lucide="stethoscope" class="w-4 h-4 text-teal-700"></i>
+                        <span>1-on-1 Specialist Consultations</span>
+                    </div>
+                    <div class="text-lg font-extrabold text-teal-800 mt-1">₹2,000 worth of credits / mo</div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">Accumulates for up to 6 months (180 days validity)</div>
                 </div>
 
                 <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <div class="text-xs font-bold text-gray-700">Vital Scan &amp; AI Buddy (Emora)</div>
-                    <div class="text-lg font-extrabold text-teal-800 mt-1">Unlimited Access</div>
-                    <div class="text-[0.7rem] text-gray-500 mt-0.5">Included for all employees</div>
+                    <div class="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                        <i data-lucide="bot" class="w-4 h-4 text-purple-700"></i>
+                        <span>Vital Scan &amp; AI Buddy (Emora)</span>
+                    </div>
+                    <div class="text-lg font-extrabold text-teal-800 mt-1">Unlimited Scans + 20 msg/d Emora</div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">Additional Emora messages unlockable via credits</div>
                 </div>
             </div>
         </div>
 
         <div class="pt-4 border-t border-gray-100 mt-4 flex items-center justify-between">
-            <span class="text-xs text-gray-500">Need a custom plan for executive tiers?</span>
-            <button onclick="alert('Contacting enterprise account manager...')" class="text-xs font-bold text-teal-700 hover:underline">Customize Policy &rarr;</button>
+            <span class="text-xs text-gray-500">Need a tailored tier for executive teams or offsite programs?</span>
+            <button onclick="alert('Connecting with your dedicated SolaceSquad Enterprise Account Director...')" class="text-xs font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1">
+                <span>Customize Package</span> &rarr;
+            </button>
         </div>
     </div>
 </div>
@@ -94,28 +102,31 @@
             <thead>
                 <tr class="bg-slate-50 border-b border-gray-200 text-[0.7rem] uppercase font-bold text-gray-500 tracking-wider">
                     <th class="py-3.5 px-6">Invoice ID</th>
-                    <th class="py-3.5 px-4">Billing Period</th>
+                    <th class="py-3.5 px-4">Billing Date</th>
                     <th class="py-3.5 px-4">Credits Added</th>
                     <th class="py-3.5 px-4">Amount (INR)</th>
                     <th class="py-3.5 px-4 text-center">Status</th>
-                    <th class="py-3.5 px-6 text-right">Download</th>
+                    <th class="py-3.5 px-6 text-right">Receipt</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 text-xs sm:text-sm">
                 {% for inv in invoices %}
                 <tr class="hover:bg-slate-50/70 transition-colors">
-                    <td class="py-3.5 px-6 font-bold text-gray-900 font-mono">{{ inv.invoice_number }}</td>
-                    <td class="py-3.5 px-4 text-gray-600">{{ inv.period }}</td>
-                    <td class="py-3.5 px-4 font-bold text-teal-700">+{{ inv.credits }} Credits</td>
-                    <td class="py-3.5 px-4 font-extrabold text-gray-900">&#8377;{{ inv.amount }}</td>
+                    <td class="py-3.5 px-6 font-bold text-gray-900 flex items-center gap-2">
+                        <i data-lucide="file-text" class="w-4 h-4 text-gray-400"></i>
+                        {{ inv.invoice_number }}
+                    </td>
+                    <td class="py-3.5 px-4 text-gray-600">{{ inv.date }}</td>
+                    <td class="py-3.5 px-4 font-bold text-teal-700">+{{ inv.credits_amount }} Credits</td>
+                    <td class="py-3.5 px-4 font-bold text-gray-900">{{ inv.amount_inr }} <span class="text-[0.65rem] text-gray-400 font-normal">(Incl. 18% GST)</span></td>
                     <td class="py-3.5 px-4 text-center">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.65rem] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             {{ inv.status }}
                         </span>
                     </td>
                     <td class="py-3.5 px-6 text-right">
-                        <a href="#" onclick="alert('Downloading GST Tax Invoice {{ inv.invoice_number }}'); return false;" class="inline-flex items-center gap-1 text-xs font-bold text-teal-700 hover:text-teal-900">
-                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                        <a href="{{ inv.receipt_url }}" class="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:text-teal-900">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
                             <span>GST PDF</span>
                         </a>
                     </td>
@@ -126,7 +137,7 @@
     </div>
 </div>
 
-<!-- Modal: Top-Up Corporate Credits -->
+<!-- ═══ Modal: Top-Up Corporate Credits ═══ -->
 <div id="topup-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-2xs hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-200 animate-in fade-in zoom-in duration-150">
         <div class="flex items-center justify-between pb-4 border-b border-gray-100">
@@ -135,34 +146,46 @@
         </div>
         <form method="POST" action="/hr/credits/topup" class="space-y-4 mt-4">
             <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Select Credit Package</label>
+                <label class="block text-xs font-bold text-gray-700 uppercase mb-2">Select Credit Pack</label>
                 <div class="space-y-2">
-                    <label class="flex items-center justify-between p-3 rounded-xl border border-teal-200 bg-teal-50/50 cursor-pointer">
-                        <div class="flex items-center gap-2">
-                            <input type="radio" name="package" value="100" checked class="text-teal-600 focus:ring-teal-500">
-                            <span class="text-xs font-bold text-gray-800">100 Consultation Credits</span>
+                    <label class="flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-teal-500 cursor-pointer transition-colors bg-white">
+                        <div class="flex items-center gap-3">
+                            <input type="radio" name="credit_pack" value="100" checked class="text-teal-600 focus:ring-teal-500">
+                            <div>
+                                <div class="text-xs font-bold text-gray-900">Starter Pack: 100 Credits</div>
+                                <div class="text-[0.7rem] text-gray-500">₹49,900 + 18% GST</div>
+                            </div>
                         </div>
-                        <span class="text-xs font-bold text-teal-800">&#8377;75,000</span>
+                        <span class="text-xs font-bold text-teal-700">₹499 / credit</span>
                     </label>
-                    <label class="flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer">
-                        <div class="flex items-center gap-2">
-                            <input type="radio" name="package" value="250" class="text-teal-600 focus:ring-teal-500">
-                            <span class="text-xs font-bold text-gray-800">250 Consultation Credits (Popular)</span>
+
+                    <label class="flex items-center justify-between p-3 rounded-xl border-2 border-teal-500 bg-teal-50/40 cursor-pointer">
+                        <div class="flex items-center gap-3">
+                            <input type="radio" name="credit_pack" value="250" class="text-teal-600 focus:ring-teal-500">
+                            <div>
+                                <div class="text-xs font-bold text-teal-900">Growth Pack: 250 Credits <span class="bg-teal-600 text-white text-[0.6rem] px-1.5 py-0.5 rounded-full font-bold ml-1">POPULAR</span></div>
+                                <div class="text-[0.7rem] text-teal-700">₹1,12,250 + 18% GST</div>
+                            </div>
                         </div>
-                        <span class="text-xs font-bold text-teal-800">&#8377;1,75,000</span>
+                        <span class="text-xs font-bold text-teal-800">₹449 / credit</span>
                     </label>
-                    <label class="flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer">
-                        <div class="flex items-center gap-2">
-                            <input type="radio" name="package" value="500" class="text-teal-600 focus:ring-teal-500">
-                            <span class="text-xs font-bold text-gray-800">500 Credits (Enterprise Tier)</span>
+
+                    <label class="flex items-center justify-between p-3 rounded-xl border border-gray-200 hover:border-teal-500 cursor-pointer transition-colors bg-white">
+                        <div class="flex items-center gap-3">
+                            <input type="radio" name="credit_pack" value="500" class="text-teal-600 focus:ring-teal-500">
+                            <div>
+                                <div class="text-xs font-bold text-gray-900">Enterprise Scaled: 500 Credits</div>
+                                <div class="text-[0.7rem] text-gray-500">₹1,99,500 + 18% GST</div>
+                            </div>
                         </div>
-                        <span class="text-xs font-bold text-teal-800">&#8377;3,25,000</span>
+                        <span class="text-xs font-bold text-teal-700">₹399 / credit</span>
                     </label>
                 </div>
             </div>
-            <div class="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+
+            <div class="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onclick="closeTopupModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-100">Cancel</button>
-                <button type="submit" class="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-xs">Generate Corporate Invoice</button>
+                <button type="submit" class="px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold shadow-xs">Generate GST Invoice</button>
             </div>
         </form>
     </div>
@@ -172,7 +195,9 @@
     function openTopupModal() {
         document.getElementById('topup-modal').classList.remove('hidden');
         document.getElementById('topup-modal').classList.add('flex');
+        if (window.lucide) lucide.createIcons();
     }
+
     function closeTopupModal() {
         document.getElementById('topup-modal').classList.add('hidden');
         document.getElementById('topup-modal').classList.remove('flex');

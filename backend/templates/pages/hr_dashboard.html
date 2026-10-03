@@ -10,7 +10,7 @@
             Corporate Wellness Overview
         </h1>
         <p class="text-sm text-gray-600 mt-1">
-            Real-time organizational health index, engagement trends, and wellness utilization for <strong class="text-gray-900 font-semibold">{{ company_name | default('Acme Corp') }}</strong>.
+            Real-time organizational ThryveQ index, mood trends, and wellness utilization for <strong class="text-gray-900 font-semibold">{{ company_name | default('Acme Corp') }}</strong>.
         </p>
     </div>
     <div class="flex items-center gap-3">
@@ -25,74 +25,101 @@
     </div>
 </div>
 
-<!-- 4 Top KPI Cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
-    <!-- Card 1: Org Wellness Score -->
-    <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs hover:shadow-xs transition-all">
-        <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Org Health Score</span>
-            <span class="p-2 rounded-xl bg-teal-50 text-teal-700 border border-teal-100"><i data-lucide="heart-pulse" class="w-5 h-5"></i></span>
+<!-- 5 Top KPI Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+    <!-- Card 1: Organizational ThryveQ (Clickable Modal Trigger) -->
+    <div onclick="openThryveQModal()" class="bg-white p-5 rounded-2xl border border-teal-200/80 shadow-2xs hover:shadow-md hover:border-teal-400 transition-all cursor-pointer group relative overflow-hidden">
+        <div class="absolute top-2 right-2 flex items-center gap-1 text-[0.65rem] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+            <span>Teams</span> <i data-lucide="chevron-right" class="w-3 h-3 group-hover:translate-x-0.5 transition-transform"></i>
         </div>
-        <div class="mt-4 flex items-baseline gap-2">
-            <span class="text-3xl font-extrabold text-gray-900">{{ metrics.org_health_score | default('82') }}</span>
-            <span class="text-xs font-semibold text-emerald-600 flex items-center gap-0.5">
-                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i> +4.2% vs last mo
+        <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Org ThryveQ</span>
+            <span class="p-2 rounded-xl bg-teal-50 text-teal-700 border border-teal-100"><i data-lucide="heart-pulse" class="w-4 h-4"></i></span>
+        </div>
+        <div class="mt-3 flex items-baseline gap-2">
+            <span class="text-3xl font-extrabold text-gray-900 group-hover:text-teal-800 transition-colors">{{ metrics.org_health_score | default('82') }}</span>
+            <span class="text-[0.7rem] font-semibold text-emerald-600 flex items-center gap-0.5">
+                <i data-lucide="trending-up" class="w-3 h-3"></i> +4.2%
             </span>
         </div>
-        <div class="w-full bg-gray-100 rounded-full h-1.5 mt-3 overflow-hidden">
+        <div class="w-full bg-gray-100 rounded-full h-1.5 mt-2.5 overflow-hidden">
             <div class="bg-gradient-to-r from-teal-500 to-emerald-500 h-1.5 rounded-full" style="width: {{ metrics.org_health_score | default('82') }}%"></div>
         </div>
-        <p class="text-[0.7rem] text-gray-500 mt-2">Optimal wellness zone across 8 departments</p>
+        <p class="text-[0.65rem] text-teal-700 font-semibold mt-2 flex items-center gap-1">
+            <i data-lucide="sparkles" class="w-3 h-3"></i> Click for Teamwise ThryveQ
+        </p>
     </div>
 
     <!-- Card 2: Active Employee Engagement -->
     <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs hover:shadow-xs transition-all">
         <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Active Participation</span>
-            <span class="p-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-100"><i data-lucide="users" class="w-5 h-5"></i></span>
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Participation</span>
+            <span class="p-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-100"><i data-lucide="users" class="w-4 h-4"></i></span>
         </div>
-        <div class="mt-4 flex items-baseline gap-2">
+        <div class="mt-3 flex items-baseline gap-2">
             <span class="text-3xl font-extrabold text-gray-900">{{ metrics.active_enrolled | default('142') }}</span>
-            <span class="text-xs font-medium text-gray-500">/ {{ metrics.total_headcount | default('180') }} employees</span>
+            <span class="text-xs font-medium text-gray-500">/ {{ metrics.total_headcount | default('180') }}</span>
         </div>
-        <div class="w-full bg-gray-100 rounded-full h-1.5 mt-3 overflow-hidden">
+        <div class="w-full bg-gray-100 rounded-full h-1.5 mt-2.5 overflow-hidden">
             <div class="bg-blue-600 h-1.5 rounded-full" style="width: 78.8%"></div>
         </div>
-        <p class="text-[0.7rem] text-gray-500 mt-2"><strong>78.8%</strong> active participation in last 30 days</p>
+        <p class="text-[0.68rem] text-gray-500 mt-2"><strong>78.8%</strong> active in last 30 days</p>
     </div>
 
-    <!-- Card 3: Consultations Utilized -->
+    <!-- Card 3: Consultations Utilized with 3-Pillar Breakout -->
     <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs hover:shadow-xs transition-all">
         <div class="flex items-center justify-between">
             <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Consultations (Mo)</span>
-            <span class="p-2 rounded-xl bg-purple-50 text-purple-700 border border-purple-100"><i data-lucide="video" class="w-5 h-5"></i></span>
+            <span class="p-2 rounded-xl bg-purple-50 text-purple-700 border border-purple-100"><i data-lucide="video" class="w-4 h-4"></i></span>
         </div>
-        <div class="mt-4 flex items-baseline gap-2">
+        <div class="mt-3 flex items-baseline gap-2">
             <span class="text-3xl font-extrabold text-gray-900">{{ metrics.consultations_count | default('164') }}</span>
-            <span class="text-xs font-semibold text-emerald-600 flex items-center gap-0.5">
-                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> 98.4% rating
+            <span class="text-[0.7rem] font-semibold text-emerald-600 flex items-center gap-0.5">
+                <i data-lucide="check-circle" class="w-3 h-3"></i> 98.4%
             </span>
         </div>
-        <div class="w-full bg-gray-100 rounded-full h-1.5 mt-3 overflow-hidden">
-            <div class="bg-purple-600 h-1.5 rounded-full" style="width: 65%"></div>
+        <!-- 3-Pillar Count Breakout -->
+        <div class="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[0.65rem] text-gray-600">
+            <span title="Mental Health"><strong class="text-teal-700 font-bold">95</strong> Mental</span>
+            <span>&bull;</span>
+            <span title="Physical & Ergonomics"><strong class="text-blue-700 font-bold">48</strong> Physio</span>
+            <span>&bull;</span>
+            <span title="Professional Coaching"><strong class="text-purple-700 font-bold">21</strong> Exec</span>
         </div>
-        <p class="text-[0.7rem] text-gray-500 mt-2">Mental Health (58%) &bull; Fitness & Posture (42%)</p>
     </div>
 
-    <!-- Card 4: Corporate Wallet Balance -->
+    <!-- Card 4: Overall Happiness Index (Mood Tracker) -->
+    <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs hover:shadow-xs transition-all">
+        <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Happiness Index</span>
+            <span class="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-100"><i data-lucide="smile" class="w-4 h-4"></i></span>
+        </div>
+        <div class="mt-3 flex items-baseline gap-2">
+            <span class="text-3xl font-extrabold text-gray-900">84%</span>
+            <span class="text-[0.7rem] font-semibold text-emerald-600 flex items-center gap-0.5">
+                <i data-lucide="trending-up" class="w-3 h-3"></i> +5.1%
+            </span>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-1.5 mt-2.5 overflow-hidden">
+            <div class="bg-gradient-to-r from-amber-400 to-emerald-500 h-1.5 rounded-full" style="width: 84%"></div>
+        </div>
+        <p class="text-[0.68rem] text-gray-500 mt-2">Mood pulse: <strong>4.2 / 5.0</strong> rating</p>
+    </div>
+
+    <!-- Card 5: Corporate Wallet Balance -->
     <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs hover:shadow-xs transition-all">
         <div class="flex items-center justify-between">
             <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Corporate Wallet</span>
-            <span class="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-100"><i data-lucide="wallet" class="w-5 h-5"></i></span>
+            <span class="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100"><i data-lucide="wallet" class="w-4 h-4"></i></span>
         </div>
-        <div class="mt-4 flex items-baseline gap-2">
+        <div class="mt-3 flex items-baseline gap-2">
             <span class="text-3xl font-extrabold text-teal-800">{{ metrics.credit_balance | default('450') }}</span>
-            <span class="text-xs font-medium text-gray-500">Credits Remaining</span>
+            <span class="text-xs font-medium text-gray-500">Credits</span>
         </div>
-        <div class="w-full bg-gray-100 rounded-full h-1.5 mt-3 overflow-hidden">
-            <div class="bg-amber-500 h-1.5 rounded-full" style="width: 75%"></div>
+        <div class="w-full bg-gray-100 rounded-full h-1.5 mt-2.5 overflow-hidden">
+            <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 75%"></div>
         </div>
-        <p class="text-[0.7rem] text-gray-500 mt-2">Estimated runway: <strong>48 days</strong> at current velocity</p>
+        <p class="text-[0.68rem] text-gray-500 mt-2">Estimated runway: <strong>48 days</strong></p>
     </div>
 </div>
 
@@ -103,7 +130,7 @@
         <div class="flex items-center justify-between mb-4">
             <div>
                 <h3 class="text-lg font-bold text-gray-900">Organizational Stress & Burnout Radar</h3>
-                <p class="text-xs text-gray-500 mt-0.5">Aggregated stress distribution across all departments (DPDP privacy protected)</p>
+                <p class="text-xs text-gray-500 mt-0.5">Continuous physiological HRV, mood sentiment, and ThryveQ fatigue index (DPDP protected)</p>
             </div>
             <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                 Low Overall Risk
@@ -160,10 +187,10 @@
                 </div>
                 <div>
                     <div class="text-xs font-bold text-teal-900">Recommended Intervention: Desk Posture &amp; Burnout Reset</div>
-                    <div class="text-[0.7rem] text-teal-700">Recommended for Engineering &amp; Sales teams before quarter-end.</div>
+                    <div class="text-[0.7rem] text-teal-700">Recommended for Engineering &amp; Sales teams before quarter-end sprints.</div>
                 </div>
             </div>
-            <a href="/hr/events?category=burnout" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-white border border-teal-300 text-teal-800 hover:bg-teal-50 shadow-2xs whitespace-nowrap">
+            <a href="/hr/events" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-white border border-teal-300 text-teal-800 hover:bg-teal-50 shadow-2xs whitespace-nowrap">
                 Schedule Team Session &rarr;
             </a>
         </div>
@@ -182,34 +209,25 @@
                         <span class="p-1.5 rounded-lg bg-teal-100 text-teal-700"><i data-lucide="brain" class="w-4 h-4"></i></span>
                         <span class="text-xs font-bold text-gray-800">Mental &amp; Stress Care</span>
                     </div>
-                    <span class="text-xs font-bold text-teal-700">45%</span>
+                    <span class="text-xs font-bold text-teal-700">58% (95 sessions)</span>
                 </div>
 
                 <!-- Pillar 2: Physical Fitness & Ergonomics -->
                 <div class="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
                     <div class="flex items-center gap-2.5">
                         <span class="p-1.5 rounded-lg bg-blue-100 text-blue-700"><i data-lucide="activity" class="w-4 h-4"></i></span>
-                        <span class="text-xs font-bold text-gray-800">Ergonomics &amp; Fitness</span>
+                        <span class="text-xs font-bold text-gray-800">Ergonomics &amp; Physio</span>
                     </div>
-                    <span class="text-xs font-bold text-blue-700">30%</span>
+                    <span class="text-xs font-bold text-blue-700">29% (48 sessions)</span>
                 </div>
 
                 <!-- Pillar 3: Professional Burnout -->
                 <div class="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
                     <div class="flex items-center gap-2.5">
                         <span class="p-1.5 rounded-lg bg-purple-100 text-purple-700"><i data-lucide="briefcase" class="w-4 h-4"></i></span>
-                        <span class="text-xs font-bold text-gray-800">Professional Coaching</span>
+                        <span class="text-xs font-bold text-gray-800">Executive Coaching</span>
                     </div>
-                    <span class="text-xs font-bold text-purple-700">15%</span>
-                </div>
-
-                <!-- Pillar 4: Nutrition & Diet -->
-                <div class="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 border border-gray-100">
-                    <div class="flex items-center gap-2.5">
-                        <span class="p-1.5 rounded-lg bg-amber-100 text-amber-700"><i data-lucide="utensils" class="w-4 h-4"></i></span>
-                        <span class="text-xs font-bold text-gray-800">Nutrition &amp; Diet</span>
-                    </div>
-                    <span class="text-xs font-bold text-amber-700">10%</span>
+                    <span class="text-xs font-bold text-purple-700">13% (21 sessions)</span>
                 </div>
             </div>
         </div>
@@ -227,8 +245,8 @@
     <!-- Recent Enrolled Employees -->
     <div class="bg-white p-6 rounded-2xl border border-gray-200 shadow-2xs">
         <div class="flex items-center justify-between mb-4">
-            <h3 class="text-base font-bold text-gray-900">Recent Employee Onboarding</h3>
-            <a href="/hr/employees" class="text-xs font-bold text-teal-700 hover:underline">View All &rarr;</a>
+            <h3 class="text-base font-bold text-gray-900">Recent Employee Activity</h3>
+            <a href="/hr/employees" class="text-xs font-bold text-teal-700 hover:underline">View All Roster &rarr;</a>
         </div>
         <div class="divide-y divide-gray-100">
             {% for emp in recent_employees %}
@@ -246,7 +264,7 @@
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.65rem] font-bold {% if emp.status == 'Active' %}bg-emerald-50 text-emerald-700 border border-emerald-200{% else %}bg-amber-50 text-amber-700 border border-amber-200{% endif %}">
                         {{ emp.status }}
                     </span>
-                    <div class="text-[0.65rem] text-gray-400 mt-0.5">{{ emp.credits_used }}/{{ emp.credits_quota }} credits used</div>
+                    <div class="text-[0.65rem] text-gray-400 mt-0.5">Last Consult: {{ emp.last_consultation_date | default('28 Sep 2026') }}</div>
                 </div>
             </div>
             {% endfor %}
@@ -284,4 +302,124 @@
         </div>
     </div>
 </div>
+
+<!-- ═══ Modal: Teamwise ThryveQ Popout ═══ -->
+<div id="thryveq-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-2xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-200 animate-in fade-in zoom-in duration-150">
+        <div class="flex items-center justify-between pb-4 border-b border-gray-100">
+            <div>
+                <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <i data-lucide="heart-pulse" class="w-5 h-5 text-teal-600"></i>
+                    Teamwise ThryveQ Breakdown
+                </h3>
+                <p class="text-xs text-gray-500 mt-0.5">Aggregated organizational health indices across departments (DPDP protected $\ge 5$ threshold)</p>
+            </div>
+            <button onclick="closeThryveQModal()" class="text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="mt-4 space-y-3.5">
+            <!-- Team 1: Engineering -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xs sm:text-sm text-gray-900 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                        Engineering &amp; Technology (64 members)
+                    </div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">High screen fatigue; recommended for Desk Posture reset</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-base font-extrabold text-indigo-700">78 / 100</div>
+                    <span class="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Moderate Load</span>
+                </div>
+            </div>
+
+            <!-- Team 2: Sales & GTM -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xs sm:text-sm text-gray-900 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        Sales &amp; Enterprise GTM (42 members)
+                    </div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">High physical activity; excellent consultation engagement</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-base font-extrabold text-emerald-700">85 / 100</div>
+                    <span class="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Optimal Zone</span>
+                </div>
+            </div>
+
+            <!-- Team 3: Product & Design -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xs sm:text-sm text-gray-900 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                        Product &amp; User Experience (28 members)
+                    </div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">Balanced sleep rhythm; consistent daily vital scans</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-base font-extrabold text-purple-700">81 / 100</div>
+                    <span class="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Optimal Zone</span>
+                </div>
+            </div>
+
+            <!-- Team 4: Operations & Support -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xs sm:text-sm text-gray-900 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                        Operations &amp; Customer Support (32 members)
+                    </div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">Shift variation detected; recommended for Sleep Hygiene program</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-base font-extrabold text-rose-700">73 / 100</div>
+                    <span class="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Attention Needed</span>
+                </div>
+            </div>
+
+            <!-- Team 5: Human Resources & Talent -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xs sm:text-sm text-gray-900 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-teal-500"></span>
+                        Human Resources &amp; People (14 members)
+                    </div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">Highest mindfulness &amp; physical wellness index across company</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-base font-extrabold text-teal-700">91 / 100</div>
+                    <span class="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">Thriving Zone</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
+            <div class="text-xs text-gray-500 flex items-center gap-1.5">
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600"></i>
+                <span>Company Overall Average: <strong class="text-gray-900">82 / 100</strong></span>
+            </div>
+            <button type="button" onclick="closeThryveQModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openThryveQModal() {
+        const modal = document.getElementById('thryveq-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeThryveQModal() {
+        const modal = document.getElementById('thryveq-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+</script>
 {% endblock %}
