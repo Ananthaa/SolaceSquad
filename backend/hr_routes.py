@@ -132,9 +132,9 @@ SAMPLE_EMPLOYEES = [
         "credits_used": 0,
         "credits_quota": 2,
         "status": "Invited",
-        "daily_workout_mins": 20,
-        "calories_burnt": 260,
-        "last_consultation_date": "None yet",
+        "daily_workout_mins": None,
+        "calories_burnt": None,
+        "last_consultation_date": "—",
         "last_consultation_type": "Pending Onboarding",
         "last_active": "Pending Invite"
     },
@@ -262,9 +262,9 @@ SAMPLE_EMPLOYEES = [
         "credits_used": 0,
         "credits_quota": 2,
         "status": "Invited",
-        "daily_workout_mins": 20,
-        "calories_burnt": 240,
-        "last_consultation_date": "None yet",
+        "daily_workout_mins": None,
+        "calories_burnt": None,
+        "last_consultation_date": "—",
         "last_consultation_type": "Pending Onboarding",
         "last_active": "Pending Invite"
     },
@@ -424,9 +424,9 @@ SAMPLE_EMPLOYEES = [
         "credits_used": 0,
         "credits_quota": 2,
         "status": "Invited",
-        "daily_workout_mins": 30,
-        "calories_burnt": 320,
-        "last_consultation_date": "None yet",
+        "daily_workout_mins": None,
+        "calories_burnt": None,
+        "last_consultation_date": "—",
         "last_consultation_type": "Pending Onboarding",
         "last_active": "Pending Invite"
     }
@@ -590,9 +590,9 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             "credits_used": 0,
             "credits_quota": credits_quota or 2,
             "status": "Invited",
-            "daily_workout_mins": 30,
-            "calories_burnt": 350,
-            "last_consultation_date": "None yet",
+            "daily_workout_mins": None,
+            "calories_burnt": None,
+            "last_consultation_date": "—",
             "last_consultation_type": "Pending Onboarding",
             "last_active": "Pending Onboarding"
         }
@@ -629,9 +629,9 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                         "credits_used": 0,
                         "credits_quota": 2,
                         "status": "Invited",
-                        "daily_workout_mins": 30,
-                        "calories_burnt": 350,
-                        "last_consultation_date": "None yet",
+                        "daily_workout_mins": None,
+                        "calories_burnt": None,
+                        "last_consultation_date": "—",
                         "last_consultation_type": "Pending Onboarding",
                         "last_active": "Pending Onboarding"
                     })
