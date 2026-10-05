@@ -50,14 +50,17 @@
         </p>
     </div>
 
-    <!-- Card 2: Overall Happiness Index (Mood Tracker) - Placed next to Org ThryveQ -->
-    <div class="bg-white p-5 rounded-2xl border border-amber-200/80 shadow-2xs hover:shadow-xs transition-all">
+    <!-- Card 2: Overall Happiness Index (Mood Tracker) - Clickable Modal Trigger -->
+    <div onclick="openHappinessModal()" class="bg-white p-5 rounded-2xl border border-amber-200/80 shadow-2xs hover:shadow-md hover:border-amber-400 transition-all cursor-pointer group relative overflow-hidden">
+        <div class="absolute top-2 right-2 flex items-center gap-1 text-[0.65rem] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+            <span>Teams</span> <i data-lucide="chevron-right" class="w-3 h-3 group-hover:translate-x-0.5 transition-transform"></i>
+        </div>
         <div class="flex items-center justify-between">
             <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Happiness Index</span>
             <span class="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-100"><i data-lucide="smile" class="w-4 h-4"></i></span>
         </div>
         <div class="mt-3 flex items-baseline gap-2">
-            <span class="text-3xl font-extrabold text-gray-900">84%</span>
+            <span class="text-3xl font-extrabold text-gray-900 group-hover:text-amber-800 transition-colors">84%</span>
             <span class="text-[0.7rem] font-semibold text-emerald-600 flex items-center gap-0.5">
                 <i data-lucide="trending-up" class="w-3 h-3"></i> +5.1%
             </span>
@@ -65,7 +68,9 @@
         <div class="w-full bg-gray-100 rounded-full h-1.5 mt-2.5 overflow-hidden">
             <div class="bg-gradient-to-r from-amber-400 to-emerald-500 h-1.5 rounded-full" style="width: 84%"></div>
         </div>
-        <p class="text-[0.68rem] text-gray-500 mt-2">Mood pulse: <strong>4.2 / 5.0</strong> rating</p>
+        <p class="text-[0.65rem] text-amber-700 font-semibold mt-2 flex items-center gap-1">
+            <i data-lucide="sparkles" class="w-3 h-3"></i> Click for Teamwise Moods
+        </p>
     </div>
 
     <!-- Card 3: Active Employee Engagement -->
@@ -123,6 +128,58 @@
             <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 75%"></div>
         </div>
         <p class="text-[0.68rem] text-gray-500 mt-2">Estimated runway: <strong>48 days</strong></p>
+    </div>
+</div>
+
+<!-- ═══ Quick Action Banners: Celebrations & Distress Alerts ═══ -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+    <!-- Banner 1: Upcoming Celebrations (Automated Wishes + Bonus Credits) -->
+    <div class="bg-gradient-to-br from-amber-500/10 via-white to-orange-500/5 p-4 rounded-2xl border border-amber-200 shadow-2xs flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <i data-lucide="cake" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-amber-800">Celebrations This Week</span>
+                    <span class="px-2 py-0.2 rounded-full text-[0.65rem] font-bold bg-amber-100 text-amber-800">3 Upcoming</span>
+                </div>
+                <div class="text-xs text-gray-700 mt-0.5 font-medium">
+                    🎂 <strong>Sneha Reddy</strong> (Birthday, Oct 08) &bull; 🎉 <strong>Aarav Patel</strong> (2-Yr Work Anniversary)
+                </div>
+                <div class="text-[0.68rem] text-emerald-700 font-semibold mt-0.5 flex items-center gap-1">
+                    <i data-lucide="check" class="w-3 h-3"></i> Auto email &amp; in-app wishes scheduled with +250 SolaceSquad Points
+                </div>
+            </div>
+        </div>
+        <a href="/hr/employees" class="shrink-0 text-xs font-bold text-amber-800 hover:text-amber-900 bg-white border border-amber-200 px-3 py-1.5 rounded-xl hover:bg-amber-50 transition-colors">
+            View &rarr;
+        </a>
+    </div>
+
+    <!-- Banner 2: Active Employee Distress Alerts & Anonymous Support -->
+    <div class="bg-gradient-to-br from-rose-500/10 via-white to-pink-500/5 p-4 rounded-2xl border border-rose-200 shadow-2xs flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <i data-lucide="shield-alert" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-rose-800">Employee Wellness Alerts</span>
+                    <span class="px-2 py-0.2 rounded-full text-[0.65rem] font-bold bg-rose-100 text-rose-700 animate-pulse">2 Active</span>
+                </div>
+                <div class="text-xs text-gray-700 mt-0.5 font-medium">
+                    🚨 <strong>Anon-842 (Eng)</strong> Distress Panic Signal &bull; ⚠️ <strong>Anon-109 (Ops)</strong> Stress Index &gt;88
+                </div>
+                <div class="text-[0.68rem] text-rose-600 font-semibold mt-0.5 flex items-center gap-1">
+                    <i data-lucide="message-circle" class="w-3 h-3"></i> Encrypted anonymous chat ready for HR support
+                </div>
+            </div>
+        </div>
+        <a href="/hr/alerts" class="shrink-0 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 px-3.5 py-1.5 rounded-xl shadow-xs transition-colors flex items-center gap-1">
+            <span>Open Chat</span>
+            <i data-lucide="arrow-right" class="w-3 h-3"></i>
+        </a>
     </div>
 </div>
 
@@ -537,6 +594,132 @@
     </div>
 </div>
 
+<!-- ═══ Departmental Happiness Index Popout Modal ═══ -->
+<div id="happiness-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-gray-100 p-6 sm:p-7 max-h-[90vh] overflow-y-auto transform transition-all animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-start justify-between pb-4 border-b border-gray-100">
+            <div>
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200 mb-2">
+                    <i data-lucide="smile" class="w-3.5 h-3.5"></i>
+                    <span>Departmental Mood Pulse &bull; September 2026</span>
+                </div>
+                <h3 class="text-xl font-display font-bold text-gray-900">Happiness &amp; Sentiment Index by Department</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Aggregated mood tracker logs &amp; daily sentiment pulses across company divisions</p>
+            </div>
+            <button type="button" onclick="closeHappinessModal()" class="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Sentiment Distribution Banner -->
+        <div class="grid grid-cols-3 gap-3 my-5">
+            <div class="bg-emerald-50/60 rounded-2xl p-3 border border-emerald-100 text-center">
+                <div class="text-xs font-bold text-emerald-800 uppercase tracking-wider">Joy / High Energy</div>
+                <div class="text-2xl font-black text-emerald-900 mt-1">54%</div>
+                <div class="text-[0.68rem] text-emerald-700 font-semibold mt-0.5">97 Employees</div>
+            </div>
+            <div class="bg-blue-50/60 rounded-2xl p-3 border border-blue-100 text-center">
+                <div class="text-xs font-bold text-blue-800 uppercase tracking-wider">Calm / Focused</div>
+                <div class="text-2xl font-black text-blue-900 mt-1">30%</div>
+                <div class="text-[0.68rem] text-blue-700 font-semibold mt-0.5">54 Employees</div>
+            </div>
+            <div class="bg-amber-50/60 rounded-2xl p-3 border border-amber-100 text-center">
+                <div class="text-xs font-bold text-amber-800 uppercase tracking-wider">Fatigued / Overwhelmed</div>
+                <div class="text-2xl font-black text-amber-900 mt-1">16%</div>
+                <div class="text-[0.68rem] text-amber-700 font-semibold mt-0.5">29 Employees</div>
+            </div>
+        </div>
+
+        <!-- Department Breakdown List -->
+        <div class="space-y-3">
+            <!-- Dept 1: Human Resources & Talent -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xs sm:text-sm text-gray-900 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-teal-500"></span>
+                        Human Resources &amp; People (14 members)
+                    </div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">High peer connection; daily positive reflections</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-base font-extrabold text-teal-700">92%</div>
+                    <span class="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">Very Positive</span>
+                </div>
+            </div>
+
+            <!-- Dept 2: Sales & Marketing -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xs sm:text-sm text-gray-900 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        Sales &amp; Enterprise Marketing (42 members)
+                    </div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">High optimism &amp; motivation; strong team energy</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-base font-extrabold text-emerald-700">88%</div>
+                    <span class="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">High Energy</span>
+                </div>
+            </div>
+
+            <!-- Dept 3: Product & Design -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xs sm:text-sm text-gray-900 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                        Product &amp; User Experience (28 members)
+                    </div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">Creative flow sustained; balanced mental wellbeing</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-base font-extrabold text-purple-700">86%</div>
+                    <span class="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">Optimal Zone</span>
+                </div>
+            </div>
+
+            <!-- Dept 4: Engineering -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xs sm:text-sm text-gray-900 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                        Engineering &amp; Platform (64 members)
+                    </div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">Release sprint pressure detected; Emora AI mindfulness active</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-base font-extrabold text-blue-700">82%</div>
+                    <span class="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">Stable Pulse</span>
+                </div>
+            </div>
+
+            <!-- Dept 5: Operations & Support -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                    <div class="font-bold text-xs sm:text-sm text-gray-900 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        Operations &amp; Customer Support (32 members)
+                    </div>
+                    <div class="text-[0.7rem] text-gray-500 mt-0.5">Shift fatigue elevated; suggested for Work-Life Reset workshop</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-base font-extrabold text-amber-700">74%</div>
+                    <span class="text-[0.65rem] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Attention Needed</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-gray-100 flex items-center justify-between">
+            <div class="text-xs text-gray-500 flex items-center gap-1.5">
+                <i data-lucide="smile" class="w-4 h-4 text-amber-600"></i>
+                <span>Company Overall Average: <strong class="text-gray-900">84% Positive (4.2 / 5.0)</strong></span>
+            </div>
+            <button type="button" onclick="closeHappinessModal()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold transition-colors">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     function openThryveQModal() {
         const modal = document.getElementById('thryveq-modal');
@@ -560,6 +743,19 @@
 
     function closeConsultationsModal() {
         const modal = document.getElementById('consultations-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function openHappinessModal() {
+        const modal = document.getElementById('happiness-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeHappinessModal() {
+        const modal = document.getElementById('happiness-modal');
         modal.classList.add('hidden');
         modal.classList.remove('flex');
     }

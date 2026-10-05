@@ -1,0 +1,338 @@
+{% extends "layouts/hr_portal.html" %}
+{% set active_page = "hr_alerts" %}
+
+{% block title %}Employee Alerts & Anonymous Support | {{ company_name | default('Acme Corp') }} HR Portal{% endblock %}
+
+{% block hr_content %}
+<div class="space-y-6">
+    <!-- Header & Alert Simulation Actions -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+            <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200 mb-2">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5 animate-pulse"></i>
+                <span>Confidential Incident Response &bull; DPDP 2023 Compliant</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                Employee Wellness &amp; Distress Alerts
+            </h1>
+            <p class="text-sm text-gray-600 mt-1">
+                Real-time distress panic signals and biometric scan stress anomalies with encrypted anonymous two-way chat.
+            </p>
+        </div>
+        <div class="flex items-center gap-2.5">
+            <button onclick="triggerSimulatedAlert('panic')" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold transition-all shadow-2xs">
+                <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>
+                <span>Simulate Panic Signal</span>
+            </button>
+            <button onclick="triggerSimulatedAlert('biometric')" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100 text-xs font-bold transition-all shadow-2xs">
+                <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+                <span>Simulate Stress >85 Scan</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 4 Summary KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="bg-white p-4.5 rounded-2xl border border-rose-200 shadow-2xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-gray-500">Active Signals</span>
+                <span class="p-2 rounded-xl bg-rose-50 text-rose-700"><i data-lucide="alert-triangle" class="w-4 h-4"></i></span>
+            </div>
+            <div class="text-2xl font-black text-rose-700 mt-2" id="active-alert-count">2 Signals</div>
+            <div class="text-[0.7rem] text-rose-600 font-semibold mt-0.5">1 Manual Panic &bull; 1 Biometric</div>
+        </div>
+
+        <div class="bg-white p-4.5 rounded-2xl border border-gray-200 shadow-2xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-gray-500">Avg HR Response</span>
+                <span class="p-2 rounded-xl bg-blue-50 text-blue-700"><i data-lucide="clock" class="w-4 h-4"></i></span>
+            </div>
+            <div class="text-2xl font-black text-gray-900 mt-2">4.2 Mins</div>
+            <div class="text-[0.7rem] text-emerald-600 font-semibold mt-0.5">Under 15-min target</div>
+        </div>
+
+        <div class="bg-white p-4.5 rounded-2xl border border-gray-200 shadow-2xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-gray-500">Specialist Referrals</span>
+                <span class="p-2 rounded-xl bg-purple-50 text-purple-700"><i data-lucide="user-check" class="w-4 h-4"></i></span>
+            </div>
+            <div class="text-2xl font-black text-purple-800 mt-2">14 This Month</div>
+            <div class="text-[0.7rem] text-purple-600 font-semibold mt-0.5">100% Confidential</div>
+        </div>
+
+        <div class="bg-white p-4.5 rounded-2xl border border-gray-200 shadow-2xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold uppercase tracking-wider text-gray-500">Identity Protection</span>
+                <span class="p-2 rounded-xl bg-emerald-50 text-emerald-700"><i data-lucide="shield-check" class="w-4 h-4"></i></span>
+            </div>
+            <div class="text-2xl font-black text-emerald-800 mt-2">Zero-Knowledge</div>
+            <div class="text-[0.7rem] text-emerald-600 font-semibold mt-0.5">Pseudonymized DPDP Vault</div>
+        </div>
+    </div>
+
+    <!-- Main Alert Terminal (2 Columns: Queue & Chat) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- Left: Alerts Queue (5 Cols) -->
+        <div class="lg:col-span-5 space-y-3">
+            <div class="flex items-center justify-between px-1">
+                <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wider">Active Alert Queue</h3>
+                <span class="text-xs text-gray-500">Sorted by urgency</span>
+            </div>
+
+            <!-- Alert Card 1 (Active / Selected) -->
+            <div onclick="selectAlert('anon-842')" id="card-anon-842" class="p-4 rounded-2xl border-2 border-rose-500 bg-rose-50/40 cursor-pointer shadow-xs transition-all relative overflow-hidden">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                            <i data-lucide="user-x" class="w-4.5 h-4.5"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-900 text-sm flex items-center gap-1.5">
+                                <span>Employee #Anon-842</span>
+                                <span class="px-1.5 py-0.2 rounded text-[0.65rem] font-bold bg-rose-100 text-rose-800">Critical</span>
+                            </div>
+                            <div class="text-[0.7rem] text-gray-500">Engineering Division &bull; 12 mins ago</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3 text-xs text-gray-800 bg-white/90 p-2.5 rounded-xl border border-rose-200">
+                    <div class="font-semibold text-rose-900 text-[0.7rem] mb-0.5 flex items-center gap-1">
+                        <i data-lucide="alert-circle" class="w-3 h-3 text-rose-600"></i>
+                        <span>Manual Distress Panic Signal Triggered</span>
+                    </div>
+                    <p class="text-gray-600 line-clamp-2">"Feeling severe panic, overwhelmed by sprint deliverable pressure and insomnia for 3 days..."</p>
+                </div>
+            </div>
+
+            <!-- Alert Card 2: Biometric Anomaly -->
+            <div onclick="selectAlert('anon-109')" id="card-anon-109" class="p-4 rounded-2xl border border-amber-300 bg-white hover:border-amber-400 cursor-pointer shadow-2xs transition-all">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                            <i data-lucide="activity" class="w-4.5 h-4.5"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-900 text-sm flex items-center gap-1.5">
+                                <span>Employee #Anon-109</span>
+                                <span class="px-1.5 py-0.2 rounded text-[0.65rem] font-bold bg-amber-100 text-amber-800">Biometric Spike</span>
+                            </div>
+                            <div class="text-[0.7rem] text-gray-500">Operations Support &bull; 45 mins ago</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3 text-xs text-gray-800 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <div class="font-semibold text-amber-900 text-[0.7rem] mb-0.5 flex items-center gap-1">
+                        <i data-lucide="scan-face" class="w-3 h-3 text-amber-600"></i>
+                        <span>rPPG Camera Scan: Sustained Stress Index 89/100</span>
+                    </div>
+                    <p class="text-gray-600">Resting HR: 94 bpm &bull; HRV SDNN: 18ms (High autonomic strain)</p>
+                </div>
+            </div>
+
+            <!-- Alert Card 3: Resolved -->
+            <div class="p-4 rounded-2xl border border-gray-200 bg-white opacity-70 cursor-default">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">
+                            <i data-lucide="check" class="w-4.5 h-4.5"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-900 text-sm">Employee #Anon-731</div>
+                            <div class="text-[0.7rem] text-gray-500">Sales &amp; Marketing &bull; Yesterday</div>
+                        </div>
+                    </div>
+                    <span class="px-2 py-0.5 rounded-full text-[0.65rem] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Resolved</span>
+                </div>
+                <div class="mt-2 text-[0.7rem] text-gray-500">
+                    1-on-1 Burnout Reset consultation booked &bull; 2-day recovery granted
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Live Confidential Chat Terminal (7 Cols) -->
+        <div class="lg:col-span-7 bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden flex flex-col h-[640px]">
+            <!-- Chat Header -->
+            <div class="p-4 border-b border-gray-200 bg-slate-50/80 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-600 to-rose-700 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                        #842
+                    </div>
+                    <div>
+                        <div class="font-bold text-sm text-gray-900 flex items-center gap-2">
+                            <span>Employee #Anon-842</span>
+                            <span class="px-2 py-0.2 rounded-full text-[0.65rem] font-bold bg-teal-50 text-teal-700 border border-teal-200">Engineering Dept</span>
+                        </div>
+                        <div class="text-[0.7rem] text-gray-500 flex items-center gap-1.5 mt-0.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span>Online via SolaceSquad Mobile App &bull; Pseudonymized Session</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="resolveAlertModal()" class="px-3 py-1.5 rounded-xl bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition-colors">
+                        Mark Resolved
+                    </button>
+                </div>
+            </div>
+
+            <!-- Privacy Guarantee Banner -->
+            <div class="px-4 py-2 bg-teal-50/70 border-b border-teal-100 flex items-center gap-2 text-[0.7rem] text-teal-800">
+                <i data-lucide="lock" class="w-3.5 h-3.5 text-teal-600 shrink-0"></i>
+                <span><strong>Zero-Knowledge Privacy:</strong> The employee's personal name and contact details remain locked unless voluntarily shared.</span>
+            </div>
+
+            <!-- Chat Message Feed -->
+            <div class="flex-1 p-4 overflow-y-auto space-y-3.5 bg-slate-50/30" id="chat-messages">
+                <!-- System Trigger Timestamp -->
+                <div class="text-center my-2">
+                    <span class="px-3 py-1 rounded-full bg-slate-100 text-[0.65rem] font-bold text-gray-500 uppercase tracking-wider">
+                        Today, 10:48 AM &bull; Manual Distress Signal
+                    </span>
+                </div>
+
+                <!-- Employee Bubble -->
+                <div class="flex items-start gap-2.5 max-w-[85%]">
+                    <div class="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold shrink-0">
+                        842
+                    </div>
+                    <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-200 shadow-2xs">
+                        <div class="text-xs text-gray-800 leading-relaxed">
+                            Hi, I've been feeling extremely overwhelmed by the current sprint deliverables and barely slept for the past 3 days. I'm feeling severe panic and chest tightness.
+                        </div>
+                        <div class="text-[0.65rem] text-gray-400 mt-1">10:48 AM</div>
+                    </div>
+                </div>
+
+                <!-- HR Bubble -->
+                <div class="flex items-start gap-2.5 max-w-[85%] ml-auto flex-row-reverse">
+                    <div class="w-7 h-7 rounded-full bg-teal-700 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                        HR
+                    </div>
+                    <div class="bg-teal-700 text-white p-3 rounded-2xl rounded-tr-none shadow-2xs">
+                        <div class="text-xs leading-relaxed">
+                            Hello, we hear you and we are here for you. Please know you are completely safe and supported. Your health and wellbeing always come before any project deadline.
+                        </div>
+                        <div class="text-[0.65rem] text-teal-200 mt-1 text-right">10:52 AM &bull; Seen</div>
+                    </div>
+                </div>
+
+                <!-- Employee Bubble -->
+                <div class="flex items-start gap-2.5 max-w-[85%]">
+                    <div class="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold shrink-0">
+                        842
+                    </div>
+                    <div class="bg-white p-3 rounded-2xl rounded-tl-none border border-gray-200 shadow-2xs">
+                        <div class="text-xs text-gray-800 leading-relaxed">
+                            Thank you so much. Is there any way I can speak to a psychologist confidentially today or take a mental health reset without it affecting my team standing?
+                        </div>
+                        <div class="text-[0.65rem] text-gray-400 mt-1">10:56 AM</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Action Chips for HR -->
+            <div class="p-2.5 bg-slate-50 border-t border-gray-200 flex items-center gap-2 overflow-x-auto">
+                <span class="text-[0.65rem] uppercase font-bold text-gray-400 shrink-0">Instant Actions:</span>
+                <button onclick="sendQuickAction('specialist')" class="shrink-0 px-2.5 py-1 rounded-lg bg-white border border-purple-200 hover:border-purple-300 text-purple-700 text-xs font-semibold shadow-2xs flex items-center gap-1">
+                    <i data-lucide="video" class="w-3 h-3"></i>
+                    <span>Gift Urgent 1-on-1 Session</span>
+                </button>
+                <button onclick="sendQuickAction('reset_day')" class="shrink-0 px-2.5 py-1 rounded-lg bg-white border border-teal-200 hover:border-teal-300 text-teal-700 text-xs font-semibold shadow-2xs flex items-center gap-1">
+                    <i data-lucide="calendar" class="w-3 h-3"></i>
+                    <span>Grant No-Questions Reset Day</span>
+                </button>
+                <button onclick="sendQuickAction('audio_guide')" class="shrink-0 px-2.5 py-1 rounded-lg bg-white border border-blue-200 hover:border-blue-300 text-blue-700 text-xs font-semibold shadow-2xs flex items-center gap-1">
+                    <i data-lucide="headphones" class="w-3 h-3"></i>
+                    <span>Send Panic De-escalation Audio</span>
+                </button>
+            </div>
+
+            <!-- Message Input Form -->
+            <form onsubmit="handleSendChat(event)" class="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
+                <input type="text" id="chat-input" placeholder="Type confidential supportive response..." required class="flex-1 px-4 py-2.5 text-xs sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-teal-600">
+                <button type="submit" class="px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-xs">
+                    <span>Send</span>
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function triggerSimulatedAlert(type) {
+        if (type === 'panic') {
+            alert('Simulated Distress Panic Signal successfully broadcast from mobile employee client!');
+        } else {
+            alert('Simulated Biometric Stress Index >85 Alert generated from contactless rPPG scan!');
+        }
+    }
+
+    function selectAlert(id) {
+        document.getElementById('card-anon-842').classList.remove('border-rose-500', 'bg-rose-50/40', 'border-2');
+        document.getElementById('card-anon-109').classList.remove('border-rose-500', 'bg-rose-50/40', 'border-2');
+
+        if (id === 'anon-842') {
+            document.getElementById('card-anon-842').classList.add('border-rose-500', 'bg-rose-50/40', 'border-2');
+        } else {
+            document.getElementById('card-anon-109').classList.add('border-rose-500', 'bg-rose-50/40', 'border-2');
+        }
+    }
+
+    function handleSendChat(e) {
+        e.preventDefault();
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        const feed = document.getElementById('chat-messages');
+        const bubble = document.createElement('div');
+        bubble.className = 'flex items-start gap-2.5 max-w-[85%] ml-auto flex-row-reverse animate-in fade-in duration-150';
+        bubble.innerHTML = `
+            <div class="w-7 h-7 rounded-full bg-teal-700 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                HR
+            </div>
+            <div class="bg-teal-700 text-white p-3 rounded-2xl rounded-tr-none shadow-2xs">
+                <div class="text-xs leading-relaxed">${text}</div>
+                <div class="text-[0.65rem] text-teal-200 mt-1 text-right">Just now &bull; Sent</div>
+            </div>
+        `;
+        feed.appendChild(bubble);
+        input.value = '';
+        feed.scrollTop = feed.scrollHeight;
+    }
+
+    function sendQuickAction(action) {
+        const feed = document.getElementById('chat-messages');
+        const bubble = document.createElement('div');
+        bubble.className = 'flex items-start gap-2.5 max-w-[85%] ml-auto flex-row-reverse animate-in fade-in duration-150';
+
+        let msg = '';
+        if (action === 'specialist') {
+            msg = '🎁 We have credited a complimentary urgent 1-on-1 session with Senior Clinical Psychologist Dr. Priya Nair. You can book directly in the app at no cost with zero manager approval required.';
+        } else if (action === 'reset_day') {
+            msg = '📅 We have logged a No-Questions Mental Health Reset day for you today. Please rest, disconnect from Slack/email, and focus on recovery.';
+        } else {
+            msg = '🧘 Here is SolaceSquad’s 5-Minute Somatic Grounding Audio Guide for acute panic relief: https://solacesquad.com/audio/grounding';
+        }
+
+        bubble.innerHTML = `
+            <div class="w-7 h-7 rounded-full bg-teal-700 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                HR
+            </div>
+            <div class="bg-teal-700 text-white p-3 rounded-2xl rounded-tr-none shadow-2xs">
+                <div class="text-xs leading-relaxed font-semibold">${msg}</div>
+                <div class="text-[0.65rem] text-teal-200 mt-1 text-right">Instant Action Applied &bull; Just now</div>
+            </div>
+        `;
+        feed.appendChild(bubble);
+        feed.scrollTop = feed.scrollHeight;
+    }
+
+    function resolveAlertModal() {
+        if (confirm('Mark this distress alert as resolved and send a confidential wellness wrap-up note?')) {
+            alert('Alert marked as resolved. Employee notified.');
+        }
+    }
+</script>
+{% endblock %}

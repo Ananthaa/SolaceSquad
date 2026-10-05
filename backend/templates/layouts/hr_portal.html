@@ -87,16 +87,25 @@
                 <span>Wellness Insights</span>
             </a>
 
-            <!-- Nav Item 4: Corporate Wallet & Credits -->
-            <a href="/hr/credits" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors {% if active_page == 'hr_credits' %}bg-teal-50 text-teal-800 font-semibold border-l-4 border-teal-600{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-900{% endif %}">
-                <i data-lucide="wallet" class="w-4.5 h-4.5 {% if active_page == 'hr_credits' %}text-teal-700{% else %}text-gray-500{% endif %}"></i>
-                <span>Credits & Billing</span>
+            <!-- Nav Item 4: Employee Alerts & Distress Chat -->
+            <a href="/hr/alerts" class="flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors {% if active_page == 'hr_alerts' %}bg-teal-50 text-teal-800 font-semibold border-l-4 border-teal-600{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-900{% endif %}">
+                <div class="flex items-center gap-3">
+                    <i data-lucide="shield-alert" class="w-4.5 h-4.5 {% if active_page == 'hr_alerts' %}text-rose-600{% else %}text-rose-500{% endif %}"></i>
+                    <span>Employee Alerts</span>
+                </div>
+                <span class="px-2 py-0.5 rounded-full text-[0.65rem] font-bold bg-rose-100 text-rose-700 animate-pulse">2 New</span>
             </a>
 
-            <!-- Nav Item 5: Corporate Workshops -->
+            <!-- Nav Item 5: Corporate Wallet & Credits -->
+            <a href="/hr/credits" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors {% if active_page == 'hr_credits' %}bg-teal-50 text-teal-800 font-semibold border-l-4 border-teal-600{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-900{% endif %}">
+                <i data-lucide="wallet" class="w-4.5 h-4.5 {% if active_page == 'hr_credits' %}text-teal-700{% else %}text-gray-500{% endif %}"></i>
+                <span>Credits &amp; Billing</span>
+            </a>
+
+            <!-- Nav Item 6: Corporate Workshops & Challenges -->
             <a href="/hr/events" class="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors {% if active_page == 'hr_events' %}bg-teal-50 text-teal-800 font-semibold border-l-4 border-teal-600{% else %}text-gray-700 hover:bg-gray-100 hover:text-gray-900{% endif %}">
                 <i data-lucide="calendar-range" class="w-4.5 h-4.5 {% if active_page == 'hr_events' %}text-teal-700{% else %}text-gray-500{% endif %}"></i>
-                <span>Team Workshops</span>
+                <span>Workshops &amp; Challenges</span>
             </a>
         </nav>
 

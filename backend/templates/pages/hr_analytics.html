@@ -41,6 +41,7 @@
                     <th class="py-3.5 px-4 text-center">Participation %</th>
                     <th class="py-3.5 px-4 text-center">Avg ThryveQ Score</th>
                     <th class="py-3.5 px-4 text-center">Stress Status</th>
+                    <th class="py-3.5 px-4 text-center">Emora AI Usage</th>
                     <th class="py-3.5 px-6 text-right">Top Utilized Pillar</th>
                 </tr>
             </thead>
@@ -62,6 +63,12 @@
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold {{ dept.stress_badge }}">
                             {{ dept.stress_status }}
                         </span>
+                    </td>
+                    <td class="py-3.5 px-4 text-center">
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 text-xs font-bold text-teal-900" title="Total AI Companion Reflections &amp; Micro-coaching Sessions">
+                            <i data-lucide="bot" class="w-3.5 h-3.5 text-teal-600"></i>
+                            <span>{{ dept.emora_msgs | default('320 msgs') }}</span>
+                        </div>
                     </td>
                     <td class="py-3.5 px-6 text-right text-gray-700 font-medium">
                         {{ dept.top_pillar }}

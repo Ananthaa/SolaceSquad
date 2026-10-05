@@ -63,9 +63,14 @@
                 <tr class="bg-slate-50 border-b border-gray-200 text-[0.7rem] uppercase font-bold text-gray-500 tracking-wider">
                     <th class="py-3.5 px-4 sm:px-6">Employee</th>
                     <th class="py-3.5 px-4">Department &amp; Role</th>
-                    <th class="py-3.5 px-4">Status</th>
+                    <th class="py-3.5 px-4">
+                        <span class="inline-flex items-center gap-1" title="Account Activation Status">
+                            Status <i data-lucide="info" class="w-3 h-3 text-gray-400"></i>
+                        </span>
+                    </th>
+                    <th class="py-3.5 px-4 text-center">Last Vital Scan</th>
                     <th class="py-3.5 px-4 text-center">Avg Workout / Cals</th>
-                    <th class="py-3.5 px-4 text-center">Credits (₹2,000/mo)</th>
+                    <th class="py-3.5 px-4 text-center">Consultation Sessions</th>
                     <th class="py-3.5 px-4">Last Consultation</th>
                     <th class="py-3.5 px-4 sm:px-6 text-right">Actions</th>
                 </tr>
@@ -92,11 +97,25 @@
                         <div class="text-[0.75rem] text-gray-500">{{ emp.designation }}</div>
                     </td>
 
-                    <!-- Status -->
+                    <!-- Status with Tooltip -->
                     <td class="py-3.5 px-4">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold {% if emp.status == 'Active' %}bg-emerald-50 text-emerald-700 border border-emerald-200{% elif emp.status == 'Invited' %}bg-amber-50 text-amber-700 border border-amber-200{% else %}bg-gray-100 text-gray-600 border border-gray-200{% endif %}">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.7rem] font-bold cursor-help {% if emp.status == 'Active' %}bg-emerald-50 text-emerald-700 border border-emerald-200{% elif emp.status == 'Invited' %}bg-amber-50 text-amber-700 border border-amber-200{% else %}bg-gray-100 text-gray-600 border border-gray-200{% endif %}"
+                              title="{% if emp.status == 'Active' %}Active: Employee has completed onboarding, accepted corporate wellness benefits, and actively accessing app features.{% elif emp.status == 'Invited' %}Invited: Corporate invitation sent to work email; pending first login &amp; employee onboarding.{% else %}Account status{% endif %}">
                             {{ emp.status }}
                         </span>
+                    </td>
+
+                    <!-- Last Vital Scan Date -->
+                    <td class="py-3.5 px-4 text-center">
+                        {% if emp.status == 'Invited' or not emp.last_vital_scan_date %}
+                        <span class="text-gray-400 font-medium text-sm">—</span>
+                        {% else %}
+                        <div class="font-bold text-gray-900 text-xs flex items-center justify-center gap-1">
+                            <i data-lucide="scan-face" class="w-3.5 h-3.5 text-teal-600"></i>
+                            <span>{{ emp.last_vital_scan_date }}</span>
+                        </div>
+                        <div class="text-[0.65rem] text-emerald-600 font-medium">Optimal Biometrics</div>
+                        {% endif %}
                     </td>
 
                     <!-- Daily Workout & Calories Burnt -->
@@ -112,12 +131,13 @@
                         {% endif %}
                     </td>
 
-                    <!-- Credits Quota & Usage -->
+                    <!-- Consultation Sessions Quota & Usage -->
                     <td class="py-3.5 px-4 text-center">
-                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs font-bold text-gray-800">
-                            <span class="text-teal-700 font-extrabold">{{ emp.credits_used }}</span>
+                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 border border-purple-200 text-xs font-bold text-purple-900" title="Monthly Included 1-on-1 Specialist Sessions (Company Covered)">
+                            <i data-lucide="video" class="w-3 h-3 text-purple-600"></i>
+                            <span class="text-purple-800 font-extrabold">{{ emp.credits_used }}</span>
                             <span class="text-gray-400">/</span>
-                            <span>{{ emp.credits_quota }} used</span>
+                            <span>{{ emp.credits_quota }} Sessions</span>
                         </div>
                     </td>
 
@@ -208,6 +228,19 @@
                     <input type="text" name="designation" placeholder="e.g. Lead SRE" class="w-full px-3.5 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-teal-500">
                 </div>
             </div>
+            <!-- DOB and DOJ for automated celebratory greetings & rewards -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Date of Birth</label>
+                    <input type="date" name="date_of_birth" class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:border-teal-500">
+                    <span class="text-[0.65rem] text-gray-400">For auto birthday wishes</span>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Date of Joining</label>
+                    <input type="date" name="date_of_joining" class="w-full px-3 py-2 text-xs border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:border-teal-500">
+                    <span class="text-[0.65rem] text-gray-400">For work anniversary wishes</span>
+                </div>
+            </div>
             <div class="p-3 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-800">
                 <i data-lucide="shield-check" class="w-3.5 h-3.5 inline text-teal-600 mr-1"></i>
                 Employee will receive ₹2,000/mo in corporate consultation credits + Unlimited Vital Scan.
@@ -231,7 +264,7 @@
             <div class="p-4 border-2 border-dashed border-gray-300 rounded-2xl text-center hover:border-teal-500 transition-colors">
                 <i data-lucide="upload-cloud" class="w-8 h-8 text-teal-600 mx-auto mb-2"></i>
                 <div class="text-xs font-bold text-gray-800">Upload CSV File</div>
-                <div class="text-[0.7rem] text-gray-500 mt-1">Headers required: <code>name</code>, <code>email</code>, <code>department</code>, <code>designation</code></div>
+                <div class="text-[0.7rem] text-gray-500 mt-1">Headers supported: <code>name</code>, <code>email</code>, <code>department</code>, <code>designation</code>, <code>dob</code> (YYYY-MM-DD), <code>doj</code> (YYYY-MM-DD)</div>
                 <input type="file" name="file" accept=".csv" required class="mt-3 text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100">
             </div>
             <div class="flex items-center justify-end gap-3 pt-2">

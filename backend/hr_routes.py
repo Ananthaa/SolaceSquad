@@ -432,6 +432,24 @@ SAMPLE_EMPLOYEES = [
     }
 ]
 
+# Enrich employee records with vital scan timestamps & celebration dates
+_VITAL_TIMES = [
+    "Today, 09:30 AM", "Today, 10:15 AM", "Yesterday, 04:20 PM", "Today, 11:05 AM", 
+    "Yesterday, 06:10 PM", None, "Today, 08:30 AM", "01 Oct 2026",
+    "Today, 09:45 AM", "Yesterday, 03:10 PM", "Today, 11:30 AM", "Yesterday, 05:40 PM",
+    "02 Oct 2026", None, "Today, 10:00 AM", "Yesterday, 02:20 PM",
+    "Today, 09:15 AM", "30 Sep 2026", "Yesterday, 04:30 PM", "Today, 08:50 AM",
+    "Yesterday, 01:20 PM", "Today, 11:10 AM", "Yesterday, 05:00 PM", None
+]
+
+for _idx, _e in enumerate(SAMPLE_EMPLOYEES):
+    if "last_vital_scan_date" not in _e:
+        _e["last_vital_scan_date"] = _VITAL_TIMES[_idx % len(_VITAL_TIMES)] if _e.get("status") != "Invited" else None
+    if "date_of_birth" not in _e:
+        _e["date_of_birth"] = "1994-10-08" if _idx == 1 else "1992-05-14"
+    if "date_of_joining" not in _e:
+        _e["date_of_joining"] = _e.get("joined_date", "15 Jan 2026")
+
 SAMPLE_INVOICES = [
     {
         "id": 1,
@@ -577,6 +595,8 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         designation: Optional[str] = Form(None),
         role: Optional[str] = Form(None),
         credits_quota: Optional[int] = Form(2),
+        date_of_birth: Optional[str] = Form(None),
+        date_of_joining: Optional[str] = Form(None),
         db: Session = Depends(get_db)
     ):
         emp_role = designation or role or "Team Member"
@@ -586,10 +606,13 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
             "email": email.strip().lower(),
             "department": department,
             "designation": emp_role.strip(),
-            "joined_date": date.today().strftime("%d %b %Y"),
+            "joined_date": date_of_joining or date.today().strftime("%d %b %Y"),
+            "date_of_joining": date_of_joining or date.today().strftime("%d %b %Y"),
+            "date_of_birth": date_of_birth or "1995-01-01",
             "credits_used": 0,
             "credits_quota": credits_quota or 2,
             "status": "Invited",
+            "last_vital_scan_date": None,
             "daily_workout_mins": None,
             "calories_burnt": None,
             "last_consultation_date": "—",
@@ -617,6 +640,8 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                 emp_email = row.get("email") or row.get("Email") or row.get("Work Email")
                 emp_dept = row.get("department") or row.get("Department") or "General"
                 emp_role = row.get("designation") or row.get("role") or row.get("Role") or row.get("Title") or "Team Member"
+                emp_dob = row.get("date_of_birth") or row.get("DOB") or row.get("Date of Birth") or "1994-06-15"
+                emp_doj = row.get("date_of_joining") or row.get("DOJ") or row.get("Date of Joining") or date.today().strftime("%d %b %Y")
                 
                 if emp_name and emp_email:
                     SAMPLE_EMPLOYEES.insert(0, {
@@ -625,10 +650,13 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                         "email": emp_email.strip().lower(),
                         "department": emp_dept.strip(),
                         "designation": emp_role.strip(),
-                        "joined_date": date.today().strftime("%d %b %Y"),
+                        "joined_date": emp_doj,
+                        "date_of_joining": emp_doj,
+                        "date_of_birth": emp_dob,
                         "credits_used": 0,
                         "credits_quota": 2,
                         "status": "Invited",
+                        "last_vital_scan_date": None,
                         "daily_workout_mins": None,
                         "calories_burnt": None,
                         "last_consultation_date": "—",
@@ -656,6 +684,7 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                     "avg_score": 78,
                     "stress_status": "Moderate Load",
                     "stress_badge": "bg-amber-50 text-amber-700 border-amber-200",
+                    "emora_msgs": "420 msgs",
                     "top_pillar": "Mental & Ergonomics"
                 },
                 {
@@ -666,6 +695,7 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                     "avg_score": 85,
                     "stress_status": "Optimal Zone",
                     "stress_badge": "bg-emerald-50 text-emerald-700 border-emerald-200",
+                    "emora_msgs": "310 msgs",
                     "top_pillar": "Work-Life Balance"
                 },
                 {
@@ -676,6 +706,7 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                     "avg_score": 81,
                     "stress_status": "Optimal Zone",
                     "stress_badge": "bg-emerald-50 text-emerald-700 border-emerald-200",
+                    "emora_msgs": "280 msgs",
                     "top_pillar": "Stress Resilience"
                 },
                 {
@@ -686,6 +717,7 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                     "avg_score": 73,
                     "stress_status": "Attention Needed",
                     "stress_badge": "bg-amber-50 text-amber-700 border-amber-200",
+                    "emora_msgs": "390 msgs",
                     "top_pillar": "Sleep & Ergonomics"
                 },
                 {
@@ -696,6 +728,7 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
                     "avg_score": 91,
                     "stress_status": "Thriving Zone",
                     "stress_badge": "bg-emerald-50 text-emerald-700 border-emerald-200",
+                    "emora_msgs": "180 msgs",
                     "top_pillar": "Mindfulness & Resilience"
                 }
             ],
@@ -794,7 +827,60 @@ def register_hr_routes(app: FastAPI, templates: Jinja2Templates, get_db):
         SAMPLE_SCHEDULED_WORKSHOPS.insert(0, new_workshop)
         return RedirectResponse(url="/hr/events?booked=1", status_code=303)
 
-    # ── 6. JSON Stats API for HR Widget / Quick Queries ───────────────────────
+    # ── 5.2 Corporate Wellness Challenge Creation POST Handler ────────────────
+    @app.post("/hr/challenges/create")
+    async def hr_create_challenge(
+        request: Request,
+        title: str = Form(...),
+        activity_type: str = Form("Daily Steps (8,000/day)"),
+        duration_days: int = Form(14),
+        target_dept: str = Form("All Departments"),
+        wallet_reward_points: int = Form(500),
+        db: Session = Depends(get_db)
+    ):
+        return RedirectResponse(url="/hr/events?challenge_created=1", status_code=303)
+
+    # ── 6. Employee Distress Alerts & Incident Response ───────────────────────
+    @app.get("/hr/alerts", response_class=HTMLResponse)
+    async def hr_alerts(request: Request, db: Session = Depends(get_db)):
+        ctx = _get_hr_context(request, db)
+        return templates.TemplateResponse("pages/hr_alerts.html", ctx)
+
+    # ── 7. Corporate HR & Enterprise Sign In ──────────────────────────────────
+    @app.get("/hr/login", response_class=HTMLResponse)
+    @app.get("/corporate/login", response_class=HTMLResponse)
+    async def hr_login_page(request: Request, db: Session = Depends(get_db)):
+        ctx = _get_hr_context(request, db)
+        return templates.TemplateResponse("pages/auth/hr_login.html", ctx)
+
+    @app.post("/hr/login")
+    async def hr_login_post(
+        request: Request,
+        work_email: str = Form(...),
+        password: str = Form(""),
+        role_type: str = Form("hr"),
+        db: Session = Depends(get_db)
+    ):
+        if role_type == "employee":
+            return RedirectResponse(url="/dashboard", status_code=303)
+        return RedirectResponse(url="/hr/dashboard", status_code=303)
+
+    # ── 8. Automated Birthday & Anniversary Wishes ─────────────────────────────
+    @app.post("/hr/celebrations/send-wishes")
+    async def hr_send_celebration_wishes(
+        request: Request,
+        emp_id: Optional[int] = Form(None),
+        celebration_type: Optional[str] = Form("birthday"),
+        wallet_points: Optional[int] = Form(250),
+        db: Session = Depends(get_db)
+    ):
+        return JSONResponse({
+            "success": True,
+            "message": f"Celebration wish and +{wallet_points} SolaceSquad Points drop sent successfully!",
+            "emp_id": emp_id
+        })
+
+    # ── 9. JSON Stats API for HR Widget / Quick Queries ───────────────────────
     @app.get("/api/hr/stats")
     async def api_hr_stats(request: Request, db: Session = Depends(get_db)):
         return JSONResponse({
