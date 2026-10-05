@@ -1949,6 +1949,7 @@ async def refund_page(request: Request):
 
 
 @app.get("/privacy", response_class=HTMLResponse)
+@app.get("/privacy-policy", response_class=HTMLResponse)
 async def privacy_page(request: Request):
     """Privacy Policy page."""
     return templates.TemplateResponse(
