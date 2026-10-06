@@ -9,9 +9,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,14 +27,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.MedicalServices
-
 enum class TabItem(val title: String, val path: String, val icon: ImageVector) {
     HOME("Home", "/user-dashboard", Icons.Default.Home),
     VITALS("Vital Scan", "/vitals", Icons.Default.Favorite),
     QUICK_CONSULT("Quick Consult", "/quick-consult-web", Icons.Default.Bolt),
-    CONSULT("Book Consult", "/consultants", Icons.Default.MedicalServices),
+    CONSULT("Find Consultants", "/consultants", Icons.Default.Search),
     PROFILE("Profile", "/app/profile", Icons.Default.Person);
 
     companion object {
