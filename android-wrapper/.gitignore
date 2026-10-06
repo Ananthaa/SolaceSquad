@@ -13,3 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
+play-store-key.json
+*play-store*.json

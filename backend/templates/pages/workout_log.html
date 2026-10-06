@@ -779,9 +779,22 @@
         });
     }
 
+    // ── Safe date parser for all WebView engines ───────────────────
+    function parseISODate(iso) {
+        if (!iso) return new Date();
+        const clean = iso.toString().split('T')[0].split(' ')[0];
+        const parts = clean.split('-');
+        if (parts.length === 3) {
+            return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+        const d = new Date(iso);
+        return isNaN(d.getTime()) ? new Date() : d;
+    }
+
     // ── Format date nicely ──────────────────────────────────────────
     function fmtDate(iso) {
-        const d = new Date(iso + 'T00:00:00');
+        if (!iso) return '';
+        const d = parseISODate(iso);
         return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     }
 
@@ -799,7 +812,7 @@
     // ── Update stats strip ──────────────────────────────────────────
     function updateStats() {
         const weekStart = thisWeekStart();
-        const week = logs.filter(l => new Date(l.log_date + 'T00:00:00') >= weekStart);
+        const week = logs.filter(l => parseISODate(l.log_date) >= weekStart);
         document.getElementById('stat-total').textContent = week.length;
         document.getElementById('stat-mins').textContent = week.reduce((s, l) => s + (l.duration_min || 0), 0) + ' min';
         document.getElementById('stat-steps').textContent = week.reduce((s, l) => s + (l.step_count || 0), 0).toLocaleString();
@@ -858,9 +871,18 @@
     // ── Load logs ───────────────────────────────────────────────────
     async function loadLogs() {
         try {
-            const r = await fetch('/api/workout-log');
+            const r = await fetch('/api/workout-log?t=' + Date.now(), {
+                headers: { 'Cache-Control': 'no-cache' }
+            });
             const d = await r.json();
-            if (d.success) { logs = d.logs; renderList(); updateStats(); }
+            if (d && d.success && Array.isArray(d.logs)) {
+                logs = d.logs;
+                renderList();
+                updateStats();
+            } else {
+                console.warn("Could not load workouts:", d);
+                renderList();
+            }
         } catch (e) {
             console.error("Error loading logs:", e);
             renderList(); // Render empty list/state
