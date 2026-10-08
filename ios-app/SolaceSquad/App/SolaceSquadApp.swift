@@ -6,7 +6,7 @@ public enum TabItem: String, CaseIterable {
     case home = "Home"
     case vitals = "Vital Scan"
     case quickConsult = "Quick Consult"
-    case consult = "Book Consult"
+    case consult = "Find Consultants"
     case profile = "Profile"
     
     public var iconName: String {
@@ -14,7 +14,7 @@ public enum TabItem: String, CaseIterable {
         case .home: return "house.fill"
         case .vitals: return "heart.text.square.fill"
         case .quickConsult: return "bolt.fill"
-        case .consult: return "stethoscope"
+        case .consult: return "magnifyingglass"
         case .profile: return "person.crop.circle.fill"
         }
     }
