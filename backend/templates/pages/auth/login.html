@@ -208,28 +208,38 @@
         const phonePanel = document.getElementById('panel-phone');
         const googlePanel = document.getElementById('panel-google');
         
-        // Reset classes
+        // Reset classes safely (handling elements that may be absent on iOS)
         [emailBtn, phoneBtn, googleBtn].forEach(btn => {
-            btn.classList.remove('border-primary-600', 'text-primary-600', 'font-semibold');
-            btn.classList.add('border-transparent', 'text-gray-500', 'font-medium');
+            if (btn) {
+                btn.classList.remove('border-primary-600', 'text-primary-600', 'font-semibold');
+                btn.classList.add('border-transparent', 'text-gray-500', 'font-medium');
+            }
         });
         
         [emailPanel, phonePanel, googlePanel].forEach(panel => {
-            panel.classList.add('hidden');
+            if (panel) {
+                panel.classList.add('hidden');
+            }
         });
         
         if (tab === 'email') {
-            emailBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
-            emailBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
-            emailPanel.classList.remove('hidden');
+            if (emailBtn) {
+                emailBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
+                emailBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            }
+            if (emailPanel) emailPanel.classList.remove('hidden');
         } else if (tab === 'phone') {
-            phoneBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
-            phoneBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
-            phonePanel.classList.remove('hidden');
+            if (phoneBtn) {
+                phoneBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
+                phoneBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            }
+            if (phonePanel) phonePanel.classList.remove('hidden');
         } else if (tab === 'google') {
-            googleBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
-            googleBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
-            googlePanel.classList.remove('hidden');
+            if (googleBtn) {
+                googleBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
+                googleBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            }
+            if (googlePanel) googlePanel.classList.remove('hidden');
         }
     }
 
