@@ -22,6 +22,10 @@ public class PushNotificationManager: NSObject, UNUserNotificationCenterDelegate
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         self.apnsToken = tokenString
         print("[PushNotificationManager] APNs Token: \(tokenString)")
+        DispatchQueue.main.async {
+            let js = "if (window.onReceiveApnsToken) { window.onReceiveApnsToken('\(tokenString)'); }"
+            JavaScriptBridge.shared.activeWebView?.evaluateJavaScript(js, completionHandler: nil)
+        }
     }
     
     public func userNotificationCenter(

@@ -12,11 +12,11 @@
     <div class="flex items-center justify-between h-full px-4">
         <!-- Logo & Mobile Menu -->
         <div class="flex items-center gap-3">
-            <button id="sidebar-toggle-btn" onclick="toggleSidebar(event)" class="lg:hidden p-2 hover:bg-gray-100 active:bg-gray-200 rounded-lg text-gray-800 flex items-center justify-center min-w-[44px] min-h-[44px] focus:outline-none cursor-pointer" aria-label="Toggle navigation menu" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-gray-800 pointer-events-none">
-                    <line x1="4" y1="6" x2="20" y2="6"></line>
-                    <line x1="4" y1="12" x2="20" y2="12"></line>
-                    <line x1="4" y1="18" x2="20" y2="18"></line>
+            <button id="sidebar-toggle-btn" type="button" onclick="toggleSidebar(event)" class="lg:hidden p-2 hover:bg-gray-100 active:bg-gray-200 rounded-lg text-gray-800 flex items-center justify-center min-w-[44px] min-h-[44px] focus:outline-none cursor-pointer" aria-label="Toggle navigation menu" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-gray-800 pointer-events-none" style="pointer-events: none;">
+                    <line x1="4" y1="6" x2="20" y2="6" style="pointer-events: none;"></line>
+                    <line x1="4" y1="12" x2="20" y2="12" style="pointer-events: none;"></line>
+                    <line x1="4" y1="18" x2="20" y2="18" style="pointer-events: none;"></line>
                 </svg>
             </button>
 
@@ -49,17 +49,24 @@
         const overlay = document.getElementById('sidebar-overlay');
         if (sidebar) {
             sidebar.classList.remove('-translate-x-full');
-            sidebar.classList.add('translate-x-0', 'sidebar-open');
-            sidebar.style.transform = 'translateX(0px)';
-            sidebar.style.display = 'flex';
-            sidebar.style.visibility = 'visible';
-            sidebar.style.zIndex = '99999';
+            sidebar.classList.add('translate-x-0', 'sidebar-open', 'open');
+            sidebar.style.setProperty('display', 'flex', 'important');
+            sidebar.style.setProperty('visibility', 'visible', 'important');
+            sidebar.style.setProperty('opacity', '1', 'important');
+            sidebar.style.setProperty('transform', 'translateX(0px)', 'important');
+            sidebar.style.setProperty('-webkit-transform', 'translateX(0px)', 'important');
+            sidebar.style.setProperty('left', '0px', 'important');
+            sidebar.style.setProperty('z-index', '99999', 'important');
+            sidebar.style.setProperty('pointer-events', 'auto', 'important');
         }
         if (overlay) {
             overlay.classList.remove('hidden');
-            overlay.style.display = 'block';
-            overlay.style.visibility = 'visible';
-            overlay.style.zIndex = '99998';
+            overlay.classList.add('active', 'sidebar-overlay-open');
+            overlay.style.setProperty('display', 'block', 'important');
+            overlay.style.setProperty('visibility', 'visible', 'important');
+            overlay.style.setProperty('opacity', '1', 'important');
+            overlay.style.setProperty('z-index', '99998', 'important');
+            overlay.style.setProperty('pointer-events', 'auto', 'important');
         }
     };
 
@@ -68,39 +75,96 @@
         const overlay = document.getElementById('sidebar-overlay');
         if (sidebar) {
             sidebar.classList.add('-translate-x-full');
-            sidebar.classList.remove('translate-x-0', 'sidebar-open');
-            sidebar.style.transform = 'translateX(-100%)';
+            sidebar.classList.remove('translate-x-0', 'sidebar-open', 'open');
+            sidebar.style.setProperty('transform', 'translateX(-100%)', 'important');
+            sidebar.style.setProperty('-webkit-transform', 'translateX(-100%)', 'important');
             if (window.innerWidth < 1024) {
-                sidebar.style.display = 'none';
+                sidebar.style.setProperty('display', 'none', 'important');
+                sidebar.style.setProperty('left', '-100%', 'important');
+                sidebar.style.setProperty('pointer-events', 'none', 'important');
             }
         }
         if (overlay) {
             overlay.classList.add('hidden');
-            overlay.style.display = 'none';
+            overlay.classList.remove('active', 'sidebar-overlay-open');
+            overlay.style.setProperty('display', 'none', 'important');
+            overlay.style.setProperty('pointer-events', 'none', 'important');
         }
     };
 
     window.toggleSidebar = function (e) {
-        if (e && typeof e.preventDefault === 'function') {
-            e.preventDefault();
-            e.stopPropagation();
+        if (e) {
+            try { if (typeof e.preventDefault === 'function') e.preventDefault(); } catch (err) {}
+            try { if (typeof e.stopPropagation === 'function') e.stopPropagation(); } catch (err) {}
         }
         if (_sidebarToggleBusy) return;
         _sidebarToggleBusy = true;
-        setTimeout(() => { _sidebarToggleBusy = false; }, 250);
+        setTimeout(() => { _sidebarToggleBusy = false; }, 200);
 
         const sidebar = document.getElementById('sidebar');
         if (!sidebar) return;
-        const isClosed = sidebar.classList.contains('-translate-x-full') || 
-                         sidebar.style.transform === 'translateX(-100%)' || 
-                         sidebar.style.display === 'none' ||
-                         !sidebar.classList.contains('sidebar-open');
-        if (isClosed) {
-            window.openSidebar();
-        } else {
+        const isOpen = sidebar.classList.contains('sidebar-open') && 
+                       sidebar.style.display !== 'none' &&
+                       !sidebar.classList.contains('-translate-x-full');
+        if (isOpen) {
             window.closeSidebar();
+        } else {
+            window.openSidebar();
         }
     };
+
+    function bindSidebarEvents() {
+        const toggleBtn = document.getElementById('sidebar-toggle-btn');
+        if (toggleBtn && !toggleBtn.dataset.boundSidebar) {
+            toggleBtn.dataset.boundSidebar = 'true';
+            const onToggle = function (e) {
+                if (e) {
+                    try { e.preventDefault(); } catch (err) {}
+                    try { e.stopPropagation(); } catch (err) {}
+                }
+                window.toggleSidebar(e);
+                return false;
+            };
+            toggleBtn.addEventListener('click', onToggle, { passive: false });
+            toggleBtn.addEventListener('touchend', onToggle, { passive: false });
+        }
+
+        const closeBtn = document.getElementById('sidebar-close-btn');
+        if (closeBtn && !closeBtn.dataset.boundSidebar) {
+            closeBtn.dataset.boundSidebar = 'true';
+            const onClose = function (e) {
+                if (e) {
+                    try { e.preventDefault(); } catch (err) {}
+                    try { e.stopPropagation(); } catch (err) {}
+                }
+                window.closeSidebar();
+                return false;
+            };
+            closeBtn.addEventListener('click', onClose, { passive: false });
+            closeBtn.addEventListener('touchend', onClose, { passive: false });
+        }
+
+        const overlay = document.getElementById('sidebar-overlay');
+        if (overlay && !overlay.dataset.boundSidebar) {
+            overlay.dataset.boundSidebar = 'true';
+            const onOverlayClose = function (e) {
+                if (e) {
+                    try { e.preventDefault(); } catch (err) {}
+                    try { e.stopPropagation(); } catch (err) {}
+                }
+                window.closeSidebar();
+                return false;
+            };
+            overlay.addEventListener('click', onOverlayClose, { passive: false });
+            overlay.addEventListener('touchend', onOverlayClose, { passive: false });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bindSidebarEvents);
+    } else {
+        bindSidebarEvents();
+    }
 
     document.addEventListener('DOMContentLoaded', async () => {
         // Only fetch if user is a normal user, not admin/consultant
@@ -162,15 +226,78 @@
         max-height: 100dvh !important;
         overflow: hidden !important;
         -webkit-overflow-scrolling: touch;
+        transition: transform 0.3s ease-in-out, -webkit-transform 0.3s ease-in-out;
     }
+
+    /* Mobile Drawer / Sidebar Guaranteed Visibility */
+    #sidebar.sidebar-open,
+    .sidebar.sidebar-open,
+    .is-android-app #sidebar.sidebar-open,
+    .is-mobile-app #sidebar.sidebar-open {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        transform: translateX(0px) !important;
+        -webkit-transform: translateX(0px) !important;
+        left: 0 !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        width: 288px !important;
+        max-width: 85vw !important;
+        z-index: 99999 !important;
+        pointer-events: auto !important;
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    @media (max-width: 1023px) {
+        #sidebar:not(.sidebar-open) {
+            transform: translateX(-100%) !important;
+            -webkit-transform: translateX(-100%) !important;
+            display: none !important;
+            left: -100% !important;
+            pointer-events: none !important;
+        }
+    }
+
     @media (min-width: 1024px) {
         #sidebar {
+            display: flex !important;
+            visibility: visible !important;
+            transform: translateX(0px) !important;
+            -webkit-transform: translateX(0px) !important;
+            left: 0 !important;
+            top: 4rem !important; /* 64px header */
             height: calc(100vh - 4rem) !important;
             height: calc(100dvh - 4rem) !important;
             max-height: calc(100vh - 4rem) !important;
             max-height: calc(100dvh - 4rem) !important;
+            z-index: 30 !important;
+            pointer-events: auto !important;
         }
     }
+
+    /* Mobile Drawer Overlay */
+    #sidebar-overlay.active,
+    #sidebar-overlay.sidebar-overlay-open {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: fixed !important;
+        inset: 0 !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background-color: rgba(0, 0, 0, 0.5) !important;
+        z-index: 99998 !important;
+        pointer-events: auto !important;
+    }
+
+    #sidebar-overlay:not(.active):not(.sidebar-overlay-open) {
+        display: none !important;
+        pointer-events: none !important;
+    }
+
     #sidebar nav,
     .sidebar-nav {
         flex: 1 1 0% !important;
@@ -192,7 +319,7 @@
         <a href="https://www.solacesquad.com" class="flex items-center gap-2" onclick="if(window.isMobileApp || window.AndroidBridge || window.iOSBridge || /SolaceSquadApp/i.test(navigator.userAgent)){ return openSolaceWebsite(event); }">
             <img src="/static/images/logo.png" alt="SolaceSquad" class="h-8 w-auto">
         </a>
-        <button type="button" onclick="closeSidebar()" class="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer" aria-label="Close drawer">
+        <button type="button" id="sidebar-close-btn" onclick="closeSidebar()" class="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer" aria-label="Close drawer">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
