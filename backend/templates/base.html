@@ -19,6 +19,9 @@
     <link rel="shortcut icon" href="/static/images/logo.png">
     <link rel="apple-touch-icon" href="/static/images/logo.png">
     <meta name="theme-color" content="#2d6a5a">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
 
     <!-- ═══ SEO Meta Tags ═══ -->
     <meta name="description" content="{% block meta_desc %}SolaceSquad connects you with certified wellness consultants for mental, physical and professional wellbeing. Book a confidential online session today.{% endblock %}">
@@ -94,6 +97,20 @@
         if (window.AndroidBridge !== undefined || window.iOSBridge !== undefined || /SolaceSquadApp/i.test(navigator.userAgent)) {
           document.documentElement.classList.add('is-mobile-app');
           window.isMobileApp = true;
+        }
+
+        if (window.AndroidBridge !== undefined || (/Android/i.test(navigator.userAgent) && (window.isMobileApp || /SolaceSquadApp/i.test(navigator.userAgent)))) {
+          document.documentElement.classList.add('is-android-app');
+          window.isAndroidApp = true;
+
+          // Set --android-vh to the real visible viewport height (px) so CSS can
+          // use calc(var(--android-vh) - X) instead of unreliable 100dvh/100vh.
+          function _setAndroidVH() {
+            document.documentElement.style.setProperty('--android-vh', window.innerHeight + 'px');
+          }
+          _setAndroidVH();
+          window.addEventListener('resize', _setAndroidVH);
+          window.addEventListener('orientationchange', function() { setTimeout(_setAndroidVH, 250); });
         }
 
         // Global logo click interception in native mobile app wrappers

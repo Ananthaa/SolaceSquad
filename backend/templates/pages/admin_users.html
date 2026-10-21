@@ -580,6 +580,7 @@
         </div>
         <div class="overflow-y-auto flex-1 p-6" style="background:linear-gradient(135deg,#f0fdf4 0%,#fff 50%,#eff6ff 100%);">
             <input type="hidden" id="obUserId">
+            <input type="hidden" id="obProfileId">
 
             <!-- Profile Photo Section -->
             <div class="ob-card" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; background:#fff; border-left:4px solid #0d9488;">
@@ -1056,6 +1057,8 @@
     async function openOnboarding(userId, name) {
         document.getElementById('onboardingSubtitle').textContent = name;
         document.getElementById('obUserId').value = userId;
+        const obProfEl = document.getElementById('obProfileId');
+        if (obProfEl) obProfEl.value = '';
         document.getElementById('onboardingError').classList.add('hidden');
         // Reset text fields
         ['obFullName','obEmail','obPhone','obCity','obBio','obDelivery','obIntendedHours','obLinkedin','obEduSpec'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
@@ -1089,6 +1092,7 @@
             const data = await resp.json();
             if (data.success) {
                 const p = data.profile;
+                if (obProfEl && p && p.id) obProfEl.value = p.id;
                 const sv = (id, v) => { const el = document.getElementById(id); if(el && v !== null && v !== undefined) el.value = v; };
                 sv('obFullName', p.full_name); sv('obEmail', p.email); sv('obPhone', p.phone); sv('obCity', p.city);
                 sv('obBio', p.bio); sv('obLinkedin', p.linkedin_url); sv('obFee', p.consultation_fee);
@@ -1155,7 +1159,9 @@
         }
 
         try {
-            const response = await fetch(`/api/admin/consultant/${userId}/upload-photo`, {
+            const profileId = document.getElementById('obProfileId') ? document.getElementById('obProfileId').value : null;
+            const uploadUrl = profileId ? `/api/admin/consultant/${profileId}/upload-photo` : `/api/admin/consultants/user/${userId}/upload-photo`;
+            const response = await fetch(uploadUrl, {
                 method: 'POST',
                 body: formData
             });
@@ -1218,7 +1224,9 @@
         }
 
         try {
-            const response = await fetch(`/api/admin/consultant/${userId}/delete-photo`, {
+            const profileId = document.getElementById('obProfileId') ? document.getElementById('obProfileId').value : null;
+            const deleteUrl = profileId ? `/api/admin/consultant/${profileId}/delete-photo` : `/api/admin/consultants/user/${userId}/delete-photo`;
+            const response = await fetch(deleteUrl, {
                 method: 'DELETE'
             });
             const result = await response.json();
@@ -1359,7 +1367,7 @@
                             <div>
                                 <h4 class="text-xl font-bold text-gray-900">${user.name}</h4>
                                 <p class="text-gray-600">${user.email}</p>
-                                ${user.user_type === 'consultant' ? `<a href="/admin/consultant/${user.id}" target="_blank" class="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline mt-1"><span>📷 Manage Photo & Full Profile ↗</span></a>` : ''}
+                                ${user.user_type === 'consultant' ? `<a href="/admin/consultant/user/${user.id}" target="_blank" class="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline mt-1"><span>📷 Manage Photo & Full Profile ↗</span></a>` : ''}
                             </div>
                         </div>
                         

@@ -107,3 +107,60 @@ def upload_music_cover(file_bytes: bytes, original_filename: str) -> Optional[st
     return upload_to_gcs(file_bytes, original_filename, content_type, "music-library/covers")
 
 
+def upload_webinar_video(file_bytes: bytes, original_filename: str) -> Optional[str]:
+    """Upload a webinar recording video (MP4/WEBM/MOV/MKV/M4V) to GCS and return its URL.
+    Stored under 'webinars/' prefix in the consultant-uploads bucket path.
+    Streamed securely via /api/consultant/webinars/{id}/stream.
+    """
+    ext = original_filename.rsplit(".", 1)[-1].lower() if "." in original_filename else "mp4"
+    ct_map = {
+        "mp4": "video/mp4",
+        "webm": "video/webm",
+        "mov": "video/quicktime",
+        "avi": "video/x-msvideo",
+        "m4v": "video/mp4",
+        "mkv": "video/x-matroska",
+    }
+    content_type = ct_map.get(ext, "video/mp4")
+    return upload_to_gcs(file_bytes, original_filename, content_type, "webinars")
+
+
+def upload_webinar_thumbnail(file_bytes: bytes, original_filename: str) -> Optional[str]:
+    """Upload a webinar cover / thumbnail image (JPEG/PNG/WEBP) to GCS."""
+    ext = original_filename.rsplit(".", 1)[-1].lower() if "." in original_filename else "jpg"
+    ct_map = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
+    content_type = ct_map.get(ext, "image/jpeg")
+    return upload_to_gcs(file_bytes, original_filename, content_type, "webinar-thumbnails")
+
+
+def upload_webinar_video_from_file(file_path: str, original_filename: str) -> Optional[str]:
+    """Upload a webinar recording directly from a file path on disk using streaming chunks.
+    Bypasses high RAM usage in Cloud Run and supports files up to 1.5GB+.
+    """
+    try:
+        client = _gcs_client()
+        bucket = client.bucket(GCS_BUCKET)
+        ext = original_filename.rsplit(".", 1)[-1].lower() if "." in original_filename else "mp4"
+        ct_map = {
+            "mp4": "video/mp4",
+            "webm": "video/webm",
+            "mov": "video/quicktime",
+            "avi": "video/x-msvideo",
+            "m4v": "video/mp4",
+            "mkv": "video/x-matroska",
+        }
+        content_type = ct_map.get(ext, "video/mp4")
+        unique_name = f"{CONSULTANT_UPLOADS_PREFIX}/webinars/{uuid.uuid4().hex}.{ext}"
+        blob = bucket.blob(unique_name)
+        with open(file_path, "rb") as f:
+            blob.upload_from_file(f, content_type=content_type)
+        url = f"https://storage.googleapis.com/{GCS_BUCKET}/{unique_name}"
+        print(f"[GCS] Uploaded streamed webinar {original_filename} → {url}")
+        return url
+    except Exception as e:
+        import sys
+        print(f"[GCS] Upload failed for {original_filename}: {e}", file=sys.stderr)
+        return None
+
+
+

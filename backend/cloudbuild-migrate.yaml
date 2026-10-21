@@ -6,26 +6,76 @@ steps:
       - |
         pip install pg8000 cloud-sql-python-connector sqlalchemy -q 2>/dev/null
         python3 - << 'EOF'
-        from google.cloud.sql.connector import Connector
+        from google.cloud.sql.connector import Connector, IPTypes
         import sqlalchemy
+        from sqlalchemy import text
+
+        INSTANCE = "abiding-idea-485817-k2:us-central1:solacesquad-login-data1"
+        DB_USER = "Admin"
+        DB_PASS = "Solace#&323"
 
         connector = Connector()
-        def getconn():
-            return connector.connect(
-                "abiding-idea-485817-k2:us-central1:solacesquad-login-data1",
-                "pg8000", user="Admin", password="SoulSquad2024x", db="solacesquad_prod",
-            )
-        engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=getconn)
 
-        with engine.connect() as conn:
-            rows = conn.execute(sqlalchemy.text("""
-                SELECT cp.id, u.name, cp.consultation_fee, cp.consultant_payout, cp.is_approved, u.is_active
-                FROM consultant_profiles cp JOIN users u ON cp.user_id = u.id
-                ORDER BY cp.id
-            """)).fetchall()
-            print("\n=== Consultant Profiles ===")
-            for r in rows:
-                print(f"  CP_ID={r[0]}  name={r[1]}  fee=₹{r[2]}  payout=₹{r[3]}  approved={r[4]}  active={r[5]}")
+        for db_name in ["solacesquad_prod", "solacesquad_mirror"]:
+            print(f"\n==================== UPDATING DATABASE: {db_name} ====================")
+            def getconn(d=db_name):
+                return connector.connect(INSTANCE, "pg8000", user=DB_USER, password=DB_PASS, db=d, ip_type=IPTypes.PUBLIC)
+            engine = sqlalchemy.create_engine("postgresql+pg8000://", creator=getconn)
+
+            try:
+                with engine.begin() as conn:
+                    # 1. Ensure original_price column exists
+                    conn.execute(text("ALTER TABLE usage_plans ADD COLUMN IF NOT EXISTS original_price FLOAT"))
+
+                    # 2. Update White plan
+                    conn.execute(text("""
+                        UPDATE usage_plans
+                        SET price = 300.0,
+                            original_price = 1500.0,
+                            billing_cycle = 'monthly',
+                            updated_at = NOW()
+                        WHERE LOWER(name) = 'white'
+                    """))
+
+                    # 3. Update Green plan
+                    conn.execute(text("""
+                        UPDATE usage_plans
+                        SET price = 2250.0,
+                            original_price = 3000.0,
+                            billing_cycle = 'monthly',
+                            updated_at = NOW()
+                        WHERE LOWER(name) = 'green'
+                    """))
+
+                    # 4. Update Blue plan
+                    conn.execute(text("""
+                        UPDATE usage_plans
+                        SET price = 18250.0,
+                            original_price = 36500.0,
+                            billing_cycle = 'yearly',
+                            description = 'The premium wellness plan — 1-year recording access, annual trends, 2 free Quick consultations, and 25% off all Emora message packs.',
+                            updated_at = NOW()
+                        WHERE LOWER(name) = 'blue'
+                    """))
+
+                    # 5. Update Blue caps: free_consultation = 2
+                    conn.execute(text("""
+                        UPDATE plan_feature_caps
+                        SET limit_value = 2,
+                            feature_name = '2 free Quick consultations'
+                        WHERE feature_key IN ('free_consultation', 'quick_consultation')
+                          AND plan_id IN (SELECT id FROM usage_plans WHERE LOWER(name) = 'blue')
+                    """))
+
+                    print(f"[OK] Successfully updated plans in {db_name}!")
+
+                    # Read back and print
+                    rows = conn.execute(text("SELECT id, name, price, original_price, billing_cycle, description FROM usage_plans ORDER BY display_order, id")).fetchall()
+                    for r in rows:
+                        print(f"  Plan: {r[1]} (ID {r[0]}): price=₹{r[2]}, orig=₹{r[3]}, cycle={r[4]}")
+
+            except Exception as e:
+                print(f"[ERROR] Failed updating {db_name}: {e}")
 
         connector.close()
         EOF

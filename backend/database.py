@@ -397,6 +397,33 @@ def init_db():
     except Exception as _music_err:
         print(f"[Migration] music library tables note: {_music_err}")
 
+    # Ensure consultant_webinars table exists
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS consultant_webinars (
+                    id SERIAL PRIMARY KEY,
+                    title VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    speaker_name VARCHAR(255),
+                    speaker_title VARCHAR(255),
+                    webinar_date DATE,
+                    video_url VARCHAR(500) NOT NULL,
+                    thumbnail_url VARCHAR(500),
+                    duration_seconds INTEGER DEFAULT 0,
+                    duration_display VARCHAR(20) DEFAULT '45:00',
+                    is_youtube BOOLEAN DEFAULT FALSE,
+                    target_audience VARCHAR(50) DEFAULT 'all_consultants',
+                    is_active BOOLEAN DEFAULT TRUE,
+                    view_count INTEGER DEFAULT 0,
+                    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS ix_consultant_webinars_is_active ON consultant_webinars (is_active);
+                CREATE INDEX IF NOT EXISTS ix_consultant_webinars_created_at ON consultant_webinars (created_at DESC);
+            """))
+    except Exception as _webinar_err:
+        print(f"[Migration] consultant_webinars table note: {_webinar_err}")
+
     print("Database initialized successfully!")
 
 

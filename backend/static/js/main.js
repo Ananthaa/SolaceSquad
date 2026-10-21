@@ -20,35 +20,67 @@ window.closeMobileMenu = function () {
     if (iconClose) iconClose.classList.add('hidden');
 }
 
+let _mainSidebarBusy = false;
+
 // Sidebar toggle for dashboards
-window.toggleSidebar = function () {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
+    window.openSidebar = function () {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        if (sidebar) {
+            sidebar.classList.remove('-translate-x-full');
+            sidebar.classList.add('translate-x-0', 'sidebar-open');
+            sidebar.style.transform = 'translateX(0px)';
+            sidebar.style.display = 'flex';
+            sidebar.style.visibility = 'visible';
+            sidebar.style.zIndex = '99999';
+        }
+        if (overlay) {
+            overlay.classList.remove('hidden');
+            overlay.style.display = 'block';
+            overlay.style.visibility = 'visible';
+            overlay.style.zIndex = '99998';
+        }
+    };
 
-    if (sidebar) {
-        // Toggle transform classes
-        sidebar.classList.toggle('-translate-x-full');
-    }
-
-    if (overlay) {
-        overlay.classList.toggle('hidden');
-    }
-}
-
-// Close sidebar when clicking overlay
 window.closeSidebar = function () {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
-
     if (sidebar) {
-        // Hide sidebar
         sidebar.classList.add('-translate-x-full');
+        sidebar.classList.remove('translate-x-0', 'sidebar-open');
+        sidebar.style.transform = 'translateX(-100%)';
+        if (window.innerWidth < 1024) {
+            sidebar.style.display = 'none';
+        }
     }
-
     if (overlay) {
         overlay.classList.add('hidden');
+        overlay.style.display = 'none';
     }
-}
+};
+
+window.toggleSidebar = function (e) {
+    if (e && typeof e.preventDefault === 'function') {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    if (_mainSidebarBusy) return;
+    _mainSidebarBusy = true;
+    setTimeout(() => { _mainSidebarBusy = false; }, 250);
+
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    const isClosed = sidebar.classList.contains('-translate-x-full') || 
+                     sidebar.style.transform === 'translateX(-100%)' || 
+                     sidebar.style.display === 'none' ||
+                     !sidebar.classList.contains('sidebar-open');
+    if (isClosed) {
+        window.openSidebar();
+    } else {
+        window.closeSidebar();
+    }
+};
+
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function () {

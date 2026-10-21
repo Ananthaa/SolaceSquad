@@ -1,0 +1,279 @@
+{% extends "layouts/protected.html" %}
+
+{% block title %}{{ webinar.title }} — Webinar Player - SolaceSquad{% endblock %}
+
+{% block dashboard_content %}
+<style>
+  /* ── Layout & Responsive Containers ──────────────────────── */
+  .player-layout    { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+  @media(min-width: 1024px) {
+    .player-layout  { grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); }
+  }
+
+  /* ── Video Player Screen ─────────────────────────────────── */
+  .screen-wrap      { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 1.25rem; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+  .screen-wrap video, .screen-wrap iframe { width: 100%; height: 100%; object-fit: contain; }
+
+  /* ── Playback Controls Toolbar ──────────────────────────── */
+  .controls-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; padding: 0.75rem 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.85rem; margin-top: 0.75rem; }
+  .toolbar-group    { display: flex; align-items: center; gap: 0.5rem; }
+  .tool-btn         { padding: 0.4rem 0.75rem; border-radius: 0.5rem; border: 1px solid #cbd5e1; background: #fff; color: #334155; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 4px; }
+  .tool-btn:hover   { background: #f1f5f9; border-color: #94a3b8; }
+  .tool-btn.active  { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+
+  /* ── Webinar Info Card ───────────────────────────────────── */
+  .info-card        { background: #fff; border-radius: 1.25rem; border: 1px solid #e5e7eb; padding: 1.75rem; margin-top: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,0.03); }
+  .info-meta-row    { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.85rem; font-size: 0.8rem; color: #6b7280; }
+  .meta-pill        { display: inline-flex; align-items: center; gap: 4px; background: #f3f4f6; color: #374151; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
+
+  .speaker-box      { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 1rem; margin: 1.25rem 0; }
+  .speaker-avatar-lg{ width: 48px; height: 48px; border-radius: 50%; background: #4f46e5; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 800; flex-shrink: 0; }
+
+  /* ── Sidebar: Playlist of other recordings ──────────────── */
+  .sidebar-card     { background: #fff; border-radius: 1.25rem; border: 1px solid #e5e7eb; padding: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,0.03); position: sticky; top: 5.5rem; }
+  .other-item       { display: flex; gap: 0.85rem; padding: 0.75rem; border-radius: 0.85rem; transition: background 0.15s ease; text-decoration: none; border: 1px solid transparent; }
+  .other-item:hover { background: #f8fafc; border-color: #e2e8f0; }
+  .other-item.current{ background: #eef2ff; border-color: #c7d2fe; }
+
+  .other-thumb      { width: 105px; height: 60px; border-radius: 0.5rem; background: #1e1b4b; overflow: hidden; flex-shrink: 0; position: relative; display: flex; align-items: center; justify-content: center; }
+  .other-thumb img  { width: 100%; height: 100%; object-fit: cover; }
+  .other-duration   { position: absolute; bottom: 3px; right: 3px; background: rgba(0,0,0,0.8); color: #fff; font-size: 0.65rem; font-weight: 700; padding: 1px 4px; border-radius: 4px; }
+</style>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+  <!-- Back Navigation Breadcrumb -->
+  <div class="mb-5">
+    <a href="/consultant/webinars" class="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors">
+      <i data-lucide="arrow-left" class="w-4 h-4"></i>
+      <span>Back to Webinar Library</span>
+    </a>
+  </div>
+
+  <div class="player-layout">
+
+    <!-- Primary Video & Details Column -->
+    <div>
+      <!-- Video Screen -->
+      <div class="screen-wrap" id="video-screen">
+        {% if webinar.is_youtube and youtube_id %}
+        <iframe
+          src="https://www.youtube-nocookie.com/embed/{{ youtube_id }}?autoplay=1&rel=0&modestbranding=1"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen>
+        </iframe>
+        {% elif webinar.is_youtube %}
+        <!-- Fallback parser -->
+        {% set yt_url = webinar.video_url %}
+        {% if 'watch?v=' in yt_url %}
+          {% set clean_id = yt_url.split('watch?v=')[1].split('&')[0] %}
+        {% elif 'youtu.be/' in yt_url %}
+          {% set clean_id = yt_url.split('youtu.be/')[1].split('?')[0] %}
+        {% else %}
+          {% set clean_id = yt_url %}
+        {% endif %}
+        <iframe
+          src="https://www.youtube-nocookie.com/embed/{{ clean_id }}?autoplay=1&rel=0&modestbranding=1"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen>
+        </iframe>
+        {% else %}
+        <!-- GCS Byte-Range Streaming Video Player -->
+        <video
+          id="webinarPlayer"
+          src="/api/consultant/webinars/{{ webinar.id }}/stream"
+          poster="{{ webinar.thumbnail_url or '' }}"
+          controls
+          playsinline
+          preload="metadata">
+        </video>
+        {% endif %}
+      </div>
+
+      {% if not webinar.is_youtube %}
+      <!-- Controls Toolbar (For Native Video Player) -->
+      <div class="controls-toolbar">
+        <div class="toolbar-group">
+          <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">Playback Speed:</span>
+          <button type="button" class="tool-btn active" onclick="setSpeed(1.0, this)">1x</button>
+          <button type="button" class="tool-btn" onclick="setSpeed(1.25, this)">1.25x</button>
+          <button type="button" class="tool-btn" onclick="setSpeed(1.5, this)">1.5x</button>
+          <button type="button" class="tool-btn" onclick="setSpeed(2.0, this)">2x</button>
+        </div>
+
+        <div class="toolbar-group">
+          <button type="button" class="tool-btn" onclick="skipVideo(-10)" title="Rewind 10s">
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> -10s
+          </button>
+          <button type="button" class="tool-btn" onclick="skipVideo(10)" title="Forward 10s">
+            <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> +10s
+          </button>
+          <button type="button" class="tool-btn" onclick="toggleTheater()" title="Toggle Theater Mode">
+            <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i> Theater
+          </button>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Webinar Information Card -->
+      <div class="info-card">
+        <!-- Metadata Row -->
+        <div class="info-meta-row">
+          <span class="meta-pill">
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-indigo-600"></i>
+            {% if webinar.webinar_date %}
+            {{ webinar.webinar_date.strftime('%B %d, %Y') }}
+            {% else %}
+            {{ webinar.created_at.strftime('%B %d, %Y') }}
+            {% endif %}
+          </span>
+
+          <span class="meta-pill">
+            <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-600"></i>
+            {{ webinar.duration_display or "45:00" }}
+          </span>
+
+          <span class="meta-pill">
+            <i data-lucide="eye" class="w-3.5 h-3.5 text-indigo-600"></i>
+            {{ webinar.view_count }} views
+          </span>
+
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <i data-lucide="shield-check" class="w-3 h-3 mr-1"></i> All Consultants Access
+          </span>
+        </div>
+
+        <!-- Title -->
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 leading-tight mb-4">
+          {{ webinar.title }}
+        </h1>
+
+        <!-- Speaker Box -->
+        <div class="speaker-box">
+          <div class="speaker-avatar-lg">
+            {% if webinar.speaker_name %}
+            {{ webinar.speaker_name[:2]|upper }}
+            {% else %}
+            <i data-lucide="user" class="w-6 h-6"></i>
+            {% endif %}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="text-xs font-bold uppercase tracking-wider text-indigo-600">Session Speaker</div>
+            <div class="text-base font-bold text-gray-900">{{ webinar.speaker_name or "SolaceSquad Clinical Faculty" }}</div>
+            <div class="text-xs text-gray-500">{{ webinar.speaker_title or "Subject Matter Expert & Clinical Supervisor" }}</div>
+          </div>
+        </div>
+
+        <!-- Description & Agenda -->
+        <div>
+          <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <i data-lucide="file-text" class="w-4 h-4 text-indigo-600"></i>
+            Session Overview &amp; Discussion Points
+          </h2>
+          <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-line bg-gray-50 p-4 rounded-xl border border-gray-100">
+            {{ webinar.description or "Complete recording of the clinical webinar and discussion session for consultants." }}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Right Column: Other Webinars in Library -->
+    <div>
+      <div class="sidebar-card">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-bold text-gray-900 flex items-center gap-2">
+            <i data-lucide="list-video" class="w-4 h-4 text-indigo-600"></i>
+            More Webinars ({{ other_webinars|length }})
+          </h2>
+          <a href="/consultant/webinars" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+            View All
+          </a>
+        </div>
+
+        <div class="space-y-2">
+          {% if other_webinars %}
+            {% for other in other_webinars %}
+            <a href="/consultant/webinars/{{ other.id }}" class="other-item {% if other.id == webinar.id %}current{% endif %}">
+              <div class="other-thumb">
+                {% if other.thumbnail_url %}
+                <img src="{{ other.thumbnail_url }}" alt="{{ other.title }}" loading="lazy">
+                {% elif other.is_youtube %}
+                <i data-lucide="youtube" class="w-6 h-6 text-red-500"></i>
+                {% else %}
+                <i data-lucide="presentation" class="w-6 h-6 text-indigo-400"></i>
+                {% endif %}
+                <span class="other-duration">{{ other.duration_display or "45:00" }}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-bold text-gray-900 line-clamp-2 leading-snug">{{ other.title }}</p>
+                <p class="text-[0.7rem] text-gray-500 mt-1 line-clamp-1">{{ other.speaker_name or "SolaceSquad Faculty" }}</p>
+                <p class="text-[0.65rem] text-indigo-600 font-semibold mt-0.5">
+                  {% if other.webinar_date %}{{ other.webinar_date.strftime('%b %d, %Y') }}{% endif %}
+                </p>
+              </div>
+            </a>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-6 text-xs text-gray-400">
+              No other webinars published yet.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  const player = document.getElementById('webinarPlayer');
+
+  function setSpeed(rate, btn) {
+    if (player) {
+      player.playbackRate = rate;
+      document.querySelectorAll('.toolbar-group .tool-btn').forEach(b => {
+        if (b.textContent.includes('x')) b.classList.remove('active');
+      });
+      if (btn) btn.classList.add('active');
+    }
+  }
+
+  function skipVideo(seconds) {
+    if (player) {
+      player.currentTime = Math.max(0, Math.min(player.duration || 0, player.currentTime + seconds));
+    }
+  }
+
+  function toggleTheater() {
+    const screen = document.getElementById('video-screen');
+    if (screen) {
+      screen.classList.toggle('theater-mode');
+      if (screen.classList.contains('theater-mode')) {
+        screen.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }
+
+  // Keyboard controls
+  document.addEventListener('keydown', (e) => {
+    if (!player) return;
+    if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (player.paused) player.play(); else player.pause();
+    } else if (e.code === 'ArrowLeft') {
+      e.preventDefault();
+      skipVideo(-10);
+    } else if (e.code === 'ArrowRight') {
+      e.preventDefault();
+      skipVideo(10);
+    }
+  });
+</script>
+{% endblock %}

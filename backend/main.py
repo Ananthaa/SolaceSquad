@@ -22,7 +22,7 @@ load_dotenv()
 
 # Import database and models
 from database import init_db, get_db, get_db_session
-from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, ScheduleBreak, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile, VideoFolder, Video, UserExerciseLog, HomePageSection, ConsultantRating, WorkoutLog, DailyWellnessScore, UsagePlan, PlanFeatureCap, UserSubscription, FeatureUsageLog, FeatureUsageTopUp, DemoVideo, DiagnosisReport, UserDeviceToken, ConsultantProVideo, MusicCategory, MusicTrack
+from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, ScheduleBreak, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile, VideoFolder, Video, UserExerciseLog, HomePageSection, ConsultantRating, WorkoutLog, DailyWellnessScore, UsagePlan, PlanFeatureCap, UserSubscription, FeatureUsageLog, FeatureUsageTopUp, DemoVideo, DiagnosisReport, UserDeviceToken, ConsultantProVideo, MusicCategory, MusicTrack, ConsultantWebinar
 # Version 2.2 - Homepage Builder Feature - Fresh Deploy
 
 
@@ -486,6 +486,35 @@ async def startup_event():
                       )"""),
                 ("original_price on usage_plans",
                  "ALTER TABLE usage_plans ADD COLUMN IF NOT EXISTS original_price FLOAT"),
+                ("sync_revised_plan_prices_oct2026",
+                 """
+                 UPDATE usage_plans
+                 SET price = 300.0,
+                     original_price = 1500.0,
+                     billing_cycle = 'monthly'
+                 WHERE LOWER(name) = 'white';
+
+                 UPDATE usage_plans
+                 SET price = 2250.0,
+                     original_price = 3000.0,
+                     billing_cycle = 'monthly'
+                 WHERE LOWER(name) = 'green';
+
+                 UPDATE usage_plans
+                 SET price = 18250.0,
+                     original_price = 36500.0,
+                     billing_cycle = 'yearly',
+                     description = 'The premium wellness plan — 1-year recording access, annual trends, 2 free Quick consultations, and 25% off all Emora message packs.'
+                 WHERE LOWER(name) = 'blue';
+
+                 UPDATE plan_feature_caps
+                 SET limit_value = 2,
+                     feature_name = '2 free Quick consultations'
+                 WHERE feature_key IN ('free_consultation', 'quick_consultation')
+                   AND plan_id IN (
+                       SELECT id FROM usage_plans WHERE LOWER(name) = 'blue'
+                   );
+                 """),
                 ("is_first_week_bonus_eligible on user_subscriptions",
                  "ALTER TABLE user_subscriptions ADD COLUMN IF NOT EXISTS is_first_week_bonus_eligible BOOLEAN NOT NULL DEFAULT TRUE"),
                 ("razorpay_order_id on user_subscriptions",
@@ -847,6 +876,7 @@ def get_nav_items(user_type: str) -> list:
         return [
             {'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/consultant', 'key': 'dashboard'},
             {'icon': 'users', 'label': 'Clients', 'href': '/consultant/clients', 'key': 'clients'},
+            {'icon': 'presentation', 'label': 'Webinar Library', 'href': '/consultant/webinars', 'key': 'webinars'},
             {'icon': 'calendar', 'label': 'Set my Availability', 'href': '/consultant/schedule', 'key': 'schedule'},
             {'icon': 'message-circle', 'label': 'Messages', 'href': '/consultant/messages', 'key': 'messages'},
             {'icon': 'trending-up', 'label': 'My Earnings', 'href': '/consultant/earnings', 'key': 'earnings'},
@@ -858,6 +888,7 @@ def get_nav_items(user_type: str) -> list:
             {'icon': 'users', 'label': 'Users', 'href': '/admin/users', 'key': 'users'},
             {'icon': 'video', 'label': 'Video Library', 'href': '/admin/videos', 'key': 'videos'},
             {'icon': 'play-circle', 'label': 'Demo Videos', 'href': '/admin/demo-videos', 'key': 'demo-videos'},
+            {'icon': 'presentation', 'label': 'Webinar Library', 'href': '/admin/webinars', 'key': 'webinars'},
             {'icon': 'sparkles', 'label': 'Pro Tips', 'href': '/admin/pro-videos', 'key': 'pro-videos'},
             {'icon': 'music-2', 'label': 'Music Library', 'href': '/admin/music', 'key': 'music'},
             {'icon': 'layout', 'label': 'Home Page Builder', 'href': '/admin/homepage-builder', 'key': 'homepage-builder'},
@@ -4309,6 +4340,31 @@ async def admin_email_diagnostics(request: Request, to: str = ""):
     return JSONResponse(results)
 
 
+def get_consultant_profile_by_id_or_user(db: Session, identifier: int):
+    """Find a ConsultantProfile primarily by its primary key (ConsultantProfile.id).
+    Only falls back to ConsultantProfile.user_id if no profile with that primary key exists.
+    This prevents catastrophic ID collisions where ConsultantProfile.id == X matches one consultant
+    while ConsultantProfile.user_id == X matches a completely different consultant."""
+    profile = db.query(ConsultantProfile).filter(ConsultantProfile.id == identifier).first()
+    if profile:
+        return profile
+    return db.query(ConsultantProfile).filter(ConsultantProfile.user_id == identifier).first()
+
+
+@app.get("/admin/consultant/user/{user_id}", response_class=HTMLResponse)
+async def admin_consultant_detail_by_user(user_id: int, request: Request, db: Session = Depends(get_db)):
+    """Admin / Assistant: View consultant details by User ID (redirects to the profile ID route)."""
+    admin_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == admin_id).first()
+    if not admin or admin.user_type not in ("admin", "admin_assistant"):
+        return RedirectResponse(url="/login", status_code=303)
+
+    profile = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user_id).first()
+    if not profile:
+        return RedirectResponse(url="/admin", status_code=303)
+    return RedirectResponse(url=f"/admin/consultant/{profile.id}", status_code=303)
+
+
 @app.get("/admin/consultant/{profile_id}", response_class=HTMLResponse)
 async def admin_consultant_detail(profile_id: int, request: Request, db: Session = Depends(get_db)):
     """Admin (and admin_assistant): view full application details for a single consultant."""
@@ -4317,9 +4373,7 @@ async def admin_consultant_detail(profile_id: int, request: Request, db: Session
     if not admin or admin.user_type not in ("admin", "admin_assistant"):
         return RedirectResponse(url="/login", status_code=303)
 
-    profile = db.query(ConsultantProfile).filter(
-        (ConsultantProfile.id == profile_id) | (ConsultantProfile.user_id == profile_id)
-    ).first()
+    profile = get_consultant_profile_by_id_or_user(db, profile_id)
     if not profile:
         return RedirectResponse(url="/admin", status_code=303)
 
@@ -4336,6 +4390,26 @@ async def admin_consultant_detail(profile_id: int, request: Request, db: Session
     )
 
 
+@app.post("/api/admin/consultants/user/{user_id}/upload-photo")
+@app.post("/api/admin/consultants/{user_id}/upload-photo")
+async def admin_upload_consultant_photo_by_user(user_id: int, request: Request, db: Session = Depends(get_db)):
+    """Admin / Assistant: Upload or replace profile photo for a consultant by user_id."""
+    profile = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user_id).first()
+    if not profile:
+        return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
+    return await admin_upload_consultant_photo(profile.id, request, db)
+
+
+@app.delete("/api/admin/consultants/user/{user_id}/delete-photo")
+@app.delete("/api/admin/consultants/{user_id}/delete-photo")
+async def admin_delete_consultant_photo_by_user(user_id: int, request: Request, db: Session = Depends(get_db)):
+    """Admin / Assistant: Remove profile photo for a consultant by user_id."""
+    profile = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == user_id).first()
+    if not profile:
+        return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
+    return await admin_delete_consultant_photo(profile.id, request, db)
+
+
 @app.post("/api/admin/consultant/{profile_id}/upload-photo")
 async def admin_upload_consultant_photo(profile_id: int, request: Request, db: Session = Depends(get_db)):
     """Admin / Assistant: Upload or replace profile photo for a consultant."""
@@ -4344,9 +4418,7 @@ async def admin_upload_consultant_photo(profile_id: int, request: Request, db: S
     if not admin or admin.user_type not in ("admin", "admin_assistant"):
         return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
         
-    profile = db.query(ConsultantProfile).filter(
-        (ConsultantProfile.id == profile_id) | (ConsultantProfile.user_id == profile_id)
-    ).first()
+    profile = get_consultant_profile_by_id_or_user(db, profile_id)
     if not profile:
         return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
         
@@ -4394,9 +4466,7 @@ async def admin_delete_consultant_photo(profile_id: int, request: Request, db: S
     if not admin or admin.user_type not in ("admin", "admin_assistant"):
         return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
         
-    profile = db.query(ConsultantProfile).filter(
-        (ConsultantProfile.id == profile_id) | (ConsultantProfile.user_id == profile_id)
-    ).first()
+    profile = get_consultant_profile_by_id_or_user(db, profile_id)
     if not profile:
         return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
         
@@ -4428,9 +4498,7 @@ async def admin_save_consultant_details(profile_id: int, request: Request, db: S
     if not admin or admin.user_type not in ("admin", "admin_assistant"):
         return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
 
-    profile = db.query(ConsultantProfile).filter(
-        (ConsultantProfile.id == profile_id) | (ConsultantProfile.user_id == profile_id)
-    ).first()
+    profile = get_consultant_profile_by_id_or_user(db, profile_id)
     if not profile:
         return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
 
@@ -4497,9 +4565,7 @@ async def toggle_consultant_short_notice(profile_id: int, request: Request, db: 
     if not admin or admin.user_type not in ("admin", "admin_assistant"):
         return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
 
-    profile = db.query(ConsultantProfile).filter(
-        (ConsultantProfile.id == profile_id) | (ConsultantProfile.user_id == profile_id)
-    ).first()
+    profile = get_consultant_profile_by_id_or_user(db, profile_id)
     if not profile:
         return JSONResponse({"success": False, "error": "Consultant profile not found"}, status_code=404)
 
@@ -5141,12 +5207,15 @@ async def login(request: Request):
         return RedirectResponse(url="/user-dashboard", status_code=303)
 
     next_url = request.query_params.get("next", "")
+    user_agent = request.headers.get("user-agent", "").lower()
+    is_ios = "solacesquadapp/ios" in user_agent or "iphone" in user_agent or "ipad" in user_agent
     return templates.TemplateResponse(
         "pages/auth/login.html",
         {
             "request": request,
             "page_title": "Login - SolaceSquad",
-            "next_url": next_url
+            "next_url": next_url,
+            "is_ios": is_ios
         }
     )
 
@@ -5496,12 +5565,15 @@ import string
 async def signup(request: Request):
     """Signup page â€” 2-step: email OTP verification + account creation"""
     recaptcha_site_key = os.getenv("RECAPTCHA_SITE_KEY", "")
+    user_agent = request.headers.get("user-agent", "").lower()
+    is_ios = "solacesquadapp/ios" in user_agent or "iphone" in user_agent or "ipad" in user_agent
     return templates.TemplateResponse(
         "pages/auth/signup_simple.html",
         {
             "request": request,
             "page_title": "Sign Up - SolaceSquad",
             "recaptcha_site_key": recaptcha_site_key,
+            "is_ios": is_ios
         }
     )
 
@@ -9683,10 +9755,6 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
     import base64 as _b64
     from sarvam_voice import stt_with_lid, tts, to_speech_text, SARVAM_LANG_TO_NAME, detect_text_language
 
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return JSONResponse({"success": False, "error": "Not authenticated"}, status_code=401)
-
     try:
         form       = await request.form()
         audio_file = form.get("audio")
@@ -9694,6 +9762,10 @@ async def send_voice_chat(request: Request, db: Session = Depends(get_db)):
         mode       = form.get("mode", "") # "consultant_match"
         action     = form.get("action", "") # e.g. "confirm_match"
         pending_query = form.get("pending_query", "")
+
+        user_id = request.session.get("user_id")
+        if not user_id and mode != "consultant_match":
+            return JSONResponse({"success": False, "error": "Not authenticated"}, status_code=401)
 
         if not audio_file:
             return JSONResponse({"success": False, "error": "No audio provided"}, status_code=400)
@@ -10054,12 +10126,15 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
     """Send a message to AI assistant and get response"""
     import base64 as _b64
     try:
-        user_id = request.session.get("user_id")
-        if not user_id:
-            return {"success": False, "error": "Not authenticated"}
-        
         data = await request.json()
         message = data.get("message", "").strip()
+        mode = data.get("mode", "") # "consultant_match"
+        action = data.get("action", "") # e.g. "confirm_match"
+        pending_query = data.get("pending_query", "")
+
+        user_id = request.session.get("user_id")
+        if not user_id and mode != "consultant_match":
+            return {"success": False, "error": "Not authenticated"}
         
         if not message:
             return {"success": False, "error": "Message is required"}
@@ -10067,10 +10142,6 @@ async def send_ai_chat(request: Request, db: Session = Depends(get_db)):
         from consultant_classifier import normalize_stt_transcript
         original_message = normalize_stt_transcript(message)
         message = original_message
-        
-        mode = data.get("mode", "") # "consultant_match"
-        action = data.get("action", "") # e.g. "confirm_match"
-        pending_query = data.get("pending_query", "")
 
         # Get recent conversation history -- 15 exchanges for richer memory (only for companion chat)
         conversation_history = []
@@ -10444,7 +10515,17 @@ async def get_ai_chat_quota(request: Request, db: Session = Depends(get_db)):
     """Get current user's Emora messages quota and usage"""
     user_id = request.session.get("user_id")
     if not user_id:
-        return {"success": False, "error": "Not authenticated"}
+        return {
+            "success":         True,
+            "allowed":         True,
+            "remaining":       -1,
+            "daily_remaining": -1,
+            "pack_balance":    0,
+            "limit":           -1,
+            "used":            0,
+            "in_first_week":   False,
+            "message":         "Guest Matcher Active"
+        }
     try:
         from subscription_routes import check_feature_limit
         q = check_feature_limit(int(user_id), "ai_chat", db)
@@ -13237,6 +13318,551 @@ async def stream_demo_video(request: Request, video_id: int, db: Session = Depen
 
 
 # ============================================================================
+# CONSULTANT WEBINAR LIBRARY ROUTES & STREAMING ENDPOINTS
+# ============================================================================
+
+@app.get("/admin/webinars", response_class=HTMLResponse)
+async def admin_webinars_page(request: Request, db: Session = Depends(get_db)):
+    """Admin page for managing webinar recordings shared with all consultants."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+
+    webinars = db.query(ConsultantWebinar).order_by(ConsultantWebinar.created_at.desc()).all()
+    return templates.TemplateResponse(
+        "pages/admin_webinars.html",
+        {
+            "request": request,
+            "page_title": "Webinar Library — Admin",
+            "user_name": admin.name,
+            "user_initials": get_initials(admin.name),
+            "user_type": "admin",
+            "active_page": "webinars",
+            "nav_items": get_nav_items("admin"),
+            "webinars": webinars,
+        }
+    )
+
+
+@app.post("/api/admin/webinars")
+async def admin_create_webinar(
+    request: Request,
+    db: Session = Depends(get_db),
+    title: str = Form(...),
+    description: str = Form(""),
+    speaker_name: str = Form(""),
+    speaker_title: str = Form(""),
+    webinar_date: str = Form(""),
+    duration_display: str = Form("45:00"),
+    target_audience: str = Form("all_consultants"),
+    is_youtube: str = Form("false"),
+    video_url: str = Form(""),
+    video_file: UploadFile = File(None),
+    thumbnail_file: UploadFile = File(None),
+):
+    """Create a new webinar recording — uploaded GCS file or YouTube URL, with optional thumbnail."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    youtube = is_youtube.lower() in ("true", "1", "yes")
+
+    # Handle video
+    if youtube:
+        if not video_url or not video_url.strip():
+            return JSONResponse({"success": False, "error": "YouTube URL is required"}, status_code=400)
+        final_video_url = video_url.strip()
+    else:
+        if not video_file or not video_file.filename:
+            return JSONResponse({"success": False, "error": "Video file is required"}, status_code=400)
+        try:
+            from gcs_uploads import upload_webinar_video
+            file_bytes = await video_file.read()
+            uploaded_url = upload_webinar_video(file_bytes, video_file.filename)
+            if not uploaded_url:
+                return JSONResponse({"success": False, "error": "Failed to upload video to cloud storage"}, status_code=500)
+            final_video_url = uploaded_url
+        except Exception as e:
+            return JSONResponse({"success": False, "error": f"Upload error: {str(e)}"}, status_code=500)
+
+    # Handle thumbnail if provided
+    thumbnail_url = None
+    if thumbnail_file and thumbnail_file.filename:
+        try:
+            from gcs_uploads import upload_webinar_thumbnail
+            thumb_bytes = await thumbnail_file.read()
+            thumbnail_url = upload_webinar_thumbnail(thumb_bytes, thumbnail_file.filename)
+        except Exception as e:
+            print(f"[Webinar] Thumbnail upload note: {e}")
+
+    # Parse date
+    parsed_date = None
+    if webinar_date and webinar_date.strip():
+        try:
+            from datetime import datetime as _dt
+            parsed_date = _dt.strptime(webinar_date.strip(), "%Y-%m-%d").date()
+        except Exception:
+            parsed_date = None
+
+    webinar = ConsultantWebinar(
+        title=title.strip(),
+        description=description.strip() if description else None,
+        speaker_name=speaker_name.strip() if speaker_name else None,
+        speaker_title=speaker_title.strip() if speaker_title else None,
+        webinar_date=parsed_date,
+        duration_display=duration_display.strip() if duration_display else "45:00",
+        video_url=final_video_url,
+        thumbnail_url=thumbnail_url,
+        is_youtube=youtube,
+        target_audience=target_audience.strip() if target_audience else "all_consultants",
+        is_active=True,
+    )
+    db.add(webinar)
+    db.commit()
+    db.refresh(webinar)
+
+    return JSONResponse({"success": True, "webinar_id": webinar.id})
+
+
+@app.post("/api/admin/webinars/thumbnail")
+async def admin_upload_webinar_thumbnail(
+    request: Request,
+    db: Session = Depends(get_db),
+    thumbnail_file: UploadFile = File(...),
+):
+    """Upload a webinar cover / thumbnail image to GCS."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    if not thumbnail_file or not thumbnail_file.filename:
+        return JSONResponse({"success": False, "error": "No file provided"}, status_code=400)
+
+    try:
+        from gcs_uploads import upload_webinar_thumbnail
+        thumb_bytes = await thumbnail_file.read()
+        url = upload_webinar_thumbnail(thumb_bytes, thumbnail_file.filename)
+        if not url:
+            return JSONResponse({"success": False, "error": "Failed to upload thumbnail to GCS"}, status_code=500)
+        return JSONResponse({"success": True, "thumbnail_url": url})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/admin/webinars/chunk")
+async def admin_upload_webinar_chunk(
+    request: Request,
+    db: Session = Depends(get_db),
+    chunk: UploadFile = File(...),
+    upload_id: str = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    title: str = Form(...),
+    description: str = Form(""),
+    speaker_name: str = Form(""),
+    speaker_title: str = Form(""),
+    webinar_date: str = Form(""),
+    duration_display: str = Form("45:00"),
+    original_filename: str = Form("webinar.mp4"),
+    thumbnail_url: str = Form(""),
+    target_audience: str = Form("all_consultants"),
+    webinar_id: str = Form(""),
+):
+    """Receive an 8MB chunk of a large webinar video to completely bypass Cloud Run's 32MB payload limit.
+    Supports large videos up to 1.5GB+. Can create a new webinar or replace video on an existing webinar.
+    """
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    import re
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", upload_id):
+        return JSONResponse({"success": False, "error": "Invalid upload ID"}, status_code=400)
+
+    ext = os.path.splitext(original_filename)[1].lower()
+    if ext not in (".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi"):
+        return JSONResponse({"success": False, "error": f"Unsupported format '{ext}'. Allowed: MP4, WebM, MOV, M4V, MKV."}, status_code=400)
+
+    import tempfile, shutil
+    temp_dir = os.path.join(tempfile.gettempdir(), "webinar_chunks", upload_id)
+    os.makedirs(temp_dir, exist_ok=True)
+
+    chunk_path = os.path.join(temp_dir, f"part_{chunk_index:04d}")
+    content = await chunk.read()
+    with open(chunk_path, "wb") as f:
+        f.write(content)
+
+    # Check if all chunks have arrived
+    parts = sorted([p for p in os.listdir(temp_dir) if p.startswith("part_")])
+    if len(parts) == total_chunks:
+        try:
+            # Combine parts sequentially into a temp file to avoid high RAM usage
+            combined_file = os.path.join(temp_dir, f"combined_{upload_id}{ext}")
+            with open(combined_file, "wb") as outfile:
+                for idx in range(total_chunks):
+                    p_name = f"part_{idx:04d}"
+                    p_file = os.path.join(temp_dir, p_name)
+                    if not os.path.exists(p_file):
+                        return JSONResponse({"success": False, "error": f"Missing chunk {idx}"}, status_code=400)
+                    with open(p_file, "rb") as infile:
+                        shutil.copyfileobj(infile, outfile, length=1024 * 1024)
+                    try:
+                        os.remove(p_file)  # Delete part immediately to free disk/RAM
+                    except Exception:
+                        pass
+
+            # Stream combined file to GCS
+            from gcs_uploads import upload_webinar_video_from_file
+            gcs_url = upload_webinar_video_from_file(combined_file, original_filename)
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+            if not gcs_url:
+                return JSONResponse({"success": False, "error": "Failed to upload video to cloud storage"}, status_code=500)
+
+            # Parse date
+            parsed_date = None
+            if webinar_date and webinar_date.strip():
+                try:
+                    from datetime import datetime as _dt
+                    parsed_date = _dt.strptime(webinar_date.strip(), "%Y-%m-%d").date()
+                except Exception:
+                    parsed_date = None
+
+            # If webinar_id provided, update existing record (replacing its video)
+            existing_webinar = None
+            if webinar_id and webinar_id.strip():
+                try:
+                    target_id = int(webinar_id.strip())
+                    existing_webinar = db.query(ConsultantWebinar).filter(ConsultantWebinar.id == target_id).first()
+                except Exception:
+                    existing_webinar = None
+
+            if existing_webinar:
+                existing_webinar.title = title.strip()
+                existing_webinar.description = description.strip() if description else None
+                existing_webinar.speaker_name = speaker_name.strip() if speaker_name else None
+                existing_webinar.speaker_title = speaker_title.strip() if speaker_title else None
+                existing_webinar.webinar_date = parsed_date
+                existing_webinar.duration_display = duration_display.strip() if duration_display else "45:00"
+                existing_webinar.video_url = gcs_url
+                if thumbnail_url and thumbnail_url.strip():
+                    existing_webinar.thumbnail_url = thumbnail_url.strip()
+                existing_webinar.is_youtube = False
+                db.commit()
+                db.refresh(existing_webinar)
+                return JSONResponse({"success": True, "status": "completed", "webinar_id": existing_webinar.id})
+
+            webinar = ConsultantWebinar(
+                title=title.strip(),
+                description=description.strip() if description else None,
+                speaker_name=speaker_name.strip() if speaker_name else None,
+                speaker_title=speaker_title.strip() if speaker_title else None,
+                webinar_date=parsed_date,
+                duration_display=duration_display.strip() if duration_display else "45:00",
+                video_url=gcs_url,
+                thumbnail_url=thumbnail_url.strip() if thumbnail_url and thumbnail_url.strip() else None,
+                is_youtube=False,
+                target_audience=target_audience.strip() if target_audience else "all_consultants",
+                is_active=True,
+            )
+            db.add(webinar)
+            db.commit()
+            db.refresh(webinar)
+
+            return JSONResponse({"success": True, "status": "completed", "webinar_id": webinar.id})
+        except Exception as e:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            print(f"[Webinar Chunk Upload Error]: {e}")
+            return JSONResponse({"success": False, "error": f"Processing error: {str(e)}"}, status_code=500)
+
+    return JSONResponse({"success": True, "status": "chunk_received", "received": len(parts), "total": total_chunks})
+
+
+@app.put("/api/admin/webinars/{webinar_id}")
+@app.post("/api/admin/webinars/{webinar_id}/update")
+async def admin_update_webinar_details(
+    request: Request,
+    webinar_id: int,
+    db: Session = Depends(get_db),
+    title: str = Form(...),
+    description: str = Form(""),
+    speaker_name: str = Form(""),
+    speaker_title: str = Form(""),
+    webinar_date: str = Form(""),
+    duration_display: str = Form("45:00"),
+    thumbnail_url: str = Form(""),
+    replace_video: str = Form("false"),
+    is_youtube: str = Form("false"),
+    video_url: str = Form(""),
+):
+    """Update details of an existing webinar recording (speaker, description, date, duration, thumbnail, or replace video)."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    webinar = db.query(ConsultantWebinar).filter(ConsultantWebinar.id == webinar_id).first()
+    if not webinar:
+        return JSONResponse({"success": False, "error": "Webinar not found"}, status_code=404)
+
+    # Parse date
+    parsed_date = None
+    if webinar_date and webinar_date.strip():
+        try:
+            from datetime import datetime as _dt
+            parsed_date = _dt.strptime(webinar_date.strip(), "%Y-%m-%d").date()
+        except Exception:
+            parsed_date = None
+
+    webinar.title = title.strip()
+    webinar.description = description.strip() if description else None
+    webinar.speaker_name = speaker_name.strip() if speaker_name else None
+    webinar.speaker_title = speaker_title.strip() if speaker_title else None
+    webinar.webinar_date = parsed_date
+    webinar.duration_display = duration_display.strip() if duration_display else "45:00"
+
+    if thumbnail_url and thumbnail_url.strip():
+        webinar.thumbnail_url = thumbnail_url.strip()
+
+    # If replacing video with YouTube link
+    if replace_video.lower() in ("true", "1", "yes"):
+        if is_youtube.lower() in ("true", "1", "yes"):
+            if not video_url or not video_url.strip():
+                return JSONResponse({"success": False, "error": "YouTube URL is required"}, status_code=400)
+            webinar.video_url = video_url.strip()
+            webinar.is_youtube = True
+
+    db.commit()
+    db.refresh(webinar)
+    return JSONResponse({"success": True, "webinar_id": webinar.id})
+
+
+
+@app.delete("/api/admin/webinars/{webinar_id}")
+async def admin_delete_webinar(request: Request, webinar_id: int, db: Session = Depends(get_db)):
+    """Delete a webinar recording."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    webinar = db.query(ConsultantWebinar).filter(ConsultantWebinar.id == webinar_id).first()
+    if not webinar:
+        return JSONResponse({"success": False, "error": "Webinar not found"}, status_code=404)
+    db.delete(webinar)
+    db.commit()
+    return JSONResponse({"success": True})
+
+
+@app.get("/consultant/webinars", response_class=HTMLResponse)
+async def consultant_webinars_page(request: Request, db: Session = Depends(get_db)):
+    """Consultant webinar library page showing all available recordings."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    if user.user_type not in ("consultant", "admin"):
+        return RedirectResponse(url="/app", status_code=303)
+
+    webinars = db.query(ConsultantWebinar).filter(
+        ConsultantWebinar.is_active == True
+    ).order_by(
+        ConsultantWebinar.webinar_date.desc().nullslast(),
+        ConsultantWebinar.created_at.desc()
+    ).all()
+
+    return templates.TemplateResponse(
+        "pages/consultant_webinars.html",
+        {
+            "request": request,
+            "page_title": "Webinar Library — SolaceSquad",
+            "user_name": user.name,
+            "user_initials": get_initials(user.name),
+            "user_type": user.user_type,
+            "active_page": "webinars",
+            "nav_items": get_nav_items(user.user_type),
+            "webinars": webinars,
+        }
+    )
+
+
+@app.get("/consultant/webinars/{webinar_id}", response_class=HTMLResponse)
+async def consultant_webinar_player_page(request: Request, webinar_id: int, db: Session = Depends(get_db)):
+    """Dedicated endpoint player page for playing a specific webinar recording."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    if user.user_type not in ("consultant", "admin"):
+        return RedirectResponse(url="/app", status_code=303)
+
+    webinar = db.query(ConsultantWebinar).filter(
+        ConsultantWebinar.id == webinar_id,
+        ConsultantWebinar.is_active == True
+    ).first()
+    if not webinar:
+        return RedirectResponse(url="/consultant/webinars", status_code=303)
+
+    # Increment view count
+    try:
+        webinar.view_count = (webinar.view_count or 0) + 1
+        db.commit()
+    except Exception:
+        pass
+
+    # Extract YouTube ID if applicable
+    youtube_id = None
+    if webinar.is_youtube and webinar.video_url:
+        u = webinar.video_url
+        if "watch?v=" in u:
+            youtube_id = u.split("watch?v=")[1].split("&")[0]
+        elif "youtu.be/" in u:
+            youtube_id = u.split("youtu.be/")[1].split("?")[0]
+        elif "embed/" in u:
+            youtube_id = u.split("embed/")[1].split("?")[0]
+        else:
+            youtube_id = u
+
+    # Other webinars for playlist sidebar
+    other_webinars = db.query(ConsultantWebinar).filter(
+        ConsultantWebinar.is_active == True,
+        ConsultantWebinar.id != webinar.id
+    ).order_by(
+        ConsultantWebinar.webinar_date.desc().nullslast(),
+        ConsultantWebinar.created_at.desc()
+    ).limit(8).all()
+
+    return templates.TemplateResponse(
+        "pages/consultant_webinar_player.html",
+        {
+            "request": request,
+            "page_title": f"{webinar.title} — Webinar Player",
+            "user_name": user.name,
+            "user_initials": get_initials(user.name),
+            "user_type": user.user_type,
+            "active_page": "webinars",
+            "nav_items": get_nav_items(user.user_type),
+            "webinar": webinar,
+            "youtube_id": youtube_id,
+            "other_webinars": other_webinars,
+        }
+    )
+
+
+@app.get("/api/consultant/webinars/{webinar_id}/stream")
+async def stream_consultant_webinar(request: Request, webinar_id: int, db: Session = Depends(get_db)):
+    """Proxy-stream a GCS webinar recording video with HTTP 206 byte-range seeking support."""
+    import asyncio
+    from fastapi.responses import StreamingResponse as _StreamResp, Response as _BinResp
+    from google.cloud import storage as gcs_storage
+
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    current_user = db.query(User).filter(User.id == user_id).first()
+    if not current_user:
+        raise HTTPException(status_code=401, detail="User not found")
+    if current_user.user_type not in ("consultant", "admin"):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    webinar = db.query(ConsultantWebinar).filter(
+        ConsultantWebinar.id == webinar_id,
+        ConsultantWebinar.is_active == True
+    ).first()
+    if not webinar:
+        raise HTTPException(status_code=404, detail="Webinar not found")
+
+    if webinar.is_youtube:
+        raise HTTPException(status_code=400, detail="YouTube videos are embedded directly.")
+    if "storage.googleapis.com/" not in webinar.video_url:
+        raise HTTPException(status_code=404, detail="Invalid GCS URL")
+
+    after = webinar.video_url.split("storage.googleapis.com/", 1)[1]
+    bucket_name, blob_path = after.split("/", 1)
+
+    def _download():
+        client = gcs_storage.Client()
+        blob = client.bucket(bucket_name).blob(blob_path)
+        ct = blob.content_type
+        if not ct or ct in ("application/octet-stream", "binary/octet-stream"):
+            low = blob_path.lower()
+            if low.endswith(".mp4"):
+                ct = "video/mp4"
+            elif low.endswith(".webm"):
+                ct = "video/webm"
+            elif low.endswith(".mov"):
+                ct = "video/quicktime"
+            elif low.endswith(".m4v"):
+                ct = "video/mp4"
+            else:
+                ct = "video/mp4"
+        return blob.download_as_bytes(), ct
+
+    video_bytes, content_type = await asyncio.get_event_loop().run_in_executor(None, _download)
+    total = len(video_bytes)
+
+    range_header = request.headers.get("range")
+    if range_header and range_header.startswith("bytes="):
+        raw_range = range_header.replace("bytes=", "").strip()
+        byte_start, byte_end = 0, total - 1
+        try:
+            if raw_range.startswith("-"):
+                suffix_len = int(raw_range[1:])
+                byte_start = max(0, total - suffix_len)
+                byte_end = total - 1
+            elif "-" in raw_range:
+                parts = raw_range.split("-", 1)
+                byte_start = int(parts[0]) if parts[0] else 0
+                byte_end = int(parts[1]) if parts[1] else (total - 1)
+        except Exception:
+            byte_start, byte_end = 0, total - 1
+
+        if byte_start >= total:
+            return _BinResp(status_code=416, headers={"Content-Range": f"bytes */{total}"})
+        byte_end = min(byte_end, total - 1)
+        if byte_end < byte_start:
+            byte_end = byte_start
+
+        max_chunk = 8 * 1024 * 1024  # 8MB chunk
+        if (byte_end - byte_start + 1) > max_chunk:
+            byte_end = byte_start + max_chunk - 1
+
+        chunk = video_bytes[byte_start: byte_end + 1]
+        return _StreamResp(
+            iter([chunk]),
+            status_code=206,
+            headers={
+                "Content-Disposition": "inline",
+                "Content-Range": f"bytes {byte_start}-{byte_end}/{total}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(len(chunk)),
+                "Cache-Control": "private, max-age=3600",
+            },
+            media_type=content_type,
+        )
+
+    return _BinResp(
+        content=video_bytes,
+        media_type=content_type,
+        headers={
+            "Content-Disposition": "inline",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(total),
+            "Cache-Control": "private, max-age=3600",
+        },
+    )
+
+
+# ============================================================================
 # ADMIN CONSULTANT PRO VIDEO ROUTES & STREAMING ENDPOINTS
 # ============================================================================
 
@@ -13463,21 +14089,17 @@ async def admin_delete_pro_video(request: Request, video_id: int, db: Session = 
 async def get_consultant_pro_videos(request: Request, consultant_id: int, db: Session = Depends(get_db)):
     """Return all active Pro Videos for a given consultant profile ID with paid-access status."""
     user_id = request.session.get("user_id")
-    if not user_id:
-        return JSONResponse({"success": False, "error": "Authentication required"}, status_code=401)
-
-    current_user = db.query(User).filter(User.id == user_id).first()
-    if not current_user:
-        return JSONResponse({"success": False, "error": "User not found"}, status_code=401)
+    current_user = db.query(User).filter(User.id == user_id).first() if user_id else None
 
     is_paid = False
-    if current_user.user_type in ("admin", "consultant"):
-        is_paid = True
-    else:
-        from subscription_routes import get_active_subscription
-        sub = get_active_subscription(current_user.id, db)
-        if sub and sub.plan and not sub.plan.is_free and sub.status in ("active", "trialing"):
+    if current_user:
+        if current_user.user_type in ("admin", "consultant"):
             is_paid = True
+        else:
+            from subscription_routes import get_active_subscription
+            sub = get_active_subscription(current_user.id, db)
+            if sub and sub.plan and not sub.plan.is_free and sub.status in ("active", "trialing"):
+                is_paid = True
 
     videos = db.query(ConsultantProVideo).filter(
         ConsultantProVideo.consultant_id == consultant_id,
@@ -17202,13 +17824,9 @@ async def get_consultant_reviews(
     """
     Return paginated public reviews for a consultant.
     Shows display_name (real name or 'Anonymous User') respecting is_anonymous.
-    Available to any logged-in user to read before booking.
+    Available to any user to read before booking.
     Served from Cloud SQL.
     """
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=401)
-
     try:
         query = db.query(ConsultantRating).filter(
             ConsultantRating.consultant_id == consultant_profile_id
@@ -18620,4 +19238,53 @@ async def get_consultant_patient_reports(
         }
         for r in reports
     ]
+
+
+# ── Internal Sales Support Tool Reverse Proxy ─────────────────────────────────
+import httpx as _salestool_httpx
+from fastapi.responses import Response as _FastAPIResponse
+
+_SALESTOOL_UPSTREAM = os.getenv("SALESTOOL_SERVICE_URL", "https://salestools-sf52cc6tnq-uc.a.run.app")
+
+@app.api_route("/salestool", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+@app.api_route("/salestool/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def proxy_salestool(request: Request, path: str = ""):
+    target_url = f"{_SALESTOOL_UPSTREAM}/salestool/{path}" if path else f"{_SALESTOOL_UPSTREAM}/salestool"
+    if request.url.query:
+        target_url = f"{target_url}?{request.url.query}"
+    
+    excluded_req = {"host", "content-length"}
+    req_headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in excluded_req
+    }
+    
+    req_body = await request.body()
+    
+    async with _salestool_httpx.AsyncClient(follow_redirects=False, timeout=60.0) as client:
+        upstream_res = await client.request(
+            method=request.method,
+            url=target_url,
+            headers=req_headers,
+            content=req_body,
+        )
+        
+        excluded_res = {"content-encoding", "content-length", "transfer-encoding", "connection"}
+        res_headers = {
+            k: v for k, v in upstream_res.headers.items()
+            if k.lower() not in excluded_res
+        }
+        
+        return _FastAPIResponse(
+            content=upstream_res.content,
+            status_code=upstream_res.status_code,
+            headers=res_headers,
+            media_type=upstream_res.headers.get("content-type"),
+        )
+
+@app.api_route("/salestools", methods=["GET", "HEAD"])
+@app.api_route("/salestools/{path:path}", methods=["GET", "HEAD"])
+async def redirect_salestools(path: str = ""):
+    target = f"/salestool/{path}" if path else "/salestool"
+    return RedirectResponse(url=target, status_code=301)
 

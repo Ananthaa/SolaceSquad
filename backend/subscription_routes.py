@@ -526,7 +526,8 @@ def register_subscription_routes(app, templates, get_db):
     def _plan_to_dict(plan: UsagePlan) -> dict:
         return {
             "id": plan.id, "name": plan.name, "description": plan.description,
-            "price": plan.price, "billing_cycle": plan.billing_cycle,
+            "price": plan.price, "original_price": getattr(plan, "original_price", None),
+            "billing_cycle": plan.billing_cycle,
             "is_free": plan.is_free, "is_default": plan.is_default,
             "is_active": plan.is_active, "colour": plan.colour,
             "display_order": plan.display_order,
@@ -581,6 +582,7 @@ def register_subscription_routes(app, templates, get_db):
                 "plan_name": p.name,
                 "description": p.description,
                 "price": float(p.price),
+                "original_price": float(p.original_price) if getattr(p, "original_price", None) else None,
                 "billing_cycle": p.billing_cycle,
                 "is_free": p.is_free,
                 "is_popular": getattr(p, "is_popular", False),

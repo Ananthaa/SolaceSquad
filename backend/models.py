@@ -669,6 +669,27 @@ class ConsultantProVideo(Base):
     consultant = relationship("ConsultantProfile", backref="pro_videos")
 
 
+class ConsultantWebinar(Base):
+    """Admin-uploaded webinar recordings for consultants"""
+    __tablename__ = "consultant_webinars"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    speaker_name = Column(String(255), nullable=True)
+    speaker_title = Column(String(255), nullable=True)
+    webinar_date = Column(Date, nullable=True)
+    video_url = Column(String(500), nullable=False)  # GCS URL or YouTube URL
+    thumbnail_url = Column(String(500), nullable=True)
+    duration_seconds = Column(Integer, default=0, nullable=False, server_default='0')
+    duration_display = Column(String(20), nullable=True, default="45:00")
+    is_youtube = Column(Boolean, default=False, nullable=False, server_default='false')
+    target_audience = Column(String(50), nullable=False, default="all_consultants", server_default="'all_consultants'")
+    is_active = Column(Boolean, default=True, nullable=False, server_default='true')
+    view_count = Column(Integer, default=0, nullable=False, server_default='0')
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class MusicCategory(Base):
     """Categories/Folders for ambient music, soundscapes, and meditation tracks"""
     __tablename__ = "music_categories"

@@ -327,31 +327,42 @@
     }
 
     // ── Format date ─────────────────────────────────────────────────────────────
+    function parseDate(iso) {
+        if (!iso) return new Date();
+        var clean = String(iso).split('T')[0].trim();
+        var parts = clean.split('-');
+        if (parts.length === 3) {
+            return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+        var d = new Date(iso);
+        return isNaN(d.getTime()) ? new Date() : d;
+    }
+
     function fmtDate(iso) {
-        const d = new Date(iso + 'T00:00:00');
-        const today = new Date(); today.setHours(0, 0, 0, 0);
-        const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-        if (d.getTime() === today.getTime()) return 'Today';
-        if (d.getTime() === yesterday.getTime()) return 'Yesterday';
+        var d = parseDate(iso);
+        var today = new Date(); today.setHours(0, 0, 0, 0);
+        var yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+        if (d.toDateString() === today.toDateString()) return 'Today';
+        if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
         return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
     }
 
     // ── Week start (Monday) ──────────────────────────────────────────────────────
     function weekStart() {
-        const now = new Date(); now.setHours(0, 0, 0, 0);
-        const diff = (now.getDay() === 0) ? -6 : 1 - now.getDay();
+        var now = new Date(); now.setHours(0, 0, 0, 0);
+        var diff = (now.getDay() === 0) ? -6 : 1 - now.getDay();
         return new Date(now.setDate(now.getDate() + diff));
     }
 
     // ── Streak counter ───────────────────────────────────────────────────────────
     function calcStreak(logs) {
-        const days = [...new Set(logs.map(l => l.log_date))].sort().reverse();
+        var days = [...new Set(logs.map(l => String(l.log_date).split('T')[0]))].sort().reverse();
         if (!days.length) return 0;
-        let streak = 0;
-        let cur = new Date(); cur.setHours(0, 0, 0, 0);
-        for (const d of days) {
-            const day = new Date(d + 'T00:00:00');
-            const diff = Math.round((cur - day) / 86400000);
+        var streak = 0;
+        var cur = new Date(); cur.setHours(0, 0, 0, 0);
+        for (var i = 0; i < days.length; i++) {
+            var day = parseDate(days[i]);
+            var diff = Math.round((cur.getTime() - day.getTime()) / 86400000);
             if (diff > 1) break;
             streak++;
             cur = day;
@@ -375,8 +386,9 @@
         // Group by date
         const grouped = {};
         logs.forEach(l => {
-            if (!grouped[l.log_date]) grouped[l.log_date] = [];
-            grouped[l.log_date].push(l);
+            const dateKey = String(l.log_date).split('T')[0];
+            if (!grouped[dateKey]) grouped[dateKey] = [];
+            grouped[dateKey].push(l);
         });
 
         let html = '';
@@ -426,7 +438,7 @@
     // ── Stats ────────────────────────────────────────────────────────────────────
     function updateStats(logs) {
         const ws = weekStart();
-        const week = logs.filter(l => new Date(l.log_date + 'T00:00:00') >= ws);
+        const week = logs.filter(l => parseDate(l.log_date) >= ws);
         document.getElementById('wh-stat-total').textContent = week.length;
         document.getElementById('wh-stat-mins').textContent = week.reduce((s, l) => s + (l.duration_min || 0), 0) + ' min';
         document.getElementById('wh-stat-cal').textContent = week.reduce((s, l) => s + (l.calories || 0), 0) + ' kcal';
@@ -437,10 +449,12 @@
     let whLogs = [];
     async function loadHistory() {
         try {
-            const r = await fetch('/api/workout-log');
+            const r = await fetch('/api/workout-log?t=' + Date.now(), {
+                headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+            });
             const d = await r.json();
             if (d.success) {
-                whLogs = d.logs;
+                whLogs = d.logs || [];
                 renderHistory(whLogs);
                 updateStats(whLogs);
             }

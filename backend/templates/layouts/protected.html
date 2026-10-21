@@ -11,9 +11,13 @@
 <header class="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 h-16">
     <div class="flex items-center justify-between h-full px-4">
         <!-- Logo & Mobile Menu -->
-        <div class="flex items-center gap-4">
-            <button id="sidebar-toggle-btn" onclick="toggleSidebar()" class="lg:hidden p-2 hover:bg-gray-100 rounded-lg text-gray-700" aria-label="Toggle navigation menu">
-                <i data-lucide="menu" class="w-5 h-5"></i>
+        <div class="flex items-center gap-3">
+            <button id="sidebar-toggle-btn" onclick="toggleSidebar(event)" class="lg:hidden p-2 hover:bg-gray-100 active:bg-gray-200 rounded-lg text-gray-800 flex items-center justify-center min-w-[44px] min-h-[44px] focus:outline-none cursor-pointer" aria-label="Toggle navigation menu" style="touch-action: manipulation; -webkit-tap-highlight-color: transparent;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-gray-800 pointer-events-none">
+                    <line x1="4" y1="6" x2="20" y2="6"></line>
+                    <line x1="4" y1="12" x2="20" y2="12"></line>
+                    <line x1="4" y1="18" x2="20" y2="18"></line>
+                </svg>
             </button>
 
             <a href="https://www.solacesquad.com" class="app-logo-link flex items-center gap-2" onclick="if(window.isMobileApp || window.AndroidBridge || window.iOSBridge || /SolaceSquadApp/i.test(navigator.userAgent)){ return openSolaceWebsite(event); }">
@@ -37,47 +41,68 @@
 </header>
 
 <script>
-    // Immediate sidebar drawer toggle definition
-    window.toggleSidebar = function () {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        if (sidebar) {
-            sidebar.classList.toggle('-translate-x-full');
-        }
-        if (overlay) {
-            overlay.classList.toggle('hidden');
-        }
-    };
-    window.closeSidebar = function () {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('sidebar-overlay');
-        if (sidebar) {
-            sidebar.classList.add('-translate-x-full');
-        }
-        if (overlay) {
-            overlay.classList.add('hidden');
-        }
-    };
+    // Debounced, ultra-reliable sidebar drawer toggle
+    let _sidebarToggleBusy = false;
+
     window.openSidebar = function () {
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebar-overlay');
         if (sidebar) {
             sidebar.classList.remove('-translate-x-full');
+            sidebar.classList.add('translate-x-0', 'sidebar-open');
+            sidebar.style.transform = 'translateX(0px)';
+            sidebar.style.display = 'flex';
+            sidebar.style.visibility = 'visible';
+            sidebar.style.zIndex = '99999';
         }
         if (overlay) {
             overlay.classList.remove('hidden');
+            overlay.style.display = 'block';
+            overlay.style.visibility = 'visible';
+            overlay.style.zIndex = '99998';
+        }
+    };
+
+    window.closeSidebar = function () {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        if (sidebar) {
+            sidebar.classList.add('-translate-x-full');
+            sidebar.classList.remove('translate-x-0', 'sidebar-open');
+            sidebar.style.transform = 'translateX(-100%)';
+            if (window.innerWidth < 1024) {
+                sidebar.style.display = 'none';
+            }
+        }
+        if (overlay) {
+            overlay.classList.add('hidden');
+            overlay.style.display = 'none';
+        }
+    };
+
+    window.toggleSidebar = function (e) {
+        if (e && typeof e.preventDefault === 'function') {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        if (_sidebarToggleBusy) return;
+        _sidebarToggleBusy = true;
+        setTimeout(() => { _sidebarToggleBusy = false; }, 250);
+
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        const isClosed = sidebar.classList.contains('-translate-x-full') || 
+                         sidebar.style.transform === 'translateX(-100%)' || 
+                         sidebar.style.display === 'none' ||
+                         !sidebar.classList.contains('sidebar-open');
+        if (isClosed) {
+            window.openSidebar();
+        } else {
+            window.closeSidebar();
         }
     };
 
     document.addEventListener('DOMContentLoaded', async () => {
-        // Direct event listener binding to guarantee responsiveness on mobile taps
-        const toggleBtn = document.getElementById('sidebar-toggle-btn');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                window.toggleSidebar();
-            });
-        }
         // Only fetch if user is a normal user, not admin/consultant
         if ('{{ active_user_type }}' !== 'user') return;
         try {
@@ -113,7 +138,6 @@
                         if (typeEl) typeEl.style.display = 'none';
                         if (pillEl) {
                             pillEl.style.display = 'inline-block';
-                            // Ensure caption says exactly "Green", "Free", etc.
                             pillEl.textContent = plan.name.replace(/Plan\s+/i, '').trim();
                             pillEl.style.color = textColor;
                             pillEl.style.borderColor = borderColor;
@@ -129,10 +153,54 @@
     });
 </script>
 
-<!-- Sidebar (Desktop) -->
+<style>
+    /* iOS WKWebView & Mobile Sidebar Scroll Containment */
+    #sidebar {
+        height: 100% !important;
+        height: 100dvh !important;
+        max-height: 100% !important;
+        max-height: 100dvh !important;
+        overflow: hidden !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    @media (min-width: 1024px) {
+        #sidebar {
+            height: calc(100vh - 4rem) !important;
+            height: calc(100dvh - 4rem) !important;
+            max-height: calc(100vh - 4rem) !important;
+            max-height: calc(100dvh - 4rem) !important;
+        }
+    }
+    #sidebar nav,
+    .sidebar-nav {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-y !important;
+        overscroll-behavior-y: contain !important;
+        padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+</style>
+
+<!-- Sidebar (Desktop & Mobile Drawer) -->
 <aside id="sidebar"
-    class="sidebar fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none">
-    <nav class="p-4 space-y-1 overflow-y-auto h-full pb-20">
+    class="sidebar fixed top-0 lg:top-16 left-0 bottom-0 w-72 lg:w-64 bg-white border-r border-gray-200 z-50 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none flex flex-col h-full max-h-screen max-h-[100dvh] lg:max-h-[calc(100dvh-4rem)] overflow-hidden">
+    <!-- Mobile Drawer Header -->
+    <div class="lg:hidden flex items-center justify-between px-4 py-3.5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+        <a href="https://www.solacesquad.com" class="flex items-center gap-2" onclick="if(window.isMobileApp || window.AndroidBridge || window.iOSBridge || /SolaceSquadApp/i.test(navigator.userAgent)){ return openSolaceWebsite(event); }">
+            <img src="/static/images/logo.png" alt="SolaceSquad" class="h-8 w-auto">
+        </a>
+        <button type="button" onclick="closeSidebar()" class="p-2 text-gray-500 hover:text-gray-800 hover:bg-gray-200 rounded-lg min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer" aria-label="Close drawer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+    </div>
+
+    <nav class="sidebar-nav p-4 space-y-1 overflow-y-auto flex-1 min-h-0 pb-28">
         {% if request.session.get("impersonate_user_id") %}
         <div class="mb-4">
             <a href="/admin/stop-impersonate"
@@ -167,6 +235,11 @@
             class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'demo-videos' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
             <i data-lucide="play-circle" class="w-5 h-5"></i>
             <span>Demo Videos</span>
+        </a>
+        <a href="/admin/webinars"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'webinars' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="presentation" class="w-5 h-5 text-indigo-600"></i>
+            <span>Webinar Library</span>
         </a>
         <a href="/admin/pro-videos"
             class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'pro-videos' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
@@ -227,6 +300,12 @@
             class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'assistants' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
             <i data-lucide="user-cog" class="w-5 h-5"></i>
             <span>Assistants</span>
+        </a>
+        <a href="/salestool" target="_blank"
+            class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors {% if active_page == 'salestool' %}bg-primary-50 text-primary-700 font-medium{% else %}text-gray-700 hover:bg-gray-100{% endif %}">
+            <i data-lucide="send" class="w-5 h-5 text-teal-600"></i>
+            <span class="flex-1">Sales Support Tool</span>
+            <span class="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">New</span>
         </a>
 
         {% else %}
@@ -461,6 +540,38 @@
       } catch(e) {}
     }
   })();
+
+  // ── Push Notification Registration (Android FCM & iOS APNs) ──────────────
+  window.onFcmTokenReceived = function(token) {
+    if (token && token.trim() !== '') {
+      fetch('/api/devices/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fcm_token: token.trim(), device_type: 'android' })
+      }).catch(function(err) { console.error('FCM registration error:', err); });
+    }
+  };
+
+  window.onReceiveApnsToken = function(token) {
+    if (token && token.trim() !== '') {
+      fetch('/api/devices/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fcm_token: token.trim(), device_type: 'ios' })
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.success) console.log('iOS APNs device registered successfully');
+      }).catch(function(err) { console.error('APNs registration error:', err); });
+    }
+  };
+
+  if (window.AndroidBridge && typeof window.AndroidBridge.getFcmToken === 'function') {
+    var aToken = window.AndroidBridge.getFcmToken();
+    if (aToken) { window.onFcmTokenReceived(aToken); }
+  }
+
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.getApnsToken) {
+    try { window.webkit.messageHandlers.getApnsToken.postMessage({}); } catch(e) {}
+  }
 })();
 </script>
 {% endblock %}

@@ -94,7 +94,7 @@
     background: rgba(15, 23, 42, 0.75);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    z-index: 9999;
+    z-index: 100000;
     display: none;
     align-items: center;
     justify-content: center;
@@ -105,8 +105,9 @@
 
   @media (max-width: 640px) {
     .qc-modal-backdrop {
-      padding: env(safe-area-inset-top, 12px) 0.5rem env(safe-area-inset-bottom, 20px) 0.5rem;
-      align-items: flex-start;
+      padding: 0.75rem 0.5rem calc(65px + 0.75rem) 0.5rem;
+      align-items: center;
+      justify-content: center;
     }
   }
 
@@ -153,6 +154,40 @@
   .qc-search-input::placeholder {
     color: #94a3b8;
     font-weight: 500;
+  }
+
+  /* ── Android WebView Modal Sizing Fixes ─────────────────────────────────── */
+  /* On Android, vh units don't account for the browser/WebView chrome.
+     We force the backdrop to fill the real visible viewport using dvh + JS-injected
+     pixel height, and override the inner card's max-height similarly. */
+  .is-android-app .qc-modal-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    padding: 0.75rem 0.5rem 0.75rem 0.5rem !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  .is-android-app .qc-modal-backdrop > div {
+    max-height: calc(100dvh - 1.5rem) !important;
+    max-height: calc(var(--android-vh, 100vh) - 1.5rem) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    margin: auto !important;
+    flex-shrink: 0 !important;
+  }
+  /* Fix the inner scrollable area inside the Terms modal */
+  .is-android-app #termsModal .flex-1.overflow-y-auto {
+    max-height: calc(100dvh - 280px) !important;
+    max-height: calc(var(--android-vh, 100vh) - 280px) !important;
   }
 </style>
 
@@ -797,6 +832,27 @@
   document.addEventListener('DOMContentLoaded', () => {
     loadQuickConsultants();
     if (window.lucide) lucide.createIcons();
+
+    // ── Android WebView: teleport modals & set accurate viewport height ──
+    var isAndroid = window.AndroidBridge !== undefined || window.isAndroidApp ||
+      (/Android/i.test(navigator.userAgent) && (window.isMobileApp || /SolaceSquadApp/i.test(navigator.userAgent)));
+    if (isAndroid) {
+      // Set --android-vh CSS variable to real window.innerHeight
+      function setAndroidVH() {
+        document.documentElement.style.setProperty('--android-vh', window.innerHeight + 'px');
+      }
+      setAndroidVH();
+      window.addEventListener('resize', setAndroidVH);
+      window.addEventListener('orientationchange', function() { setTimeout(setAndroidVH, 200); });
+
+      // Teleport all modal backdrops to document.body so no parent clip/overflow can hide them
+      ['profileModal', 'bookingModal', 'termsModal', 'successModal'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && el.parentElement !== document.body) {
+          document.body.appendChild(el);
+        }
+      });
+    }
   });
 
   async function loadQuickConsultants() {
@@ -1029,7 +1085,7 @@
 
   /* ══ PROFILE MODAL LOGIC ══ */
   function openProfileModal(consultantId) {
-    const c = allConsultants.find(item => item.id === consultantId);
+    const c = allConsultants.find(item => item.id == consultantId || String(item.id) === String(consultantId));
     if (!c) return;
     selectedConsultant = c;
 
