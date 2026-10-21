@@ -1050,8 +1050,8 @@
           </div>
 
           <!-- Price & Action Buttons -->
-          <div class="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
-            <div class="flex-shrink-0">
+          <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center justify-between sm:justify-start gap-2">
               <span class="text-[10px] uppercase font-bold text-slate-400 block whitespace-nowrap">30 Mins Phone Call</span>
               <div class="flex items-baseline gap-1 whitespace-nowrap">
                 <span class="text-base font-black text-[#1e4d40]">₹${Math.round(basePrice).toLocaleString('en-IN')}</span>
@@ -1059,17 +1059,19 @@
               </div>
             </div>
 
-            <div class="flex items-center gap-1.5 flex-shrink-0">
+            <div class="flex items-center gap-2 w-full sm:w-auto">
               <button 
+                type="button"
                 onclick="openProfileModal(${c.id})" 
-                class="px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
+                class="flex-1 sm:flex-initial text-center justify-center px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
                 title="View Full Profile & Credentials"
               >
                 View Profile
               </button>
               <button 
+                type="button"
                 onclick="openBookingModal(${c.id})" 
-                class="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-extrabold text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                class="flex-1 sm:flex-initial text-center justify-center px-4 py-2.5 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-extrabold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
                 <i data-lucide="phone" class="w-3.5 h-3.5 text-emerald-300"></i>
                 <span>Book Call</span>

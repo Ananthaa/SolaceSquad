@@ -220,7 +220,7 @@
                 data-rate="{{ consultant.hourly_rate }}"
                 data-photo="{{ consultant.photo_url }}"
                 data-offers-sw="{{ 'true' if consultant.offers_sexual_wellness else 'false' }}">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle;pointer-events:none;">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>
                 </svg>
@@ -488,6 +488,11 @@
         }
         _profileModalOpenedAt = Date.now();
 
+        if (target && target.target && !target.nodeType) {
+            e = target;
+            target = target.target;
+        }
+
         var btn = null;
         if (target) {
             if (typeof target.closest === 'function') {
@@ -507,10 +512,11 @@
         if (!profileModal) return;
 
         var id = btn ? (btn.dataset.id || '') : (typeof target === 'number' || typeof target === 'string' ? target : (target && target.id ? target.id : ''));
-        var name = btn ? (btn.dataset.name || 'Consultant') : (target && target.dataset && target.dataset.name ? target.dataset.name : (target && target.name ? target.name : 'Consultant'));
+        var rawName = btn ? (btn.dataset.name || 'Consultant') : (target && target.dataset && target.dataset.name ? target.dataset.name : (target && target.name ? target.name : 'Consultant'));
+        var name = String(rawName || 'Consultant');
         var spec = btn ? (btn.dataset.spec || '') : (target && target.dataset && target.dataset.spec ? target.dataset.spec : (target && target.specialization ? target.specialization : ''));
         var bio = btn ? (btn.dataset.bio || '') : (target && target.dataset && target.dataset.bio ? target.dataset.bio : (target && target.bio ? target.bio : ''));
-        var rating = btn ? (parseFloat(btn.dataset.rating) || 0) : (target && target.dataset && target.dataset.rating ? parseFloat(target.dataset.rating) || 0 : (target && target.rating ? parseFloat(target.rating) || 0 : 0));
+        var rating = parseFloat(btn ? btn.dataset.rating : (target && target.dataset && target.dataset.rating ? target.dataset.rating : (target && target.rating ? target.rating : 0))) || 0;
         var exp = btn ? (btn.dataset.exp || '0') : (target && target.dataset && target.dataset.exp ? target.dataset.exp : (target && target.experience_years ? target.experience_years : '0'));
         var rate = btn ? (btn.dataset.rate || '0') : (target && target.dataset && target.dataset.rate ? target.dataset.rate : (target && target.hourly_rate ? target.hourly_rate : '0'));
         var photo = btn ? (btn.dataset.photo || '') : (target && target.dataset && target.dataset.photo ? target.dataset.photo : (target && target.photo_url ? target.photo_url : ''));
@@ -573,6 +579,7 @@
         // Display modal
         profileModal.scrollTop = 0;
         profileModal.classList.add('active');
+        profileModal.style.display = 'block';
         document.body.style.overflow = 'hidden';
 
         if (id) {
@@ -668,6 +675,7 @@
         var profileModal = document.getElementById('profileModal');
         if (profileModal) {
             profileModal.classList.remove('active');
+            profileModal.style.display = 'none';
         }
         document.body.style.overflow = '';
     };
@@ -707,6 +715,13 @@
             if (el && el.parentElement !== document.body) {
                 document.body.appendChild(el);
             }
+        });
+
+        // Ensure explicit touch/click listeners are bound to all view profile buttons
+        document.querySelectorAll('.view-profile-btn').forEach(function(b) {
+            b.addEventListener('click', function(ev) {
+                window.openProfileModal(this, ev);
+            });
         });
     });
 })();
@@ -751,6 +766,7 @@ window.openEmoraPopup = function(e) {
         document.body.appendChild(popup);
     }
 
+    popup.style.display = 'flex';
     popup.classList.add('active');
     isEmoraOpen = true;
     if (floatingPill) floatingPill.style.display = 'none';
@@ -775,6 +791,7 @@ window.minimizeEmoraPopup = function(e) {
     if (_isEmoraVoiceRecording) {
         stopEmoraVoiceRecord();
     }
+    popup.style.display = 'none';
     popup.classList.remove('active');
     isEmoraOpen = false;
     if (floatingPill) floatingPill.style.display = 'flex';
@@ -3315,6 +3332,118 @@ window.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    /* Enforce full mobile sizing on Android WebView and Mobile App */
+    .is-android-app #profileModal.modal,
+    .is-mobile-app #profileModal.modal {
+        padding: 0 !important;
+        background: rgba(15, 23, 42, 0.85) !important;
+        height: 100% !important;
+        height: calc(var(--android-vh, 100vh)) !important;
+        max-height: calc(var(--android-vh, 100vh)) !important;
+    }
+    .is-android-app #profileModal.modal .profile-modal-card,
+    .is-mobile-app #profileModal.modal .profile-modal-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        min-height: 100% !important;
+        min-height: calc(var(--android-vh, 100vh)) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        background: #ffffff !important;
+    }
+    .is-android-app #profileModal.modal .pm-card-header,
+    .is-mobile-app #profileModal.modal .pm-card-header {
+        border-radius: 0 !important;
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 20 !important;
+        padding: 1rem 1.15rem !important;
+    }
+    .is-android-app #profileModal.modal .pm-card-body,
+    .is-mobile-app #profileModal.modal .pm-card-body {
+        padding: 1.25rem 1.15rem calc(90px + env(safe-area-inset-bottom, 0px)) 1.15rem !important;
+        border-radius: 0 !important;
+        gap: 1.25rem !important;
+        flex: 1 1 auto !important;
+    }
+    .is-android-app #profileModal.modal .pm-hero-section,
+    .is-mobile-app #profileModal.modal .pm-hero-section {
+        gap: 1rem !important;
+        padding-bottom: 1rem !important;
+    }
+    .is-android-app #profileModal.modal .pm-avatar-wrap,
+    .is-mobile-app #profileModal.modal .pm-avatar-wrap {
+        width: 72px !important;
+        height: 72px !important;
+        min-width: 72px !important;
+        font-size: 1.5rem !important;
+        border-radius: 18px !important;
+    }
+    .is-android-app #profileModal.modal .pm-name,
+    .is-mobile-app #profileModal.modal .pm-name {
+        font-size: 1.35rem !important;
+        line-height: 1.25 !important;
+    }
+    .is-android-app #profileModal.modal .pm-spec,
+    .is-mobile-app #profileModal.modal .pm-spec {
+        font-size: 0.95rem !important;
+    }
+    .is-android-app #profileModal.modal .pm-pills,
+    .is-mobile-app #profileModal.modal .pm-pills {
+        gap: 0.4rem !important;
+    }
+    .is-android-app #profileModal.modal .pm-pill,
+    .is-mobile-app #profileModal.modal .pm-pill {
+        font-size: 0.8rem !important;
+        padding: 0.3rem 0.75rem !important;
+    }
+    .is-android-app #profileModal.modal .pm-bio-card,
+    .is-mobile-app #profileModal.modal .pm-bio-card {
+        padding: 1rem 1.15rem !important;
+    }
+    .is-android-app #profileModal.modal .pm-bio-text,
+    .is-mobile-app #profileModal.modal .pm-bio-text {
+        font-size: 0.92rem !important;
+        line-height: 1.65 !important;
+    }
+    .is-android-app #profileModal.modal .pm-reviews-list,
+    .is-mobile-app #profileModal.modal .pm-reviews-list {
+        gap: 0.75rem !important;
+    }
+    .is-android-app #profileModal.modal .pm-review-card,
+    .is-mobile-app #profileModal.modal .pm-review-card {
+        padding: 1rem 1.15rem !important;
+    }
+    .is-android-app #profileModal.modal .pm-card-cta-box,
+    .is-mobile-app #profileModal.modal .pm-card-cta-box {
+        position: sticky !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 1rem 0 0 0 !important;
+        border-radius: 16px !important;
+        border: 1.5px solid #ccfbf1 !important;
+        background: #f0fdfa !important;
+        box-shadow: 0 4px 14px rgba(13, 148, 136, 0.15) !important;
+        padding: 0.9rem 1.15rem !important;
+        z-index: 10 !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+    }
+    .is-android-app #profileModal.modal .pm-book-btn,
+    .is-mobile-app #profileModal.modal .pm-book-btn {
+        padding: 0.8rem 1.35rem !important;
+        font-size: 0.95rem !important;
+        border-radius: 12px !important;
+        width: auto !important;
+    }
+
     /* ── Pro Video Button on Consultant Card ── */
     .pro-video-tile-btn {
         width: 100%;
@@ -4700,6 +4829,75 @@ window.addEventListener('DOMContentLoaded', function() {
             width: 100% !important;
             box-sizing: border-box !important;
         }
+    }
+
+    /* Enforce full-screen Emora matcher on Android WebView and Mobile App */
+    .is-android-app .emora-floating-pill,
+    .is-mobile-app .emora-floating-pill {
+        bottom: calc(65px + 16px) !important;
+        right: 16px !important;
+        z-index: 999998 !important;
+    }
+    .is-android-app .emora-match-popup,
+    .is-mobile-app .emora-match-popup {
+        position: fixed !important;
+        inset: 0 !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100% !important;
+        height: 100dvh !important;
+        height: calc(var(--android-vh, 100vh)) !important;
+        max-width: 100vw !important;
+        max-height: 100% !important;
+        max-height: calc(var(--android-vh, 100vh)) !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        z-index: 1000005 !important;
+        box-shadow: none !important;
+        display: none !important;
+        flex-direction: column !important;
+        background: #ffffff !important;
+        overflow: hidden !important;
+    }
+    .is-android-app .emora-match-popup.active,
+    .is-mobile-app .emora-match-popup.active {
+        display: flex !important;
+    }
+    .is-android-app .emora-popup-header,
+    .is-mobile-app .emora-popup-header {
+        border-radius: 0 !important;
+        padding: 0.85rem 1rem !important;
+        flex-shrink: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .is-android-app .emora-popup-body,
+    .is-android-app #emoraChatBody,
+    .is-mobile-app .emora-popup-body,
+    .is-mobile-app #emoraChatBody {
+        flex: 1 1 0% !important;
+        min-height: 0 !important;
+        height: auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 1rem !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .is-android-app .emora-popup-footer,
+    .is-android-app #emoraChatFooter,
+    .is-mobile-app .emora-popup-footer,
+    .is-mobile-app #emoraChatFooter {
+        padding: 0.75rem 1rem calc(12px + env(safe-area-inset-bottom, 0px)) 1rem !important;
+        background: #ffffff !important;
+        border-top: 1px solid #e2e8f0 !important;
+        flex-shrink: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
 
     @keyframes emora-slide-up {

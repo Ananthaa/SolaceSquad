@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -89,9 +91,10 @@ fun NativeBottomBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(62.dp)
                     .navigationBarsPadding()
-                    .padding(horizontal = 4.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Tab 1: Home
@@ -126,7 +129,7 @@ fun NativeBottomBar(
                     modifier = Modifier.weight(1.15f)
                 )
 
-                // Tab 4: Book Consultation
+                // Tab 4: Find Consultants
                 TabButton(
                     tab = TabItem.CONSULT,
                     isSelected = selectedTab == TabItem.CONSULT,
@@ -134,7 +137,7 @@ fun NativeBottomBar(
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         onTabSelected(TabItem.CONSULT)
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1.1f)
                 )
 
                 // Tab 5: Profile
@@ -164,8 +167,9 @@ private fun TabButton(
 
     Column(
         modifier = modifier
+            .fillMaxHeight()
             .clickable(interactionSource = interactionSource, indication = null) { onClick() }
-            .padding(vertical = 4.dp),
+            .padding(horizontal = 1.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -175,10 +179,14 @@ private fun TabButton(
             tint = color,
             modifier = Modifier.size(22.dp)
         )
-        Spacer(modifier = Modifier.height(3.dp))
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = tab.title,
-            fontSize = 11.sp,
+            fontSize = 9.8.sp,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
             color = color
         )
@@ -195,14 +203,15 @@ private fun QuickConsultCenterButton(
 
     Column(
         modifier = modifier
+            .fillMaxHeight()
             .clickable(interactionSource = interactionSource, indication = null) { onClick() }
-            .offset(y = (-6).dp),
+            .offset(y = (-4).dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(42.dp)
                 .shadow(elevation = 6.dp, shape = CircleShape, spotColor = TealPrimary.copy(alpha = 0.4f))
                 .clip(CircleShape)
                 .background(
@@ -216,15 +225,20 @@ private fun QuickConsultCenterButton(
                 imageVector = TabItem.QUICK_CONSULT.icon,
                 contentDescription = "Quick Consult",
                 tint = Color.White,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(23.dp)
             )
         }
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = "Quick Consult",
-            fontSize = 10.5.sp,
+            fontSize = 9.8.sp,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
             color = if (isSelected) TealPrimary else InactiveGray
         )
     }
 }
+

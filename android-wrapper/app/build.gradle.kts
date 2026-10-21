@@ -11,8 +11,8 @@ android {
         applicationId = "com.ssq2_and.solacesquad"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.4"
+        versionCode = 7
+        versionName = "1.6"
     }
 
     signingConfigs {
@@ -120,3 +120,4 @@ if (file("google-services.json").exists()) {
 } else {
     logger.warn("google-services.json not found. Push Notifications will not be functional.")
 }
+
