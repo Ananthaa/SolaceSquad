@@ -26,26 +26,36 @@ let _mainSidebarBusy = false;
 window.openSidebar = function () {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
-    if (sidebar) {
-        sidebar.classList.remove('-translate-x-full');
-        sidebar.classList.add('translate-x-0', 'sidebar-open', 'open');
-        sidebar.style.setProperty('display', 'flex', 'important');
-        sidebar.style.setProperty('visibility', 'visible', 'important');
-        sidebar.style.setProperty('opacity', '1', 'important');
-        sidebar.style.setProperty('transform', 'translateX(0px)', 'important');
-        sidebar.style.setProperty('-webkit-transform', 'translateX(0px)', 'important');
-        sidebar.style.setProperty('left', '0px', 'important');
-        sidebar.style.setProperty('z-index', '99999', 'important');
-        sidebar.style.setProperty('pointer-events', 'auto', 'important');
-    }
     if (overlay) {
+        if (overlay.parentElement !== document.body) {
+            document.body.appendChild(overlay);
+        }
         overlay.classList.remove('hidden');
         overlay.classList.add('active', 'sidebar-overlay-open');
         overlay.style.setProperty('display', 'block', 'important');
         overlay.style.setProperty('visibility', 'visible', 'important');
         overlay.style.setProperty('opacity', '1', 'important');
-        overlay.style.setProperty('z-index', '99998', 'important');
+        overlay.style.setProperty('z-index', '999998', 'important');
         overlay.style.setProperty('pointer-events', 'auto', 'important');
+    }
+    if (sidebar) {
+        if (sidebar.parentElement !== document.body) {
+            document.body.appendChild(sidebar);
+        }
+        sidebar.classList.remove('-translate-x-full');
+        sidebar.classList.add('translate-x-0', 'sidebar-open', 'open');
+        sidebar.style.setProperty('display', 'flex', 'important');
+        sidebar.style.setProperty('visibility', 'visible', 'important');
+        sidebar.style.setProperty('opacity', '1', 'important');
+        sidebar.style.setProperty('transform', 'none', 'important');
+        sidebar.style.setProperty('-webkit-transform', 'none', 'important');
+        sidebar.style.setProperty('left', '0px', 'important');
+        sidebar.style.setProperty('top', '0px', 'important');
+        sidebar.style.setProperty('bottom', '0px', 'important');
+        sidebar.style.setProperty('width', '288px', 'important');
+        sidebar.style.setProperty('background-color', '#ffffff', 'important');
+        sidebar.style.setProperty('z-index', '999999', 'important');
+        sidebar.style.setProperty('pointer-events', 'auto', 'important');
     }
 };
 

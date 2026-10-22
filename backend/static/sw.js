@@ -1,16 +1,36 @@
-const CACHE_NAME = 'soulsquad-v18';
+const CACHE_NAME = 'soulsquad-v21';
 const STATIC_ASSETS = [
     '/manifest.json',
-    '/static/css/styles.css?v=18',
-    '/static/js/main.js',
+    '/static/css/styles.css?v=21',
+    '/static/js/main.js?v=21',
     '/static/images/logo.png'
 ];
 
-// Authenticated routes — NEVER cache these
-const AUTH_PREFIXES = ['/app/', '/consultant/', '/admin/', '/api/'];
+// Authenticated & dynamic routes — NEVER cache these
+const AUTH_PREFIXES = [
+    '/app/',
+    '/consultant/',
+    '/admin/',
+    '/api/',
+    '/user-dashboard',
+    '/consultant-dashboard',
+    '/quick-consult',
+    '/quickconsult',
+    '/quick-consult-web',
+    '/quickconsult-web',
+    '/quickconsult/web',
+    '/consultants',
+    '/profile',
+    '/plans',
+    '/events',
+    '/workshops',
+    '/bookings',
+    '/settings',
+    '/messages'
+];
 function isAuthRoute(url) {
     const path = new URL(url).pathname;
-    return AUTH_PREFIXES.some(p => path.startsWith(p));
+    return AUTH_PREFIXES.some(p => path === p || path.startsWith(p));
 }
 
 // Install: cache static assets only

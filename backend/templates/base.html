@@ -173,34 +173,58 @@
     </script>
 
     <!-- Custom Styles -->
-    <link rel="stylesheet" href="/static/css/styles.css?v=18">
+    <link rel="stylesheet" href="/static/css/styles.css?v=21">
 
-    <!-- PWA -->
+    <!-- ═══ Service Worker / Mobile App Cache Busting Controller ═══ -->
     <link rel="manifest" href="/manifest.json">
     <script>
+      (function() {
+        var isMobileAppWrapper = (
+          window.AndroidBridge !== undefined ||
+          window.iOSBridge !== undefined ||
+          /SolaceSquadApp/i.test(navigator.userAgent) ||
+          document.documentElement.classList.contains('is-mobile-app') ||
+          document.documentElement.classList.contains('is-android-app')
+        );
+
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                // Aggressively clear old service workers to fix cache issues
-                navigator.serviceWorker.getRegistrations().then(registrations => {
-                    for (let registration of registrations) {
-                        registration.unregister();
-                        console.log("Unregistered stale SW");
-                    }
-                }).then(() => {
-                    // Clear all Cache Storage to remove stale cached HTML pages
-                    if (window.caches) {
-                        return caches.keys().then(keys => {
-                            return Promise.all(keys.map(key => caches.delete(key)));
-                        });
-                    }
-                }).then(() => {
-                    return navigator.serviceWorker.register('/sw.js');
-                }).then(reg => {
-                    console.log('SW registered');
-                    reg.update();
-                }).catch(err => console.log('SW setup failed', err));
+          if (isMobileAppWrapper) {
+            // NATIVE MOBILE APP WRAPPERS (Android & iOS):
+            // Strictly unregister and purge all service workers & cache storage
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              for (var i = 0; i < registrations.length; i++) {
+                registrations[i].unregister();
+                console.log('[MobileApp] Unregistered stale SW:', registrations[i]);
+              }
+            }).catch(function(e) { console.warn('[MobileApp] SW unregister error', e); });
+
+            if (window.caches) {
+              caches.keys().then(function(keys) {
+                return Promise.all(keys.map(function(k) {
+                  console.log('[MobileApp] Deleting cache:', k);
+                  return caches.delete(k);
+                }));
+              }).then(function() {
+                // If a stale SW was actively controlling this page, reload once cleanly to bypass cached HTML/JS
+                if (navigator.serviceWorker.controller && !sessionStorage.getItem('__sw_purged_v21')) {
+                  sessionStorage.setItem('__sw_purged_v21', 'true');
+                  console.log('[MobileApp] Purged stale SW controller, reloading cleanly...');
+                  window.location.reload(true);
+                }
+              }).catch(function(e) { console.warn('[MobileApp] Cache clear error', e); });
+            }
+          } else {
+            // WEB BROWSERS / PWA:
+            window.addEventListener('load', function() {
+              navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                reg.update();
+              }).catch(function(err) {
+                console.log('SW setup failed', err);
+              });
             });
+          }
         }
+      })();
     </script>
 
     {% block extra_head %}{% endblock %}
