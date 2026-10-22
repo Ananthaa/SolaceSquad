@@ -94,7 +94,7 @@
     background: rgba(15, 23, 42, 0.75);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    z-index: 100000;
+    z-index: 1000000;
     display: none;
     align-items: center;
     justify-content: center;
@@ -118,8 +118,11 @@
     }
   }
 
-  .qc-modal-backdrop:not(.hidden) {
+  .qc-modal-backdrop:not(.hidden),
+  .qc-modal-backdrop.active {
     display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 
   .qc-modal-backdrop.hidden {
@@ -363,7 +366,7 @@
 </div>
 
 <!-- ══ 1. CONSULTANT PROFILE MODAL ══ -->
-<div id="profileModal" class="qc-modal-backdrop hidden">
+<div id="profileModal" class="qc-modal-backdrop hidden" onclick="handleProfileBackdropClick(event)">
   <div class="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-7 max-w-xl w-full shadow-2xl border border-slate-100 relative max-h-[92vh] my-auto overflow-y-auto">
     
     <!-- Brand Header & Close Button -->
@@ -444,7 +447,7 @@
 </div>
 
 <!-- ══ 2. 30-MINUTE BOOKING & PAYMENT MODAL ══ -->
-<div id="bookingModal" class="qc-modal-backdrop hidden">
+<div id="bookingModal" class="qc-modal-backdrop hidden" onclick="handleBookingBackdropClick(event)">
   <div class="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 relative max-h-[92vh] my-auto overflow-y-auto">
     
     <!-- Brand Header & Close Button -->
@@ -989,13 +992,13 @@
       return `
         <div class="qc-consultant-card p-5 sm:p-6">
           <div>
-            <!-- Card Header: Photo & Rating -->
-            <div class="flex items-start gap-4 mb-4">
+            <!-- Consultant Header (Tap to View Profile) -->
+            <div class="flex items-start gap-4 mb-4 cursor-pointer group/header" onclick="openProfileModal('${c.id}', event)" title="View Full Profile">
               <div class="relative flex-shrink-0">
                 <img 
                   src="${c.photo_url || '/static/images/default-avatar.png'}" 
                   alt="${c.name}" 
-                  class="w-16 h-16 rounded-2xl object-cover border-2 border-teal-500/20 shadow-sm"
+                  class="w-16 h-16 rounded-2xl object-cover border-2 border-teal-500/20 shadow-sm transition-transform group-hover/header:scale-105"
                   onerror="this.src='/static/images/default-avatar.png'"
                 />
                 <span class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white qc-pulse-badge" title="Available for Phone Call"></span>
@@ -1008,7 +1011,7 @@
 
               <div class="flex-1 min-w-0">
                 <div class="flex items-center justify-between gap-1 mb-0.5">
-                  <h3 class="font-extrabold text-slate-900 text-base sm:text-lg leading-tight truncate" title="${c.name}">
+                  <h3 class="font-extrabold text-slate-900 text-base sm:text-lg leading-tight truncate group-hover/header:text-[#1e4d40] transition-colors" title="${c.name}">
                     ${c.name}
                   </h3>
                 </div>
@@ -1062,8 +1065,10 @@
             <div class="flex items-center gap-2 w-full sm:w-auto">
               <button 
                 type="button"
-                onclick="openProfileModal(${c.id})" 
-                class="flex-1 sm:flex-initial text-center justify-center px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap"
+                onclick="openProfileModal('${c.id}', event)" 
+                data-id="${c.id}"
+                class="view-profile-btn flex-1 sm:flex-initial text-center justify-center px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors cursor-pointer whitespace-nowrap active:scale-95"
+                style="touch-action: manipulation;"
                 title="View Full Profile & Credentials"
               >
                 View Profile
@@ -1071,7 +1076,8 @@
               <button 
                 type="button"
                 onclick="openBookingModal(${c.id})" 
-                class="flex-1 sm:flex-initial text-center justify-center px-4 py-2.5 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-extrabold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
+                class="flex-1 sm:flex-initial text-center justify-center px-4 py-2.5 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-extrabold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95"
+                style="touch-action: manipulation;"
               >
                 <i data-lucide="phone" class="w-3.5 h-3.5 text-emerald-300"></i>
                 <span>Book Call</span>
@@ -1082,44 +1088,159 @@
       `;
     }).join('');
 
+    // Delegated click handler on consultantsGrid
+    if (!grid.dataset.boundProfileEvents) {
+      grid.dataset.boundProfileEvents = 'true';
+      grid.addEventListener('click', function(e) {
+        const btn = e.target.closest('.view-profile-btn');
+        if (btn) {
+          const cid = btn.dataset.id || btn.getAttribute('data-id');
+          if (cid) {
+            e.preventDefault();
+            window.openProfileModal(cid, e);
+          }
+        }
+      });
+    }
+
     if (window.lucide) lucide.createIcons();
   }
 
   /* ══ PROFILE MODAL LOGIC ══ */
-  function openProfileModal(consultantId) {
-    const c = allConsultants.find(item => item.id == consultantId || String(item.id) === String(consultantId));
-    if (!c) return;
+  window.openProfileModal = function(consultantId, event) {
+    if (event) {
+      try { if (typeof event.preventDefault === 'function') event.preventDefault(); } catch (err) {}
+      try { if (typeof event.stopPropagation === 'function') event.stopPropagation(); } catch (err) {}
+    }
+
+    // Defensive id unboxing (supports id, string, DOM element 'this', or object)
+    let targetId = consultantId;
+    if (targetId && typeof targetId === 'object') {
+      if (targetId.nodeType === 1 || targetId.tagName) {
+        targetId = targetId.dataset?.id || targetId.getAttribute('data-id');
+      } else if (targetId.id) {
+        targetId = targetId.id;
+      }
+    }
+
+    const c = allConsultants.find(item => item && (item.id == targetId || String(item.id) === String(targetId)));
+    if (!c) {
+      console.warn('Consultant profile not found for id:', targetId);
+      return;
+    }
     selectedConsultant = c;
 
-    document.getElementById('profilePhoto').src = c.photo_url || '/static/images/default-avatar.png';
-    document.getElementById('profileName').textContent = c.name;
-    document.getElementById('profileSpecialization').textContent = c.specialization;
-    document.getElementById('profileRating').textContent = c.rating;
-    document.getElementById('profileExp').textContent = `${c.experience_years}+ Years Experience`;
-    const cityBadge = document.getElementById('profileCityBadge');
-    if (cityBadge) cityBadge.remove();
-    document.getElementById('profileBio').textContent = c.bio || 'Certified SolaceSquad Wellness Consultant offering prompt consultation.';
-    document.getElementById('profileEducation').textContent = c.education || c.highest_qualification || 'Certified Professional';
-    document.getElementById('profileLanguages').textContent = (c.languages || []).join(', ') || 'English, Hindi';
-    
-    const basePrice = c.pricing_30 ? c.pricing_30.base_amount : 400.0;
-    document.getElementById('profilePriceTotal').innerHTML = `₹${Math.round(basePrice).toLocaleString('en-IN')} <span class="text-[11px] font-medium text-slate-500">(+ 18% GST)</span>`;
+    try {
+      const photoEl = document.getElementById('profilePhoto');
+      if (photoEl) photoEl.src = c.photo_url || '/static/images/default-avatar.png';
 
-    // Focus areas
-    const focusContainer = document.getElementById('profileFocusAreas');
-    const areas = (c.expertise_areas && c.expertise_areas.length > 0) ? c.expertise_areas : (c.wellness_categories || ['Holistic Wellness']);
-    focusContainer.innerHTML = areas.map(a => `
-      <span class="text-[11px] font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-        ${a}
-      </span>
-    `).join('');
+      const nameEl = document.getElementById('profileName');
+      if (nameEl) nameEl.textContent = c.name || 'Wellness Consultant';
 
-    document.getElementById('profileModal').classList.remove('hidden');
+      const specEl = document.getElementById('profileSpecialization');
+      if (specEl) specEl.textContent = c.specialization || 'Holistic Wellness';
+
+      const ratingEl = document.getElementById('profileRating');
+      if (ratingEl) ratingEl.textContent = c.rating != null ? Number(c.rating).toFixed(1) : '4.9';
+
+      const expEl = document.getElementById('profileExp');
+      if (expEl) expEl.textContent = `${c.experience_years || 2}+ Years Experience`;
+
+      const cityBadge = document.getElementById('profileCityBadge');
+      if (cityBadge) cityBadge.remove();
+
+      const bioEl = document.getElementById('profileBio');
+      if (bioEl) bioEl.textContent = c.bio || 'Certified SolaceSquad Wellness Consultant offering prompt consultation.';
+
+      const eduEl = document.getElementById('profileEducation');
+      if (eduEl) eduEl.textContent = c.education || c.highest_qualification || 'Certified Professional';
+
+      // Parse languages safely
+      let langsStr = 'English, Hindi';
+      if (Array.isArray(c.languages) && c.languages.length > 0) {
+        langsStr = c.languages.join(', ');
+      } else if (typeof c.languages === 'string' && c.languages.trim()) {
+        langsStr = c.languages.trim();
+      }
+      const langEl = document.getElementById('profileLanguages');
+      if (langEl) langEl.textContent = langsStr;
+
+      // Price calculation
+      const basePrice = (c.pricing_30 && c.pricing_30.base_amount != null)
+        ? parseFloat(c.pricing_30.base_amount)
+        : (c.pricing && c.pricing.base_amount != null ? parseFloat(c.pricing.base_amount) : 400.0);
+      const priceEl = document.getElementById('profilePriceTotal');
+      if (priceEl) {
+        priceEl.innerHTML = `₹${Math.round(basePrice).toLocaleString('en-IN')} <span class="text-[11px] font-medium text-slate-500">(+ 18% GST)</span>`;
+      }
+
+      // Focus areas safely
+      const focusContainer = document.getElementById('profileFocusAreas');
+      if (focusContainer) {
+        let areas = [];
+        if (Array.isArray(c.expertise_areas) && c.expertise_areas.length > 0) {
+          areas = c.expertise_areas;
+        } else if (typeof c.expertise_areas === 'string' && c.expertise_areas.trim()) {
+          areas = c.expertise_areas.split(',').map(s => s.trim()).filter(Boolean);
+        } else if (Array.isArray(c.wellness_categories) && c.wellness_categories.length > 0) {
+          areas = c.wellness_categories;
+        } else if (typeof c.wellness_categories === 'string' && c.wellness_categories.trim()) {
+          areas = c.wellness_categories.split(',').map(s => s.trim()).filter(Boolean);
+        } else {
+          areas = ['Holistic Wellness'];
+        }
+
+        focusContainer.innerHTML = areas.map(a => `
+          <span class="text-[11px] font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+            ${a}
+          </span>
+        `).join('');
+      }
+    } catch (populateErr) {
+      console.error('Error populating profile modal fields:', populateErr);
+    }
+
+    // Ensure profileModal is direct child of document.body so stacking context / overflow cannot hide it
+    const modal = document.getElementById('profileModal');
+    if (!modal) return;
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('active');
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('z-index', '1000000', 'important');
+    modal.style.setProperty('visibility', 'visible', 'important');
+    modal.style.setProperty('opacity', '1', 'important');
+    document.body.style.overflow = 'hidden';
+
     if (window.lucide) lucide.createIcons();
+  };
+  function openProfileModal(consultantId, event) {
+    return window.openProfileModal(consultantId, event);
   }
 
   function closeProfileModal() {
-    document.getElementById('profileModal').classList.add('hidden');
+    const modal = document.getElementById('profileModal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.classList.remove('active');
+      modal.style.setProperty('display', 'none', 'important');
+    }
+    document.body.style.overflow = '';
+  }
+
+  function handleProfileBackdropClick(e) {
+    if (e && e.target && e.target.id === 'profileModal') {
+      closeProfileModal();
+    }
+  }
+
+  function handleBookingBackdropClick(e) {
+    if (e && e.target && e.target.id === 'bookingModal') {
+      closeBookingModal();
+    }
   }
 
   function openBookingFromProfile() {
@@ -1355,12 +1476,30 @@
     document.getElementById('breakdownDiscountRow').classList.add('hidden');
 
     updatePriceBreakdown();
-    document.getElementById('bookingModal').classList.remove('hidden');
+    const bModal = document.getElementById('bookingModal');
+    if (bModal) {
+      if (bModal.parentElement !== document.body) {
+        document.body.appendChild(bModal);
+      }
+      bModal.classList.remove('hidden');
+      bModal.classList.add('active');
+      bModal.style.setProperty('display', 'flex', 'important');
+      bModal.style.setProperty('z-index', '1000000', 'important');
+      bModal.style.setProperty('visibility', 'visible', 'important');
+      bModal.style.setProperty('opacity', '1', 'important');
+      document.body.style.overflow = 'hidden';
+    }
     if (window.lucide) lucide.createIcons();
   }
 
   function closeBookingModal() {
-    document.getElementById('bookingModal').classList.add('hidden');
+    const bModal = document.getElementById('bookingModal');
+    if (bModal) {
+      bModal.classList.add('hidden');
+      bModal.classList.remove('active');
+      bModal.style.setProperty('display', 'none', 'important');
+    }
+    document.body.style.overflow = '';
   }
 
   function updatePriceBreakdown() {
