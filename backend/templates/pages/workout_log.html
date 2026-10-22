@@ -779,6 +779,17 @@
         });
     }
 
+    // ── Safe escape helper ──────────────────────────────────────────
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     // ── Safe date parser for all WebView engines ───────────────────
     function parseISODate(iso) {
         if (!iso) return new Date();
@@ -794,8 +805,12 @@
     // ── Format date nicely ──────────────────────────────────────────
     function fmtDate(iso) {
         if (!iso) return '';
-        const d = parseISODate(iso);
-        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        try {
+            const d = parseISODate(iso);
+            return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        } catch (e) {
+            return String(iso);
+        }
     }
 
     // ── This week boundary ──────────────────────────────────────────
@@ -811,18 +826,46 @@
 
     // ── Update stats strip ──────────────────────────────────────────
     function updateStats() {
-        const weekStart = thisWeekStart();
-        const week = logs.filter(l => parseISODate(l.log_date) >= weekStart);
-        document.getElementById('stat-total').textContent = week.length;
-        document.getElementById('stat-mins').textContent = week.reduce((s, l) => s + (l.duration_min || 0), 0) + ' min';
-        document.getElementById('stat-steps').textContent = week.reduce((s, l) => s + (l.step_count || 0), 0).toLocaleString();
-        document.getElementById('stat-cal').textContent = week.reduce((s, l) => s + (l.calories || 0), 0) + ' kcal';
+        try {
+            const weekStart = thisWeekStart();
+            const week = (logs || []).filter(l => parseISODate(l.log_date) >= weekStart);
+            const totalEl = document.getElementById('stat-total');
+            const minsEl = document.getElementById('stat-mins');
+            const stepsEl = document.getElementById('stat-steps');
+            const calEl = document.getElementById('stat-cal');
+
+            if (totalEl) totalEl.textContent = week.length;
+            if (minsEl) minsEl.textContent = week.reduce((s, l) => s + (parseInt(l.duration_min, 10) || 0), 0) + ' min';
+            if (stepsEl) stepsEl.textContent = week.reduce((s, l) => s + (parseInt(l.step_count, 10) || 0), 0).toLocaleString();
+            if (calEl) calEl.textContent = week.reduce((s, l) => s + (parseInt(l.calories, 10) || 0), 0) + ' kcal';
+        } catch (err) {
+            console.error('Error updating stats:', err);
+        }
+    }
+
+    // ── Helper: build auth headers (AndroidBridge / token storage) ────
+    function getAuthHeaders(extraHeaders) {
+        const h = Object.assign({}, extraHeaders || {});
+        try {
+            let token = null;
+            if (window.AndroidBridge && typeof window.AndroidBridge.getAuthToken === 'function') {
+                token = window.AndroidBridge.getAuthToken();
+            }
+            if (!token) {
+                token = localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+            }
+            if (token && token.trim()) {
+                h['Authorization'] = 'Bearer ' + token.trim();
+            }
+        } catch (e) { /* ignore */ }
+        return h;
     }
 
     // ── Render history list ─────────────────────────────────────────
     function renderList() {
         const el = document.getElementById('log-list');
-        if (!logs.length) {
+        if (!el) return;
+        if (!logs || !logs.length) {
             el.innerHTML = `<div class="wl-empty">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
@@ -832,31 +875,46 @@
       </div>`;
             return;
         }
-        el.innerHTML = logs.map(l => {
-            const t = TYPES.find(x => x.label === l.workout_type) || TYPES[TYPES.length - 1];
-            const chips = [];
-            if (l.duration_min) chips.push(`<span class="wl-chip chip-time">⏱ ${l.duration_min} min</span>`);
-            if (l.step_count) chips.push(`<span class="wl-chip chip-steps">👟 ${l.step_count.toLocaleString()} steps</span>`);
-            if (l.calories) chips.push(`<span class="wl-chip chip-cal">🔥 ${l.calories} kcal</span>`);
-            if (l.distance_km) chips.push(`<span class="wl-chip chip-dist">📍 ${l.distance_km.toFixed(2)} km</span>`);
-            // Source badge
-            if (l.source === 'google_health') {
-                chips.push(`<span class="wl-chip" style="background:rgba(66,133,244,.18);color:#7bb3fb;">📱 Google Fit</span>`);
-            } else if (l.source === 'apple_health') {
-                chips.push(`<span class="wl-chip" style="background:rgba(255,59,48,.18);color:#ff7a72;">🍎 Apple Health</span>`);
-            } else if (l.workout_type === 'Fitbit' || l.source === 'fitbit') {
-                chips.push(`<span class="wl-chip" style="background:rgba(0,176,185,.18);color:#00d4e0;">📳 Fitbit</span>`);
-            } else if (l.workout_type === 'Strava' || l.source === 'strava') {
-                chips.push(`<span class="wl-chip" style="background:rgba(252,76,2,.18);color:#fd7c4a;">🚴 Strava</span>`);
-            }
-            return `
+
+        try {
+            el.innerHTML = logs.map(l => {
+                const wType = l.workout_type || 'Other';
+                const t = TYPES.find(x => x.label.toLowerCase() === wType.toLowerCase()) || 
+                          TYPES[TYPES.length - 1] || 
+                          { label: wType, emoji: '🏅', color: '#64748b' };
+                const chips = [];
+
+                const dur = parseInt(l.duration_min, 10);
+                if (!isNaN(dur) && dur > 0) chips.push(`<span class="wl-chip chip-time">⏱ ${dur} min</span>`);
+
+                const steps = parseInt(l.step_count, 10);
+                if (!isNaN(steps) && steps > 0) chips.push(`<span class="wl-chip chip-steps">👟 ${steps.toLocaleString()} steps</span>`);
+
+                const cal = parseInt(l.calories, 10);
+                if (!isNaN(cal) && cal > 0) chips.push(`<span class="wl-chip chip-cal">🔥 ${cal} kcal</span>`);
+
+                const dist = parseFloat(l.distance_km);
+                if (!isNaN(dist) && dist > 0) chips.push(`<span class="wl-chip chip-dist">📍 ${dist.toFixed(2)} km</span>`);
+
+                // Source badge
+                if (l.source === 'google_health') {
+                    chips.push(`<span class="wl-chip" style="background:rgba(66,133,244,.18);color:#7bb3fb;">📱 Google Fit</span>`);
+                } else if (l.source === 'apple_health') {
+                    chips.push(`<span class="wl-chip" style="background:rgba(255,59,48,.18);color:#ff7a72;">🍎 Apple Health</span>`);
+                } else if (wType === 'Fitbit' || l.source === 'fitbit') {
+                    chips.push(`<span class="wl-chip" style="background:rgba(0,176,185,.18);color:#00d4e0;">📳 Fitbit</span>`);
+                } else if (wType === 'Strava' || l.source === 'strava') {
+                    chips.push(`<span class="wl-chip" style="background:rgba(252,76,2,.18);color:#fd7c4a;">🚴 Strava</span>`);
+                }
+
+                return `
         <div class="wl-log-item" id="log-${l.id}">
-          <div class="wl-log-icon" style="background:${t.color}22;">${t.emoji}</div>
+          <div class="wl-log-icon" style="background:${t.color || '#64748b'}22;">${t.emoji || '🏅'}</div>
           <div class="wl-log-info">
-            <div class="wl-log-type">${l.workout_type}</div>
+            <div class="wl-log-type">${escapeHtml(wType)}</div>
             <div class="wl-log-date">${fmtDate(l.log_date)}</div>
             <div class="wl-log-chips">${chips.join('')}</div>
-            ${l.notes ? `<div style="font-size:.75rem;color:#94a3b8;margin-top:.35rem;">${l.notes}</div>` : ''}
+            ${l.notes ? `<div style="font-size:.75rem;color:#94a3b8;margin-top:.35rem;">${escapeHtml(l.notes)}</div>` : ''}
           </div>
           <button class="wl-del-btn" onclick="deleteLog(${l.id})" title="Delete">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -865,14 +923,19 @@
             </svg>
           </button>
         </div>`;
-        }).join('');
+            }).join('');
+        } catch (renderErr) {
+            console.error('Error rendering workout list:', renderErr);
+        }
     }
 
     // ── Load logs ───────────────────────────────────────────────────
     async function loadLogs() {
         try {
+            const headers = getAuthHeaders({ 'Cache-Control': 'no-cache, no-store, must-revalidate' });
             const r = await fetch('/api/workout-log?t=' + Date.now(), {
-                headers: { 'Cache-Control': 'no-cache' }
+                credentials: 'include',
+                headers: headers
             });
             const d = await r.json();
             if (d && d.success && Array.isArray(d.logs)) {
@@ -894,51 +957,78 @@
         const payload = {
             log_date: document.getElementById('f-date').value,
             workout_type: selectedType,
-            duration_min: parseInt(document.getElementById('f-duration').value) || 0,
-            step_count: parseInt(document.getElementById('f-steps').value) || 0,
-            calories: parseInt(document.getElementById('f-calories').value) || 0,
+            duration_min: parseInt(document.getElementById('f-duration').value, 10) || 0,
+            step_count: parseInt(document.getElementById('f-steps').value, 10) || 0,
+            calories: parseInt(document.getElementById('f-calories').value, 10) || 0,
             notes: document.getElementById('f-notes').value.trim(),
         };
         if (!payload.log_date) { toast('Please pick a date', 'error'); return; }
         if (!payload.workout_type) { toast('Please pick a workout type', 'error'); return; }
 
         const btn = document.querySelector('.wl-btn');
-        btn.disabled = true; btn.textContent = 'Saving…';
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+        }
 
-        const r = await fetch('/api/workout-log', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const d = await r.json();
-        btn.disabled = false;
-        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Save Workout';
+        try {
+            const headers = getAuthHeaders({ 'Content-Type': 'application/json' });
+            const r = await fetch('/api/workout-log', {
+                method: 'POST',
+                credentials: 'include',
+                headers: headers,
+                body: JSON.stringify(payload)
+            });
+            const d = await r.json();
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Save Workout';
+            }
 
-        if (d.success) {
-            toast('Workout saved! 💪', 'success');
-            document.getElementById('f-notes').value = '';
-            document.getElementById('f-duration').value = 30;
-            document.getElementById('dur-val').textContent = '30 min';
-            // Reset override flags then re-estimate for next entry
-            userEditedSteps = false;
-            userEditedCal = false;
-            autoCalc();
-            document.getElementById('dur-val').textContent = '30 min';
-            await loadLogs();
-        } else {
-            toast(d.error || 'Error saving', 'error');
+            if (d.success) {
+                toast('Workout saved! 💪', 'success');
+                document.getElementById('f-notes').value = '';
+                document.getElementById('f-duration').value = 30;
+                document.getElementById('dur-val').textContent = '30 min';
+                // Reset override flags then re-estimate for next entry
+                userEditedSteps = false;
+                userEditedCal = false;
+                autoCalc();
+                document.getElementById('dur-val').textContent = '30 min';
+                await loadLogs();
+            } else {
+                toast(d.error || 'Error saving', 'error');
+            }
+        } catch (err) {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Save Workout';
+            }
+            toast('Failed to save workout', 'error');
         }
     }
 
     // ── Delete ───────────────────────────────────────────────────────
     async function deleteLog(id) {
         if (!confirm('Delete this workout?')) return;
-        const r = await fetch('/api/workout-log/' + id, { method: 'DELETE' });
-        const d = await r.json();
-        if (d.success) {
-            logs = logs.filter(l => l.id !== id);
-            renderList(); updateStats();
-            toast('Deleted', 'info');
+        try {
+            const headers = getAuthHeaders({});
+            const r = await fetch('/api/workout-log/' + id, {
+                method: 'DELETE',
+                credentials: 'include',
+                headers: headers
+            });
+            const d = await r.json();
+            if (d.success) {
+                logs = (logs || []).filter(l => l.id !== id);
+                renderList();
+                updateStats();
+                toast('Deleted', 'info');
+            } else {
+                toast(d.error || 'Failed to delete', 'error');
+            }
+        } catch (err) {
+            toast('Failed to delete workout', 'error');
         }
     }
 

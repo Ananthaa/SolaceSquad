@@ -71,14 +71,18 @@ window.closeSidebar = function () {
     }
 };
 
+window._lastSidebarToggleTime = window._lastSidebarToggleTime || 0;
+
 window.toggleSidebar = function (e) {
     if (e) {
         try { if (typeof e.preventDefault === 'function') e.preventDefault(); } catch (err) {}
         try { if (typeof e.stopPropagation === 'function') e.stopPropagation(); } catch (err) {}
     }
-    if (_mainSidebarBusy) return;
-    _mainSidebarBusy = true;
-    setTimeout(() => { _mainSidebarBusy = false; }, 200);
+    const now = Date.now();
+    if (now - window._lastSidebarToggleTime < 400) {
+        return; // Suppress duplicate / ghost clicks within 400ms
+    }
+    window._lastSidebarToggleTime = now;
 
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
@@ -94,48 +98,30 @@ window.toggleSidebar = function (e) {
 
 function bindMainSidebarEvents() {
     const toggleBtn = document.getElementById('sidebar-toggle-btn');
-    if (toggleBtn && !toggleBtn.dataset.boundMainSidebar) {
-        toggleBtn.dataset.boundMainSidebar = 'true';
-        const onToggle = function (e) {
-            if (e) {
-                try { e.preventDefault(); } catch (err) {}
-                try { e.stopPropagation(); } catch (err) {}
-            }
+    if (toggleBtn && !toggleBtn.dataset.boundSidebar) {
+        toggleBtn.dataset.boundSidebar = 'true';
+        toggleBtn.onclick = function (e) {
             window.toggleSidebar(e);
             return false;
         };
-        toggleBtn.addEventListener('click', onToggle, { passive: false });
-        toggleBtn.addEventListener('touchend', onToggle, { passive: false });
     }
 
     const closeBtn = document.getElementById('sidebar-close-btn');
-    if (closeBtn && !closeBtn.dataset.boundMainSidebar) {
-        closeBtn.dataset.boundMainSidebar = 'true';
-        const onClose = function (e) {
-            if (e) {
-                try { e.preventDefault(); } catch (err) {}
-                try { e.stopPropagation(); } catch (err) {}
-            }
+    if (closeBtn && !closeBtn.dataset.boundSidebar) {
+        closeBtn.dataset.boundSidebar = 'true';
+        closeBtn.onclick = function (e) {
             window.closeSidebar();
             return false;
         };
-        closeBtn.addEventListener('click', onClose, { passive: false });
-        closeBtn.addEventListener('touchend', onClose, { passive: false });
     }
 
     const overlay = document.getElementById('sidebar-overlay');
-    if (overlay && !overlay.dataset.boundMainSidebar) {
-        overlay.dataset.boundMainSidebar = 'true';
-        const onOverlayClose = function (e) {
-            if (e) {
-                try { e.preventDefault(); } catch (err) {}
-                try { e.stopPropagation(); } catch (err) {}
-            }
+    if (overlay && !overlay.dataset.boundSidebar) {
+        overlay.dataset.boundSidebar = 'true';
+        overlay.onclick = function (e) {
             window.closeSidebar();
             return false;
         };
-        overlay.addEventListener('click', onOverlayClose, { passive: false });
-        overlay.addEventListener('touchend', onOverlayClose, { passive: false });
     }
 }
 

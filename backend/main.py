@@ -16851,9 +16851,45 @@ async def get_wellness_detail(request: Request, db: Session = Depends(get_db)):
 
 
 
+def _get_workout_user_id(request: Request) -> Optional[int]:
+    """Extract authenticated user_id from session or Bearer token header / query param."""
+    # 1. Session check
+    uid = request.session.get("user_id")
+    if uid:
+        try:
+            return int(str(uid))
+        except (ValueError, TypeError):
+            pass
+    # 2. Authorization header check (Bearer JWT from TokenBridge / mobile app)
+    auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+        if token:
+            try:
+                import jwt
+                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                token_uid = payload.get("user_id")
+                if token_uid:
+                    return int(str(token_uid))
+            except Exception:
+                pass
+    # 3. Query parameter fallback
+    token_param = request.query_params.get("token")
+    if token_param:
+        try:
+            import jwt
+            payload = jwt.decode(token_param, SECRET_KEY, algorithms=["HS256"])
+            token_uid = payload.get("user_id")
+            if token_uid:
+                return int(str(token_uid))
+        except Exception:
+            pass
+    return None
+
+
 @app.get("/api/workout-log")
 async def get_workout_logs(request: Request, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
+    user_id = _get_workout_user_id(request)
     if not user_id:
         return {"success": False, "error": "Unauthorized"}
     logs = (
@@ -16868,12 +16904,12 @@ async def get_workout_logs(request: Request, db: Session = Depends(get_db)):
         "logs": [
             {
                 "id":           l.id,
-                "log_date":     l.log_date.isoformat(),
-                "workout_type": l.workout_type,
-                "duration_min": l.duration_min,
-                "step_count":   l.step_count,
-                "calories":     l.calories,
-                "distance_km":  getattr(l, "distance_km", None),
+                "log_date":     l.log_date.isoformat() if hasattr(l.log_date, "isoformat") else str(l.log_date),
+                "workout_type": l.workout_type or "Other",
+                "duration_min": int(l.duration_min) if l.duration_min is not None else 0,
+                "step_count":   int(l.step_count) if l.step_count is not None else 0,
+                "calories":     int(l.calories) if l.calories is not None else 0,
+                "distance_km":  float(l.distance_km) if getattr(l, "distance_km", None) is not None else None,
                 "source":       getattr(l, "source", None),
                 "notes":        l.notes or "",
             }
@@ -16884,7 +16920,7 @@ async def get_workout_logs(request: Request, db: Session = Depends(get_db)):
 
 @app.post("/api/workout-log")
 async def create_workout_log(request: Request, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
+    user_id = _get_workout_user_id(request)
     if not user_id:
         return {"success": False, "error": "Unauthorized"}
     try:
@@ -16937,7 +16973,7 @@ async def create_workout_log(request: Request, db: Session = Depends(get_db)):
 
 @app.delete("/api/workout-log/{log_id}")
 async def delete_workout_log(log_id: int, request: Request, db: Session = Depends(get_db)):
-    user_id = request.session.get("user_id")
+    user_id = _get_workout_user_id(request)
     if not user_id:
         return {"success": False, "error": "Unauthorized"}
     log = db.query(WorkoutLog).filter(

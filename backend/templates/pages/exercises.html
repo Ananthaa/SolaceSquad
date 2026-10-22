@@ -449,8 +449,19 @@
     let whLogs = [];
     async function loadHistory() {
         try {
+            const headers = { 'Cache-Control': 'no-cache, no-store, must-revalidate' };
+            try {
+                let token = null;
+                if (window.AndroidBridge && typeof window.AndroidBridge.getAuthToken === 'function') {
+                    token = window.AndroidBridge.getAuthToken();
+                }
+                if (!token) token = localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+                if (token && token.trim()) headers['Authorization'] = 'Bearer ' + token.trim();
+            } catch(e) {}
+
             const r = await fetch('/api/workout-log?t=' + Date.now(), {
-                headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+                credentials: 'include',
+                headers: headers
             });
             const d = await r.json();
             if (d.success) {
@@ -466,13 +477,29 @@
     // ── Delete ───────────────────────────────────────────────────────────────────
     async function deleteEntry(id) {
         if (!confirm('Delete this workout entry?')) return;
-        const r = await fetch('/api/workout-log/' + id, { method: 'DELETE' });
-        const d = await r.json();
-        if (d.success) {
-            whLogs = whLogs.filter(l => l.id !== id);
-            renderHistory(whLogs);
-            updateStats(whLogs);
-        }
+        try {
+            const headers = {};
+            try {
+                let token = null;
+                if (window.AndroidBridge && typeof window.AndroidBridge.getAuthToken === 'function') {
+                    token = window.AndroidBridge.getAuthToken();
+                }
+                if (!token) token = localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+                if (token && token.trim()) headers['Authorization'] = 'Bearer ' + token.trim();
+            } catch(e) {}
+
+            const r = await fetch('/api/workout-log/' + id, {
+                method: 'DELETE',
+                credentials: 'include',
+                headers: headers
+            });
+            const d = await r.json();
+            if (d.success) {
+                whLogs = whLogs.filter(l => l.id !== id);
+                renderHistory(whLogs);
+                updateStats(whLogs);
+            }
+        } catch (err) {}
     }
 
     document.addEventListener('DOMContentLoaded', () => {
