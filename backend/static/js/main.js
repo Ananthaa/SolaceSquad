@@ -27,9 +27,6 @@ window.openSidebar = function () {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     if (overlay) {
-        if (overlay.parentElement !== document.body) {
-            document.body.appendChild(overlay);
-        }
         overlay.classList.remove('hidden');
         overlay.classList.add('active', 'sidebar-overlay-open');
         overlay.style.setProperty('display', 'block', 'important');
@@ -45,9 +42,6 @@ window.openSidebar = function () {
         overlay.style.setProperty('pointer-events', 'auto', 'important');
     }
     if (sidebar) {
-        if (sidebar.parentElement !== document.body) {
-            document.body.appendChild(sidebar);
-        }
         sidebar.classList.remove('-translate-x-full');
         sidebar.classList.add('translate-x-0', 'sidebar-open', 'open');
         sidebar.style.setProperty('display', 'flex', 'important');
@@ -100,8 +94,8 @@ window.toggleSidebar = function (e) {
         try { if (typeof e.stopPropagation === 'function') e.stopPropagation(); } catch (err) {}
     }
     const now = Date.now();
-    if (now - window._lastSidebarToggleTime < 400) {
-        return; // Suppress duplicate / ghost clicks within 400ms
+    if (now - window._lastSidebarToggleTime < 300) {
+        return;
     }
     window._lastSidebarToggleTime = now;
 
@@ -121,28 +115,42 @@ function bindMainSidebarEvents() {
     const toggleBtn = document.getElementById('sidebar-toggle-btn');
     if (toggleBtn && !toggleBtn.dataset.boundSidebar) {
         toggleBtn.dataset.boundSidebar = 'true';
-        toggleBtn.onclick = function (e) {
+        const handleToggle = function (e) {
             window.toggleSidebar(e);
-            return false;
         };
+        toggleBtn.addEventListener('click', handleToggle);
+        toggleBtn.addEventListener('touchend', function(e) {
+            try { e.preventDefault(); } catch(err) {}
+            handleToggle(e);
+        }, { passive: false });
     }
 
     const closeBtn = document.getElementById('sidebar-close-btn');
     if (closeBtn && !closeBtn.dataset.boundSidebar) {
         closeBtn.dataset.boundSidebar = 'true';
-        closeBtn.onclick = function (e) {
+        const handleClose = function (e) {
+            if (e) {
+                try { e.preventDefault(); } catch(err) {}
+                try { e.stopPropagation(); } catch(err) {}
+            }
             window.closeSidebar();
-            return false;
         };
+        closeBtn.addEventListener('click', handleClose);
+        closeBtn.addEventListener('touchend', handleClose, { passive: false });
     }
 
     const overlay = document.getElementById('sidebar-overlay');
     if (overlay && !overlay.dataset.boundSidebar) {
         overlay.dataset.boundSidebar = 'true';
-        overlay.onclick = function (e) {
+        const handleOverlay = function (e) {
+            if (e) {
+                try { e.preventDefault(); } catch(err) {}
+                try { e.stopPropagation(); } catch(err) {}
+            }
             window.closeSidebar();
-            return false;
         };
+        overlay.addEventListener('click', handleOverlay);
+        overlay.addEventListener('touchend', handleOverlay, { passive: false });
     }
 }
 

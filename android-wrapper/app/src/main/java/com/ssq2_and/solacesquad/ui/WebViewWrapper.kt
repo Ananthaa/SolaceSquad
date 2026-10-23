@@ -13,7 +13,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +49,6 @@ fun WebViewWrapper(
     val context = LocalContext.current
     var webViewInstance by remember { mutableStateOf<WebView?>(null) }
     var isOffline by remember { mutableStateOf(!isNetworkAvailable(context)) }
-    var isRefreshing by remember { mutableStateOf(false) }
     var loadingProgress by remember { mutableStateOf(0f) }
 
     val callbackHolder = remember { FileCallbackHolder() }
@@ -105,23 +103,13 @@ fun WebViewWrapper(
                 }
             }
         } else {
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = {
-                    isRefreshing = true
-                    if (isNetworkAvailable(context)) {
-                        webViewInstance?.reload()
-                    } else {
-                        isOffline = true
-                        isRefreshing = false
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            ) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { ctx ->
-                        WebView(ctx).apply {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        isFocusable = true
+                        isFocusableInTouchMode = true
+                        isClickable = true
                             // Enable Remote Chrome DevTools Debugging
                             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
                                 WebView.setWebContentsDebuggingEnabled(true)
@@ -180,13 +168,11 @@ fun WebViewWrapper(
                                 override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                                     super.onPageStarted(view, url, favicon)
                                     android.util.Log.e("WebViewClientFlow", "onPageStarted: $url")
-                                    isRefreshing = true
                                 }
 
                                 override fun onPageFinished(view: WebView?, url: String?) {
                                     super.onPageFinished(view, url)
                                     android.util.Log.e("WebViewClientFlow", "onPageFinished: $url")
-                                    isRefreshing = false
                                     loadingProgress = 0f
                                     // Flush cookies on load complete to ensure session persistence
                                     CookieManager.getInstance().flush()
@@ -206,7 +192,6 @@ fun WebViewWrapper(
                                     // Check if the primary URL load failed
                                     if (request?.isForMainFrame == true) {
                                         isOffline = true
-                                        isRefreshing = false
                                     }
                                 }
 
@@ -301,7 +286,6 @@ fun WebViewWrapper(
                         }
                     }
                 )
-            }
         }
 
         // Top Horizontal Progress Indicator for navigation loads

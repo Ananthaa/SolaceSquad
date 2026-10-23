@@ -123,6 +123,37 @@
             openSolaceWebsite(e);
           }
         }, true);
+
+        if (window.isMobileApp) {
+          window.addEventListener('error', function(err) {
+            try {
+              fetch('/api/debug/telemetry', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'js_error',
+                  message: err.message,
+                  filename: err.filename,
+                  lineno: err.lineno,
+                  url: window.location.href
+                })
+              });
+            } catch(e) {}
+          });
+          window.addEventListener('unhandledrejection', function(event) {
+            try {
+              fetch('/api/debug/telemetry', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'unhandled_rejection',
+                  reason: String(event.reason),
+                  url: window.location.href
+                })
+              });
+            } catch(e) {}
+          });
+        }
       })();
     </script>
 

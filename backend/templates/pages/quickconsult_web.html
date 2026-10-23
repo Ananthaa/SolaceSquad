@@ -828,7 +828,7 @@
     loadQuickConsultants();
     if (window.lucide) lucide.createIcons();
 
-    // ── Android WebView: teleport modals & set accurate viewport height ──
+    // ── Android WebView: set accurate viewport height ──
     var isAndroid = window.AndroidBridge !== undefined || window.isAndroidApp ||
       (/Android/i.test(navigator.userAgent) && (window.isMobileApp || /SolaceSquadApp/i.test(navigator.userAgent)));
     if (isAndroid) {
@@ -838,13 +838,6 @@
       setAndroidVH();
       window.addEventListener('resize', setAndroidVH);
       window.addEventListener('orientationchange', function() { setTimeout(setAndroidVH, 200); });
-
-      ['profileModal', 'bookingModal', 'termsModal', 'successModal'].forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el && el.parentElement !== document.body) {
-          document.body.appendChild(el);
-        }
-      });
     }
   });
 
@@ -1071,15 +1064,20 @@
       `;
     }).join('');
 
-    // Delegated click handler on consultantsGrid
+    // Delegated click & touch handler on consultantsGrid
     if (!grid.dataset.boundProfileEvents) {
       grid.dataset.boundProfileEvents = 'true';
+      let _lastCardActionTime = 0;
       const handleAction = function(e) {
-        const viewBtn = e.target.closest('.view-profile-btn');
+        const viewBtn = e.target.closest('.view-profile-btn') || e.target.closest('.group\\/header');
         if (viewBtn) {
           const cid = viewBtn.dataset.id || viewBtn.getAttribute('data-id');
           if (cid) {
+            const now = Date.now();
+            if (now - _lastCardActionTime < 300) return;
+            _lastCardActionTime = now;
             try { e.preventDefault(); } catch(err) {}
+            try { e.stopPropagation(); } catch(err) {}
             window.openProfileModal(cid, e);
             return;
           }
@@ -1088,24 +1086,33 @@
         if (bookBtn) {
           const cid = bookBtn.dataset.id || bookBtn.getAttribute('data-id');
           if (cid) {
+            const now = Date.now();
+            if (now - _lastCardActionTime < 300) return;
+            _lastCardActionTime = now;
             try { e.preventDefault(); } catch(err) {}
+            try { e.stopPropagation(); } catch(err) {}
             window.openBookingModal(cid, e);
             return;
           }
         }
       };
       grid.addEventListener('click', handleAction);
+      grid.addEventListener('touchend', handleAction, { passive: false });
     }
 
     if (window.lucide) lucide.createIcons();
   }
 
   /* ══ PROFILE MODAL LOGIC ══ */
+  let _lastOpenProfileTime = 0;
   window.openProfileModal = function(consultantId, event) {
     if (event) {
       try { if (typeof event.preventDefault === 'function') event.preventDefault(); } catch (err) {}
       try { if (typeof event.stopPropagation === 'function') event.stopPropagation(); } catch (err) {}
     }
+    const now = Date.now();
+    if (now - _lastOpenProfileTime < 300) return;
+    _lastOpenProfileTime = now;
 
     // Defensive id unboxing (supports id, string, DOM element 'this', or object)
     let targetId = consultantId;
@@ -1194,12 +1201,8 @@
       console.error('Error populating profile modal fields:', populateErr);
     }
 
-    // Ensure profileModal is direct child of document.body so stacking context / overflow cannot hide it
     const modal = document.getElementById('profileModal');
     if (!modal) return;
-    if (modal.parentElement !== document.body) {
-      document.body.appendChild(modal);
-    }
 
     modal.classList.remove('hidden');
     modal.classList.add('active');
@@ -1437,11 +1440,15 @@
   }
 
   /* ══ BOOKING MODAL LOGIC ══ */
+  let _lastOpenBookingTime = 0;
   window.openBookingModal = function(consultantId, event) {
     if (event) {
       try { if (typeof event.preventDefault === 'function') event.preventDefault(); } catch (err) {}
       try { if (typeof event.stopPropagation === 'function') event.stopPropagation(); } catch (err) {}
     }
+    const now = Date.now();
+    if (now - _lastOpenBookingTime < 300) return;
+    _lastOpenBookingTime = now;
 
     let targetId = consultantId;
     if (targetId && typeof targetId === 'object') {
@@ -1499,9 +1506,6 @@
     updatePriceBreakdown();
     const bModal = document.getElementById('bookingModal');
     if (bModal) {
-      if (bModal.parentElement !== document.body) {
-        document.body.appendChild(bModal);
-      }
       bModal.classList.remove('hidden');
       bModal.classList.add('active');
       bModal.style.setProperty('display', 'flex', 'important');

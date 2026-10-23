@@ -1333,6 +1333,17 @@ async def delete_user_account(request: Request, db: Session = Depends(get_db)):
 # MARKETING ROUTES
 # ============================================================================
 
+@app.post("/api/debug/telemetry")
+async def client_telemetry(request: Request):
+    """Receive client-side telemetry / debug logs from Android & iOS app wrappers"""
+    try:
+        import json
+        data = await request.json()
+        print(f"[CLIENT_TELEMETRY] {json.dumps(data)}", flush=True)
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 @app.get("/app-start")
 async def app_start(request: Request):
     """Mobile app bootstrap endpoint for persistent login and instant dashboard entry"""
