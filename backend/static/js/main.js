@@ -64,7 +64,10 @@ window.openSidebar = function () {
     }
 };
 
-window.closeSidebar = function () {
+window.closeSidebar = function (e) {
+    if (Date.now() - (window._lastSidebarToggleTime || 0) < 400) {
+        return;
+    }
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     if (sidebar) {

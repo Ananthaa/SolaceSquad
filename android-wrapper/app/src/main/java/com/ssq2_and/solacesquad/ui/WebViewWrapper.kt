@@ -107,9 +107,17 @@ fun WebViewWrapper(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
                     WebView(ctx).apply {
+                        layoutParams = android.view.ViewGroup.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                        )
                         isFocusable = true
                         isFocusableInTouchMode = true
                         isClickable = true
+                        setOnTouchListener { v, _ ->
+                            v.parent?.requestDisallowInterceptTouchEvent(true)
+                            false
+                        }
                             // Enable Remote Chrome DevTools Debugging
                             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
                                 WebView.setWebContentsDebuggingEnabled(true)
@@ -275,7 +283,7 @@ fun WebViewWrapper(
                                 // Mask WebView User Agent to standard Mobile Chrome to enable Razorpay Web/Google OAuth fallback
                                 val defaultUa = userAgentString
                                 val cleanedUa = defaultUa.replace("; wv", "").replace("Version/4.0 ", "")
-                                userAgentString = "$cleanedUa SolaceSquadApp/Android"
+                                userAgentString = "$cleanedUa SolaceSquadApp/Android-1.7"
                             }
 
                             addJavascriptInterface(tokenBridge, "AndroidBridge")

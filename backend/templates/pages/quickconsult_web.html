@@ -982,7 +982,7 @@
         <div class="qc-consultant-card p-5 sm:p-6 flex flex-col justify-between">
           <div>
             <!-- Consultant Header (Tap to View Profile) -->
-            <div class="flex items-start gap-3.5 mb-4 cursor-pointer group/header" onclick="openProfileModal('${c.id}', event)" title="View Full Profile">
+            <div class="flex items-start gap-3.5 mb-4 cursor-pointer group/header" onclick="openProfileModal('${c.id}', event)" data-id="${c.id}" title="View Full Profile">
               <div class="relative flex-shrink-0">
                 <img src="${c.photo_url}" alt="${c.name}" class="w-16 h-16 rounded-2xl object-cover border-2 border-teal-500/20 shadow-sm transition-transform group-hover/header:scale-105" onerror="this.src='/static/images/default-avatar.png'">
                 <span class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" title="Online & Available Now"></span>
@@ -1229,6 +1229,7 @@
   }
 
   function closeProfileModal() {
+    if (Date.now() - (_lastOpenProfileTime || 0) < 400) return;
     const modal = document.getElementById('profileModal');
     if (modal) {
       modal.classList.add('hidden');
@@ -1239,12 +1240,14 @@
   }
 
   function handleProfileBackdropClick(e) {
+    if (Date.now() - (_lastOpenProfileTime || 0) < 400) return;
     if (e && e.target && e.target.id === 'profileModal') {
       closeProfileModal();
     }
   }
 
   function handleBookingBackdropClick(e) {
+    if (Date.now() - (_lastOpenBookingTime || 0) < 400) return;
     if (e && e.target && e.target.id === 'bookingModal') {
       closeBookingModal();
     }
@@ -1531,6 +1534,7 @@
   }
 
   function closeBookingModal() {
+    if (Date.now() - (_lastOpenBookingTime || 0) < 400) return;
     const bModal = document.getElementById('bookingModal');
     if (bModal) {
       bModal.classList.add('hidden');
