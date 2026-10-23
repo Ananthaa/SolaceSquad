@@ -1057,8 +1057,9 @@
               </button>
               <button 
                 type="button"
-                onclick="openBookingModal(${c.id})" 
-                class="flex-1 sm:flex-initial text-center justify-center px-4 py-2.5 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-extrabold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95"
+                onclick="openBookingModal('${c.id}', event)" 
+                data-id="${c.id}"
+                class="book-call-btn flex-1 sm:flex-initial text-center justify-center px-4 py-2.5 rounded-xl bg-[#1e4d40] hover:bg-[#133930] text-white font-extrabold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95"
                 style="touch-action: manipulation;"
               >
                 <i data-lucide="zap" class="w-3.5 h-3.5 text-emerald-300"></i>
@@ -1073,16 +1074,27 @@
     // Delegated click handler on consultantsGrid
     if (!grid.dataset.boundProfileEvents) {
       grid.dataset.boundProfileEvents = 'true';
-      grid.addEventListener('click', function(e) {
-        const btn = e.target.closest('.view-profile-btn');
-        if (btn) {
-          const cid = btn.dataset.id || btn.getAttribute('data-id');
+      const handleAction = function(e) {
+        const viewBtn = e.target.closest('.view-profile-btn');
+        if (viewBtn) {
+          const cid = viewBtn.dataset.id || viewBtn.getAttribute('data-id');
           if (cid) {
-            e.preventDefault();
+            try { e.preventDefault(); } catch(err) {}
             window.openProfileModal(cid, e);
+            return;
           }
         }
-      });
+        const bookBtn = e.target.closest('.book-call-btn');
+        if (bookBtn) {
+          const cid = bookBtn.dataset.id || bookBtn.getAttribute('data-id');
+          if (cid) {
+            try { e.preventDefault(); } catch(err) {}
+            window.openBookingModal(cid, e);
+            return;
+          }
+        }
+      };
+      grid.addEventListener('click', handleAction);
     }
 
     if (window.lucide) lucide.createIcons();
@@ -1192,6 +1204,16 @@
     modal.classList.remove('hidden');
     modal.classList.add('active');
     modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('position', 'fixed', 'important');
+    modal.style.setProperty('inset', '0', 'important');
+    modal.style.setProperty('top', '0px', 'important');
+    modal.style.setProperty('left', '0px', 'important');
+    modal.style.setProperty('right', '0px', 'important');
+    modal.style.setProperty('bottom', '0px', 'important');
+    modal.style.setProperty('width', '100vw', 'important');
+    modal.style.setProperty('height', '100%', 'important');
+    modal.style.setProperty('height', '100vh', 'important');
+    modal.style.setProperty('height', '100dvh', 'important');
     modal.style.setProperty('z-index', '1000000', 'important');
     modal.style.setProperty('visibility', 'visible', 'important');
     modal.style.setProperty('opacity', '1', 'important');
@@ -1415,9 +1437,26 @@
   }
 
   /* ══ BOOKING MODAL LOGIC ══ */
-  function openBookingModal(consultantId) {
-    const c = allConsultants.find(item => item.id === consultantId);
-    if (!c) return;
+  window.openBookingModal = function(consultantId, event) {
+    if (event) {
+      try { if (typeof event.preventDefault === 'function') event.preventDefault(); } catch (err) {}
+      try { if (typeof event.stopPropagation === 'function') event.stopPropagation(); } catch (err) {}
+    }
+
+    let targetId = consultantId;
+    if (targetId && typeof targetId === 'object') {
+      if (targetId.nodeType === 1 || targetId.tagName) {
+        targetId = targetId.dataset?.id || targetId.getAttribute('data-id');
+      } else if (targetId.id) {
+        targetId = targetId.id;
+      }
+    }
+
+    const c = allConsultants.find(item => item && (item.id == targetId || String(item.id) === String(targetId)));
+    if (!c) {
+      console.warn('Consultant booking not found for id:', targetId);
+      return;
+    }
     selectedConsultant = c;
     appliedVoucher = null;
 
@@ -1466,12 +1505,25 @@
       bModal.classList.remove('hidden');
       bModal.classList.add('active');
       bModal.style.setProperty('display', 'flex', 'important');
+      bModal.style.setProperty('position', 'fixed', 'important');
+      bModal.style.setProperty('inset', '0', 'important');
+      bModal.style.setProperty('top', '0px', 'important');
+      bModal.style.setProperty('left', '0px', 'important');
+      bModal.style.setProperty('right', '0px', 'important');
+      bModal.style.setProperty('bottom', '0px', 'important');
+      bModal.style.setProperty('width', '100vw', 'important');
+      bModal.style.setProperty('height', '100%', 'important');
+      bModal.style.setProperty('height', '100vh', 'important');
+      bModal.style.setProperty('height', '100dvh', 'important');
       bModal.style.setProperty('z-index', '1000000', 'important');
       bModal.style.setProperty('visibility', 'visible', 'important');
       bModal.style.setProperty('opacity', '1', 'important');
       document.body.style.overflow = 'hidden';
     }
     if (window.lucide) lucide.createIcons();
+  };
+  function openBookingModal(consultantId, event) {
+    return window.openBookingModal(consultantId, event);
   }
 
   function closeBookingModal() {

@@ -173,7 +173,7 @@
     </script>
 
     <!-- Custom Styles -->
-    <link rel="stylesheet" href="/static/css/styles.css?v=21">
+    <link rel="stylesheet" href="/static/css/styles.css?v=22">
 
     <!-- ═══ Service Worker / Mobile App Cache Busting Controller ═══ -->
     <link rel="manifest" href="/manifest.json">
@@ -206,8 +206,8 @@
                 }));
               }).then(function() {
                 // If a stale SW was actively controlling this page, reload once cleanly to bypass cached HTML/JS
-                if (navigator.serviceWorker.controller && !sessionStorage.getItem('__sw_purged_v21')) {
-                  sessionStorage.setItem('__sw_purged_v21', 'true');
+                if (navigator.serviceWorker.controller && !sessionStorage.getItem('__sw_purged_v22')) {
+                  sessionStorage.setItem('__sw_purged_v22', 'true');
                   console.log('[MobileApp] Purged stale SW controller, reloading cleanly...');
                   window.location.reload(true);
                 }

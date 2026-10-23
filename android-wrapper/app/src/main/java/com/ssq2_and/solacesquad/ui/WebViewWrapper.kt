@@ -294,6 +294,7 @@ fun WebViewWrapper(
                             }
 
                             addJavascriptInterface(tokenBridge, "AndroidBridge")
+                            clearCache(true)
                             onWebViewCreated(this)
                             loadUrl(url)
                             webViewInstance = this

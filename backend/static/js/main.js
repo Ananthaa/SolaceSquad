@@ -33,6 +33,12 @@ window.openSidebar = function () {
         overlay.classList.remove('hidden');
         overlay.classList.add('active', 'sidebar-overlay-open');
         overlay.style.setProperty('display', 'block', 'important');
+        overlay.style.setProperty('position', 'fixed', 'important');
+        overlay.style.setProperty('inset', '0', 'important');
+        overlay.style.setProperty('top', '0px', 'important');
+        overlay.style.setProperty('left', '0px', 'important');
+        overlay.style.setProperty('right', '0px', 'important');
+        overlay.style.setProperty('bottom', '0px', 'important');
         overlay.style.setProperty('visibility', 'visible', 'important');
         overlay.style.setProperty('opacity', '1', 'important');
         overlay.style.setProperty('z-index', '999998', 'important');
@@ -45,6 +51,7 @@ window.openSidebar = function () {
         sidebar.classList.remove('-translate-x-full');
         sidebar.classList.add('translate-x-0', 'sidebar-open', 'open');
         sidebar.style.setProperty('display', 'flex', 'important');
+        sidebar.style.setProperty('position', 'fixed', 'important');
         sidebar.style.setProperty('visibility', 'visible', 'important');
         sidebar.style.setProperty('opacity', '1', 'important');
         sidebar.style.setProperty('transform', 'none', 'important');
@@ -53,9 +60,13 @@ window.openSidebar = function () {
         sidebar.style.setProperty('top', '0px', 'important');
         sidebar.style.setProperty('bottom', '0px', 'important');
         sidebar.style.setProperty('width', '288px', 'important');
+        sidebar.style.setProperty('max-width', '85vw', 'important');
+        sidebar.style.setProperty('height', '100%', 'important');
+        sidebar.style.setProperty('height', '100vh', 'important');
         sidebar.style.setProperty('background-color', '#ffffff', 'important');
         sidebar.style.setProperty('z-index', '999999', 'important');
         sidebar.style.setProperty('pointer-events', 'auto', 'important');
+        sidebar.style.setProperty('box-shadow', '4px 0 24px rgba(0, 0, 0, 0.35)', 'important');
     }
 };
 

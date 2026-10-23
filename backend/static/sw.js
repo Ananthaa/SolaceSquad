@@ -1,8 +1,8 @@
-const CACHE_NAME = 'soulsquad-v21';
+const CACHE_NAME = 'soulsquad-v22';
 const STATIC_ASSETS = [
     '/manifest.json',
-    '/static/css/styles.css?v=21',
-    '/static/js/main.js?v=21',
+    '/static/css/styles.css?v=22',
+    '/static/js/main.js?v=22',
     '/static/images/logo.png'
 ];
 

@@ -54,6 +54,12 @@
             overlay.classList.remove('hidden');
             overlay.classList.add('active', 'sidebar-overlay-open');
             overlay.style.setProperty('display', 'block', 'important');
+            overlay.style.setProperty('position', 'fixed', 'important');
+            overlay.style.setProperty('inset', '0', 'important');
+            overlay.style.setProperty('top', '0px', 'important');
+            overlay.style.setProperty('left', '0px', 'important');
+            overlay.style.setProperty('right', '0px', 'important');
+            overlay.style.setProperty('bottom', '0px', 'important');
             overlay.style.setProperty('visibility', 'visible', 'important');
             overlay.style.setProperty('opacity', '1', 'important');
             overlay.style.setProperty('z-index', '999998', 'important');
@@ -66,6 +72,7 @@
             sidebar.classList.remove('-translate-x-full');
             sidebar.classList.add('translate-x-0', 'sidebar-open', 'open');
             sidebar.style.setProperty('display', 'flex', 'important');
+            sidebar.style.setProperty('position', 'fixed', 'important');
             sidebar.style.setProperty('visibility', 'visible', 'important');
             sidebar.style.setProperty('opacity', '1', 'important');
             sidebar.style.setProperty('transform', 'none', 'important');
@@ -74,9 +81,13 @@
             sidebar.style.setProperty('top', '0px', 'important');
             sidebar.style.setProperty('bottom', '0px', 'important');
             sidebar.style.setProperty('width', '288px', 'important');
+            sidebar.style.setProperty('max-width', '85vw', 'important');
+            sidebar.style.setProperty('height', '100%', 'important');
+            sidebar.style.setProperty('height', '100vh', 'important');
             sidebar.style.setProperty('background-color', '#ffffff', 'important');
             sidebar.style.setProperty('z-index', '999999', 'important');
             sidebar.style.setProperty('pointer-events', 'auto', 'important');
+            sidebar.style.setProperty('box-shadow', '4px 0 24px rgba(0, 0, 0, 0.35)', 'important');
         }
     };
 
@@ -229,6 +240,7 @@
     .is-android-app #sidebar.sidebar-open,
     .is-mobile-app #sidebar.sidebar-open {
         display: flex !important;
+        position: fixed !important;
         visibility: visible !important;
         opacity: 1 !important;
         transform: none !important;
@@ -558,7 +570,7 @@
 <!-- Mobile Sidebar Overlay -->
 <div id="sidebar-overlay" onclick="closeSidebar()" class="fixed inset-0 bg-black/50 z-40 lg:hidden hidden backdrop-blur-xs transition-opacity"></div>
 
-<script src="/static/js/main.js?v=21"></script>
+<script src="/static/js/main.js?v=22"></script>
 
 <!-- ── Global Message Notification Poller ── -->
 <style>
