@@ -311,8 +311,8 @@ def send_welcome_email(to_email: str, user_name: str) -> bool:
 # ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 def _send_raw_appt(to_email: str, subject: str, html: str, text: str,
-                   attachments: list = None) -> bool:
-    """Fire a single email via the SendGrid v3 HTTP API."""
+                   attachments: list = None, bcc_emails: list = None) -> bool:
+    """Fire a single email via the SendGrid v3 HTTP API with optional BCC."""
     import json as _json, urllib.request, urllib.error
     api_key   = (os.getenv("SENDGRID_API_KEY") or "").strip()
     from_addr = os.getenv("FROM_EMAIL", "noreply@solacesquad.com")
@@ -320,8 +320,14 @@ def _send_raw_appt(to_email: str, subject: str, html: str, text: str,
         print(f"[SendGrid] No API key — skipping email to {to_email}")
         return False
 
+    personalization = {"to": [{"email": to_email}]}
+    if bcc_emails:
+        clean_bccs = [b.strip() for b in bcc_emails if b and b.strip() and b.strip().lower() != to_email.strip().lower()]
+        if clean_bccs:
+            personalization["bcc"] = [{"email": b} for b in clean_bccs]
+
     payload: dict = {
-        "personalizations": [{"to": [{"email": to_email}]}],
+        "personalizations": [personalization],
         "from":    {"email": from_addr, "name": "SolaceSquad"},
         "subject": subject,
         "content": [
@@ -391,7 +397,7 @@ def send_appointment_email(
     *,
     to_email: str,
     to_name: str,
-    action: str,                   # "booked" | "cancelled"
+    action: str,                   # "booked" | "cancelled" | "rescheduled"
     appointment_id: int,
     user_name: str,
     consultant_name: str,
@@ -402,12 +408,17 @@ def send_appointment_email(
     organiser_name: str  = "",
     attendee_emails: list = None,
     admin_booked: bool = False,
+    bcc_emails: list = None,
 ) -> bool:
     """
-    Send a styled appointment confirmation or cancellation email.
-    For bookings, a Google Calendar .ics invite is attached.
+    Send a styled appointment confirmation, reschedule, or cancellation email.
+    For bookings & reschedules, a Google Calendar .ics invite is attached.
+    Always BCCs admin@solacesquad.com by default.
     """
     import base64 as _b64, datetime as _dt
+
+    if bcc_emails is None:
+        bcc_emails = ["admin@solacesquad.com"]
 
     end_dt      = appointment_date + _dt.timedelta(minutes=duration_minutes)
     import timezone_utils
@@ -417,10 +428,22 @@ def send_appointment_email(
                    else f"{duration_minutes // 60}h"
                    + (f" {duration_minutes % 60}min" if duration_minutes % 60 else ""))
 
-    is_booked    = (action == "booked")
-    header_color = "#0f766e" if is_booked else "#dc2626"
-    header_emoji = "📅" if is_booked else "❌"
-    action_label = "Appointment Confirmed" if is_booked else "Appointment Cancelled"
+    is_booked        = (action in ["booked", "rescheduled"])
+    is_rescheduled   = (action == "rescheduled")
+    
+    if action == "booked":
+        header_color = "#0f766e"
+        header_emoji = "📅"
+        action_label = "Appointment Confirmed"
+    elif action == "rescheduled":
+        header_color = "#0d9488"
+        header_emoji = "🔄"
+        action_label = "Appointment Rescheduled"
+    else:
+        header_color = "#dc2626"
+        header_emoji = "❌"
+        action_label = "Appointment Cancelled"
+
     subject      = f"[SolaceSquad] {action_label} — {local_start}"
 
     join_block = ""
@@ -466,6 +489,13 @@ def send_appointment_email(
         if is_booked else ""
     )
 
+    if is_rescheduled:
+        status_msg = "Your appointment has been <strong>successfully rescheduled</strong> to the updated time below."
+    elif is_booked:
+        status_msg = "Your appointment has been <strong>successfully booked</strong>."
+    else:
+        status_msg = "Your appointment has been <strong>cancelled</strong>."
+
     html = f"""<!DOCTYPE html><html><head><meta charset='utf-8'></head>
 <body style='font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;
 background:#f3f4f6;margin:0;padding:24px;'>
@@ -478,10 +508,7 @@ overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.1);'>
   </div>
   <div style='padding:28px;'>
     <p style='font-size:16px;color:#111827;margin-top:0;'>Hi <strong>{to_name}</strong>,</p>
-    <p style='color:#374151;'>
-      {"Your appointment has been <strong>successfully booked</strong>." if is_booked
-       else "Your appointment has been <strong>cancelled</strong>."}
-    </p>
+    <p style='color:#374151;'>{status_msg}</p>
     {admin_notice_block}
     <div style='background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;
                 padding:20px;margin:20px 0;'>
@@ -526,7 +553,7 @@ overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.1);'>
         + "\n— The SolaceSquad Team\n"
     )
 
-    # .ics calendar attachment (bookings only)
+    # .ics calendar attachment (bookings & reschedules)
     attachments = []
     if is_booked:
         ics_str = _build_ics(
@@ -550,7 +577,7 @@ overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.1);'>
             "disposition": "attachment",
         })
 
-    return _send_raw_appt(to_email, subject, html, text, attachments or None)
+    return _send_raw_appt(to_email, subject, html, text, attachments or None, bcc_emails=bcc_emails)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

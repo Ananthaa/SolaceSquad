@@ -240,24 +240,18 @@
     /* ── Vitals row ─────────────────────── */
     .vitals-row {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: .65rem;
         width: 100%;
     }
 
     @media (max-width: 700px) {
         .vitals-row {
-            grid-template-columns: repeat(6, minmax(0, 1fr));
-            gap: .45rem;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .5rem;
         }
-        .vital-chip:nth-child(1),
-        .vital-chip:nth-child(2),
-        .vital-chip:nth-child(3) {
-            grid-column: span 2;
-        }
-        .vital-chip:nth-child(4),
-        .vital-chip:nth-child(5) {
-            grid-column: span 3;
+        .vital-chip {
+            grid-column: span 1 !important;
         }
     }
 
@@ -684,10 +678,10 @@
             text-overflow: ellipsis !important;
             max-width: 100% !important;
         }
-        /* Vitals 6-column balanced grid: 3 top (span 2), 2 bottom (span 3) */
+        /* Vitals 2-column balanced grid */
         .vitals-row {
             display: grid !important;
-            grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             gap: 0.4rem !important;
             overflow-x: visible !important;
             width: 100% !important;
@@ -700,15 +694,7 @@
             border-radius: 0.75rem !important;
             gap: 0.25rem !important;
             box-sizing: border-box !important;
-        }
-        .vital-chip:nth-child(1),
-        .vital-chip:nth-child(2),
-        .vital-chip:nth-child(3) {
-            grid-column: span 2 !important;
-        }
-        .vital-chip:nth-child(4),
-        .vital-chip:nth-child(5) {
-            grid-column: span 3 !important;
+            grid-column: span 1 !important;
         }
         .vital-chip-icon {
             width: 30px !important;
@@ -906,10 +892,10 @@
         text-overflow: ellipsis !important;
         max-width: 100% !important;
     }
-    /* Vitals in mobile app: 6-column balanced grid */
+    /* Vitals in mobile app: 2-column balanced grid */
     .is-mobile-app .vitals-row {
         display: grid !important;
-        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 0.4rem !important;
         overflow-x: visible !important;
         width: 100% !important;
@@ -922,15 +908,7 @@
         border-radius: 0.75rem !important;
         gap: 0.25rem !important;
         box-sizing: border-box !important;
-    }
-    .is-mobile-app .vital-chip:nth-child(1),
-    .is-mobile-app .vital-chip:nth-child(2),
-    .is-mobile-app .vital-chip:nth-child(3) {
-        grid-column: span 2 !important;
-    }
-    .is-mobile-app .vital-chip:nth-child(4),
-    .is-mobile-app .vital-chip:nth-child(5) {
-        grid-column: span 3 !important;
+        grid-column: span 1 !important;
     }
     .is-mobile-app .vital-chip-icon {
         width: 30px !important;
@@ -1200,13 +1178,6 @@
                         <div class="vital-chip-label">Heart Rate</div>
                     </div>
                     <div class="vital-chip">
-                        <div class="vital-chip-icon" style="background:#ffedd5;">
-                            <i data-lucide="thermometer" style="color:#ea580c;"></i>
-                        </div>
-                        <div class="vital-chip-val" id="vital-temperature"><span class="text-gray-400">--</span></div>
-                        <div class="vital-chip-label">Temp</div>
-                    </div>
-                    <div class="vital-chip">
                         <div class="vital-chip-icon" style="background:#ede9fe;">
                             <i data-lucide="gauge" style="color:#7c3aed;"></i>
                         </div>
@@ -1227,6 +1198,34 @@
                         </div>
                         <div class="vital-chip-val" id="vital-breathing"><span class="text-gray-400">--</span></div>
                         <div class="vital-chip-label">Breathing</div>
+                    </div>
+                    <div class="vital-chip">
+                        <div class="vital-chip-icon" style="background:#ffedd5;">
+                            <i data-lucide="thermometer" style="color:#ea580c;"></i>
+                        </div>
+                        <div class="vital-chip-val" id="vital-temperature"><span class="text-gray-400">--</span></div>
+                        <div class="vital-chip-label">Temp</div>
+                    </div>
+                    <div class="vital-chip">
+                        <div class="vital-chip-icon" style="background:#e0e7ff;">
+                            <i data-lucide="activity" style="color:#4f46e5;"></i>
+                        </div>
+                        <div class="vital-chip-val" id="vital-hrv"><span class="text-gray-400">--</span></div>
+                        <div class="vital-chip-label">HRV</div>
+                    </div>
+                    <div class="vital-chip">
+                        <div class="vital-chip-icon" style="background:#ffe4e6;">
+                            <i data-lucide="zap" style="color:#e11d48;"></i>
+                        </div>
+                        <div class="vital-chip-val" id="vital-stress-index"><span class="text-gray-400">--</span></div>
+                        <div class="vital-chip-label">Stress Index</div>
+                    </div>
+                    <div class="vital-chip">
+                        <div class="vital-chip-icon" style="background:#f3e8ff;">
+                            <i data-lucide="shield-check" style="color:#9333ea;"></i>
+                        </div>
+                        <div class="vital-chip-val" id="vital-vascular-age"><span class="text-gray-400">--</span></div>
+                        <div class="vital-chip-label">Vascular Age</div>
                     </div>
                 </div>
                 <div style="margin-top:.85rem;">
@@ -1610,6 +1609,32 @@
                 brEl.innerHTML = latest.respiratory_rate
                     ? `${latest.respiratory_rate} <span>/min</span>`
                     : '<span style="color:#d1d5db">N/A</span>';
+
+                const hrvEl = document.getElementById('vital-hrv');
+                if (hrvEl) {
+                    const hrvVal = latest.hrv_rmssd || latest.hrv_sdnn;
+                    hrvEl.innerHTML = hrvVal
+                        ? `${hrvVal} <span>ms</span>`
+                        : '<span style="color:#d1d5db">N/A</span>';
+                }
+
+                const stressEl = document.getElementById('vital-stress-index');
+                if (stressEl) {
+                    stressEl.innerHTML = (latest.stress_index !== null && latest.stress_index !== undefined)
+                        ? `${latest.stress_index} <span>/100</span>`
+                        : '<span style="color:#d1d5db">N/A</span>';
+                }
+
+                const vascEl = document.getElementById('vital-vascular-age');
+                if (vascEl) {
+                    vascEl.innerHTML = latest.vascular_age
+                        ? `${latest.vascular_age} <span>yrs</span>`
+                        : '<span style="color:#d1d5db">N/A</span>';
+                }
+
+                if (window.lucide && typeof lucide.createIcons === 'function') {
+                    lucide.createIcons();
+                }
             })
             .catch(e => console.error('Vitals error:', e));
     }
@@ -1796,11 +1821,18 @@
                             <a href="/app/call/${appt.id}" class="btn btn-primary text-sm w-full flex items-center justify-center gap-2 mb-2">
                                 <i data-lucide="phone" class="w-4 h-4"></i><span>Join Call</span>
                             </a>
-                            <button onclick="cancelDashboardAppt('${appt.id}')"
-                                style="width:100%;padding:.4rem .75rem;font-size:.8rem;color:#dc2626;background:transparent;border:1px solid #fca5a5;border-radius:.5rem;cursor:pointer;transition:all .15s;"
-                                onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='transparent'">
-                                ✕ Cancel Session
-                            </button>
+                            <div style="display:flex;gap:.5rem;margin-top:.4rem;">
+                                <button type="button" onclick="openRescheduleModal('${appt.id}', '${(appt.consultant_name || '').replace(/'/g, "\\'")}', '${appt.appointment_date}', ${appt.duration_minutes || 30})"
+                                    style="flex:1;padding:.45rem .6rem;font-size:.78rem;font-weight:600;color:#0f766e;background:#f0fdf4;border:1px solid #99f6e4;border-radius:.5rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;transition:all .15s;"
+                                    onmouseover="this.style.background='#ccfbf1'" onmouseout="this.style.background='#f0fdf4'">
+                                    <i data-lucide="calendar" style="width:13px;height:13px;"></i> Reschedule
+                                </button>
+                                <button type="button" onclick="cancelDashboardAppt('${appt.id}')"
+                                    style="flex:1;padding:.45rem .6rem;font-size:.78rem;font-weight:600;color:#dc2626;background:#fff;border:1px solid #fca5a5;border-radius:.5rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;transition:all .15s;"
+                                    onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">
+                                    ✕ Cancel
+                                </button>
+                            </div>
                         </div>`;
                         }).join('');
                         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -1850,11 +1882,99 @@
                 if (card) { card.style.transition = 'opacity .3s'; card.style.opacity = '0'; setTimeout(() => card.remove(), 320); }
                 const banner = document.createElement('div');
                 banner.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#10b981;color:#fff;padding:.65rem 1.25rem;border-radius:.65rem;font-size:.85rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);';
-                banner.textContent = 'Session cancelled. Email confirmation sent.';
+                banner.textContent = d.message || 'Session cancelled. Email confirmation sent.';
                 document.body.appendChild(banner);
                 setTimeout(() => banner.remove(), 4000);
             } else { alert('Could not cancel: ' + (d.error || 'Unknown error')); }
         } catch (e) { alert('Network error. Please try again.'); }
+    };
+
+    window.openRescheduleModal = function(id, consultantName, currentDateStr, duration) {
+        document.getElementById('rescheduleApptId').value = id;
+        document.getElementById('rescheduleDuration').value = duration || 30;
+        document.getElementById('rescheduleConsultantLabel').textContent = 'with ' + consultantName;
+        
+        const curDate = new Date(currentDateStr);
+        document.getElementById('rescheduleCurrentSlot').textContent = formatAppointmentDate(curDate);
+        
+        // Default to tomorrow or current date
+        const tom = new Date(); tom.setDate(tom.getDate() + 1);
+        const yyyy = tom.getFullYear();
+        const mm = String(tom.getMonth() + 1).padStart(2, '0');
+        const dd = String(tom.getDate()).padStart(2, '0');
+        const dateInput = document.getElementById('rescheduleDateInput');
+        dateInput.min = `${yyyy}-${mm}-${dd}`;
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+
+        // Default time
+        document.getElementById('rescheduleTimeInput').value = "13:00";
+        document.getElementById('rescheduleAlert').style.display = 'none';
+        document.getElementById('rescheduleModal').style.display = 'flex';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    };
+
+    window.closeRescheduleModal = function() {
+        document.getElementById('rescheduleModal').style.display = 'none';
+    };
+
+    window.submitReschedule = async function() {
+        const id = document.getElementById('rescheduleApptId').value;
+        const duration = parseInt(document.getElementById('rescheduleDuration').value || '30', 10);
+        const dateVal = document.getElementById('rescheduleDateInput').value;
+        const timeVal = document.getElementById('rescheduleTimeInput').value;
+        const alertBox = document.getElementById('rescheduleAlert');
+        const submitBtn = document.getElementById('rescheduleSubmitBtn');
+
+        if (!dateVal || !timeVal) {
+            alertBox.style.display = 'block';
+            alertBox.style.background = '#fef2f2';
+            alertBox.style.color = '#dc2626';
+            alertBox.style.border = '1px solid #fecaca';
+            alertBox.textContent = 'Please select both a date and a time.';
+            return;
+        }
+
+        const newDateStr = `${dateVal}T${timeVal}:00`;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Rescheduling...';
+        alertBox.style.display = 'none';
+
+        try {
+            const r = await fetch(`/api/appointments/${id}/reschedule`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    new_appointment_date: newDateStr,
+                    duration_minutes: duration
+                })
+            });
+            const d = await r.json();
+            if (d.success) {
+                closeRescheduleModal();
+                loadUpcomingAppointments();
+                const banner = document.createElement('div');
+                banner.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#0d9488;color:#fff;padding:.65rem 1.25rem;border-radius:.65rem;font-size:.85rem;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2);';
+                banner.textContent = d.message || 'Appointment rescheduled! Confirmation email sent.';
+                document.body.appendChild(banner);
+                setTimeout(() => banner.remove(), 4500);
+            } else {
+                alertBox.style.display = 'block';
+                alertBox.style.background = '#fef2f2';
+                alertBox.style.color = '#dc2626';
+                alertBox.style.border = '1px solid #fecaca';
+                alertBox.textContent = d.error || 'Failed to reschedule. Please choose another slot.';
+            }
+        } catch (e) {
+            alertBox.style.display = 'block';
+            alertBox.style.background = '#fef2f2';
+            alertBox.style.color = '#dc2626';
+            alertBox.style.border = '1px solid #fecaca';
+            alertBox.textContent = 'Network error. Please try again.';
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i data-lucide="check" style="width:14px;height:14px;"></i> Confirm &amp; Notify';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
     };
 </script>
 
@@ -2184,5 +2304,50 @@
   }
 </script>
 {% endif %}
+
+<!-- ══ Reschedule Modal ════════════════════════════════════════════════════ -->
+<div id="rescheduleModal" style="display:none;position:fixed;inset:0;z-index:9999;
+     background:rgba(0,0,0,0.55);align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#fff;border-radius:1rem;box-shadow:0 20px 40px rgba(0,0,0,0.2);
+         width:100%;max-width:440px;overflow:hidden;animation:moodCardIn 0.25s ease-out both;">
+        <div style="background:linear-gradient(135deg,#0f766e,#0d9488);padding:1.25rem 1.5rem;color:#fff;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <h3 style="margin:0;font-size:1.1rem;font-weight:700;">🔄 Reschedule Appointment</h3>
+                <p id="rescheduleConsultantLabel" style="margin:4px 0 0;font-size:.8rem;opacity:.9;"></p>
+            </div>
+            <button type="button" onclick="closeRescheduleModal()" style="background:none;border:none;color:#fff;font-size:1.25rem;cursor:pointer;margin-left:auto;line-height:1;">✕</button>
+        </div>
+        <div style="padding:1.5rem;">
+            <input type="hidden" id="rescheduleApptId">
+            <input type="hidden" id="rescheduleDuration">
+
+            <div style="margin-bottom:1rem;background:#f0fdf4;border:1px solid #99f6e4;padding:.75rem 1rem;border-radius:.65rem;font-size:.8rem;color:#0f766e;">
+                <strong>Current Slot:</strong> <span id="rescheduleCurrentSlot"></span>
+            </div>
+
+            <div style="margin-bottom:1.1rem;">
+                <label style="display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:.4rem;">Select New Date</label>
+                <input type="date" id="rescheduleDateInput" style="width:100%;padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.9rem;outline:none;">
+            </div>
+
+            <div style="margin-bottom:1.25rem;">
+                <label style="display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:.4rem;">Select New Time (IST)</label>
+                <input type="time" id="rescheduleTimeInput" step="900" style="width:100%;padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.9rem;outline:none;">
+                <div style="font-size:.72rem;color:#6b7280;margin-top:.35rem;">* Times are in Indian Standard Time (IST).</div>
+            </div>
+
+            <div id="rescheduleAlert" style="display:none;margin-bottom:1rem;padding:.65rem .85rem;border-radius:.5rem;font-size:.8rem;font-weight:600;"></div>
+
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;">
+                <button type="button" onclick="closeRescheduleModal()" style="padding:.6rem 1.1rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:.5rem;font-size:.82rem;font-weight:600;color:#4b5563;cursor:pointer;">
+                    Cancel
+                </button>
+                <button type="button" id="rescheduleSubmitBtn" onclick="submitReschedule()" style="padding:.6rem 1.4rem;background:#0d9488;border:none;border-radius:.5rem;font-size:.82rem;font-weight:700;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:.4rem;">
+                    Confirm &amp; Notify
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
