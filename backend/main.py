@@ -1,3 +1,4 @@
+from typing import Optional, List, Dict, Any, Tuple
 from fastapi import FastAPI, Request, Depends, HTTPException, Form, File, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -12,6 +13,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import os
+import json
 import secrets
 import uuid
 from datetime import datetime, timedelta, date
@@ -279,6 +281,24 @@ async def startup_event():
                  "ALTER TABLE vitals_records ADD COLUMN IF NOT EXISTS temp_score INTEGER"),
                 ("stress on vitals_records",
                  "ALTER TABLE vitals_records ADD COLUMN IF NOT EXISTS stress INTEGER"),
+                ("hrv_sdnn on vitals_records",
+                 "ALTER TABLE vitals_records ADD COLUMN IF NOT EXISTS hrv_sdnn FLOAT"),
+                ("hrv_rmssd on vitals_records",
+                 "ALTER TABLE vitals_records ADD COLUMN IF NOT EXISTS hrv_rmssd FLOAT"),
+                ("stress_index on vitals_records",
+                 "ALTER TABLE vitals_records ADD COLUMN IF NOT EXISTS stress_index FLOAT"),
+                ("vascular_age on vitals_records",
+                 "ALTER TABLE vitals_records ADD COLUMN IF NOT EXISTS vascular_age INTEGER"),
+                ("is_guest_scan on vitals_records",
+                 "ALTER TABLE vitals_records ADD COLUMN IF NOT EXISTS is_guest_scan BOOLEAN DEFAULT FALSE"),
+                ("liveness_score on vitals_records",
+                 "ALTER TABLE vitals_records ADD COLUMN IF NOT EXISTS liveness_score FLOAT"),
+                ("face_embedding on user_profiles",
+                 "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS face_embedding TEXT"),
+                ("face_enrolled_at on user_profiles",
+                 "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS face_enrolled_at TIMESTAMP"),
+                ("face_verification_enabled on user_profiles",
+                 "ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS face_verification_enabled BOOLEAN DEFAULT TRUE"),
                 ("emotional_wellness_score on mood_entries",
                  "ALTER TABLE mood_entries ADD COLUMN IF NOT EXISTS emotional_wellness_score INTEGER"),
                 ("lifestyle_score on workout_logs",
@@ -287,6 +307,14 @@ async def startup_event():
                  "ALTER TABLE workout_logs ADD COLUMN IF NOT EXISTS source VARCHAR(50)"),
                 ("external_id on workout_logs",
                  "ALTER TABLE workout_logs ADD COLUMN IF NOT EXISTS external_id VARCHAR(255)"),
+                ("start_time on workout_logs",
+                 "ALTER TABLE workout_logs ADD COLUMN IF NOT EXISTS start_time TIMESTAMP"),
+                ("end_time on workout_logs",
+                 "ALTER TABLE workout_logs ADD COLUMN IF NOT EXISTS end_time TIMESTAMP"),
+                ("is_duplicate on workout_logs",
+                 "ALTER TABLE workout_logs ADD COLUMN IF NOT EXISTS is_duplicate BOOLEAN DEFAULT FALSE"),
+                ("duplicate_of_id on workout_logs",
+                 "ALTER TABLE workout_logs ADD COLUMN IF NOT EXISTS duplicate_of_id INTEGER REFERENCES workout_logs(id)"),
                 ("distance_km on workout_logs",
                  "ALTER TABLE workout_logs ADD COLUMN IF NOT EXISTS distance_km FLOAT"),
                 ("email_verified on users",
@@ -762,6 +790,43 @@ def _is_mobile_app_request(request: Request, data: dict = None) -> bool:
         return True
     return False
 
+def get_auth_user_id(request: Request) -> Optional[int]:
+    """Extract authenticated user_id from session or Bearer token header / query param."""
+    # 1. Session check
+    uid = request.session.get("user_id")
+    if uid:
+        try:
+            return int(str(uid))
+        except (ValueError, TypeError):
+            pass
+    # 2. Authorization header check (Bearer JWT from TokenBridge / mobile app)
+    auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+        if token:
+            try:
+                import jwt
+                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                token_uid = payload.get("user_id")
+                if token_uid:
+                    return int(str(token_uid))
+            except Exception:
+                pass
+    # 3. Query parameter fallback
+    token_param = request.query_params.get("token")
+    if token_param:
+        try:
+            import jwt
+            payload = jwt.decode(token_param, SECRET_KEY, algorithms=["HS256"])
+            token_uid = payload.get("user_id")
+            if token_uid:
+                return int(str(token_uid))
+        except Exception:
+            pass
+    return None
+
+_get_workout_user_id = get_auth_user_id
+
 # Get the directory of this file
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -1232,6 +1297,10 @@ async def download_vitals_csv(request: Request, db: Session = Depends(get_db)):
             "Temperature (F)",
             "Temperature Rating",
             "Stress Level",
+            "HRV SDNN (ms)",
+            "HRV RMSSD (ms)",
+            "Autonomic Stress Index (0-100)",
+            "Vascular Age (years)",
             "Scan Method",
             "Confidence (%)"
         ])
@@ -1255,6 +1324,10 @@ async def download_vitals_csv(request: Request, db: Session = Depends(get_db)):
                 temp_f,
                 r.temp_rating or "",
                 r.stress if r.stress is not None else "",
+                r.hrv_sdnn if r.hrv_sdnn is not None else "",
+                r.hrv_rmssd if r.hrv_rmssd is not None else "",
+                r.stress_index if r.stress_index is not None else "",
+                r.vascular_age if r.vascular_age is not None else "",
                 r.method or "camera",
                 round(r.confidence * 100, 1) if r.confidence is not None else ""
             ])
@@ -2565,11 +2638,12 @@ async def vitals(request: Request, db: Session = Depends(get_db)):
 
     # Load latest vitals from DB (not session â€” session is always empty after page reload)
     vitals_history = []
+    latest_reading = None
     if user_id:
         try:
             records = db.query(VitalsRecord).filter(
                 VitalsRecord.user_id == user_id
-            ).order_by(VitalsRecord.timestamp.desc()).limit(10).all()
+            ).order_by(VitalsRecord.timestamp.desc()).limit(15).all()
             vitals_history = [
                 {
                     "timestamp": r.timestamp.isoformat() + "Z",
@@ -2581,9 +2655,24 @@ async def vitals(request: Request, db: Session = Depends(get_db)):
                     "blood_pressure_diastolic": r.blood_pressure_diastolic,
                     "health_score": r.health_score,
                     "stress": r.stress,
+                    "hrv_sdnn": r.hrv_sdnn,
+                    "hrv_rmssd": r.hrv_rmssd,
+                    "stress_index": r.stress_index,
+                    "vascular_age": r.vascular_age,
                 }
                 for r in records
             ]
+            if vitals_history:
+                # Merge recent non-null vitals so latest reading shows a complete health panel
+                latest_reading = vitals_history[0].copy()
+                for rec in vitals_history[1:]:
+                    for k in [
+                        "heart_rate", "spo2", "respiratory_rate", "temperature",
+                        "blood_pressure_systolic", "blood_pressure_diastolic",
+                        "health_score", "hrv_sdnn", "hrv_rmssd", "stress_index", "vascular_age"
+                    ]:
+                        if latest_reading.get(k) is None and rec.get(k) is not None:
+                            latest_reading[k] = rec[k]
         except Exception:
             pass
 
@@ -2610,6 +2699,7 @@ async def vitals(request: Request, db: Session = Depends(get_db)):
             "active_page":   "vitals",
             "nav_items":     get_nav_items("user"),
             "vitals_history": vitals_history,
+            "latest_reading": latest_reading,
             "user_gender":   user_gender or "",
             "user_age":      user_age    or 0,
             "user_plan":     user_plan,
@@ -2624,9 +2714,10 @@ async def get_latest_vitals_json(request: Request, db: Session = Depends(get_db)
         return {}
     
     # We want to find the latest non-null value for each vital
-    # This is expensive to do perfectly, so we'll grab the last 20 records and merge them
+    # Grab the last 20 non-guest records and merge them
     records = db.query(VitalsRecord).filter(
-        VitalsRecord.user_id == user_id
+        VitalsRecord.user_id == user_id,
+        or_(VitalsRecord.is_guest_scan == False, VitalsRecord.is_guest_scan == None)
     ).order_by(VitalsRecord.timestamp.desc()).limit(20).all()
     
     latest_vitals = {
@@ -2636,7 +2727,11 @@ async def get_latest_vitals_json(request: Request, db: Session = Depends(get_db)
         "temperature": None,
         "blood_pressure_systolic": None,
         "blood_pressure_diastolic": None,
-        "health_score": None
+        "health_score": None,
+        "hrv_sdnn": None,
+        "hrv_rmssd": None,
+        "stress_index": None,
+        "vascular_age": None,
     }
     
     for r in records:
@@ -2647,6 +2742,10 @@ async def get_latest_vitals_json(request: Request, db: Session = Depends(get_db)
         if latest_vitals["blood_pressure_systolic"] is None and r.blood_pressure_systolic: latest_vitals["blood_pressure_systolic"] = r.blood_pressure_systolic
         if latest_vitals["blood_pressure_diastolic"] is None and r.blood_pressure_diastolic: latest_vitals["blood_pressure_diastolic"] = r.blood_pressure_diastolic
         if latest_vitals["health_score"] is None and r.health_score: latest_vitals["health_score"] = r.health_score
+        if latest_vitals["hrv_sdnn"] is None and r.hrv_sdnn: latest_vitals["hrv_sdnn"] = r.hrv_sdnn
+        if latest_vitals["hrv_rmssd"] is None and r.hrv_rmssd: latest_vitals["hrv_rmssd"] = r.hrv_rmssd
+        if latest_vitals["stress_index"] is None and r.stress_index is not None: latest_vitals["stress_index"] = r.stress_index
+        if latest_vitals["vascular_age"] is None and r.vascular_age: latest_vitals["vascular_age"] = r.vascular_age
         
     return latest_vitals
 
@@ -2798,12 +2897,29 @@ def compute_and_save_wellness(user_id: int, db, for_date: date = None) -> float:
       emotional_wellness_score- latest mood_entries.emotional_wellness_score (fallback: 0)
       lifestyle_score         - today's total workout mins â†’ rate_workout() (0 if no log today)
     """
-    today = for_date or datetime.utcnow().date()
+    # 0. Timezone-aware date resolution
+    if for_date is None:
+        try:
+            user_obj = db.query(User).filter(User.id == user_id).first()
+            if user_obj and user_obj.timezone:
+                import zoneinfo
+                user_tz = zoneinfo.ZoneInfo(user_obj.timezone)
+                today = datetime.now(user_tz).date()
+            else:
+                today = datetime.utcnow().date()
+        except Exception:
+            today = datetime.utcnow().date()
+    else:
+        today = for_date
 
-    # 1. Latest health score
+    # 1. Latest health score (exclude guest scans)
     latest_vitals = (
         db.query(VitalsRecord)
-        .filter(VitalsRecord.user_id == user_id, VitalsRecord.health_score.isnot(None))
+        .filter(
+            VitalsRecord.user_id == user_id, 
+            VitalsRecord.health_score.isnot(None),
+            VitalsRecord.is_guest_scan == False
+        )
         .order_by(VitalsRecord.timestamp.desc())
         .first()
     )
@@ -2818,12 +2934,17 @@ def compute_and_save_wellness(user_id: int, db, for_date: date = None) -> float:
     )
     ews = int(latest_mood.emotional_wellness_score) if latest_mood else 0
 
-    # 3. Today's lifestyle score (0 if no workout logged today)
-    today_mins = (
-        db.query(func.coalesce(func.sum(WorkoutLog.duration_min), 0))
-        .filter(WorkoutLog.user_id == user_id, WorkoutLog.log_date == today)
-        .scalar() or 0
-    )
+    # 3. Today's lifestyle score (using multi-device disjoint interval union + effective step duration)
+    try:
+        from workout_overlap_utils import calculate_daily_active_minutes
+        today_mins = calculate_daily_active_minutes(db, user_id, today)
+    except Exception as _ce:
+        print(f"[WARN] calculate_daily_active_minutes fallback: {_ce}")
+        today_mins = (
+            db.query(func.coalesce(func.sum(WorkoutLog.duration_min), 0))
+            .filter(WorkoutLog.user_id == user_id, WorkoutLog.log_date == today, WorkoutLog.is_duplicate == False)
+            .scalar() or 0
+        )
     ls = rate_workout(int(today_mins))
 
     # 4. Weighted composite
@@ -3010,14 +3131,26 @@ def calculate_health_score(
     weighted_sum = sum(vital_scores[k] * WEIGHTS[k] for k in vital_scores)
     physical_score = weighted_sum / available_weight
 
-    # Apply stress penalty (Option 2)
-    stress = vitals_data.get("stress")
+    # Apply stress penalty
+    stress = vitals_data.get("stress") or vitals_data.get("stress_index")
     if stress is not None:
         try:
-            stress_val = int(stress)
+            stress_val = float(stress)
             if stress_val > 35:
-                penalty = (stress_val - 35) / 200.0
+                penalty = min(0.3, (stress_val - 35) / 200.0)
                 physical_score = physical_score * (1.0 - penalty)
+        except Exception:
+            pass
+
+    # Factor in HRV (RMSSD) autonomic tone
+    hrv_rmssd = vitals_data.get("hrv_rmssd")
+    if hrv_rmssd is not None:
+        try:
+            rmssd_val = float(hrv_rmssd)
+            if rmssd_val >= 50:
+                physical_score = min(100.0, physical_score * 1.05)  # optimal parasympathetic tone (+5%)
+            elif rmssd_val < 20:
+                physical_score = physical_score * 0.95  # elevated strain/fatigue (-5%)
         except Exception:
             pass
 
@@ -3030,12 +3163,26 @@ async def save_vitals(request: Request, db: Session = Depends(get_db)):
     """Save comprehensive vitals reading to database"""
     try:
         # Check if user is logged in
-        user_id = request.session.get("user_id")
+        user_id = get_auth_user_id(request)
         if not user_id:
             return {"success": False, "error": "User not logged in"}
         
         data = await request.json()
         
+        # Check if guest scan & extract expanded biomarkers
+        _is_guest = bool(data.get("is_guest_scan", False))
+        if _is_guest:
+            return {
+                "success": False,
+                "error": "Guest consultation readings cannot be saved to preserve your personal health score and clinical timeline.",
+                "is_guest": True
+            }
+        _liveness = float(data.get("liveness_score", 1.0)) if data.get("liveness_score") is not None else None
+        _hrv_sdnn = float(data.get("hrv_sdnn")) if data.get("hrv_sdnn") is not None else None
+        _hrv_rmssd = float(data.get("hrv_rmssd")) if data.get("hrv_rmssd") is not None else None
+        _stress_idx = float(data.get("stress_index")) if data.get("stress_index") is not None else None
+        _vasc_age = float(data.get("vascular_age")) if data.get("vascular_age") is not None else None
+
         # Create vitals record in database with all available measurements
         # -- Resolve user gender/age for ratings --
         _gender = None
@@ -3076,7 +3223,7 @@ async def save_vitals(request: Request, db: Session = Depends(get_db)):
             except Exception as e:
                 print(f"[WARN] save_vitals: could not fetch historical vitals: {e}")
 
-        # Rate each vital (None â†’ rating stays NULL if still missing after fallback)
+        # Rate each vital (None -> rating stays NULL if still missing after fallback)
         _hr_label,   _hr_score   = rate_heart_rate(_hr, _gender, _age)    if _hr             else (None, None)
         _spo2_label, _spo2_score = rate_spo2(_spo2)                       if _spo2           else (None, None)
         _rr_label,   _rr_score   = rate_respiration(_rr, _age)            if _rr             else (None, None)
@@ -3093,6 +3240,13 @@ async def save_vitals(request: Request, db: Session = Depends(get_db)):
             blood_pressure_systolic=int(data.get("blood_pressure_systolic"))   if data.get("blood_pressure_systolic")  else None,
             blood_pressure_diastolic=int(data.get("blood_pressure_diastolic")) if data.get("blood_pressure_diastolic") else None,
             stress=int(data.get("stress")) if data.get("stress") is not None else None,
+            # Expanded biomarkers & anti-spoofing flags
+            hrv_sdnn=_hrv_sdnn,
+            hrv_rmssd=_hrv_rmssd,
+            stress_index=_stress_idx,
+            vascular_age=_vasc_age,
+            is_guest_scan=_is_guest,
+            liveness_score=_liveness,
             # Ratings use best-available data (current + historical fallback)
             hr_rating=_hr_label,
             hr_score=_hr_score,
@@ -3110,16 +3264,18 @@ async def save_vitals(request: Request, db: Session = Depends(get_db)):
             health_score=calculate_health_score(data, db, user_id, _gender, _age)
         )
 
-        
         db.add(vitals_record)
         db.commit()
         db.refresh(vitals_record)
 
-        # Refresh overall wellness score
-        try:
-            compute_and_save_wellness(user_id, db)
-        except Exception as _we:
-            print(f"[WARN] wellness compute failed after vitals save: {_we}")
+        # Refresh overall wellness score (only for genuine account holder scans)
+        if not _is_guest:
+            try:
+                compute_and_save_wellness(user_id, db)
+            except Exception as _we:
+                print(f"[WARN] wellness compute failed after vitals save: {_we}")
+        else:
+            print(f"[INFO] save_vitals: Guest scan logged for user {user_id}. Excluded from health & wellness score.")
 
         # AUDIT LOG: Vitals Recorded
         AuditLogger.log_event(
@@ -3128,7 +3284,7 @@ async def save_vitals(request: Request, db: Session = Depends(get_db)):
             user_id=user_id,
             resource_type="vitals_record",
             resource_id=str(vitals_record.id),
-            details=f"Method: {vitals_record.method}, Confidence: {vitals_record.confidence}",
+            details=f"Method: {vitals_record.method}, Guest: {_is_guest}, Liveness: {_liveness}, Confidence: {vitals_record.confidence}",
             request=request
         )
         
@@ -3144,7 +3300,14 @@ async def save_vitals(request: Request, db: Session = Depends(get_db)):
             "confidence": vitals_record.confidence,
             "scan_duration": vitals_record.scan_duration,
             "method": vitals_record.method,
-            "health_score": vitals_record.health_score
+            "health_score": vitals_record.health_score,
+            "stress": vitals_record.stress,
+            "hrv_sdnn": vitals_record.hrv_sdnn,
+            "hrv_rmssd": vitals_record.hrv_rmssd,
+            "stress_index": vitals_record.stress_index,
+            "vascular_age": vitals_record.vascular_age,
+            "is_guest_scan": vitals_record.is_guest_scan,
+            "liveness_score": vitals_record.liveness_score,
         }
         
         return {"success": True, "entry": vitals_entry}
@@ -3160,13 +3323,14 @@ async def get_vitals_history(request: Request, db: Session = Depends(get_db)):
     """Get comprehensive vitals history from database"""
     try:
         # Check if user is logged in
-        user_id = request.session.get("user_id")
+        user_id = get_auth_user_id(request)
         if not user_id:
             return {"success": False, "error": "User not logged in", "history": []}
         
-        # Query vitals records for this user (last 500, most recent first)
+        # Query vitals records for this user (last 500, most recent first, excluding guest scans)
         vitals_records = db.query(VitalsRecord).filter(
-            VitalsRecord.user_id == user_id
+            VitalsRecord.user_id == user_id,
+            or_(VitalsRecord.is_guest_scan == False, VitalsRecord.is_guest_scan == None)
         ).order_by(VitalsRecord.timestamp.desc()).limit(500).all()
         
         # AUDIT LOG: Vitals History View
@@ -3193,7 +3357,13 @@ async def get_vitals_history(request: Request, db: Session = Depends(get_db)):
                 "scan_duration": record.scan_duration,
                 "method": record.method,
                 "health_score": record.health_score,
-                "stress": record.stress
+                "stress": record.stress,
+                "hrv_sdnn": record.hrv_sdnn,
+                "hrv_rmssd": record.hrv_rmssd,
+                "stress_index": record.stress_index,
+                "vascular_age": record.vascular_age,
+                "is_guest_scan": record.is_guest_scan,
+                "liveness_score": record.liveness_score,
             }
             for record in vitals_records
         ]
@@ -3207,6 +3377,114 @@ async def get_vitals_history(request: Request, db: Session = Depends(get_db)):
         import traceback
         traceback.print_exc()
         return {"success": False, "error": str(e), "history": []}
+
+
+# ============================================================================
+# BIOMETRIC FACE IDENTITY & VERIFICATION (GDPR & DPDPA 2023 COMPLIANT)
+# ============================================================================
+
+@app.get("/api/vitals/face-status")
+async def get_face_status(request: Request, db: Session = Depends(get_db)):
+    """Return whether the current account has an enrolled face embedding vector."""
+    user_id = get_auth_user_id(request)
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Unauthorized"})
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        prof = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+        has_face = bool(prof and prof.face_embedding)
+        embedding_data = None
+        if has_face and prof.face_embedding:
+            try:
+                embedding_data = json.loads(prof.face_embedding)
+            except Exception:
+                embedding_data = None
+        return JSONResponse(content={
+            "success": True,
+            "enrolled": has_face,
+            "enrolled_at": prof.face_enrolled_at.isoformat() if prof and prof.face_enrolled_at else None,
+            "verification_enabled": bool(prof.face_verification_enabled) if prof else False,
+            "user_name": (user.name if user and user.name else "Account Holder"),
+            "face_embedding": embedding_data
+        }, headers={"Cache-Control": "no-store"})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.post("/api/vitals/enroll-face")
+async def enroll_face(request: Request, db: Session = Depends(get_db)):
+    """
+    Store client-generated 128-d face embedding vector for account identity verification.
+    DPDPA 2023 & GDPR compliant: zero raw image/video is ever transmitted or stored.
+    """
+    user_id = get_auth_user_id(request)
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Unauthorized"})
+    try:
+        data = await request.json()
+        raw_embedding = data.get("face_embedding")
+        if not isinstance(raw_embedding, list) or len(raw_embedding) < 16:
+            return JSONResponse(status_code=400, content={"success": False, "error": "Invalid face embedding vector"})
+        
+        # Validate elements are numerical
+        sanitized_vector = [round(float(x), 5) for x in raw_embedding]
+
+        prof = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+        if not prof:
+            prof = UserProfile(user_id=user_id)
+            db.add(prof)
+
+        prof.face_embedding = json.dumps(sanitized_vector)
+        prof.face_enrolled_at = datetime.utcnow()
+        prof.face_verification_enabled = bool(data.get("enable_verification", True))
+        db.commit()
+
+        # Audit log for compliance
+        AuditLogger.log_event(
+            db,
+            event_type="enroll_face_biometrics",
+            user_id=user_id,
+            resource_type="user_profile",
+            resource_id=str(prof.id),
+            details="Client-derived mathematical face embedding vector enrolled with explicit user consent",
+            request=request
+        )
+        return {"success": True, "message": "Face profile enrolled successfully"}
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@app.post("/api/vitals/delete-face")
+async def delete_face(request: Request, db: Session = Depends(get_db)):
+    """
+    1-Click biometric profile erasure (Right to Erasure under GDPR & DPDPA 2023).
+    Permanently erases stored embedding vector.
+    """
+    user_id = get_auth_user_id(request)
+    if not user_id:
+        return JSONResponse(status_code=401, content={"success": False, "error": "Unauthorized"})
+    try:
+        prof = db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+        if prof:
+            prof.face_embedding = None
+            prof.face_enrolled_at = None
+            prof.face_verification_enabled = False
+            db.commit()
+
+        # Audit log for compliance
+        AuditLogger.log_event(
+            db,
+            event_type="delete_face_biometrics",
+            user_id=user_id,
+            resource_type="user_profile",
+            details="Biometric embedding vector permanently erased upon user request",
+            request=request
+        )
+        return {"success": True, "message": "Biometric face profile deleted permanently"}
+    except Exception as e:
+        db.rollback()
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 # ============================================================================
 # MOOD TRACKING ROUTES
@@ -9268,21 +9546,20 @@ async def cancel_appointment(appointment_id: int, request: Request, db: Session 
                     appointment_id = appointment_id,
                     reason         = f"Appointment #{appointment_id} cancelled by {'client' if is_client else 'consultant'}",
                 )
-                # Hard Razorpay failure — surface to user so they can retry
-                if not refund_info["refunded"] and "failed" in refund_info.get("message", "").lower():
-                    return {
-                        "success": False,
-                        "error":   f"Refund could not be processed: {refund_info['message']} Please retry or contact support.",
-                    }
+                # If auto-refund failed due to balance/gateway issue, don't block cancellation!
+                if not refund_info.get("refunded", False) and "failed" in refund_info.get("message", "").lower():
+                    print(f"[Cancel] Auto-refund failed ({refund_info.get('message')}); marking manual_processing_required.")
+                    appointment.refund_status = "manual_processing_required"
             except Exception as refund_err:
-                print(f"[Cancel] Refund skipped: {refund_err}")
+                print(f"[Cancel] Refund skipped/error: {refund_err}")
+                appointment.refund_status = "manual_processing_required"
         else:
             refund_info = {"refunded": False, "message": "Refund forfeited due to late cancellation/no show."}
 
         appointment.status = "cancelled"
         db.commit()
 
-        # â”€â”€ Cancellation emails â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ── Cancellation emails (with BCC to admin@solacesquad.com) ─────────────
         try:
             user_obj       = db.query(User).filter(User.id == appointment.user_id).first()
             consultant_obj = appointment.consultant.user if appointment.consultant else None
@@ -9298,6 +9575,7 @@ async def cancel_appointment(appointment_id: int, request: Request, db: Session 
                 appointment_date = appointment.appointment_date,
                 duration_minutes = appointment.duration_minutes,
                 notes            = appointment.notes or "",
+                bcc_emails       = ["admin@solacesquad.com"],
             )
             if user_email:
                 send_appointment_email(to_email=user_email, to_name=user_name, **shared_kwargs)
@@ -9308,7 +9586,7 @@ async def cancel_appointment(appointment_id: int, request: Request, db: Session 
 
         return {
             "success":       True,
-            "message":       "Appointment cancelled successfully",
+            "message":       "Appointment cancelled successfully. If a refund is due, it will be credited to your original payment method in 3–5 business days.",
             "refund_issued": refund_info.get("refunded", False),
             "refund_info":   refund_info.get("message", ""),
         }
@@ -9539,6 +9817,130 @@ async def reschedule_free(appointment_id: int, request: Request, db: Session = D
     except Exception as e:
         db.rollback()
         print(f"[ERROR] reschedule_free: {e}")
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/appointments/{appointment_id}/reschedule")
+async def reschedule_appointment(appointment_id: int, request: Request, db: Session = Depends(get_db)):
+    """Reschedule an existing scheduled appointment and notify both parties with BCC admin."""
+    uid = request.session.get("user_id")
+    if not uid:
+        return JSONResponse({"success": False, "error": "Not authenticated"}, status_code=401)
+
+    try:
+        content_type = request.headers.get("content-type", "")
+        if "application/json" in content_type:
+            body = await request.json()
+            new_date_str = str(body.get("new_appointment_date") or body.get("appointment_date") or "").strip()
+            duration_minutes = int(body.get("duration_minutes") or 0)
+            notes = str(body.get("notes") or "").strip()
+        else:
+            form = await request.form()
+            new_date_str = str(form.get("new_appointment_date") or form.get("appointment_date") or "").strip()
+            duration_minutes = int(form.get("duration_minutes") or 0)
+            notes = str(form.get("notes") or "").strip()
+    except Exception as e:
+        return JSONResponse({"success": False, "error": f"Invalid request data: {str(e)}"}, status_code=400)
+
+    try:
+        appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+        if not appt:
+            return JSONResponse({"success": False, "error": "Appointment not found"}, status_code=404)
+
+        consultant_profile = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == uid).first()
+        is_client = (appt.user_id == uid)
+        is_consultant = bool(consultant_profile and appt.consultant_id == consultant_profile.id)
+        if not (is_client or is_consultant):
+            return JSONResponse({"success": False, "error": "Not authorized to reschedule this appointment"}, status_code=403)
+
+        if appt.status not in ["scheduled", "reschedule_pending"]:
+            return JSONResponse({"success": False, "error": f"Cannot reschedule appointment with status: {appt.status}"}, status_code=400)
+
+        duration = duration_minutes if duration_minutes > 0 else (appt.duration_minutes or 30)
+
+        from finance_routes import _parse_appt_date
+        from datetime import datetime, timedelta
+        user_tz = request.session.get("timezone")
+        if not user_tz or user_tz == "UTC":
+            user = db.query(User).filter(User.id == appt.user_id).first()
+            user_tz = user.timezone if (user and user.timezone and user.timezone != "UTC") else "Asia/Kolkata"
+
+        try:
+            appt_dt = _parse_appt_date(new_date_str, user_tz)
+        except Exception:
+            return JSONResponse({"success": False, "error": "Invalid date format. Please select a valid date and time."}, status_code=400)
+
+        now_utc = datetime.utcnow()
+        if appt_dt < now_utc - timedelta(minutes=5):
+            return JSONResponse({"success": False, "error": "Rescheduled time cannot be in the past. Please select an upcoming slot."}, status_code=400)
+
+        overlap = db.query(Appointment).filter(
+            Appointment.consultant_id == appt.consultant_id,
+            Appointment.id != appt.id,
+            Appointment.status.in_(["scheduled", "in_progress"]),
+            Appointment.appointment_date < appt_dt + timedelta(minutes=duration),
+            Appointment.appointment_date + timedelta(minutes=30) > appt_dt
+        ).first()
+
+        if overlap:
+            return JSONResponse({"success": False, "error": "Consultant already has a session booked at this time. Please choose another slot."}, status_code=409)
+
+        appt.appointment_date = appt_dt
+        appt.duration_minutes = duration
+        if notes:
+            appt.notes = notes
+        appt.status = "scheduled"
+        appt.reschedule_free = False
+        appt.reminder_sent = False
+        appt.mirror_reminder_sent = False
+
+        call_session = db.query(CallSession).filter(CallSession.appointment_id == appointment_id).first()
+        if call_session:
+            call_session.scheduled_start = appt_dt
+            call_session.scheduled_end = appt_dt + timedelta(minutes=duration)
+            call_session.actual_start = None
+            call_session.actual_end = None
+            call_session.duration_seconds = None
+            call_session.status = "pending"
+
+        db.commit()
+
+        try:
+            from sendgrid_email import send_appointment_email
+            user_obj = db.query(User).filter(User.id == appt.user_id).first()
+            consultant_obj = appt.consultant.user if appt.consultant else None
+            user_email = user_obj.email if user_obj else ""
+            user_name = user_obj.name if user_obj else "User"
+            consultant_email = consultant_obj.email if consultant_obj else ""
+            consultant_name = consultant_obj.name if consultant_obj else "Consultant"
+
+            shared_kwargs = dict(
+                action           = "rescheduled",
+                appointment_id   = appt.id,
+                user_name        = user_name,
+                consultant_name  = consultant_name,
+                appointment_date = appt.appointment_date,
+                duration_minutes = appt.duration_minutes,
+                notes            = appt.notes or "",
+                bcc_emails       = ["admin@solacesquad.com"],
+            )
+            if user_email:
+                send_appointment_email(to_email=user_email, to_name=user_name, **shared_kwargs)
+            if consultant_email:
+                send_appointment_email(to_email=consultant_email, to_name=consultant_name, **shared_kwargs)
+        except Exception as mail_err:
+            print(f"[Reschedule email] non-fatal error: {mail_err}")
+
+        return JSONResponse({
+            "success": True,
+            "message": "Appointment rescheduled successfully. Notification email sent.",
+            "appointment_id": appt.id,
+            "new_date": appt_dt.isoformat()
+        })
+
+    except Exception as e:
+        db.rollback()
+        print(f"[ERROR] reschedule_appointment: {e}")
         return JSONResponse({"success": False, "error": str(e)}, status_code=500)
 
 @app.post("/api/appointments/{appointment_id}/notes")
@@ -16811,12 +17213,21 @@ async def get_wellness_detail(request: Request, db: Session = Depends(get_db)):
     Returns today's individual sub-scores (health, emotional, lifestyle, overall)
     so the frontend can refresh them live after vitals/mood/workout saves.
     """
-    user_id = request.session.get("user_id")
+    user_id = get_auth_user_id(request)
     if not user_id:
         return {"success": False, "error": "Unauthorized"}
     try:
-        from datetime import date as _date
-        today = _date.today()
+        user_obj = db.query(User).filter(User.id == user_id).first()
+        if user_obj and user_obj.timezone:
+            try:
+                import zoneinfo
+                user_tz = zoneinfo.ZoneInfo(user_obj.timezone)
+                today = datetime.now(user_tz).date()
+            except Exception:
+                today = datetime.utcnow().date()
+        else:
+            today = datetime.utcnow().date()
+
         row = (
             db.query(DailyWellnessScore)
             .filter(DailyWellnessScore.user_id == user_id,
