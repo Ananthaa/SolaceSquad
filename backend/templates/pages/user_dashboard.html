@@ -238,6 +238,7 @@
     }
 
     /* ── Vitals row ─────────────────────── */
+    {% if environment == 'mirror' %}
     .vitals-row {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -254,6 +255,30 @@
             grid-column: span 1 !important;
         }
     }
+    {% else %}
+    .vitals-row {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: .65rem;
+        width: 100%;
+    }
+
+    @media (max-width: 700px) {
+        .vitals-row {
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: .45rem;
+        }
+        .vital-chip:nth-child(1),
+        .vital-chip:nth-child(2),
+        .vital-chip:nth-child(3) {
+            grid-column: span 2 !important;
+        }
+        .vital-chip:nth-child(4),
+        .vital-chip:nth-child(5) {
+            grid-column: span 3 !important;
+        }
+    }
+    {% endif %}
 
     .vital-chip {
         background: #f9fafb;
@@ -678,6 +703,34 @@
             text-overflow: ellipsis !important;
             max-width: 100% !important;
         }
+        {% if environment != 'mirror' %}
+        /* Vitals 6-column balanced grid: 3 top (span 2), 2 bottom (span 3) */
+        .vitals-row {
+            display: grid !important;
+            grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+            gap: 0.4rem !important;
+            overflow-x: visible !important;
+            width: 100% !important;
+            padding-bottom: 0 !important;
+        }
+        .vital-chip {
+            min-width: 0 !important;
+            flex: initial !important;
+            padding: 0.55rem 0.35rem !important;
+            border-radius: 0.75rem !important;
+            gap: 0.25rem !important;
+            box-sizing: border-box !important;
+        }
+        .vital-chip:nth-child(1),
+        .vital-chip:nth-child(2),
+        .vital-chip:nth-child(3) {
+            grid-column: span 2 !important;
+        }
+        .vital-chip:nth-child(4),
+        .vital-chip:nth-child(5) {
+            grid-column: span 3 !important;
+        }
+        {% else %}
         /* Vitals 2-column balanced grid */
         .vitals-row {
             display: grid !important;
@@ -696,6 +749,7 @@
             box-sizing: border-box !important;
             grid-column: span 1 !important;
         }
+        {% endif %}
         .vital-chip-icon {
             width: 30px !important;
             height: 30px !important;
@@ -892,6 +946,34 @@
         text-overflow: ellipsis !important;
         max-width: 100% !important;
     }
+    {% if environment != 'mirror' %}
+    /* Vitals in mobile app: 6-column balanced grid */
+    .is-mobile-app .vitals-row {
+        display: grid !important;
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        gap: 0.4rem !important;
+        overflow-x: visible !important;
+        width: 100% !important;
+        padding-bottom: 0 !important;
+    }
+    .is-mobile-app .vital-chip {
+        min-width: 0 !important;
+        flex: initial !important;
+        padding: 0.55rem 0.35rem !important;
+        border-radius: 0.75rem !important;
+        gap: 0.25rem !important;
+        box-sizing: border-box !important;
+    }
+    .is-mobile-app .vital-chip:nth-child(1),
+    .is-mobile-app .vital-chip:nth-child(2),
+    .is-mobile-app .vital-chip:nth-child(3) {
+        grid-column: span 2 !important;
+    }
+    .is-mobile-app .vital-chip:nth-child(4),
+    .is-mobile-app .vital-chip:nth-child(5) {
+        grid-column: span 3 !important;
+    }
+    {% else %}
     /* Vitals in mobile app: 2-column balanced grid */
     .is-mobile-app .vitals-row {
         display: grid !important;
@@ -910,6 +992,7 @@
         box-sizing: border-box !important;
         grid-column: span 1 !important;
     }
+    {% endif %}
     .is-mobile-app .vital-chip-icon {
         width: 30px !important;
         height: 30px !important;
@@ -1206,6 +1289,7 @@
                         <div class="vital-chip-val" id="vital-temperature"><span class="text-gray-400">--</span></div>
                         <div class="vital-chip-label">Temp</div>
                     </div>
+                    {% if environment == 'mirror' %}
                     <div class="vital-chip">
                         <div class="vital-chip-icon" style="background:#e0e7ff;">
                             <i data-lucide="activity" style="color:#4f46e5;"></i>
@@ -1227,6 +1311,7 @@
                         <div class="vital-chip-val" id="vital-vascular-age"><span class="text-gray-400">--</span></div>
                         <div class="vital-chip-label">Vascular Age</div>
                     </div>
+                    {% endif %}
                 </div>
                 <div style="margin-top:.85rem;">
                     <a href="/app/vitals"
