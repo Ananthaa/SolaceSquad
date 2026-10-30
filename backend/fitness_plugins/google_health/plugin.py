@@ -108,26 +108,23 @@ class GoogleHealthPlugin(FitnessPlugin):
                 print(f"[GoogleHealth] Session aggregate failed: {e}")
                 session_buckets = []
 
+            from workout_overlap_utils import detect_and_merge_workout
+            synced_dates = set()
+
             for bucket in session_buckets:
                 s           = bucket.get("session", {})
                 act_type    = s.get("activityType", 4)
                 workout_type = _ACTIVITY_MAP.get(act_type, "Other")
                 start_ms    = int(s.get("startTimeMillis", bucket.get("startTimeMillis", 0)))
                 end_ms      = int(s.get("endTimeMillis",   bucket.get("endTimeMillis",   0)))
-                act_date    = datetime.fromtimestamp(start_ms / 1000, user_tz).date() if start_ms else datetime.now(user_tz).date()
+                start_dt    = datetime.fromtimestamp(start_ms / 1000, user_tz) if start_ms else None
+                end_dt      = datetime.fromtimestamp(end_ms / 1000, user_tz)   if end_ms   else None
+                act_date    = start_dt.date() if start_dt else datetime.now(user_tz).date()
                 duration_min = max(0, int((end_ms - start_ms) / 60000))
                 external_id = s.get("id", "")
 
                 if duration_min < 2:
                     continue  # skip sub-2-minute noise
-
-                # Dedup by external_id
-                if external_id and db.query(WorkoutLog).filter(
-                    WorkoutLog.user_id    == user_id,
-                    WorkoutLog.external_id == external_id,
-                    WorkoutLog.source     == "google_health",
-                ).first():
-                    continue
 
                 dataset     = bucket.get("dataset", [])
                 calories    = round(_extract_fp_val(dataset, "calories.expended"))
@@ -144,7 +141,8 @@ class GoogleHealthPlugin(FitnessPlugin):
                 if act_type not in _DISTANCE_ACTIVITY_TYPES:
                     dist_km = None
 
-                db.add(WorkoutLog(
+                rec, is_new = detect_and_merge_workout(
+                    db           = db,
                     user_id      = user_id,
                     log_date     = act_date,
                     workout_type = workout_type,
@@ -154,9 +152,13 @@ class GoogleHealthPlugin(FitnessPlugin):
                     distance_km  = dist_km,
                     source       = "google_health",
                     external_id  = external_id,
+                    start_time   = start_dt,
+                    end_time     = end_dt,
                     notes        = f"Synced from Google Fit: {s.get('name', workout_type)}",
-                ))
-                saved += 1
+                )
+                if is_new:
+                    saved += 1
+                synced_dates.add(act_date)
 
             # ── 2. Daily total steps (sync all days in range) ────────────────────
             try:
@@ -182,36 +184,24 @@ class GoogleHealthPlugin(FitnessPlugin):
                     if steps < 1:
                         continue
                     
-                    # Calculate Walking calories & duration: 100 steps per min, MET = 3.5
                     effective_dur = steps / 100.0
                     step_calories = round(3.5 * user_weight * (effective_dur / 60.0))
-                    duration_min = round(effective_dur)
+                    duration_min = max(1, round(effective_dur))
 
-                    existing = db.query(WorkoutLog).filter(
-                        WorkoutLog.user_id  == user_id,
-                        WorkoutLog.log_date == b_date,
-                        WorkoutLog.source   == "google_health",
-                        WorkoutLog.notes.like("Google Fit daily steps%"),
-                    ).first()
-                    if existing:
-                        if existing.step_count != steps or existing.calories != step_calories:
-                            existing.step_count = steps
-                            existing.calories = step_calories
-                            existing.duration_min = duration_min
-                            if b_date == datetime.now(user_tz).date():
-                                saved += 1
-                    else:
-                        db.add(WorkoutLog(
-                            user_id      = user_id,
-                            log_date     = b_date,
-                            workout_type = "Walking",
-                            duration_min = duration_min,
-                            step_count   = steps,
-                            calories     = step_calories,
-                            source       = "google_health",
-                            notes        = f"Google Fit daily steps: {steps:,} steps synced",
-                        ))
+                    rec, is_new = detect_and_merge_workout(
+                        db           = db,
+                        user_id      = user_id,
+                        log_date     = b_date,
+                        workout_type = "Walking",
+                        duration_min = duration_min,
+                        step_count   = steps,
+                        calories     = step_calories,
+                        source       = "google_health",
+                        notes        = f"Google Fit daily steps: {steps:,} steps synced",
+                    )
+                    if is_new:
                         saved += 1
+                    synced_dates.add(b_date)
             except Exception as e:
                 print(f"[GoogleHealth] Step aggregate error: {e}")
 
@@ -225,10 +215,12 @@ class GoogleHealthPlugin(FitnessPlugin):
             except Exception:
                 pass
 
-            # Recalculate wellness score
+            # Recalculate wellness score for all synced dates
             try:
                 from main import compute_and_save_wellness
-                compute_and_save_wellness(user_id, db, for_date=date.today())
+                synced_dates.add(datetime.now(user_tz).date())
+                for d in synced_dates:
+                    compute_and_save_wellness(user_id, db, for_date=d)
             except Exception as e:
                 print(f"[GoogleHealth] Wellness recalc failed: {e}")
 

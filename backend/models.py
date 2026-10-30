@@ -158,6 +158,14 @@ class VitalsRecord(Base):
     health_score = Column(Float, nullable=True)  # Overall health score (0-100)
     stress = Column(Integer, nullable=True)
     
+    # Expanded physiological biomarkers & liveness
+    hrv_sdnn = Column(Float, nullable=True)                  # ms (SDNN)
+    hrv_rmssd = Column(Float, nullable=True)                 # ms (RMSSD)
+    stress_index = Column(Float, nullable=True)              # 0-100 scale
+    vascular_age = Column(Integer, nullable=True)            # Estimated vascular compliance
+    is_guest_scan = Column(Boolean, default=False, nullable=False, server_default='false')
+    liveness_score = Column(Float, nullable=True)            # Multi-factor liveness confidence (0-1)
+
     # Relationship
     user = relationship("User", back_populates="vitals_records")
 
@@ -243,6 +251,11 @@ class UserProfile(Base):
     
     # Metadata
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Biometric Face Profile (DPDPA/GDPR Compliant - 128-d non-reversible embedding vector JSON only)
+    face_embedding = Column(Text, nullable=True)
+    face_enrolled_at = Column(DateTime, nullable=True)
+    face_verification_enabled = Column(Boolean, default=True, nullable=False, server_default='true')
     
     # Relationship
     user = relationship("User", backref="profile")
@@ -764,6 +777,12 @@ class WorkoutLog(Base):
     distance_km  = Column(Float, nullable=True)        # distance in km (walking/running/cycling)
     source       = Column(String(50), nullable=True)   # e.g. "google_health", "apple_health"
     external_id  = Column(String(255), nullable=True)  # provider's activity ID for dedup
+
+    # Precise session timestamps & multi-device deduplication
+    start_time   = Column(DateTime, nullable=True, index=True)
+    end_time     = Column(DateTime, nullable=True, index=True)
+    is_duplicate = Column(Boolean, default=False, nullable=False, server_default='false')
+    duplicate_of_id = Column(Integer, ForeignKey("workout_logs.id"), nullable=True)
 
     user = relationship("User", backref="workout_logs")
 

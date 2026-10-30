@@ -99,43 +99,70 @@ class PluginRegistry:
 
             from models import WorkoutLog, VitalsRecord
             from datetime import date, datetime
+            from workout_overlap_utils import detect_and_merge_workout
             saved = 0
+            touched_dates = set()
 
             for w in workouts:
-                ext_id = w.get("external_id", "")
-                # Dedup check
-                existing = db.query(WorkoutLog).filter(
-                    WorkoutLog.user_id == user_id,
-                    WorkoutLog.external_id == ext_id,
-                    WorkoutLog.source == source,
-                ).first() if ext_id else None
+                sync_d_str = w.get("sync_date") or w.get("log_date")
+                try:
+                    w_date = date.fromisoformat(sync_d_str) if sync_d_str else date.today()
+                except Exception:
+                    w_date = date.today()
 
-                if not existing:
-                    entry = WorkoutLog(
-                        user_id=user_id,
-                        log_date=date.fromisoformat(w.get("sync_date", date.today().isoformat())),
-                        workout_type=w.get("workout_type", "Other"),
-                        duration_min=w.get("duration_min", 0),
-                        step_count=w.get("step_count", 0),
-                        calories=w.get("calories", 0),
-                        notes=w.get("notes", ""),
-                        source=source,
-                        external_id=ext_id,
-                    )
-                    db.add(entry)
+                start_dt = None
+                end_dt = None
+                if w.get("start_time"):
+                    try:
+                        start_dt = datetime.fromisoformat(str(w["start_time"])[:19])
+                    except Exception:
+                        pass
+                if w.get("end_time"):
+                    try:
+                        end_dt = datetime.fromisoformat(str(w["end_time"])[:19])
+                    except Exception:
+                        pass
+
+                rec, is_new = detect_and_merge_workout(
+                    db           = db,
+                    user_id      = user_id,
+                    log_date     = w_date,
+                    workout_type = w.get("workout_type", "Other"),
+                    duration_min = int(w.get("duration_min", 0)),
+                    step_count   = int(w.get("step_count", 0)),
+                    calories     = int(w.get("calories", 0)),
+                    distance_km  = float(w.get("distance_km")) if w.get("distance_km") is not None else None,
+                    source       = source,
+                    external_id  = w.get("external_id"),
+                    start_time   = start_dt,
+                    end_time     = end_dt,
+                    notes        = w.get("notes", f"Mobile push from {source}"),
+                )
+                if is_new:
                     saved += 1
+                touched_dates.add(w_date)
 
             if vitals:
                 v = VitalsRecord(
                     user_id=user_id,
-                    date=date.today(),
+                    timestamp=datetime.utcnow(),
                     heart_rate=vitals.get("heart_rate"),
                     spo2=vitals.get("spo2"),
-                    source=source,
+                    method=source,
                 )
                 db.add(v)
 
             db.commit()
+
+            # Recalculate daily wellness / lifestyle score
+            try:
+                from main import compute_and_save_wellness
+                touched_dates.add(date.today())
+                for td in touched_dates:
+                    compute_and_save_wellness(user_id, db, for_date=td)
+            except Exception as we:
+                print(f"[MobilePush] Wellness recalculation failed: {we}")
+
             return {
                 "success": True,
                 "workouts_saved": saved,

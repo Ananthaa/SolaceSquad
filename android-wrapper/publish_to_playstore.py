@@ -38,7 +38,7 @@ def build_aab():
         sys.exit(1)
     print("✅ Build completed successfully!")
 
-def publish(track="internal", notes="Bug fixes and performance improvements", aab_path=DEFAULT_AAB, skip_build=False):
+def publish(track="internal", notes="Bug fixes and performance improvements", aab_path=DEFAULT_AAB, skip_build=False, status="completed"):
     if not skip_build and not os.path.exists(aab_path):
         build_aab()
 
@@ -71,45 +71,61 @@ def publish(track="internal", notes="Bug fixes and performance improvements", aa
     version_code = bundle_response["versionCode"]
     print(f"✅ Uploaded versionCode: {version_code} successfully!")
 
-    # Assign track & release notes
-    print(f"🎯 [4/4] Assigning to track: '{track}'...")
-    track_body = {
-        "track": track,
-        "releases": [{
-            "name": f"Version {version_code}",
-            "versionCodes": [str(version_code)],
-            "status": "completed",
-            "releaseNotes": [{
-                "language": "en-IN",
-                "text": notes
-            }, {
-                "language": "en-US",
-                "text": notes
+    # Helper to assign and commit
+    def assign_and_commit(rel_status):
+        print(f"🎯 [4/4] Assigning to track '{track}' with status '{rel_status}'...")
+        track_body = {
+            "track": track,
+            "releases": [{
+                "name": f"Version {version_code}",
+                "versionCodes": [str(version_code)],
+                "status": rel_status,
+                "releaseNotes": [{
+                    "language": "en-IN",
+                    "text": notes
+                }, {
+                    "language": "en-US",
+                    "text": notes
+                }]
             }]
-        }]
-    }
+        }
+        service.edits().tracks().update(
+            packageName=PACKAGE_NAME,
+            editId=edit_id,
+            track=track,
+            body=track_body
+        ).execute()
 
-    service.edits().tracks().update(
-        packageName=PACKAGE_NAME,
-        editId=edit_id,
-        track=track,
-        body=track_body
-    ).execute()
+        commit_response = service.edits().commit(
+            packageName=PACKAGE_NAME,
+            editId=edit_id
+        ).execute()
+        return commit_response
 
-    # Commit the release
-    commit_response = service.edits().commit(
-        packageName=PACKAGE_NAME,
-        editId=edit_id
-    ).execute()
+    try:
+        assign_and_commit(status)
+    except Exception as e:
+        err_msg = str(e)
+        if "draft" in err_msg.lower() and status != "draft":
+            print("ℹ️ App is currently in Draft status on Google Play Console. Retrying release with status='draft'...")
+            assign_and_commit("draft")
+            status = "draft"
+        else:
+            raise
 
     print("\n" + "="*60)
-    print(f"🎉 SUCCESS! Release {version_code} deployed directly to track '{track}'!")
-    print(f"📱 Testers will receive update automatically on Google Play.")
+    if status == "draft":
+        print(f"🎉 SUCCESS! Release {version_code} created as DRAFT in track '{track}'!")
+        print(f"📋 Next step: Log in to Google Play Console, go to the '{track.capitalize()}' track, review, and click 'Send for review'!")
+    else:
+        print(f"🎉 SUCCESS! Release {version_code} deployed directly to track '{track}'!")
+        print(f"📱 Testers will receive update automatically on Google Play.")
     print("="*60 + "\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automated Google Play Store Publisher")
     parser.add_argument("--track", default="internal", choices=["internal", "alpha", "beta", "production"], help="Google Play Track (default: internal)")
+    parser.add_argument("--status", default="completed", choices=["completed", "draft", "inProgress", "halted"], help="Release status (default: completed, auto-fallbacks to draft if app is draft)")
     parser.add_argument("--notes", default="Bug fixes and performance improvements", help="Release notes text")
     parser.add_argument("--aab", default=DEFAULT_AAB, help="Custom path to .aab file")
     parser.add_argument("--build", action="store_true", help="Build bundle before uploading")
@@ -118,4 +134,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.build:
         build_aab()
-    publish(track=args.track, notes=args.notes, aab_path=args.aab, skip_build=args.skip_build or not args.build)
+    publish(track=args.track, notes=args.notes, aab_path=args.aab, skip_build=args.skip_build or not args.build, status=args.status)

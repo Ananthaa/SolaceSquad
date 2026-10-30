@@ -57,10 +57,12 @@ def _parse_export_xml(xml_bytes: bytes) -> list[dict]:
         workout_type = _APPLE_TYPE_MAP.get(raw_type, "Other")
 
         start_str = wk.get("startDate", "")
+        end_str   = wk.get("endDate", "")
         if not start_str:
             continue
         try:
             start_dt = datetime.fromisoformat(start_str[:19])
+            end_dt   = datetime.fromisoformat(end_str[:19]) if end_str else None
             log_date = start_dt.date()
         except ValueError:
             continue
@@ -74,6 +76,10 @@ def _parse_export_xml(xml_bytes: bytes) -> list[dict]:
                 duration_min = int(d if dur_unit == "min" else d / 60)
             except ValueError:
                 pass
+        
+        if not end_dt and duration_min > 0:
+            from datetime import timedelta
+            end_dt = start_dt + timedelta(minutes=duration_min)
 
         calories = 0
         for stat in wk.findall("WorkoutStatistics"):
@@ -97,7 +103,10 @@ def _parse_export_xml(xml_bytes: bytes) -> list[dict]:
             "duration_min": duration_min,
             "calories":     calories,
             "step_count":   steps,
-            "source":       "Apple Health",
+            "source":       "apple_health",
+            "start_time":   start_dt,
+            "end_time":     end_dt,
+            "notes":        f"Apple Health: {workout_type}",
         })
 
     # ── Aggregate daily step counts from <Record> if no Workout steps ─────────
@@ -116,13 +125,17 @@ def _parse_export_xml(xml_bytes: bytes) -> list[dict]:
     workout_dates = {r["log_date"] for r in results}
     for d, steps in daily_steps.items():
         if d not in workout_dates and steps > 1000:
+            effective_mins = max(1, round(steps / 100.0))
             results.append({
                 "log_date":     d,
                 "workout_type": "Walking",
-                "duration_min": 0,
-                "calories":     0,
+                "duration_min": effective_mins,
+                "calories":     round(steps * 0.04),  # ~0.04 kcal per step
                 "step_count":   steps,
-                "source":       "Apple Health",
+                "source":       "apple_health",
+                "start_time":   None,
+                "end_time":     None,
+                "notes":        f"Apple Health daily steps: {steps:,} steps synced",
             })
 
     return results
@@ -180,27 +193,24 @@ async def import_apple_health(
     if not entries:
         return JSONResponse({"success": True, "imported": 0, "message": "No workout records found in the export."})
 
-    # Insert into DB — skip duplicates
+    # Insert into DB with multi-device interval overlap deduplication
+    from workout_overlap_utils import detect_and_merge_workout
     imported = 0
     for e in entries:
-        existing = db.query(WorkoutLog).filter(
-            WorkoutLog.user_id      == user_id,
-            WorkoutLog.log_date     == e["log_date"],
-            WorkoutLog.workout_type == e["workout_type"],
-            WorkoutLog.notes.like("%Apple Health%"),
-        ).first()
-
-        if not existing:
-            wl = WorkoutLog(
-                user_id=user_id,
-                log_date=e["log_date"],
-                workout_type=e["workout_type"],
-                duration_min=e["duration_min"],
-                calories=e["calories"],
-                step_count=e["step_count"],
-                notes="Apple Health import",
-            )
-            db.add(wl)
+        rec, is_new = detect_and_merge_workout(
+            db           = db,
+            user_id      = user_id,
+            log_date     = e["log_date"],
+            workout_type = e["workout_type"],
+            duration_min = e["duration_min"],
+            step_count   = e.get("step_count", 0),
+            calories     = e.get("calories", 0),
+            source       = "apple_health",
+            start_time   = e.get("start_time"),
+            end_time     = e.get("end_time"),
+            notes        = e.get("notes", "Apple Health import"),
+        )
+        if is_new:
             imported += 1
 
     db.commit()
