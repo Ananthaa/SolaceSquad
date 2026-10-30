@@ -216,10 +216,11 @@ def _validate_booking(db, user_id: int, consultant_id: int,
     profile = db.query(ConsultantProfile).filter(ConsultantProfile.id == consultant_id).first()
     accepts_short_notice = bool(getattr(profile, 'accepts_short_notice', False)) if profile else False
 
-    # Rule 2: 24-hour advance for paid consultants (unless flagged for short notice).
-    # appt_dt is now UTC (naive). Compare with UTC now.
+    # Rule 2: 24-hour advance for ALL standard consultations (regardless of accepts_short_notice).
+    # Short-notice is strictly reserved for Quick Consultations (/quickconsult).
+    # In standard bookings, all consultants require at least 24 hours advance notice unless booked by Admin.
     is_impersonating = request.session.get("impersonate_user_id") is not None if request else False
-    if is_paid and not is_impersonating and not accepts_short_notice:
+    if not is_impersonating:
         now_utc = datetime.utcnow()
         if appt_dt < now_utc + timedelta(hours=24):
             # For the error message, show the earliest time in user's local timezone
@@ -235,17 +236,9 @@ def _validate_booking(db, user_id: int, consultant_id: int,
 
             return {
                 "success":       False,
-                "error":         f"Paid consultations must be booked at least 24 hours in advance. Earliest: {earliest_display}.",
+                "error":         f"Consultations must be booked at least 24 hours in advance. Earliest available: {earliest_display}.",
                 "conflict_type": "advance_booking_required",
                 "earliest_date": earliest_utc.isoformat(),
-            }
-    elif is_paid and not is_impersonating and accepts_short_notice:
-        now_utc = datetime.utcnow()
-        if appt_dt < now_utc - timedelta(minutes=5):
-            return {
-                "success":       False,
-                "error":         "Appointment time cannot be in the past. Please select an upcoming slot.",
-                "conflict_type": "past_time_not_allowed",
             }
 
     appt_end = appt_dt + timedelta(minutes=duration)

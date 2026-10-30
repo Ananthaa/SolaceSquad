@@ -8618,6 +8618,7 @@ async def get_consultant_schedule(consultant_id: int, request: Request, db: Sess
 @app.get("/api/consultants/{consultant_id}/day-timeline")
 async def consultant_day_timeline(
     consultant_id: int,
+    request: Request,
     date: str = "",        # YYYY-MM-DD
     duration: int = 30,    # minutes
     exclude_appointment_id: int = 0,
@@ -8754,11 +8755,14 @@ async def consultant_day_timeline(
             "buffer_end":   minutes_to_hhmm(min(23*60+59, buf_end)),
         })
 
-    # Current IST time — used to grey out past slots when date is today
+    # Current IST time — used to grey out past slots and slots within 24h advance window
     IST_OFFSET   = timedelta(hours=5, minutes=30)
     now_ist      = datetime.utcnow() + IST_OFFSET
     is_today     = (target_date == now_ist.date())
     now_ist_min  = now_ist.hour * 60 + now_ist.minute  # minutes since midnight IST
+
+    is_impersonating = bool(request and "impersonate_user_id" in request.session)
+    is_reschedule = (exclude_appointment_id > 0)
 
     # Build 30-minute grid intervals
     intervals = []
@@ -8767,9 +8771,16 @@ async def consultant_day_timeline(
         slot_end = slot + duration
         time_str = minutes_to_hhmm(slot)
 
+        # Slot datetime in IST
+        slot_dt_ist = datetime(target_date.year, target_date.month, target_date.day, slot // 60, slot % 60)
+
         # Determine status
-        if is_today and slot_end <= now_ist_min:
+        if slot_dt_ist <= now_ist:
             # Entire slot is in the past — grey it out
+            status   = "past"
+            can_book = False
+        elif not is_impersonating and not is_reschedule and slot_dt_ist < (now_ist + timedelta(hours=24)):
+            # Less than 24 hours in advance for standard bookings — grey it out
             status   = "past"
             can_book = False
         elif slot_end > work_end_min:
@@ -8838,8 +8849,14 @@ async def book_appointment(request: Request, db: Session = Depends(get_db)):
             return {"success": False, "error": "Missing required fields"}
 
         # -- Parse appointment time -------------------------------------------
-        raw_dt = datetime.fromisoformat(data["appointment_date"].replace("Z", "+00:00"))
-        appointment_date = raw_dt.replace(tzinfo=None)
+        appt_raw = data["appointment_date"].strip()
+        if "T" in appt_raw and "+" not in appt_raw and not appt_raw.endswith("Z"):
+            raw_dt = datetime.fromisoformat(appt_raw)
+            # Browser sends IST time without tz suffix -> convert to UTC for storage & comparison
+            appointment_date = raw_dt - timedelta(hours=5, minutes=30)
+        else:
+            raw_dt = datetime.fromisoformat(appt_raw.replace("Z", "+00:00"))
+            appointment_date = raw_dt.astimezone(timezone.utc).replace(tzinfo=None) if raw_dt.tzinfo else raw_dt
 
         # -- Fetch consultant --------------------------------------------------
         consultant = db.query(ConsultantProfile).filter(
@@ -8864,17 +8881,16 @@ async def book_appointment(request: Request, db: Session = Depends(get_db)):
         is_impersonating = "impersonate_user_id" in request.session
         if not is_impersonating:
             now_utc = datetime.utcnow()
-            # Enforce 24h advance requirement (5-minute tolerance for clock drift)
-            if appointment_date < now_utc + timedelta(hours=24) - timedelta(minutes=5):
-                now_ist  = datetime.utcnow() + timedelta(hours=5, minutes=30)
-                tomorrow = (now_ist + timedelta(days=1)).replace(
-                    hour=0, minute=0, second=0, microsecond=0)
-                earliest = tomorrow.strftime("%d %b %Y")
+            # Enforce 24h advance requirement
+            if appointment_date < now_utc + timedelta(hours=24):
+                now_ist      = datetime.utcnow() + timedelta(hours=5, minutes=30)
+                earliest_ist = now_ist + timedelta(hours=24)
+                earliest     = earliest_ist.strftime("%d %b %Y %I:%M %p")
                 return {
                     "success":       False,
-                    "error":         f"Consultations must be booked at least 24 hours in advance. Earliest available date: {earliest}.",
+                    "error":         f"Consultations must be booked at least 24 hours in advance. Earliest available: {earliest} IST.",
                     "conflict_type": "advance_booking_required",
-                    "earliest_date": tomorrow.isoformat(),
+                    "earliest_date": (now_utc + timedelta(hours=24)).isoformat(),
                 }
 
         # -- Blocked zone for the NEW appointment (with buffers) --------------
