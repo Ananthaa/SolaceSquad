@@ -6277,17 +6277,19 @@ async function loadTimeline(consultantId, date, duration) {
       buffer:    { bg:'#f59e0b', color:'#fff',    cursor:'not-allowed',  title:'Buffer time around booking' },
       break:     { bg:'#fbbf24', color:'#1f2937', cursor:'not-allowed',  title:'Consultant break' },
       overflow:  { bg:'#6b7280', color:'#fff',    cursor:'not-allowed',  title:'Session runs past end of day' },
-      past:      { bg:'#e5e7eb', color:'#9ca3af', cursor:'not-allowed',  title:'Past time — cannot book' },
+      past:      { bg:'#e5e7eb', color:'#9ca3af', cursor:'not-allowed',  title:'Unavailable (past or within 24h advance window)' },
       outside:   { bg:'#e5e7eb', color:'#9ca3af', cursor:'not-allowed',  title:'Outside working hours' },
     };
 
     grid.innerHTML = '';
+    var bookableCount = 0;
     d.intervals.forEach(function(iv) {
+      if (iv.can_book) bookableCount++;
       var s = colorMap[iv.status] || colorMap.outside;
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = iv.time;
-      btn.title = s.title;
+      btn.title = (iv.status === 'past' && !iv.can_book) ? 'Unavailable (sessions must be booked at least 24 hours in advance)' : s.title;
       btn.dataset.time = iv.time;
       btn.style.cssText = [
         'padding:6px 10px',
@@ -6318,6 +6320,11 @@ async function loadTimeline(consultantId, date, duration) {
       }
       grid.appendChild(btn);
     });
+
+    if (bookableCount === 0) {
+      notAvail.textContent = 'No available slots for this date (sessions must be booked at least 24 hours in advance). Please choose another date.';
+      notAvail.style.display = 'block';
+    }
   } catch(err) {
     grid.innerHTML = '<span style="color:#ef4444;font-size:0.82rem;">Could not load availability. Please try again.</span>';
   }
