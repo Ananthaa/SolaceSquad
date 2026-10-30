@@ -521,8 +521,6 @@ overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.1);'>
             <td><strong>{local_start}</strong></td></tr>
         <tr><td style='padding:6px 0;color:#6b7280;'>⏱️ Duration</td>
             <td><strong>{dur_label}</strong></td></tr>
-        <tr><td style='padding:6px 0;color:#6b7280;'>🔖 Ref ID</td>
-            <td style='color:#9ca3af;'>#{appointment_id}</td></tr>
       </table>
     </div>
     {join_block}
@@ -547,7 +545,6 @@ overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.1);'>
         f"Consultant:  {consultant_name}\n"
         f"Date & Time: {local_start}\n"
         f"Duration:    {dur_label}\n"
-        f"Ref ID:      #{appointment_id}\n"
         + join_text_line
         + (f"Notes:       {notes}\n" if notes else "")
         + "\n— The SolaceSquad Team\n"
