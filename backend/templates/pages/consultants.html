@@ -5558,21 +5558,12 @@ window.addEventListener('DOMContentLoaded', function() {
                                 }
                             }
                         } else {
-                            if (d.accepts_short_notice) {
-                                {% if is_first_consultation %}
-                                durationNote.innerHTML = '<span style="color:#0d9488;font-weight:700;">🎁 Your first 15 minutes are free!</span><br><span style="color:#059669;font-weight:700;">⚡ Quick Consultation: Same-day / short-notice slots available!</span>';
-                                {% else %}
-                                durationNote.innerHTML = '<span style="color:#059669;font-weight:700;">⚡ Quick Consultation: Same-day / short-notice slots available!</span>';
-                                {% endif %}
-                                durationNote.style.color = '#059669';
-                            } else {
-                                {% if is_first_consultation %}
-                                durationNote.innerHTML = '<span style="color:#0d9488;font-weight:700;">🎁 Your first 15 minutes are free!</span><br>Sessions must be booked at least 24 hours in advance.';
-                                {% else %}
-                                durationNote.textContent = 'Sessions must be booked at least 24 hours in advance.';
-                                {% endif %}
-                                durationNote.style.color = '#d97706';
-                            }
+                            {% if is_first_consultation %}
+                            durationNote.innerHTML = '<span style="color:#0d9488;font-weight:700;">🎁 Your first 15 minutes are free!</span><br>Sessions must be booked at least 24 hours in advance.';
+                            {% else %}
+                            durationNote.textContent = 'Sessions must be booked at least 24 hours in advance.';
+                            {% endif %}
+                            durationNote.style.color = '#d97706';
 
                             if (d.min_booking_date) {
                                 // min_booking_date is "YYYY-MM-DDTHH:MM" IST — extract date part only
