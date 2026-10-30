@@ -2492,6 +2492,7 @@ async def user_dashboard(request: Request, db: Session = Depends(get_db)):
             "active_page": "dashboard",
             "nav_items": get_nav_items("user"),
             "now_hour": now_hour,
+            "is_admin": (current_user.user_type in ("admin", "admin_assistant")) or ("impersonate_user_id" in request.session),
             "demo_video": db.query(DemoVideo).filter(
                 DemoVideo.share_with.in_(["users", "both"])
             ).order_by(DemoVideo.created_at.desc()).first(),
@@ -8586,31 +8587,25 @@ async def get_consultant_schedule(consultant_id: int, request: Request, db: Sess
                 "blocked_end":   (q_end   + timedelta(minutes=BUFFER_MINUTES)).isoformat(),
             })
 
-        # For paid consultants: earliest bookable = now (IST) + 24 hours (or +15m if accepts_short_notice),
-        # rounded up to the current hour. Format as "YYYY-MM-DDTHH:MM" (no TZ suffix) so the frontend
-        # can assign it directly to input.min without any Date() timezone conversion.
+        # In the standard booking interface, all appointments must be booked at least 24 hours in advance,
+        # rounded up to the current hour. Format as "YYYY-MM-DDTHH:MM" (no TZ suffix).
         # Bypassed if booked by an admin on behalf of a user (impersonating).
         is_impersonating = "impersonate_user_id" in request.session
-        accepts_short_notice = bool(getattr(consultant, 'accepts_short_notice', False))
         min_booking_date = None
-        if is_paid and not is_impersonating:
+        if not is_impersonating:
             now_ist = datetime.utcnow() + timedelta(hours=5, minutes=30)
-            if accepts_short_notice:
-                min_appt_ist = now_ist + timedelta(minutes=15)
-                min_booking_date = min_appt_ist.strftime("%Y-%m-%dT%H:%M")
-            else:
-                min_appt_ist = now_ist + timedelta(hours=24)
-                # Round up to the next hour so the picker shows a clean time
-                min_booking_date = min_appt_ist.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M")
+            min_appt_ist = now_ist + timedelta(hours=24)
+            # Round up to the next hour so the picker shows a clean time
+            min_booking_date = min_appt_ist.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M")
 
         return {
             "success":              True,
             "consultant_name":      consultant.user.name,
             "is_paid":              is_paid,
-            "accepts_short_notice": accepts_short_notice,
+            "accepts_short_notice": False, # In standard booking interface, 24h advance is required for all
             "consultation_fee":     consultant.consultation_fee or 0,
             "allowed_durations":    [30, 60, 90] if is_paid else [15],
-            "min_booking_date":     min_booking_date,   # None for free consultants
+            "min_booking_date":     min_booking_date,
             "buffer_minutes":       BUFFER_MINUTES,
             "schedule":             schedule_data,
             "booked_slots":         booked_slots,
@@ -8865,29 +8860,21 @@ async def book_appointment(request: Request, db: Session = Depends(get_db)):
 
         appt_end = appointment_date + timedelta(minutes=duration_minutes)
 
-        # -- Rule 2: Paid consultants need 24-hour advance booking ------------
+        # -- Rule 2: All standard appointments require 24-hour advance booking ------------
         is_impersonating = "impersonate_user_id" in request.session
-        accepts_short_notice = bool(getattr(consultant, 'accepts_short_notice', False))
-        if is_paid and not is_impersonating and not accepts_short_notice:
-            now_ist  = datetime.utcnow() + timedelta(hours=5, minutes=30)
-            tomorrow = (now_ist + timedelta(days=1)).replace(
-                hour=0, minute=0, second=0, microsecond=0)
-            appt_ist = appointment_date + timedelta(hours=5, minutes=30)
-            if appt_ist < tomorrow:
+        if not is_impersonating:
+            now_utc = datetime.utcnow()
+            # Enforce 24h advance requirement (5-minute tolerance for clock drift)
+            if appointment_date < now_utc + timedelta(hours=24) - timedelta(minutes=5):
+                now_ist  = datetime.utcnow() + timedelta(hours=5, minutes=30)
+                tomorrow = (now_ist + timedelta(days=1)).replace(
+                    hour=0, minute=0, second=0, microsecond=0)
                 earliest = tomorrow.strftime("%d %b %Y")
                 return {
                     "success":       False,
-                    "error":         f"Paid consultations must be booked at least 24 hours in advance. Earliest available date: {earliest}.",
+                    "error":         f"Consultations must be booked at least 24 hours in advance. Earliest available date: {earliest}.",
                     "conflict_type": "advance_booking_required",
                     "earliest_date": tomorrow.isoformat(),
-                }
-        elif is_paid and not is_impersonating and accepts_short_notice:
-            now_utc = datetime.utcnow()
-            if appointment_date < now_utc - timedelta(minutes=5):
-                return {
-                    "success": False,
-                    "error": "Appointment time cannot be in the past.",
-                    "conflict_type": "past_time_not_allowed"
                 }
 
         # -- Blocked zone for the NEW appointment (with buffers) --------------
@@ -9067,9 +9054,22 @@ def _find_next_slot(db, consultant_id: int, search_from, duration_minutes: int, 
 async def get_user_appointments(request: Request, db: Session = Depends(get_db)):
     """Get all appointments for the logged-in user (both standard and linked quick consultations), auto-completing elapsed ones."""
     try:
-        user_id = request.session.get("user_id")
-        if not user_id:
+        session_uid = request.session.get("user_id")
+        if not session_uid:
             return {"success": False, "error": "User not logged in", "appointments": []}
+        
+        caller = db.query(User).filter(User.id == session_uid).first()
+        is_admin = bool(caller and caller.user_type in ("admin", "admin_assistant"))
+        user_id = session_uid
+        if is_admin:
+            req_uid = request.query_params.get("user_id")
+            if req_uid:
+                try:
+                    user_id = int(req_uid)
+                except ValueError:
+                    pass
+            elif "impersonate_user_id" in request.session:
+                user_id = int(request.session["impersonate_user_id"])
         
         appointments = db.query(Appointment).filter(
             Appointment.user_id == user_id
@@ -9221,6 +9221,54 @@ async def get_user_appointments(request: Request, db: Session = Depends(get_db))
     except Exception as e:
         print(f"Error getting user appointments: {str(e)}")
         return {"success": False, "error": str(e), "appointments": []}
+
+
+@app.get("/api/admin/appointments")
+async def admin_get_appointments(
+    request: Request,
+    user_id: Optional[int] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Admin endpoint to retrieve upcoming/active appointments across users or for a specific user."""
+    session_uid = request.session.get("user_id")
+    if not session_uid:
+        return JSONResponse({"success": False, "error": "Not authenticated"}, status_code=401)
+    caller = db.query(User).filter(User.id == session_uid).first()
+    if not caller or caller.user_type not in ("admin", "admin_assistant"):
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    query = db.query(Appointment)
+    if user_id:
+        query = query.filter(Appointment.user_id == user_id)
+    if status:
+        query = query.filter(Appointment.status == status)
+    else:
+        query = query.filter(Appointment.status.in_(["scheduled", "in_progress", "reschedule_pending"]))
+
+    appts = query.order_by(Appointment.appointment_date.asc()).limit(150).all()
+
+    appt_list = []
+    for a in appts:
+        user_name = a.user.name if a.user else "Unknown User"
+        user_email = a.user.email if a.user else ""
+        c_name = a.consultant.user.name if (a.consultant and a.consultant.user) else "Consultant"
+        c_spec = a.consultant.specialization if a.consultant else "Wellbeing Specialist"
+        appt_list.append({
+            "id": a.id,
+            "user_id": a.user_id,
+            "user_name": user_name,
+            "user_email": user_email,
+            "consultant_id": a.consultant_id,
+            "consultant_name": c_name,
+            "consultant_specialization": c_spec,
+            "appointment_date": a.appointment_date.isoformat() + "Z",
+            "duration_minutes": a.duration_minutes or 30,
+            "status": a.status,
+            "notes": a.notes
+        })
+
+    return {"success": True, "appointments": appt_list}
 
 
 @app.get("/api/appointments/consultant")
@@ -9440,27 +9488,39 @@ async def cancel_appointment(appointment_id: int, request: Request, db: Session 
         if not appointment:
             return {"success": False, "error": "Appointment not found"}
 
-        # Authorisation: must be the patient or the consultant
+        # Authorisation: must be the patient, the consultant, or an admin
+        caller = db.query(User).filter(User.id == user_id).first()
+        is_admin = bool(caller and caller.user_type in ("admin", "admin_assistant")) or ("impersonate_user_id" in request.session)
         consultant_profile = db.query(ConsultantProfile).filter(
             ConsultantProfile.user_id == user_id
         ).first()
-        is_client     = appointment.user_id == user_id
-        is_consultant = consultant_profile and appointment.consultant_id == consultant_profile.id
-        if not (is_client or is_consultant):
+        is_client     = (appointment.user_id == user_id) or (is_admin and request.session.get("impersonate_user_id") == appointment.user_id)
+        is_consultant = bool(consultant_profile and appointment.consultant_id == consultant_profile.id)
+        if not (is_client or is_consultant or is_admin):
             return {"success": False, "error": "Not authorized to cancel this appointment"}
 
         if appointment.status == "cancelled":
             return {"success": False, "error": "Appointment is already cancelled"}
+
+        # Timebound restriction: Non-admin users can only cancel >= 24 hours in advance
+        now_utc = datetime.utcnow()
+        if not is_admin:
+            if appointment.appointment_date - now_utc < timedelta(hours=24):
+                return {
+                    "success": False,
+                    "error": "Cancellations are only permitted up to 24 hours before the scheduled call. For urgent assistance, please contact support at admin@solacesquad.com."
+                }
 
         # ── Razorpay refund (attempted before cancellation) ───────────────────
         refund_info = {"refunded": False, "message": "No payment to refund."}
         if appointment.refund_status != "forfeited":
             try:
                 from finance_routes import process_appointment_refund
+                cancel_actor = "Administrator on behalf of user" if is_admin else ("client" if is_client else "consultant")
                 refund_info = process_appointment_refund(
                     db             = db,
                     appointment_id = appointment_id,
-                    reason         = f"Appointment #{appointment_id} cancelled by {'client' if is_client else 'consultant'}",
+                    reason         = f"Appointment #{appointment_id} cancelled by {cancel_actor}",
                 )
                 # If auto-refund failed due to balance/gateway issue, don't block cancellation!
                 if not refund_info.get("refunded", False) and "failed" in refund_info.get("message", "").lower():
@@ -9763,14 +9823,25 @@ async def reschedule_appointment(appointment_id: int, request: Request, db: Sess
         if not appt:
             return JSONResponse({"success": False, "error": "Appointment not found"}, status_code=404)
 
+        caller = db.query(User).filter(User.id == uid).first()
+        is_admin = bool(caller and caller.user_type in ("admin", "admin_assistant")) or ("impersonate_user_id" in request.session)
         consultant_profile = db.query(ConsultantProfile).filter(ConsultantProfile.user_id == uid).first()
-        is_client = (appt.user_id == uid)
+        is_client = (appt.user_id == uid) or (is_admin and request.session.get("impersonate_user_id") == appt.user_id)
         is_consultant = bool(consultant_profile and appt.consultant_id == consultant_profile.id)
-        if not (is_client or is_consultant):
+        if not (is_client or is_consultant or is_admin):
             return JSONResponse({"success": False, "error": "Not authorized to reschedule this appointment"}, status_code=403)
 
         if appt.status not in ["scheduled", "reschedule_pending"]:
             return JSONResponse({"success": False, "error": f"Cannot reschedule appointment with status: {appt.status}"}, status_code=400)
+
+        # Timebound restriction: Non-admin users can only reschedule >= 12 hours before scheduled call
+        now_utc = datetime.utcnow()
+        if not is_admin:
+            if appt.appointment_date - now_utc < timedelta(hours=12):
+                return JSONResponse({
+                    "success": False,
+                    "error": "Rescheduling is only permitted up to 12 hours before the scheduled call. For urgent assistance, please contact support at admin@solacesquad.com."
+                }, status_code=400)
 
         duration = duration_minutes if duration_minutes > 0 else (appt.duration_minutes or 30)
 
@@ -14936,7 +15007,7 @@ async def admin_book_on_behalf_page(request: Request, db: Session = Depends(get_
         return RedirectResponse(url="/login", status_code=303)
     
     caller = db.query(User).filter(User.id == session_uid).first()
-    if not caller or caller.user_type != "admin":
+    if not caller or caller.user_type not in ("admin", "admin_assistant"):
         return RedirectResponse(url="/app", status_code=303)
         
     users = db.query(User).filter(User.user_type == "user", User.is_active == True).order_by(User.name.asc()).all()
