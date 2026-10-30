@@ -8625,6 +8625,7 @@ async def consultant_day_timeline(
     consultant_id: int,
     date: str = "",        # YYYY-MM-DD
     duration: int = 30,    # minutes
+    exclude_appointment_id: int = 0,
     db: Session = Depends(get_db)
 ):
     """
@@ -8698,12 +8699,15 @@ async def consultant_day_timeline(
     # Target date is in IST; convert midnight-to-midnight IST window to UTC for DB queries
     day_start_utc = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0) - timedelta(hours=5, minutes=30)
     day_end_utc   = day_start_utc + timedelta(days=1)
-    existing_appts = db.query(Appointment).filter(
+    appt_query = db.query(Appointment).filter(
         Appointment.consultant_id    == consultant_id,
         Appointment.status.in_(["scheduled", "in_progress", "confirmed"]),
         Appointment.appointment_date >= day_start_utc,
         Appointment.appointment_date <  day_end_utc,
-    ).all()
+    )
+    if exclude_appointment_id and exclude_appointment_id > 0:
+        appt_query = appt_query.filter(Appointment.id != exclude_appointment_id)
+    existing_appts = appt_query.all()
 
     from models import QuickConsultation
     from sqlalchemy import or_, and_

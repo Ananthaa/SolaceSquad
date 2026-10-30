@@ -1822,7 +1822,7 @@
                                 <i data-lucide="phone" class="w-4 h-4"></i><span>Join Call</span>
                             </a>
                             <div style="display:flex;gap:.5rem;margin-top:.4rem;">
-                                <button type="button" onclick="openRescheduleModal('${appt.id}', '${(appt.consultant_name || '').replace(/'/g, "\\'")}', '${appt.appointment_date}', ${appt.duration_minutes || 30})"
+                                <button type="button" onclick="openRescheduleModal('${appt.id}', '${(appt.consultant_name || '').replace(/'/g, "\\'")}', '${appt.appointment_date}', ${appt.duration_minutes || 30}, ${appt.consultant_id || 0})"
                                     style="flex:1;padding:.45rem .6rem;font-size:.78rem;font-weight:600;color:#0f766e;background:#f0fdf4;border:1px solid #99f6e4;border-radius:.5rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;transition:all .15s;"
                                     onmouseover="this.style.background='#ccfbf1'" onmouseout="this.style.background='#f0fdf4'">
                                     <i data-lucide="calendar" style="width:13px;height:13px;"></i> Reschedule
@@ -1889,39 +1889,191 @@
         } catch (e) { alert('Network error. Please try again.'); }
     };
 
-    window.openRescheduleModal = function(id, consultantName, currentDateStr, duration) {
+    window.openRescheduleModal = function(id, consultantName, currentDateStr, duration, consultantId) {
         document.getElementById('rescheduleApptId').value = id;
+        document.getElementById('rescheduleConsultantId').value = consultantId || '';
         document.getElementById('rescheduleDuration').value = duration || 30;
         document.getElementById('rescheduleConsultantLabel').textContent = 'with ' + consultantName;
+        document.getElementById('rescheduleSelectedTime').value = '';
+        document.getElementById('rescheduleSelectedTimeLabel').textContent = '';
         
         const curDate = new Date(currentDateStr);
         document.getElementById('rescheduleCurrentSlot').textContent = formatAppointmentDate(curDate);
         
-        // Default to tomorrow or current date
-        const tom = new Date(); tom.setDate(tom.getDate() + 1);
-        const yyyy = tom.getFullYear();
-        const mm = String(tom.getMonth() + 1).padStart(2, '0');
-        const dd = String(tom.getDate()).padStart(2, '0');
-        const dateInput = document.getElementById('rescheduleDateInput');
-        dateInput.min = `${yyyy}-${mm}-${dd}`;
-        dateInput.value = `${yyyy}-${mm}-${dd}`;
+        // Calculate min date (today) and default date
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
-        // Default time
-        document.getElementById('rescheduleTimeInput').value = "13:00";
+        let defaultDateStr = todayStr;
+        if (!isNaN(curDate.getTime()) && curDate > now) {
+            defaultDateStr = `${curDate.getFullYear()}-${pad(curDate.getMonth() + 1)}-${pad(curDate.getDate())}`;
+        } else {
+            const tom = new Date(); tom.setDate(tom.getDate() + 1);
+            defaultDateStr = `${tom.getFullYear()}-${pad(tom.getMonth() + 1)}-${pad(tom.getDate())}`;
+        }
+
+        const dateInput = document.getElementById('rescheduleDateInput');
+        dateInput.min = todayStr;
+        dateInput.value = defaultDateStr;
+
         document.getElementById('rescheduleAlert').style.display = 'none';
         document.getElementById('rescheduleModal').style.display = 'flex';
         if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        // Load timeline slots for the initial date
+        loadRescheduleTimeline();
     };
 
     window.closeRescheduleModal = function() {
         document.getElementById('rescheduleModal').style.display = 'none';
     };
 
+    window.onRescheduleDateChange = function() {
+        loadRescheduleTimeline();
+    };
+
+    window.loadRescheduleTimeline = async function() {
+        const cid = document.getElementById('rescheduleConsultantId').value;
+        const dateVal = document.getElementById('rescheduleDateInput').value;
+        const dur = parseInt(document.getElementById('rescheduleDuration').value || '30', 10);
+        const apptId = document.getElementById('rescheduleApptId').value;
+
+        const grid = document.getElementById('rescheduleTimelineGrid');
+        const notAvail = document.getElementById('rescheduleTimelineNotAvail');
+        const hoursLabel = document.getElementById('rescheduleWorkingHoursLabel');
+        const selectedLabel = document.getElementById('rescheduleSelectedTimeLabel');
+        const hiddenTime = document.getElementById('rescheduleSelectedTime');
+
+        hiddenTime.value = '';
+        selectedLabel.textContent = '';
+        notAvail.style.display = 'none';
+
+        if (!cid || !dateVal) return;
+
+        grid.innerHTML = '<span style="color:#6b7280;font-size:0.82rem;padding:.5rem 0;">Loading available slots…</span>';
+
+        try {
+            const r = await fetch(`/api/consultants/${cid}/day-timeline?date=${dateVal}&duration=${dur}&exclude_appointment_id=${apptId}`);
+            const d = await r.json();
+
+            if (!d.working) {
+                grid.innerHTML = '';
+                notAvail.textContent = d.message || 'Consultant is not available on this day.';
+                notAvail.style.display = 'block';
+                hoursLabel.textContent = d.working_days && d.working_days.length
+                    ? 'Available on: ' + d.working_days.join(', ')
+                    : 'No schedule set for this day.';
+                return;
+            }
+
+            hoursLabel.textContent = 'Working hours: ' + d.working_hours.start + ' – ' + d.working_hours.end + ' IST';
+            notAvail.style.display = 'none';
+
+            if (!d.intervals || d.intervals.length === 0) {
+                grid.innerHTML = '<span style="color:#6b7280;font-size:0.82rem;">No slots found for this day.</span>';
+                return;
+            }
+
+            const colorMap = {
+                available: { bg: '#10b981', color: '#fff', cursor: 'pointer', title: 'Available' },
+                booked:    { bg: '#ef4444', color: '#fff', cursor: 'not-allowed', title: 'Already booked' },
+                buffer:    { bg: '#f59e0b', color: '#fff', cursor: 'not-allowed', title: 'Buffer time' },
+                break:     { bg: '#fbbf24', color: '#1f2937', cursor: 'not-allowed', title: 'Consultant break' },
+                overflow:  { bg: '#6b7280', color: '#fff', cursor: 'not-allowed', title: 'Exceeds working hours' },
+                past:      { bg: '#e5e7eb', color: '#9ca3af', cursor: 'not-allowed', title: 'Past time' },
+                outside:   { bg: '#e5e7eb', color: '#9ca3af', cursor: 'not-allowed', title: 'Outside working hours' },
+            };
+
+            function formatTime12(hhmm) {
+                const parts = hhmm.split(':');
+                let h = parseInt(parts[0], 10);
+                const m = parts[1];
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12;
+                if (h === 0) h = 12;
+                return `${h}:${m} ${ampm}`;
+            }
+
+            grid.innerHTML = '';
+            let availableCount = 0;
+            d.intervals.forEach(iv => {
+                const s = colorMap[iv.status] || colorMap.outside;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                const timeLabel = formatTime12(iv.time);
+                btn.textContent = timeLabel;
+                btn.title = s.title + (iv.can_book ? ' (Click to select)' : '');
+                btn.dataset.time = iv.time;
+                btn.style.cssText = [
+                    'padding:7px 11px',
+                    'border-radius:6px',
+                    'border:none',
+                    'font-size:0.78rem',
+                    'font-weight:600',
+                    'background:' + s.bg,
+                    'color:' + s.color,
+                    'cursor:' + s.cursor,
+                    'transition:transform 0.12s,opacity 0.12s,box-shadow 0.12s',
+                    'min-width:70px',
+                    'text-align:center'
+                ].join(';');
+
+                if (iv.can_book) {
+                    availableCount++;
+                    btn.addEventListener('click', function() {
+                        selectRescheduleSlot(iv.time, btn, timeLabel);
+                    });
+                    btn.addEventListener('mouseenter', function() {
+                        if (btn.dataset.selected !== 'true') {
+                            btn.style.transform = 'scale(1.06)';
+                            btn.style.opacity = '0.9';
+                        }
+                    });
+                    btn.addEventListener('mouseleave', function() {
+                        if (btn.dataset.selected !== 'true') {
+                            btn.style.transform = 'scale(1)';
+                            btn.style.opacity = '1';
+                        }
+                    });
+                } else {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.55';
+                }
+                grid.appendChild(btn);
+            });
+
+            if (availableCount === 0) {
+                notAvail.textContent = 'All slots are fully booked or unavailable for this date. Please choose another date.';
+                notAvail.style.display = 'block';
+            }
+        } catch (err) {
+            grid.innerHTML = '<span style="color:#ef4444;font-size:0.82rem;">Could not load availability. Please select another date.</span>';
+        }
+    };
+
+    window.selectRescheduleSlot = function(time, clickedBtn, displayTime) {
+        document.querySelectorAll('#rescheduleTimelineGrid button').forEach(b => {
+            b.style.outline = 'none';
+            b.style.boxShadow = 'none';
+            b.style.transform = 'scale(1)';
+            b.dataset.selected = 'false';
+        });
+        clickedBtn.style.outline = '3px solid #0f766e';
+        clickedBtn.style.boxShadow = '0 0 0 2px #99f6e4';
+        clickedBtn.style.transform = 'scale(1.08)';
+        clickedBtn.dataset.selected = 'true';
+
+        document.getElementById('rescheduleSelectedTime').value = time;
+        document.getElementById('rescheduleSelectedTimeLabel').innerHTML = '✓ Selected Slot: <strong>' + displayTime + ' IST</strong>';
+        document.getElementById('rescheduleAlert').style.display = 'none';
+    };
+
     window.submitReschedule = async function() {
         const id = document.getElementById('rescheduleApptId').value;
         const duration = parseInt(document.getElementById('rescheduleDuration').value || '30', 10);
         const dateVal = document.getElementById('rescheduleDateInput').value;
-        const timeVal = document.getElementById('rescheduleTimeInput').value;
+        const timeVal = document.getElementById('rescheduleSelectedTime').value;
         const alertBox = document.getElementById('rescheduleAlert');
         const submitBtn = document.getElementById('rescheduleSubmitBtn');
 
@@ -1930,7 +2082,7 @@
             alertBox.style.background = '#fef2f2';
             alertBox.style.color = '#dc2626';
             alertBox.style.border = '1px solid #fecaca';
-            alertBox.textContent = 'Please select both a date and a time.';
+            alertBox.textContent = 'Please select a date and click on an available time slot.';
             return;
         }
 
@@ -2309,36 +2461,52 @@
 <div id="rescheduleModal" style="display:none;position:fixed;inset:0;z-index:9999;
      background:rgba(0,0,0,0.55);align-items:center;justify-content:center;padding:1rem;">
     <div style="background:#fff;border-radius:1rem;box-shadow:0 20px 40px rgba(0,0,0,0.2);
-         width:100%;max-width:440px;overflow:hidden;animation:moodCardIn 0.25s ease-out both;">
-        <div style="background:linear-gradient(135deg,#0f766e,#0d9488);padding:1.25rem 1.5rem;color:#fff;display:flex;align-items:center;justify-content:space-between;">
+         width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;animation:moodCardIn 0.25s ease-out both;">
+        <div style="background:linear-gradient(135deg,#0f766e,#0d9488);padding:1.15rem 1.4rem;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
             <div>
                 <h3 style="margin:0;font-size:1.1rem;font-weight:700;">🔄 Reschedule Appointment</h3>
                 <p id="rescheduleConsultantLabel" style="margin:4px 0 0;font-size:.8rem;opacity:.9;"></p>
             </div>
             <button type="button" onclick="closeRescheduleModal()" style="background:none;border:none;color:#fff;font-size:1.25rem;cursor:pointer;margin-left:auto;line-height:1;">✕</button>
         </div>
-        <div style="padding:1.5rem;">
+        <div style="padding:1.25rem 1.4rem;overflow-y:auto;flex:1;">
             <input type="hidden" id="rescheduleApptId">
+            <input type="hidden" id="rescheduleConsultantId">
             <input type="hidden" id="rescheduleDuration">
+            <input type="hidden" id="rescheduleSelectedTime">
 
             <div style="margin-bottom:1rem;background:#f0fdf4;border:1px solid #99f6e4;padding:.75rem 1rem;border-radius:.65rem;font-size:.8rem;color:#0f766e;">
                 <strong>Current Slot:</strong> <span id="rescheduleCurrentSlot"></span>
             </div>
 
-            <div style="margin-bottom:1.1rem;">
+            <div style="margin-bottom:1rem;">
                 <label style="display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:.4rem;">Select New Date</label>
-                <input type="date" id="rescheduleDateInput" style="width:100%;padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.9rem;outline:none;">
+                <input type="date" id="rescheduleDateInput" onchange="onRescheduleDateChange()" style="width:100%;padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.9rem;outline:none;">
             </div>
 
-            <div style="margin-bottom:1.25rem;">
-                <label style="display:block;font-size:.82rem;font-weight:700;color:#374151;margin-bottom:.4rem;">Select New Time (IST)</label>
-                <input type="time" id="rescheduleTimeInput" step="900" style="width:100%;padding:.6rem .75rem;border:1px solid #d1d5db;border-radius:.5rem;font-size:.9rem;outline:none;">
-                <div style="font-size:.72rem;color:#6b7280;margin-top:.35rem;">* Times are in Indian Standard Time (IST).</div>
+            <!-- Available Slots Timeline Panel -->
+            <div id="rescheduleTimelinePanel" style="margin-bottom:1rem;">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:.35rem;">
+                    <label style="font-size:.82rem;font-weight:700;color:#374151;">Available Slots (IST)</label>
+                    <div id="rescheduleWorkingHoursLabel" style="font-size:.75rem;color:#6b7280;font-weight:600;"></div>
+                </div>
+
+                <div style="font-size:0.72rem; color:#6b7280; margin-bottom:0.65rem; display:flex; flex-wrap:wrap; gap:6px 12px; align-items:center;">
+                    <span><span style="display:inline-block; width:10px; height:10px; background:#10b981; border-radius:3px; vertical-align:middle; margin-right:4px;"></span>Available</span>
+                    <span><span style="display:inline-block; width:10px; height:10px; background:#ef4444; border-radius:3px; vertical-align:middle; margin-right:4px;"></span>Booked</span>
+                    <span><span style="display:inline-block; width:10px; height:10px; background:#f59e0b; border-radius:3px; vertical-align:middle; margin-right:4px;"></span>Buffer</span>
+                    <span><span style="display:inline-block; width:10px; height:10px; background:#fbbf24; border-radius:3px; vertical-align:middle; margin-right:4px;"></span>Break</span>
+                    <span><span style="display:inline-block; width:10px; height:10px; background:#e5e7eb; border-radius:3px; vertical-align:middle; margin-right:4px; border:1px solid #d1d5db;"></span>Past</span>
+                </div>
+
+                <div id="rescheduleTimelineGrid" style="display:flex; flex-wrap:wrap; gap:6px; max-height:180px; overflow-y:auto; padding:2px; border:1px solid #f3f4f6; border-radius:.5rem; background:#fafafa; padding:.6rem;"></div>
+                <div id="rescheduleTimelineNotAvail" style="display:none; color:#dc2626; background:#fef2f2; border:1px solid #fecaca; border-radius:.5rem; padding:.65rem .85rem; font-size:0.82rem; margin-top:0.5rem;"></div>
+                <div id="rescheduleSelectedTimeLabel" style="margin-top:0.6rem; font-size:0.84rem; color:#0f766e; font-weight:700;"></div>
             </div>
 
             <div id="rescheduleAlert" style="display:none;margin-bottom:1rem;padding:.65rem .85rem;border-radius:.5rem;font-size:.8rem;font-weight:600;"></div>
 
-            <div style="display:flex;gap:.75rem;justify-content:flex-end;">
+            <div style="display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.25rem;">
                 <button type="button" onclick="closeRescheduleModal()" style="padding:.6rem 1.1rem;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:.5rem;font-size:.82rem;font-weight:600;color:#4b5563;cursor:pointer;">
                     Cancel
                 </button>
