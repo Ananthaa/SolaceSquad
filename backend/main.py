@@ -908,6 +908,7 @@ def get_nav_items(user_type: str) -> list:
         return [
             {'icon': 'layout-dashboard', 'label': 'Dashboard', 'href': '/consultant', 'key': 'dashboard'},
             {'icon': 'users', 'label': 'Clients', 'href': '/consultant/clients', 'key': 'clients'},
+            {'icon': 'presentation', 'label': 'Webinar Library', 'href': '/consultant/webinars', 'key': 'webinars'},
             {'icon': 'calendar', 'label': 'Set my Availability', 'href': '/consultant/schedule', 'key': 'schedule'},
             {'icon': 'message-circle', 'label': 'Messages', 'href': '/consultant/messages', 'key': 'messages'},
             {'icon': 'trending-up', 'label': 'My Earnings', 'href': '/consultant/earnings', 'key': 'earnings'},
@@ -919,6 +920,7 @@ def get_nav_items(user_type: str) -> list:
             {'icon': 'users', 'label': 'Users', 'href': '/admin/users', 'key': 'users'},
             {'icon': 'video', 'label': 'Video Library', 'href': '/admin/videos', 'key': 'videos'},
             {'icon': 'play-circle', 'label': 'Demo Videos', 'href': '/admin/demo-videos', 'key': 'demo-videos'},
+            {'icon': 'presentation', 'label': 'Webinar Library', 'href': '/admin/webinars', 'key': 'webinars'},
             {'icon': 'sparkles', 'label': 'Pro Tips', 'href': '/admin/pro-videos', 'key': 'pro-videos'},
             {'icon': 'music-2', 'label': 'Music Library', 'href': '/admin/music', 'key': 'music'},
             {'icon': 'layout', 'label': 'Home Page Builder', 'href': '/admin/homepage-builder', 'key': 'homepage-builder'},
@@ -13722,6 +13724,553 @@ async def stream_demo_video(request: Request, video_id: int, db: Session = Depen
             "Cache-Control": "private, max-age=3600",
         },
     )
+
+
+# CONSULTANT WEBINAR LIBRARY ROUTES & STREAMING ENDPOINTS
+# ============================================================================
+
+@app.get("/admin/webinars", response_class=HTMLResponse)
+async def admin_webinars_page(request: Request, db: Session = Depends(get_db)):
+    """Admin page for managing webinar recordings shared with all consultants."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return RedirectResponse(url="/app", status_code=303)
+
+    webinars = db.query(ConsultantWebinar).order_by(ConsultantWebinar.created_at.desc()).all()
+    return templates.TemplateResponse(
+        "pages/admin_webinars.html",
+        {
+            "request": request,
+            "page_title": "Webinar Library — Admin",
+            "user_name": admin.name,
+            "user_initials": get_initials(admin.name),
+            "user_type": "admin",
+            "active_page": "webinars",
+            "nav_items": get_nav_items("admin"),
+            "webinars": webinars,
+        }
+    )
+
+
+@app.post("/api/admin/webinars")
+async def admin_create_webinar(
+    request: Request,
+    db: Session = Depends(get_db),
+    title: str = Form(...),
+    description: str = Form(""),
+    speaker_name: str = Form(""),
+    speaker_title: str = Form(""),
+    webinar_date: str = Form(""),
+    duration_display: str = Form("45:00"),
+    target_audience: str = Form("all_consultants"),
+    is_youtube: str = Form("false"),
+    video_url: str = Form(""),
+    video_file: UploadFile = File(None),
+    thumbnail_file: UploadFile = File(None),
+):
+    """Create a new webinar recording — uploaded GCS file or YouTube URL, with optional thumbnail."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    youtube = is_youtube.lower() in ("true", "1", "yes")
+
+    # Handle video
+    if youtube:
+        if not video_url or not video_url.strip():
+            return JSONResponse({"success": False, "error": "YouTube URL is required"}, status_code=400)
+        final_video_url = video_url.strip()
+    else:
+        if not video_file or not video_file.filename:
+            return JSONResponse({"success": False, "error": "Video file is required"}, status_code=400)
+        try:
+            from gcs_uploads import upload_webinar_video
+            file_bytes = await video_file.read()
+            uploaded_url = upload_webinar_video(file_bytes, video_file.filename)
+            if not uploaded_url:
+                return JSONResponse({"success": False, "error": "Failed to upload video to cloud storage"}, status_code=500)
+            final_video_url = uploaded_url
+        except Exception as e:
+            return JSONResponse({"success": False, "error": f"Upload error: {str(e)}"}, status_code=500)
+
+    # Handle thumbnail if provided
+    thumbnail_url = None
+    if thumbnail_file and thumbnail_file.filename:
+        try:
+            from gcs_uploads import upload_webinar_thumbnail
+            thumb_bytes = await thumbnail_file.read()
+            thumbnail_url = upload_webinar_thumbnail(thumb_bytes, thumbnail_file.filename)
+        except Exception as e:
+            print(f"[Webinar] Thumbnail upload note: {e}")
+
+    # Parse date
+    parsed_date = None
+    if webinar_date and webinar_date.strip():
+        try:
+            from datetime import datetime as _dt
+            parsed_date = _dt.strptime(webinar_date.strip(), "%Y-%m-%d").date()
+        except Exception:
+            parsed_date = None
+
+    webinar = ConsultantWebinar(
+        title=title.strip(),
+        description=description.strip() if description else None,
+        speaker_name=speaker_name.strip() if speaker_name else None,
+        speaker_title=speaker_title.strip() if speaker_title else None,
+        webinar_date=parsed_date,
+        duration_display=duration_display.strip() if duration_display else "45:00",
+        video_url=final_video_url,
+        thumbnail_url=thumbnail_url,
+        is_youtube=youtube,
+        target_audience=target_audience.strip() if target_audience else "all_consultants",
+        is_active=True,
+    )
+    db.add(webinar)
+    db.commit()
+    db.refresh(webinar)
+
+    return JSONResponse({"success": True, "webinar_id": webinar.id})
+
+
+@app.post("/api/admin/webinars/thumbnail")
+async def admin_upload_webinar_thumbnail(
+    request: Request,
+    db: Session = Depends(get_db),
+    thumbnail_file: UploadFile = File(...),
+):
+    """Upload a webinar cover / thumbnail image to GCS."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    if not thumbnail_file or not thumbnail_file.filename:
+        return JSONResponse({"success": False, "error": "No file provided"}, status_code=400)
+
+    try:
+        from gcs_uploads import upload_webinar_thumbnail
+        thumb_bytes = await thumbnail_file.read()
+        url = upload_webinar_thumbnail(thumb_bytes, thumbnail_file.filename)
+        if not url:
+            return JSONResponse({"success": False, "error": "Failed to upload thumbnail to GCS"}, status_code=500)
+        return JSONResponse({"success": True, "thumbnail_url": url})
+    except Exception as e:
+        return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/admin/webinars/chunk")
+async def admin_upload_webinar_chunk(
+    request: Request,
+    db: Session = Depends(get_db),
+    chunk: UploadFile = File(...),
+    upload_id: str = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    title: str = Form(...),
+    description: str = Form(""),
+    speaker_name: str = Form(""),
+    speaker_title: str = Form(""),
+    webinar_date: str = Form(""),
+    duration_display: str = Form("45:00"),
+    original_filename: str = Form("webinar.mp4"),
+    thumbnail_url: str = Form(""),
+    target_audience: str = Form("all_consultants"),
+    webinar_id: str = Form(""),
+):
+    """Receive an 8MB chunk of a large webinar video to completely bypass Cloud Run's 32MB payload limit.
+    Supports large videos up to 1.5GB+. Can create a new webinar or replace video on an existing webinar.
+    """
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    import re
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", upload_id):
+        return JSONResponse({"success": False, "error": "Invalid upload ID"}, status_code=400)
+
+    ext = os.path.splitext(original_filename)[1].lower()
+    if ext not in (".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi"):
+        return JSONResponse({"success": False, "error": f"Unsupported format '{ext}'. Allowed: MP4, WebM, MOV, M4V, MKV."}, status_code=400)
+
+    import tempfile, shutil
+    temp_dir = os.path.join(tempfile.gettempdir(), "webinar_chunks", upload_id)
+    os.makedirs(temp_dir, exist_ok=True)
+
+    chunk_path = os.path.join(temp_dir, f"part_{chunk_index:04d}")
+    content = await chunk.read()
+    with open(chunk_path, "wb") as f:
+        f.write(content)
+
+    # Check if all chunks have arrived
+    parts = sorted([p for p in os.listdir(temp_dir) if p.startswith("part_")])
+    if len(parts) == total_chunks:
+        try:
+            # Combine parts sequentially into a temp file to avoid high RAM usage
+            combined_file = os.path.join(temp_dir, f"combined_{upload_id}{ext}")
+            with open(combined_file, "wb") as outfile:
+                for idx in range(total_chunks):
+                    p_name = f"part_{idx:04d}"
+                    p_file = os.path.join(temp_dir, p_name)
+                    if not os.path.exists(p_file):
+                        return JSONResponse({"success": False, "error": f"Missing chunk {idx}"}, status_code=400)
+                    with open(p_file, "rb") as infile:
+                        shutil.copyfileobj(infile, outfile, length=1024 * 1024)
+                    try:
+                        os.remove(p_file)  # Delete part immediately to free disk/RAM
+                    except Exception:
+                        pass
+
+            # Stream combined file to GCS
+            from gcs_uploads import upload_webinar_video_from_file
+            gcs_url = upload_webinar_video_from_file(combined_file, original_filename)
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+            if not gcs_url:
+                return JSONResponse({"success": False, "error": "Failed to upload video to cloud storage"}, status_code=500)
+
+            # Parse date
+            parsed_date = None
+            if webinar_date and webinar_date.strip():
+                try:
+                    from datetime import datetime as _dt
+                    parsed_date = _dt.strptime(webinar_date.strip(), "%Y-%m-%d").date()
+                except Exception:
+                    parsed_date = None
+
+            # If webinar_id provided, update existing record (replacing its video)
+            existing_webinar = None
+            if webinar_id and webinar_id.strip():
+                try:
+                    target_id = int(webinar_id.strip())
+                    existing_webinar = db.query(ConsultantWebinar).filter(ConsultantWebinar.id == target_id).first()
+                except Exception:
+                    existing_webinar = None
+
+            if existing_webinar:
+                existing_webinar.title = title.strip()
+                existing_webinar.description = description.strip() if description else None
+                existing_webinar.speaker_name = speaker_name.strip() if speaker_name else None
+                existing_webinar.speaker_title = speaker_title.strip() if speaker_title else None
+                existing_webinar.webinar_date = parsed_date
+                existing_webinar.duration_display = duration_display.strip() if duration_display else "45:00"
+                existing_webinar.video_url = gcs_url
+                if thumbnail_url and thumbnail_url.strip():
+                    existing_webinar.thumbnail_url = thumbnail_url.strip()
+                existing_webinar.is_youtube = False
+                db.commit()
+                db.refresh(existing_webinar)
+                return JSONResponse({"success": True, "status": "completed", "webinar_id": existing_webinar.id})
+
+            webinar = ConsultantWebinar(
+                title=title.strip(),
+                description=description.strip() if description else None,
+                speaker_name=speaker_name.strip() if speaker_name else None,
+                speaker_title=speaker_title.strip() if speaker_title else None,
+                webinar_date=parsed_date,
+                duration_display=duration_display.strip() if duration_display else "45:00",
+                video_url=gcs_url,
+                thumbnail_url=thumbnail_url.strip() if thumbnail_url and thumbnail_url.strip() else None,
+                is_youtube=False,
+                target_audience=target_audience.strip() if target_audience else "all_consultants",
+                is_active=True,
+            )
+            db.add(webinar)
+            db.commit()
+            db.refresh(webinar)
+
+            return JSONResponse({"success": True, "status": "completed", "webinar_id": webinar.id})
+        except Exception as e:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            print(f"[Webinar Chunk Upload Error]: {e}")
+            return JSONResponse({"success": False, "error": f"Processing error: {str(e)}"}, status_code=500)
+
+    return JSONResponse({"success": True, "status": "chunk_received", "received": len(parts), "total": total_chunks})
+
+
+@app.put("/api/admin/webinars/{webinar_id}")
+@app.post("/api/admin/webinars/{webinar_id}/update")
+async def admin_update_webinar_details(
+    request: Request,
+    webinar_id: int,
+    db: Session = Depends(get_db),
+    title: str = Form(...),
+    description: str = Form(""),
+    speaker_name: str = Form(""),
+    speaker_title: str = Form(""),
+    webinar_date: str = Form(""),
+    duration_display: str = Form("45:00"),
+    thumbnail_url: str = Form(""),
+    replace_video: str = Form("false"),
+    is_youtube: str = Form("false"),
+    video_url: str = Form(""),
+):
+    """Update details of an existing webinar recording (speaker, description, date, duration, thumbnail, or replace video)."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+
+    webinar = db.query(ConsultantWebinar).filter(ConsultantWebinar.id == webinar_id).first()
+    if not webinar:
+        return JSONResponse({"success": False, "error": "Webinar not found"}, status_code=404)
+
+    # Parse date
+    parsed_date = None
+    if webinar_date and webinar_date.strip():
+        try:
+            from datetime import datetime as _dt
+            parsed_date = _dt.strptime(webinar_date.strip(), "%Y-%m-%d").date()
+        except Exception:
+            parsed_date = None
+
+    webinar.title = title.strip()
+    webinar.description = description.strip() if description else None
+    webinar.speaker_name = speaker_name.strip() if speaker_name else None
+    webinar.speaker_title = speaker_title.strip() if speaker_title else None
+    webinar.webinar_date = parsed_date
+    webinar.duration_display = duration_display.strip() if duration_display else "45:00"
+
+    if thumbnail_url and thumbnail_url.strip():
+        webinar.thumbnail_url = thumbnail_url.strip()
+
+    # If replacing video with YouTube link
+    if replace_video.lower() in ("true", "1", "yes"):
+        if is_youtube.lower() in ("true", "1", "yes"):
+            if not video_url or not video_url.strip():
+                return JSONResponse({"success": False, "error": "YouTube URL is required"}, status_code=400)
+            webinar.video_url = video_url.strip()
+            webinar.is_youtube = True
+
+    db.commit()
+    db.refresh(webinar)
+    return JSONResponse({"success": True, "webinar_id": webinar.id})
+
+
+
+@app.delete("/api/admin/webinars/{webinar_id}")
+async def admin_delete_webinar(request: Request, webinar_id: int, db: Session = Depends(get_db)):
+    """Delete a webinar recording."""
+    user_id = request.session.get("user_id")
+    admin = db.query(User).filter(User.id == user_id).first()
+    if not admin or admin.user_type != "admin":
+        return JSONResponse({"success": False, "error": "Unauthorized"}, status_code=403)
+    webinar = db.query(ConsultantWebinar).filter(ConsultantWebinar.id == webinar_id).first()
+    if not webinar:
+        return JSONResponse({"success": False, "error": "Webinar not found"}, status_code=404)
+    db.delete(webinar)
+    db.commit()
+    return JSONResponse({"success": True})
+
+
+@app.get("/consultant/webinars", response_class=HTMLResponse)
+async def consultant_webinars_page(request: Request, db: Session = Depends(get_db)):
+    """Consultant webinar library page showing all available recordings."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    if user.user_type not in ("consultant", "admin"):
+        return RedirectResponse(url="/app", status_code=303)
+
+    webinars = db.query(ConsultantWebinar).filter(
+        ConsultantWebinar.is_active == True
+    ).order_by(
+        ConsultantWebinar.webinar_date.desc().nullslast(),
+        ConsultantWebinar.created_at.desc()
+    ).all()
+
+    return templates.TemplateResponse(
+        "pages/consultant_webinars.html",
+        {
+            "request": request,
+            "page_title": "Webinar Library — SolaceSquad",
+            "user_name": user.name,
+            "user_initials": get_initials(user.name),
+            "user_type": user.user_type,
+            "active_page": "webinars",
+            "nav_items": get_nav_items(user.user_type),
+            "webinars": webinars,
+        }
+    )
+
+
+@app.get("/consultant/webinars/{webinar_id}", response_class=HTMLResponse)
+async def consultant_webinar_player_page(request: Request, webinar_id: int, db: Session = Depends(get_db)):
+    """Dedicated endpoint player page for playing a specific webinar recording."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return RedirectResponse(url="/login", status_code=303)
+    if user.user_type not in ("consultant", "admin"):
+        return RedirectResponse(url="/app", status_code=303)
+
+    webinar = db.query(ConsultantWebinar).filter(
+        ConsultantWebinar.id == webinar_id,
+        ConsultantWebinar.is_active == True
+    ).first()
+    if not webinar:
+        return RedirectResponse(url="/consultant/webinars", status_code=303)
+
+    # Increment view count
+    try:
+        webinar.view_count = (webinar.view_count or 0) + 1
+        db.commit()
+    except Exception:
+        pass
+
+    # Extract YouTube ID if applicable
+    youtube_id = None
+    if webinar.is_youtube and webinar.video_url:
+        u = webinar.video_url
+        if "watch?v=" in u:
+            youtube_id = u.split("watch?v=")[1].split("&")[0]
+        elif "youtu.be/" in u:
+            youtube_id = u.split("youtu.be/")[1].split("?")[0]
+        elif "embed/" in u:
+            youtube_id = u.split("embed/")[1].split("?")[0]
+        else:
+            youtube_id = u
+
+    # Other webinars for playlist sidebar
+    other_webinars = db.query(ConsultantWebinar).filter(
+        ConsultantWebinar.is_active == True,
+        ConsultantWebinar.id != webinar.id
+    ).order_by(
+        ConsultantWebinar.webinar_date.desc().nullslast(),
+        ConsultantWebinar.created_at.desc()
+    ).limit(8).all()
+
+    return templates.TemplateResponse(
+        "pages/consultant_webinar_player.html",
+        {
+            "request": request,
+            "page_title": f"{webinar.title} — Webinar Player",
+            "user_name": user.name,
+            "user_initials": get_initials(user.name),
+            "user_type": user.user_type,
+            "active_page": "webinars",
+            "nav_items": get_nav_items(user.user_type),
+            "webinar": webinar,
+            "youtube_id": youtube_id,
+            "other_webinars": other_webinars,
+        }
+    )
+
+
+@app.get("/api/consultant/webinars/{webinar_id}/stream")
+async def stream_consultant_webinar(request: Request, webinar_id: int, db: Session = Depends(get_db)):
+    """Proxy-stream a GCS webinar recording video with HTTP 206 byte-range seeking support."""
+    import asyncio
+    from fastapi.responses import StreamingResponse as _StreamResp, Response as _BinResp
+    from google.cloud import storage as gcs_storage
+
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    current_user = db.query(User).filter(User.id == user_id).first()
+    if not current_user:
+        raise HTTPException(status_code=401, detail="User not found")
+    if current_user.user_type not in ("consultant", "admin"):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    webinar = db.query(ConsultantWebinar).filter(
+        ConsultantWebinar.id == webinar_id,
+        ConsultantWebinar.is_active == True
+    ).first()
+    if not webinar:
+        raise HTTPException(status_code=404, detail="Webinar not found")
+
+    if webinar.is_youtube:
+        raise HTTPException(status_code=400, detail="YouTube videos are embedded directly.")
+    if "storage.googleapis.com/" not in webinar.video_url:
+        raise HTTPException(status_code=404, detail="Invalid GCS URL")
+
+    after = webinar.video_url.split("storage.googleapis.com/", 1)[1]
+    bucket_name, blob_path = after.split("/", 1)
+
+    def _download():
+        client = gcs_storage.Client()
+        blob = client.bucket(bucket_name).blob(blob_path)
+        ct = blob.content_type
+        if not ct or ct in ("application/octet-stream", "binary/octet-stream"):
+            low = blob_path.lower()
+            if low.endswith(".mp4"):
+                ct = "video/mp4"
+            elif low.endswith(".webm"):
+                ct = "video/webm"
+            elif low.endswith(".mov"):
+                ct = "video/quicktime"
+            elif low.endswith(".m4v"):
+                ct = "video/mp4"
+            else:
+                ct = "video/mp4"
+        return blob.download_as_bytes(), ct
+
+    video_bytes, content_type = await asyncio.get_event_loop().run_in_executor(None, _download)
+    total = len(video_bytes)
+
+    range_header = request.headers.get("range")
+    if range_header and range_header.startswith("bytes="):
+        raw_range = range_header.replace("bytes=", "").strip()
+        byte_start, byte_end = 0, total - 1
+        try:
+            if raw_range.startswith("-"):
+                suffix_len = int(raw_range[1:])
+                byte_start = max(0, total - suffix_len)
+                byte_end = total - 1
+            elif "-" in raw_range:
+                parts = raw_range.split("-", 1)
+                byte_start = int(parts[0]) if parts[0] else 0
+                byte_end = int(parts[1]) if parts[1] else (total - 1)
+        except Exception:
+            byte_start, byte_end = 0, total - 1
+
+        if byte_start >= total:
+            return _BinResp(status_code=416, headers={"Content-Range": f"bytes */{total}"})
+        byte_end = min(byte_end, total - 1)
+        if byte_end < byte_start:
+            byte_end = byte_start
+
+        max_chunk = 8 * 1024 * 1024  # 8MB chunk
+        if (byte_end - byte_start + 1) > max_chunk:
+            byte_end = byte_start + max_chunk - 1
+
+        chunk = video_bytes[byte_start: byte_end + 1]
+        return _StreamResp(
+            iter([chunk]),
+            status_code=206,
+            headers={
+                "Content-Disposition": "inline",
+                "Content-Range": f"bytes {byte_start}-{byte_end}/{total}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(len(chunk)),
+                "Cache-Control": "private, max-age=3600",
+            },
+            media_type=content_type,
+        )
+
+    return _BinResp(
+        content=video_bytes,
+        media_type=content_type,
+        headers={
+            "Content-Disposition": "inline",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(total),
+            "Cache-Control": "private, max-age=3600",
+        },
+    )
+
+
+# ============================================================================
 
 
 # ============================================================================

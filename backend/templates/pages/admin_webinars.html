@@ -1,0 +1,1194 @@
+{% extends "layouts/protected.html" %}
+
+{% block dashboard_content %}
+<style>
+  /* ── Header & Layout ─────────────────────────────────────── */
+  .wn-header        { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:1rem; margin-bottom:2rem; }
+  .wn-title         { font-size:1.75rem; font-weight:800; color:#111827; line-height:1.2; display:flex; align-items:center; gap:0.6rem; }
+  .wn-subtitle      { font-size:.875rem; color:#6b7280; margin-top:.35rem; }
+  .wn-pill-badge    { background:linear-gradient(135deg, #4f46e5, #6366f1); color:#fff; font-size:.72rem; font-weight:800; padding:3px 10px; border-radius:999px; letter-spacing:.05em; display:inline-block; }
+
+  /* ── Stats Bar ─────────────────────────────────────────── */
+  .stats-grid       { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:1rem; margin-bottom:1.75rem; }
+  .stat-card        { background:#fff; border:1px solid #e5e7eb; border-radius:1rem; padding:1rem 1.25rem; display:flex; align-items:center; gap:1rem; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+  .stat-icon        { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+  /* ── Upload Tabs ────────────────────────────────────────── */
+  .tab-row          { display:flex; gap:.5rem; margin-bottom:1.25rem; }
+  .tab-btn          { flex:1; padding:.65rem 1rem; border-radius:.75rem; border:2px solid #e5e7eb; font-size:.85rem; font-weight:700; cursor:pointer; background:#f9fafb; color:#374151; transition:all .18s ease; display:flex; align-items:center; justify-content:center; gap:.5rem; }
+  .tab-btn.active   { border-color:#4f46e5; background:#eef2ff; color:#4338ca; }
+  .tab-btn:hover:not(.active) { border-color:#c7d2fe; }
+
+  .tab-panel        { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* ── Form Elements ──────────────────────────────────────── */
+  .field-label      { font-size:.8rem; font-weight:600; color:#374151; margin-bottom:.35rem; display:block; }
+  .field-input      { width:100%; padding:.65rem .9rem; border:1.5px solid #e5e7eb; border-radius:.65rem; font-size:.875rem; color:#111827; transition:border-color .15s; box-sizing:border-box; background:#fff; }
+  .field-input:focus { outline:none; border-color:#4f46e5; box-shadow:0 0 0 3px rgba(79,70,229,.12); }
+  .form-row         { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  @media(max-width:680px) { .form-row { grid-template-columns:1fr; } }
+
+  /* ── Upload Box ─────────────────────────────────────────── */
+  .upload-box {
+    border: 2px dashed #cbd5e1;
+    border-radius: 0.85rem;
+    padding: 1.75rem 1rem;
+    text-align: center;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .upload-box:hover, .upload-box.dragover {
+    border-color: #4f46e5;
+    background: #eef2ff;
+  }
+  .upload-icon {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto .75rem;
+    background: #e0e7ff;
+    color: #4338ca;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Progress Bar ───────────────────────────────────────── */
+  #upload-progress-wrap { display:none; margin-top:.85rem; }
+  #upload-progress-bar  { height:8px; border-radius:999px; background:linear-gradient(90deg, #4f46e5, #6366f1); width:0%; transition:width .2s ease; }
+  #upload-progress-track { height:8px; border-radius:999px; background:#e2e8f0; overflow:hidden; }
+  #upload-size-label    { font-size:.78rem; font-weight:600; color:#475569; margin-top:.4rem; display:flex; justify-content:space-between; }
+
+  /* ── Save Button ────────────────────────────────────────── */
+  .save-btn         { width:100%; padding:.75rem 1.25rem; border-radius:.75rem; border:none; background:linear-gradient(135deg,#4f46e5,#4338ca); color:#fff; font-size:.92rem; font-weight:700; cursor:pointer; margin-top:1.25rem; transition:opacity .2s, transform .15s; display:flex; align-items:center; justify-content:center; gap:0.5rem; }
+  .save-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 4px 12px rgba(79,70,229,.28); }
+  .save-btn:disabled { opacity:.55; cursor:not-allowed; }
+
+  /* ── Table & Badges ─────────────────────────────────────── */
+  .wn-table        { width:100%; border-collapse:collapse; margin-top:1.5rem; font-size:.85rem; }
+  .wn-table th     { text-align:left; padding:.75rem .85rem; font-weight:700; font-size:.75rem; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid #f1f5f9; background:#f8fafc; }
+  .wn-table td     { padding:.85rem; border-bottom:1px solid #f1f5f9; color:#374151; vertical-align:middle; }
+  .wn-table tr:hover td { background:#fafafa; }
+
+  .pill-type        { font-size:.7rem; font-weight:700; padding:.2rem .6rem; border-radius:999px; }
+  .pill-yt          { background:#fee2e2; color:#991b1b; }
+  .pill-gcs         { background:#e0e7ff; color:#3730a3; }
+
+  .action-btn       { padding:.35rem .75rem; border-radius:.5rem; font-size:.78rem; font-weight:700; cursor:pointer; transition:all .15s; text-decoration:none; display:inline-flex; align-items:center; gap:4px; }
+  .preview-btn      { border:1.5px solid #c7d2fe; background:#eef2ff; color:#4338ca; margin-right:4px; }
+  .preview-btn:hover { background:#e0e7ff; }
+  .del-btn          { border:1.5px solid #fca5a5; background:#fef2f2; color:#991b1b; }
+  .del-btn:hover    { background:#fee2e2; }
+  .edit-btn         { border:1.5px solid #fed7aa; background:#fff7ed; color:#c2410c; margin-right:4px; }
+  .edit-btn:hover   { background:#ffedd5; }
+
+  /* ── Modal ──────────────────────────────────────────────── */
+  .wn-modal         { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.78); align-items:center; justify-content:center; padding:1rem; backdrop-filter:blur(3px); }
+  .wn-modal.active  { display:flex; }
+  .wn-modal-card    { background:#fff; border-radius:1rem; max-width:760px; width:100%; overflow:hidden; box-shadow:0 24px 48px rgba(0,0,0,.35); position:relative; }
+  .wn-modal-header  { padding:1rem 1.25rem; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; }
+  .wn-modal-title   { font-size:1.05rem; font-weight:700; color:#111827; }
+  .wn-modal-close   { background:none; border:none; font-size:1.4rem; color:#6b7280; cursor:pointer; line-height:1; }
+
+  /* ── Toast ──────────────────────────────────────────────── */
+  .toast            { position:fixed; bottom:1.5rem; right:1.5rem; padding:.75rem 1.25rem; border-radius:.75rem; font-size:.875rem; font-weight:600; z-index:99999; box-shadow:0 4px 16px rgba(0,0,0,.15); opacity:0; transform:translateY(1rem); transition:all .3s; pointer-events:none; }
+  .toast.show       { opacity:1; transform:translateY(0); }
+  .toast-success    { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+  .toast-error      { background:#fef2f2; color:#991b1b; border:1px solid #fca5a5; }
+</style>
+
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  <!-- Header -->
+  <div class="wn-header">
+    <div>
+      <h1 class="wn-title">
+        <i data-lucide="presentation" class="w-7 h-7 text-indigo-600"></i>
+        Consultant Webinar Library
+        <span class="wn-pill-badge">ALL CONSULTANTS</span>
+      </h1>
+      <p class="wn-subtitle">Upload and manage webinar video recordings and masterclasses accessible to all registered consultants.</p>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon bg-indigo-50 text-indigo-600">
+        <i data-lucide="video" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <div class="text-2xl font-extrabold text-gray-900">{{ webinars|length }}</div>
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Webinars</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon bg-blue-50 text-blue-600">
+        <i data-lucide="hard-drive" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <div class="text-2xl font-extrabold text-gray-900">{{ webinars|rejectattr('is_youtube')|list|length }}</div>
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">GCS Video Files</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon bg-red-50 text-red-600">
+        <i data-lucide="youtube" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <div class="text-2xl font-extrabold text-gray-900">{{ webinars|selectattr('is_youtube')|list|length }}</div>
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">YouTube Links</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon bg-emerald-50 text-emerald-600">
+        <i data-lucide="users" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <div class="text-2xl font-extrabold text-gray-900">100%</div>
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Consultant Access</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Upload / Add Webinar Card -->
+  <div class="card px-6 py-6 border-l-4 border-indigo-600 mb-8 bg-white shadow-sm rounded-2xl">
+    <h2 class="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <i data-lucide="upload-cloud" class="w-5 h-5 text-indigo-600"></i>
+      Add Webinar Recording
+    </h2>
+
+    <!-- Tabs -->
+    <div class="tab-row">
+      <button class="tab-btn active" id="tab-upload" onclick="switchTab('upload')">
+        <i data-lucide="hard-drive" class="w-4 h-4"></i> Upload Video File (MP4 / MOV)
+      </button>
+      <button class="tab-btn" id="tab-yt" onclick="switchTab('youtube')">
+        <i data-lucide="youtube" class="w-4 h-4"></i> YouTube Link
+      </button>
+    </div>
+
+    <form id="webinar-form" onsubmit="handleWebinarSubmit(event)">
+      <input type="hidden" id="webinar-mode" value="upload">
+
+      <!-- Common Fields -->
+      <div class="form-row mb-4">
+        <div>
+          <label class="field-label" for="wn-title">Webinar Title <span class="text-red-500">*</span></label>
+          <input type="text" id="wn-title" class="field-input" placeholder="e.g. Masterclass: CBT Protocols in Anxiety Management" required>
+        </div>
+        <div>
+          <label class="field-label" for="wn-speaker">Speaker / Host Name</label>
+          <input type="text" id="wn-speaker" class="field-input" placeholder="e.g. Dr. Priya Sharma">
+        </div>
+      </div>
+
+      <div class="form-row mb-4">
+        <div>
+          <label class="field-label" for="wn-speaker-title">Speaker Credentials / Designation</label>
+          <input type="text" id="wn-speaker-title" class="field-input" placeholder="e.g. Senior Clinical Psychologist, PhD">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="field-label" for="wn-date">Webinar Date</label>
+            <input type="date" id="wn-date" class="field-input">
+          </div>
+          <div>
+            <label class="field-label" for="wn-duration">Duration (e.g. 45:00)</label>
+            <input type="text" id="wn-duration" class="field-input" placeholder="45:00" value="45:00">
+          </div>
+        </div>
+      </div>
+
+      <!-- Access Control Pill (Explicitly set to All Consultants) -->
+      <div class="mb-4 p-3 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-5 h-5 text-indigo-700"></i>
+          <div>
+            <span class="text-xs font-bold text-indigo-900 block">Access Permission</span>
+            <span class="text-xs text-indigo-700">This recording will automatically be accessible to <strong>All Consultants</strong> in their sidebar Webinar Library.</span>
+          </div>
+        </div>
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white">
+          All Consultants
+        </span>
+      </div>
+
+      <!-- Mode: Upload File Panel -->
+      <div id="panel-upload" class="tab-panel active">
+        <div class="mb-4">
+          <label class="field-label">Video File <span class="text-red-500">*</span></label>
+          <div class="upload-box" id="drop-area" onclick="document.getElementById('video-file-input').click()">
+            <div class="upload-icon">
+              <i data-lucide="video" class="w-6 h-6"></i>
+            </div>
+            <p class="text-sm font-semibold text-gray-700" id="file-label">Click to select video or drag &amp; drop here</p>
+            <p class="text-xs text-gray-500 mt-1">Supports MP4, WebM, MOV, M4V, MKV (up to 1.5 GB via chunked upload)</p>
+          </div>
+          <input type="file" id="video-file-input" accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/x-m4v" class="hidden" onchange="handleFileSelect(this)">
+          <div id="selected-file-name" class="text-xs text-indigo-700 font-semibold mt-1.5 hidden"></div>
+        </div>
+      </div>
+
+      <!-- Mode: YouTube Panel -->
+      <div id="panel-youtube" class="tab-panel">
+        <div class="mb-4">
+          <label class="field-label" for="wn-yt-url">YouTube URL <span class="text-red-500">*</span></label>
+          <input type="url" id="wn-yt-url" class="field-input" placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/...">
+          <p class="text-xs text-gray-500 mt-1">Paste the full YouTube link of the recorded session.</p>
+        </div>
+      </div>
+
+      <!-- Optional Thumbnail File & Description -->
+      <div class="form-row mb-4">
+        <div>
+          <label class="field-label" for="thumbnail-file-input">Custom Thumbnail Image (Optional)</label>
+          <input type="file" id="thumbnail-file-input" accept="image/jpeg,image/png,image/webp" class="field-input" onchange="handleThumbSelect(this)">
+          <p class="text-xs text-gray-500 mt-1">Recommended size: 1280x720 (16:9). JPG, PNG, or WebP.</p>
+        </div>
+        <div>
+          <label class="field-label" for="wn-desc">Description / Agenda / Session Summary</label>
+          <textarea id="wn-desc" class="field-input" rows="3" placeholder="Key topics covered, discussion points, resources mentioned..."></textarea>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div id="upload-progress-wrap">
+        <div id="upload-progress-track">
+          <div id="upload-progress-bar"></div>
+        </div>
+        <div id="upload-size-label">
+          <span id="upload-status-text">Uploading video to secure storage...</span>
+          <span id="upload-pct-text">0%</span>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" class="save-btn" id="save-btn">
+        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+        Save &amp; Publish Webinar Recording
+      </button>
+    </form>
+  </div>
+
+  <!-- Existing Webinars Table -->
+  <div class="card p-6 bg-white shadow-sm rounded-2xl">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-base font-bold text-gray-900">Published Webinar Recordings ({{ webinars|length }})</h2>
+        <p class="text-xs text-gray-500">Live in consultant interface under left panel "Webinar Library"</p>
+      </div>
+      <a href="/consultant/webinars" target="_blank" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+        <span>View Consultant Library</span>
+        <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+      </a>
+    </div>
+
+    {% if webinars %}
+    <div class="overflow-x-auto">
+      <table class="wn-table">
+        <thead>
+          <tr>
+            <th>Thumbnail</th>
+            <th>Title &amp; Speaker</th>
+            <th>Date</th>
+            <th>Duration</th>
+            <th>Source</th>
+            <th>Access</th>
+            <th>Views</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for w in webinars %}
+          <tr id="wn-row-{{ w.id }}"
+              data-id="{{ w.id }}"
+              data-title="{{ w.title|escape }}"
+              data-speaker="{{ (w.speaker_name or '')|escape }}"
+              data-speaker-title="{{ (w.speaker_title or '')|escape }}"
+              data-date="{{ w.webinar_date.strftime('%Y-%m-%d') if w.webinar_date else '' }}"
+              data-duration="{{ w.duration_display or '45:00' }}"
+              data-desc="{{ (w.description or '')|escape }}"
+              data-is-yt="{{ 'true' if w.is_youtube else 'false' }}"
+              data-video-url="{{ w.video_url|escape }}"
+              data-thumb="{{ (w.thumbnail_url or '')|escape }}">
+            <td style="width:110px;">
+              <div class="relative w-24 h-14 bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer group" onclick="openPreview({{ w.id }}, '{{ w.title|escape }}', '{{ w.is_youtube }}', '{{ w.video_url }}')">
+                {% if w.thumbnail_url %}
+                <img src="{{ w.thumbnail_url }}" alt="{{ w.title }}" class="w-full h-full object-cover">
+                {% elif w.is_youtube %}
+                <div class="w-full h-full bg-red-950 flex items-center justify-center">
+                  <i data-lucide="youtube" class="w-6 h-6 text-red-500"></i>
+                </div>
+                {% else %}
+                <div class="w-full h-full bg-indigo-950 flex items-center justify-center">
+                  <i data-lucide="presentation" class="w-6 h-6 text-indigo-400"></i>
+                </div>
+                {% endif %}
+                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <i data-lucide="play" class="w-5 h-5 text-white"></i>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="font-bold text-gray-900 text-sm">{{ w.title }}</div>
+              {% if w.speaker_name %}
+              <div class="text-xs text-indigo-700 font-semibold mt-0.5 flex items-center gap-1">
+                <i data-lucide="user" class="w-3 h-3"></i>
+                {{ w.speaker_name }}{% if w.speaker_title %} <span class="text-gray-400 font-normal">({{ w.speaker_title }})</span>{% endif %}
+              </div>
+              {% endif %}
+              {% if w.description %}
+              <div class="text-xs text-gray-500 mt-1 line-clamp-1 max-w-xs">{{ w.description }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <span class="text-xs text-gray-600 font-medium">
+                {% if w.webinar_date %}
+                {{ w.webinar_date.strftime('%b %d, %Y') }}
+                {% else %}
+                {{ w.created_at.strftime('%b %d, %Y') }}
+                {% endif %}
+              </span>
+            </td>
+            <td>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-700">
+                {{ w.duration_display or "45:00" }}
+              </span>
+            </td>
+            <td>
+              {% if w.is_youtube %}
+              <span class="pill-type pill-yt">YouTube</span>
+              {% else %}
+              <span class="pill-type pill-gcs">GCS Video</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                All Consultants
+              </span>
+            </td>
+            <td>
+              <span class="text-xs font-bold text-gray-700">{{ w.view_count }}</span>
+            </td>
+            <td>
+              <div class="flex items-center gap-1">
+                <button type="button" class="action-btn edit-btn" onclick="openEditModal({{ w.id }})" title="Edit Details or Replace Video">
+                  <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Edit
+                </button>
+                <button type="button" class="action-btn preview-btn" onclick="openPreview({{ w.id }}, '{{ w.title|escape }}', '{{ w.is_youtube }}', '{{ w.video_url }}')" title="Preview Video">
+                  <i data-lucide="play" class="w-3.5 h-3.5"></i> Play
+                </button>
+                <a href="/consultant/webinars/{{ w.id }}" target="_blank" class="action-btn preview-btn" title="Open Dedicated Player Page">
+                  <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Player
+                </a>
+                <button type="button" class="action-btn del-btn" onclick="deleteWebinar({{ w.id }}, '{{ w.title|escape }}')" title="Delete recording">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12 text-gray-400">
+      <i data-lucide="presentation" class="w-12 h-12 mx-auto mb-3 text-gray-300"></i>
+      <p class="font-semibold text-gray-600">No webinar recordings published yet.</p>
+      <p class="text-xs text-gray-400 mt-1">Upload an MP4 recording or paste a YouTube recording link above.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Preview Modal -->
+<div class="wn-modal" id="preview-modal" onclick="if(event.target===this) closePreview()">
+  <div class="wn-modal-card">
+    <div class="wn-modal-header">
+      <div class="wn-modal-title" id="modal-video-title">Webinar Preview</div>
+      <button type="button" class="wn-modal-close" onclick="closePreview()">&times;</button>
+    </div>
+    <div class="aspect-video bg-black relative" id="modal-player-container">
+      <!-- Player injected via JS -->
+    </div>
+  </div>
+</div>
+
+<!-- Edit Webinar Modal -->
+<div class="wn-modal" id="edit-modal" onclick="if(event.target===this) closeEditModal()">
+  <div class="wn-modal-card" style="max-width: 680px; max-height: 90vh; overflow-y: auto;">
+    <div class="wn-modal-header" style="position: sticky; top: 0; background: #fff; z-index: 10;">
+      <div class="wn-modal-title flex items-center gap-2">
+        <i data-lucide="edit-3" class="w-5 h-5 text-amber-600"></i>
+        <span>Edit Webinar Details</span>
+      </div>
+      <button type="button" class="wn-modal-close" onclick="closeEditModal()">&times;</button>
+    </div>
+
+    <form id="edit-webinar-form" onsubmit="handleEditWebinarSubmit(event)" style="padding: 1.5rem;">
+      <input type="hidden" id="edit-wn-id">
+      <input type="hidden" id="edit-current-thumb-url">
+      <input type="hidden" id="edit-original-is-yt">
+      <input type="hidden" id="edit-original-video-url">
+
+      <!-- Title & Speaker -->
+      <div class="form-row mb-4">
+        <div>
+          <label class="field-label" for="edit-wn-title">Webinar Title <span class="text-red-500">*</span></label>
+          <input type="text" id="edit-wn-title" class="field-input" required>
+        </div>
+        <div>
+          <label class="field-label" for="edit-wn-speaker">Speaker / Host Name</label>
+          <input type="text" id="edit-wn-speaker" class="field-input">
+        </div>
+      </div>
+
+      <!-- Speaker Title, Date, Duration -->
+      <div class="form-row mb-4">
+        <div>
+          <label class="field-label" for="edit-wn-speaker-title">Speaker Credentials / Designation</label>
+          <input type="text" id="edit-wn-speaker-title" class="field-input">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="field-label" for="edit-wn-date">Webinar Date</label>
+            <input type="date" id="edit-wn-date" class="field-input">
+          </div>
+          <div>
+            <label class="field-label" for="edit-wn-duration">Duration</label>
+            <input type="text" id="edit-wn-duration" class="field-input" placeholder="45:00">
+          </div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="mb-4">
+        <label class="field-label" for="edit-wn-desc">Description / Agenda / Session Summary</label>
+        <textarea id="edit-wn-desc" class="field-input" rows="3"></textarea>
+      </div>
+
+      <!-- Thumbnail -->
+      <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+        <label class="field-label font-bold text-gray-700">Thumbnail Cover Image</label>
+        <div class="flex items-center gap-3 mt-1.5">
+          <div id="edit-thumb-preview" class="w-20 h-12 bg-gray-900 rounded overflow-hidden flex items-center justify-center flex-shrink-0">
+            <!-- thumbnail preview -->
+          </div>
+          <div class="flex-1">
+            <input type="file" id="edit-thumb-input" accept="image/jpeg,image/png,image/webp" class="text-xs text-gray-700" onchange="handleEditThumbSelect(this)">
+            <p class="text-[0.7rem] text-gray-500 mt-0.5">Leave empty to keep existing thumbnail, or select a new JPG/PNG image.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Video Recording & Replacement Section -->
+      <div class="mb-4 p-4 border border-indigo-100 bg-indigo-50/50 rounded-xl">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-indigo-950 uppercase tracking-wider">Video Recording</span>
+          <span id="edit-current-video-badge" class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-100 text-indigo-800"></span>
+        </div>
+
+        <!-- Video Action Radio Group -->
+        <div class="space-y-2 text-xs">
+          <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-800">
+            <input type="radio" name="edit-video-action" value="keep" checked onchange="toggleEditVideoAction()">
+            <span>Keep existing video recording (do not replace)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-800">
+            <input type="radio" name="edit-video-action" value="upload" onchange="toggleEditVideoAction()">
+            <span>Replace with a new video file (MP4, MOV up to 1.5 GB via chunked upload)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-800">
+            <input type="radio" name="edit-video-action" value="youtube" onchange="toggleEditVideoAction()">
+            <span>Replace with a YouTube Link</span>
+          </label>
+        </div>
+
+        <!-- Video File Chooser for Replacement -->
+        <div id="edit-video-file-wrap" class="mt-3 hidden p-3 bg-white border border-gray-200 rounded-lg">
+          <input type="file" id="edit-video-file-input" accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/x-m4v" class="text-xs text-gray-700" onchange="handleEditVideoSelect(this)">
+          <div id="edit-selected-file-label" class="text-xs text-indigo-700 font-semibold mt-1 hidden"></div>
+          <p class="text-[0.7rem] text-gray-500 mt-1">Chunked upload will stream this new recording to Google Cloud Storage.</p>
+        </div>
+
+        <!-- YouTube Link for Replacement -->
+        <div id="edit-youtube-wrap" class="mt-3 hidden p-3 bg-white border border-gray-200 rounded-lg">
+          <label class="field-label text-xs" for="edit-yt-url">New YouTube URL</label>
+          <input type="url" id="edit-yt-url" class="field-input text-xs" placeholder="https://www.youtube.com/watch?v=...">
+        </div>
+      </div>
+
+      <!-- Edit Progress Bar -->
+      <div id="edit-upload-progress-wrap" class="hidden mb-4">
+        <div id="edit-upload-progress-track" style="height:8px; border-radius:999px; background:#e2e8f0; overflow:hidden;">
+          <div id="edit-upload-progress-bar" style="height:8px; border-radius:999px; background:linear-gradient(90deg, #f59e0b, #d97706); width:0%; transition:width .2s ease;"></div>
+        </div>
+        <div class="flex justify-between text-xs text-gray-600 mt-1 font-semibold">
+          <span id="edit-upload-status-text">Uploading replacement video...</span>
+          <span id="edit-upload-pct-text">0%</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
+        <button type="button" class="action-btn" style="padding:0.6rem 1.25rem; background:#f3f4f6; color:#4b5563; border:1px solid #d1d5db;" onclick="closeEditModal()">
+          Cancel
+        </button>
+        <button type="submit" id="edit-save-btn" class="save-btn" style="margin-top:0; width:auto; padding:0.65rem 1.75rem; background:linear-gradient(135deg,#f59e0b,#d97706);">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          Save Changes
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script>
+  let selectedVideoFile = null;
+  let selectedThumbFile = null;
+
+  // Set default webinar date to today
+  document.addEventListener('DOMContentLoaded', () => {
+    const dateInput = document.getElementById('wn-date');
+    if (dateInput && !dateInput.value) {
+      dateInput.value = new Date().toISOString().split('T')[0];
+    }
+  });
+
+  function switchTab(mode) {
+    const btnUpload = document.getElementById('tab-upload');
+    const btnYt = document.getElementById('tab-yt');
+    const panelUpload = document.getElementById('panel-upload');
+    const panelYt = document.getElementById('panel-youtube');
+    const modeInput = document.getElementById('webinar-mode');
+
+    if (mode === 'upload') {
+      btnUpload.classList.add('active');
+      btnYt.classList.remove('active');
+      panelUpload.classList.add('active');
+      panelYt.classList.remove('active');
+      modeInput.value = 'upload';
+    } else {
+      btnYt.classList.add('active');
+      btnUpload.classList.remove('active');
+      panelYt.classList.add('active');
+      panelUpload.classList.remove('active');
+      modeInput.value = 'youtube';
+    }
+  }
+
+  function handleFileSelect(input) {
+    if (input.files && input.files[0]) {
+      selectedVideoFile = input.files[0];
+      const nameEl = document.getElementById('selected-file-name');
+      const sizeMB = (selectedVideoFile.size / (1024 * 1024)).toFixed(1);
+      nameEl.textContent = `Selected: ${selectedVideoFile.name} (${sizeMB} MB)`;
+      nameEl.classList.remove('hidden');
+      document.getElementById('file-label').textContent = selectedVideoFile.name;
+    }
+  }
+
+  function handleThumbSelect(input) {
+    if (input.files && input.files[0]) {
+      selectedThumbFile = input.files[0];
+    }
+  }
+
+  // Drag and Drop
+  const dropArea = document.getElementById('drop-area');
+  if (dropArea) {
+    ['dragenter', 'dragover'].forEach(name => {
+      dropArea.addEventListener(name, (e) => { e.preventDefault(); dropArea.classList.add('dragover'); }, false);
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropArea.addEventListener(name, (e) => { e.preventDefault(); dropArea.classList.remove('dragover'); }, false);
+    });
+    dropArea.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        selectedVideoFile = e.dataTransfer.files[0];
+        const nameEl = document.getElementById('selected-file-name');
+        const sizeMB = (selectedVideoFile.size / (1024 * 1024)).toFixed(1);
+        nameEl.textContent = `Selected: ${selectedVideoFile.name} (${sizeMB} MB)`;
+        nameEl.classList.remove('hidden');
+        document.getElementById('file-label').textContent = selectedVideoFile.name;
+      }
+    });
+  }
+
+  function showToast(msg, isSuccess = true) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + (isSuccess ? 'toast-success' : 'toast-error');
+    setTimeout(() => { t.className = 'toast'; }, 3500);
+  }
+
+  async function handleWebinarSubmit(e) {
+    e.preventDefault();
+    const mode = document.getElementById('webinar-mode').value;
+    const title = document.getElementById('wn-title').value.trim();
+    const speaker = document.getElementById('wn-speaker').value.trim();
+    const speakerTitle = document.getElementById('wn-speaker-title').value.trim();
+    const webinarDate = document.getElementById('wn-date').value;
+    const duration = document.getElementById('wn-duration').value.trim();
+    const desc = document.getElementById('wn-desc').value.trim();
+    const ytUrl = document.getElementById('wn-yt-url').value.trim();
+
+    if (!title) {
+      showToast('Please enter a webinar title', false);
+      return;
+    }
+
+    if (mode === 'youtube' && !ytUrl) {
+      showToast('Please enter a valid YouTube URL', false);
+      return;
+    }
+
+    if (mode === 'upload' && !selectedVideoFile) {
+      showToast('Please select a video file to upload', false);
+      return;
+    }
+
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+
+    const progressWrap = document.getElementById('upload-progress-wrap');
+    const progressBar = document.getElementById('upload-progress-bar');
+    const pctLabel = document.getElementById('upload-pct-text');
+    const statusLabel = document.getElementById('upload-status-text');
+
+    if (mode === 'youtube') {
+      // Direct YouTube submission
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('speaker_name', speaker);
+      formData.append('speaker_title', speakerTitle);
+      formData.append('webinar_date', webinarDate);
+      formData.append('duration_display', duration);
+      formData.append('description', desc);
+      formData.append('target_audience', 'all_consultants');
+      formData.append('is_youtube', 'true');
+      formData.append('video_url', ytUrl);
+      if (selectedThumbFile) {
+        formData.append('thumbnail_file', selectedThumbFile);
+      }
+
+      try {
+        const res = await fetch('/api/admin/webinars', { method: 'POST', body: formData });
+        const data = await res.json();
+        saveBtn.disabled = false;
+        if (data.success) {
+          showToast('Webinar published successfully!', true);
+          setTimeout(() => { window.location.reload(); }, 1000);
+        } else {
+          showToast(data.error || 'Failed to save webinar', false);
+        }
+      } catch (err) {
+        saveBtn.disabled = false;
+        showToast('Network error while saving webinar', false);
+      }
+      return;
+    }
+
+    // Video File Upload Mode: Chunked Upload to bypass Cloud Run 32MB single-request limit
+    const MAX_BYTES = 1536 * 1024 * 1024; // 1.5 GB
+    if (selectedVideoFile.size > MAX_BYTES) {
+      saveBtn.disabled = false;
+      showToast('Video exceeds 1.5 GB limit. Please compress the file or link via YouTube.', false);
+      return;
+    }
+
+    progressWrap.style.display = 'block';
+    progressBar.style.width = '2%';
+    pctLabel.textContent = '2%';
+    statusLabel.textContent = 'Preparing upload...';
+
+    // 1. Upload thumbnail first if provided
+    let uploadedThumbUrl = '';
+    if (selectedThumbFile) {
+      statusLabel.textContent = 'Uploading custom thumbnail...';
+      const thumbFd = new FormData();
+      thumbFd.append('thumbnail_file', selectedThumbFile);
+      try {
+        const thumbRes = await fetch('/api/admin/webinars/thumbnail', { method: 'POST', body: thumbFd });
+        const thumbData = await thumbRes.json();
+        if (thumbData.success && thumbData.thumbnail_url) {
+          uploadedThumbUrl = thumbData.thumbnail_url;
+        }
+      } catch (e) {
+        console.warn('Thumbnail upload warning (continuing):', e);
+      }
+    }
+
+    // 2. Chunk upload in 8MB pieces
+    const CHUNK_SIZE = 8 * 1024 * 1024; // 8MB
+    const totalChunks = Math.ceil(selectedVideoFile.size / CHUNK_SIZE);
+    const uploadId = 'wn_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+      const start = chunkIndex * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, selectedVideoFile.size);
+      const chunkBlob = selectedVideoFile.slice(start, end);
+
+      const chunkFd = new FormData();
+      chunkFd.append('chunk', chunkBlob, selectedVideoFile.name);
+      chunkFd.append('upload_id', uploadId);
+      chunkFd.append('chunk_index', chunkIndex);
+      chunkFd.append('total_chunks', totalChunks);
+      chunkFd.append('title', title);
+      chunkFd.append('speaker_name', speaker);
+      chunkFd.append('speaker_title', speakerTitle);
+      chunkFd.append('webinar_date', webinarDate);
+      chunkFd.append('duration_display', duration);
+      chunkFd.append('description', desc);
+      chunkFd.append('original_filename', selectedVideoFile.name);
+      chunkFd.append('thumbnail_url', uploadedThumbUrl);
+      chunkFd.append('target_audience', 'all_consultants');
+
+      let attempt = 0;
+      let success = false;
+      let lastErr = null;
+
+      while (attempt < 3 && !success) {
+        attempt++;
+        try {
+          const res = await uploadSingleChunk(chunkFd, start, selectedVideoFile.size, progressBar, pctLabel, statusLabel, chunkIndex, totalChunks);
+          if (!res.success) {
+            throw new Error(res.error || 'Server error on chunk');
+          }
+          if (res.status === 'completed') {
+            progressBar.style.width = '100%';
+            pctLabel.textContent = '100%';
+            statusLabel.textContent = 'Recording published successfully!';
+            showToast('Webinar published successfully!', true);
+            setTimeout(() => { window.location.reload(); }, 1200);
+            return;
+          }
+          success = true;
+        } catch (err) {
+          lastErr = err;
+          if (attempt < 3) {
+            statusLabel.textContent = `Retrying chunk ${chunkIndex + 1} (attempt ${attempt + 1})...`;
+            await new Promise(r => setTimeout(r, 1500));
+          }
+        }
+      }
+
+      if (!success) {
+        saveBtn.disabled = false;
+        progressWrap.style.display = 'none';
+        showToast(lastErr ? (lastErr.message || 'Upload failed') : 'Upload error', false);
+        return;
+      }
+    }
+  }
+
+  function uploadSingleChunk(fd, chunkStart, totalFileSize, progressBar, pctLabel, statusLabel, chunkIndex, totalChunks) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/admin/webinars/chunk');
+
+      xhr.upload.onprogress = (evt) => {
+        if (evt.lengthComputable) {
+          const currentTotal = chunkStart + evt.loaded;
+          const percent = Math.min(99, Math.round((currentTotal / totalFileSize) * 100));
+          progressBar.style.width = percent + '%';
+          pctLabel.textContent = percent + '%';
+          const loadedMb = (currentTotal / (1024 * 1024)).toFixed(1);
+          const totalMb = (totalFileSize / (1024 * 1024)).toFixed(1);
+          statusLabel.textContent = `Uploading: chunk ${chunkIndex + 1}/${totalChunks} (${loadedMb} / ${totalMb} MB)...`;
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 413) {
+          reject(new Error('Chunk exceeded server limit.'));
+          return;
+        }
+        if (xhr.status === 403) {
+          reject(new Error('Unauthorized. Admin session expired.'));
+          return;
+        }
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300 && res.success) {
+            resolve(res);
+          } else {
+            reject(new Error(res.error || `Upload failed (status ${xhr.status})`));
+          }
+        } catch {
+          reject(new Error(`Server error (${xhr.status})`));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Network error during chunk upload.'));
+      };
+
+      xhr.send(fd);
+    });
+  }
+
+  async function deleteWebinar(id, title) {
+    if (!confirm(`Are you sure you want to remove the webinar recording "${title}"?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/webinars/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Webinar removed successfully', true);
+        const row = document.getElementById(`wn-row-${id}`);
+        if (row) row.remove();
+      } else {
+        showToast(data.error || 'Failed to delete webinar', false);
+      }
+    } catch (e) {
+      showToast('Error removing webinar: ' + e.message, false);
+    }
+  }
+
+  function openPreview(id, title, isYt, videoUrl) {
+    const modal = document.getElementById('preview-modal');
+    const titleEl = document.getElementById('modal-video-title');
+    const container = document.getElementById('modal-player-container');
+
+    titleEl.textContent = title;
+    container.innerHTML = '';
+
+    const isYoutubeBool = isYt === 'True' || isYt === 'true' || isYt === true;
+
+    if (isYoutubeBool) {
+      let ytId = '';
+      if (videoUrl.includes('watch?v=')) {
+        ytId = videoUrl.split('watch?v=')[1].split('&')[0];
+      } else if (videoUrl.includes('youtu.be/')) {
+        ytId = videoUrl.split('youtu.be/')[1].split('?')[0];
+      } else if (videoUrl.includes('embed/')) {
+        ytId = videoUrl.split('embed/')[1].split('?')[0];
+      } else {
+        ytId = videoUrl;
+      }
+      container.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0" class="w-full h-full" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    } else {
+      const streamUrl = `/api/consultant/webinars/${id}/stream`;
+      container.innerHTML = `<video src="${streamUrl}" class="w-full h-full" controls autoplay playsinline></video>`;
+    }
+
+    modal.classList.add('active');
+  }
+
+  function closePreview() {
+    const modal = document.getElementById('preview-modal');
+    const container = document.getElementById('modal-player-container');
+    container.innerHTML = '';
+    modal.classList.remove('active');
+  }
+
+  // ── Edit Modal Functions ──────────────────────────────────
+  let selectedEditThumbFile = null;
+  let selectedEditVideoFile = null;
+
+  function openEditModal(id) {
+    const row = document.getElementById(`wn-row-${id}`);
+    if (!row) return;
+
+    selectedEditThumbFile = null;
+    selectedEditVideoFile = null;
+
+    const title = row.getAttribute('data-title') || '';
+    const speaker = row.getAttribute('data-speaker') || '';
+    const speakerTitle = row.getAttribute('data-speaker-title') || '';
+    const date = row.getAttribute('data-date') || '';
+    const duration = row.getAttribute('data-duration') || '45:00';
+    const desc = row.getAttribute('data-desc') || '';
+    const isYt = row.getAttribute('data-is-yt') === 'true';
+    const videoUrl = row.getAttribute('data-video-url') || '';
+    const thumbUrl = row.getAttribute('data-thumb') || '';
+
+    document.getElementById('edit-wn-id').value = id;
+    document.getElementById('edit-wn-title').value = title;
+    document.getElementById('edit-wn-speaker').value = speaker;
+    document.getElementById('edit-wn-speaker-title').value = speakerTitle;
+    document.getElementById('edit-wn-date').value = date;
+    document.getElementById('edit-wn-duration').value = duration;
+    document.getElementById('edit-wn-desc').value = desc;
+    document.getElementById('edit-current-thumb-url').value = thumbUrl;
+    document.getElementById('edit-original-is-yt').value = isYt ? 'true' : 'false';
+    document.getElementById('edit-original-video-url').value = videoUrl;
+
+    // Thumbnail preview
+    const thumbPreview = document.getElementById('edit-thumb-preview');
+    if (thumbUrl) {
+      thumbPreview.innerHTML = `<img src="${thumbUrl}" class="w-full h-full object-cover">`;
+    } else {
+      thumbPreview.innerHTML = `<i data-lucide="image" class="w-5 h-5 text-gray-400"></i>`;
+    }
+    document.getElementById('edit-thumb-input').value = '';
+
+    // Current video badge
+    const badge = document.getElementById('edit-current-video-badge');
+    badge.textContent = isYt ? 'Current: YouTube Video' : 'Current: Uploaded GCS Video';
+
+    // Reset video action radios to "keep"
+    const keepRadio = document.querySelector('input[name="edit-video-action"][value="keep"]');
+    if (keepRadio) keepRadio.checked = true;
+    document.getElementById('edit-video-file-wrap').classList.add('hidden');
+    document.getElementById('edit-youtube-wrap').classList.add('hidden');
+    document.getElementById('edit-video-file-input').value = '';
+    document.getElementById('edit-selected-file-label').classList.add('hidden');
+    document.getElementById('edit-yt-url').value = '';
+    document.getElementById('edit-upload-progress-wrap').classList.add('hidden');
+
+    document.getElementById('edit-modal').classList.add('active');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  function closeEditModal() {
+    const modal = document.getElementById('edit-modal');
+    modal.classList.remove('active');
+  }
+
+  function toggleEditVideoAction() {
+    const action = document.querySelector('input[name="edit-video-action"]:checked').value;
+    const fileWrap = document.getElementById('edit-video-file-wrap');
+    const ytWrap = document.getElementById('edit-youtube-wrap');
+
+    if (action === 'upload') {
+      fileWrap.classList.remove('hidden');
+      ytWrap.classList.add('hidden');
+    } else if (action === 'youtube') {
+      ytWrap.classList.remove('hidden');
+      fileWrap.classList.add('hidden');
+    } else {
+      fileWrap.classList.add('hidden');
+      ytWrap.classList.add('hidden');
+    }
+  }
+
+  function handleEditThumbSelect(input) {
+    if (input.files && input.files[0]) {
+      selectedEditThumbFile = input.files[0];
+      const preview = document.getElementById('edit-thumb-preview');
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        preview.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+      };
+      reader.readAsDataURL(selectedEditThumbFile);
+    }
+  }
+
+  function handleEditVideoSelect(input) {
+    if (input.files && input.files[0]) {
+      selectedEditVideoFile = input.files[0];
+      const label = document.getElementById('edit-selected-file-label');
+      const sizeMb = (selectedEditVideoFile.size / (1024 * 1024)).toFixed(1);
+      label.textContent = `Selected: ${selectedEditVideoFile.name} (${sizeMb} MB)`;
+      label.classList.remove('hidden');
+    }
+  }
+
+  async function handleEditWebinarSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('edit-wn-id').value;
+    const title = document.getElementById('edit-wn-title').value.trim();
+    const speaker = document.getElementById('edit-wn-speaker').value.trim();
+    const speakerTitle = document.getElementById('edit-wn-speaker-title').value.trim();
+    const webinarDate = document.getElementById('edit-wn-date').value;
+    const duration = document.getElementById('edit-wn-duration').value.trim();
+    const desc = document.getElementById('edit-wn-desc').value.trim();
+    const action = document.querySelector('input[name="edit-video-action"]:checked').value;
+
+    if (!title) {
+      showToast('Please enter a webinar title', false);
+      return;
+    }
+
+    const saveBtn = document.getElementById('edit-save-btn');
+    saveBtn.disabled = true;
+
+    // Step 1: Upload new thumbnail if provided
+    let finalThumbUrl = document.getElementById('edit-current-thumb-url').value;
+    if (selectedEditThumbFile) {
+      try {
+        const thumbFd = new FormData();
+        thumbFd.append('thumbnail_file', selectedEditThumbFile);
+        const thumbRes = await fetch('/api/admin/webinars/thumbnail', { method: 'POST', body: thumbFd });
+        const thumbData = await thumbRes.json();
+        if (thumbData.success && thumbData.thumbnail_url) {
+          finalThumbUrl = thumbData.thumbnail_url;
+        }
+      } catch (err) {
+        console.warn('Edit thumbnail upload warning:', err);
+      }
+    }
+
+    // Step 2: Handle Video Action
+    if (action === 'keep') {
+      const fd = new FormData();
+      fd.append('title', title);
+      fd.append('speaker_name', speaker);
+      fd.append('speaker_title', speakerTitle);
+      fd.append('webinar_date', webinarDate);
+      fd.append('duration_display', duration);
+      fd.append('description', desc);
+      fd.append('thumbnail_url', finalThumbUrl);
+      fd.append('replace_video', 'false');
+
+      try {
+        const res = await fetch(`/api/admin/webinars/${id}/update`, { method: 'POST', body: fd });
+        const data = await res.json();
+        saveBtn.disabled = false;
+        if (data.success) {
+          showToast('Webinar details updated successfully!', true);
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast(data.error || 'Failed to update webinar', false);
+        }
+      } catch (err) {
+        saveBtn.disabled = false;
+        showToast('Network error while updating webinar', false);
+      }
+      return;
+    }
+
+    if (action === 'youtube') {
+      const ytUrl = document.getElementById('edit-yt-url').value.trim();
+      if (!ytUrl) {
+        saveBtn.disabled = false;
+        showToast('Please enter a valid YouTube URL', false);
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('title', title);
+      fd.append('speaker_name', speaker);
+      fd.append('speaker_title', speakerTitle);
+      fd.append('webinar_date', webinarDate);
+      fd.append('duration_display', duration);
+      fd.append('description', desc);
+      fd.append('thumbnail_url', finalThumbUrl);
+      fd.append('replace_video', 'true');
+      fd.append('is_youtube', 'true');
+      fd.append('video_url', ytUrl);
+
+      try {
+        const res = await fetch(`/api/admin/webinars/${id}/update`, { method: 'POST', body: fd });
+        const data = await res.json();
+        saveBtn.disabled = false;
+        if (data.success) {
+          showToast('Webinar video replaced with YouTube link!', true);
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast(data.error || 'Failed to update video link', false);
+        }
+      } catch (err) {
+        saveBtn.disabled = false;
+        showToast('Network error while replacing video', false);
+      }
+      return;
+    }
+
+    if (action === 'upload') {
+      if (!selectedEditVideoFile) {
+        saveBtn.disabled = false;
+        showToast('Please select a replacement video file', false);
+        return;
+      }
+
+      const MAX_BYTES = 1536 * 1024 * 1024;
+      if (selectedEditVideoFile.size > MAX_BYTES) {
+        saveBtn.disabled = false;
+        showToast('Replacement video exceeds 1.5 GB limit', false);
+        return;
+      }
+
+      // Chunked upload for replacement video
+      const progressWrap = document.getElementById('edit-upload-progress-wrap');
+      const progressBar = document.getElementById('edit-upload-progress-bar');
+      const pctLabel = document.getElementById('edit-upload-pct-text');
+      const statusLabel = document.getElementById('edit-upload-status-text');
+
+      progressWrap.classList.remove('hidden');
+      progressBar.style.width = '2%';
+      pctLabel.textContent = '2%';
+      statusLabel.textContent = 'Starting chunked replacement upload...';
+
+      const CHUNK_SIZE = 8 * 1024 * 1024;
+      const totalChunks = Math.ceil(selectedEditVideoFile.size / CHUNK_SIZE);
+      const uploadId = 'wn_edit_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, selectedEditVideoFile.size);
+        const chunkBlob = selectedEditVideoFile.slice(start, end);
+
+        const chunkFd = new FormData();
+        chunkFd.append('chunk', chunkBlob, selectedEditVideoFile.name);
+        chunkFd.append('upload_id', uploadId);
+        chunkFd.append('chunk_index', chunkIndex);
+        chunkFd.append('total_chunks', totalChunks);
+        chunkFd.append('title', title);
+        chunkFd.append('speaker_name', speaker);
+        chunkFd.append('speaker_title', speakerTitle);
+        chunkFd.append('webinar_date', webinarDate);
+        chunkFd.append('duration_display', duration);
+        chunkFd.append('description', desc);
+        chunkFd.append('original_filename', selectedEditVideoFile.name);
+        chunkFd.append('thumbnail_url', finalThumbUrl);
+        chunkFd.append('target_audience', 'all_consultants');
+        chunkFd.append('webinar_id', id);
+
+        let attempt = 0;
+        let success = false;
+        let lastErr = null;
+
+        while (attempt < 3 && !success) {
+          attempt++;
+          try {
+            const res = await uploadSingleChunk(chunkFd, start, selectedEditVideoFile.size, progressBar, pctLabel, statusLabel, chunkIndex, totalChunks);
+            if (!res.success) throw new Error(res.error || 'Server error on chunk');
+            if (res.status === 'completed') {
+              progressBar.style.width = '100%';
+              pctLabel.textContent = '100%';
+              statusLabel.textContent = 'Replacement video uploaded & updated!';
+              showToast('Webinar & video replaced successfully!', true);
+              setTimeout(() => window.location.reload(), 1200);
+              return;
+            }
+            success = true;
+          } catch (err) {
+            lastErr = err;
+            if (attempt < 3) {
+              statusLabel.textContent = `Retrying chunk ${chunkIndex + 1} (attempt ${attempt + 1})...`;
+              await new Promise(r => setTimeout(r, 1500));
+            }
+          }
+        }
+
+        if (!success) {
+          saveBtn.disabled = false;
+          progressWrap.classList.add('hidden');
+          showToast(lastErr ? (lastErr.message || 'Upload failed') : 'Upload error', false);
+          return;
+        }
+      }
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closePreview();
+      closeEditModal();
+    }
+  });
+</script>
+{% endblock %}
