@@ -24,7 +24,7 @@ load_dotenv()
 
 # Import database and models
 from database import init_db, get_db, get_db_session
-from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, ScheduleBreak, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile, VideoFolder, Video, UserExerciseLog, HomePageSection, ConsultantRating, WorkoutLog, DailyWellnessScore, UsagePlan, PlanFeatureCap, UserSubscription, FeatureUsageLog, FeatureUsageTopUp, DemoVideo, DiagnosisReport, UserDeviceToken, ConsultantProVideo, MusicCategory, MusicTrack
+from models import User, PasswordResetToken, VitalsRecord, ConsultantProfile, ConsultantSchedule, ScheduleBreak, Appointment, Message, AIChatHistory, CallSession, MoodEntry, Prescription, PrescriptionItem, PatientNote, OTPVerification, UserProfile, VideoFolder, Video, UserExerciseLog, HomePageSection, ConsultantRating, WorkoutLog, DailyWellnessScore, UsagePlan, PlanFeatureCap, UserSubscription, FeatureUsageLog, FeatureUsageTopUp, DemoVideo, DiagnosisReport, UserDeviceToken, ConsultantProVideo, MusicCategory, MusicTrack, ConsultantWebinar
 # Version 2.2 - Homepage Builder Feature - Fresh Deploy
 
 
