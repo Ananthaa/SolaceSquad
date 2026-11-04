@@ -761,6 +761,22 @@ def _is_mobile_app_request(request: Request, data: dict = None) -> bool:
         return True
     return False
 
+def is_ios_request(request: Request) -> bool:
+    """
+    Detect if request originated from iOS or iPadOS device/wrapper.
+    Apple App Store Guideline 4.8 requires hiding third-party login (Google)
+    unless Sign in with Apple is offered. First-party logins (Email, Phone) are exempt.
+    """
+    ua = request.headers.get("user-agent", "").lower()
+    return (
+        "solacesquadapp/ios" in ua
+        or "iphone" in ua
+        or "ipad" in ua
+        or "ipod" in ua
+        or "cfnetwork" in ua
+        or ("macintosh" in ua and "mobile" in ua)
+    )
+
 def get_auth_user_id(request: Request) -> Optional[int]:
     """Extract authenticated user_id from session or Bearer token header / query param."""
     # 1. Session check
@@ -5417,12 +5433,14 @@ async def login(request: Request):
         return RedirectResponse(url="/user-dashboard", status_code=303)
 
     next_url = request.query_params.get("next", "")
+    is_ios = is_ios_request(request)
     return templates.TemplateResponse(
         "pages/auth/login.html",
         {
             "request": request,
             "page_title": "Login - SolaceSquad",
-            "next_url": next_url
+            "next_url": next_url,
+            "is_ios": is_ios
         }
     )
 
@@ -5430,6 +5448,7 @@ async def login(request: Request):
 @limiter.limit("10/minute")
 async def login_post(request: Request, db: Session = Depends(get_db)):
     """Handle login form submission with password validation"""
+    is_ios = is_ios_request(request)
     try:
         # Get form data
         form_data = await request.form()
@@ -5444,7 +5463,8 @@ async def login_post(request: Request, db: Session = Depends(get_db)):
                 {
                     "request": request,
                     "page_title": "Login - SolaceSquad",
-                    "error": "Please provide both email and password"
+                    "error": "Please provide both email and password",
+                    "is_ios": is_ios
                 }
             )
         
@@ -5486,7 +5506,8 @@ async def login_post(request: Request, db: Session = Depends(get_db)):
                 {
                     "request": request,
                     "page_title": "Login - SolaceSquad",
-                    "error": "User not found with this email"
+                    "error": "User not found with this email",
+                    "is_ios": is_ios
                 }
             )
 
@@ -5506,7 +5527,8 @@ async def login_post(request: Request, db: Session = Depends(get_db)):
                 {
                     "request": request,
                     "page_title": "Login - SolaceSquad",
-                    "error": "Incorrect password"
+                    "error": "Incorrect password",
+                    "is_ios": is_ios
                 }
             )
         
@@ -5517,7 +5539,8 @@ async def login_post(request: Request, db: Session = Depends(get_db)):
                 {
                     "request": request,
                     "page_title": "Login - SolaceSquad",
-                    "error": "The mobile app is for user accounts only. Consultants and administrators, please sign in via the web portal at www.solacesquad.com."
+                    "error": "The mobile app is for user accounts only. Consultants and administrators, please sign in via the web portal at www.solacesquad.com.",
+                    "is_ios": is_ios
                 }
             )
         
@@ -5528,7 +5551,8 @@ async def login_post(request: Request, db: Session = Depends(get_db)):
                 {
                     "request": request,
                     "page_title": "Login - SolaceSquad",
-                    "error": f"Your account has been blocked: {user.blocked_reason or 'Please contact support.'}"
+                    "error": f"Your account has been blocked: {user.blocked_reason or 'Please contact support.'}",
+                    "is_ios": is_ios
                 }
             )
 
@@ -5539,7 +5563,8 @@ async def login_post(request: Request, db: Session = Depends(get_db)):
                 {
                     "request": request,
                     "page_title": "Login - SolaceSquad",
-                    "error": "Your account has been deactivated. Please contact support."
+                    "error": "Your account has been deactivated. Please contact support.",
+                    "is_ios": is_ios
                 }
             )
         
@@ -5588,7 +5613,8 @@ async def login_post(request: Request, db: Session = Depends(get_db)):
             {
                 "request": request,
                 "page_title": "Login - SolaceSquad",
-                "error": "An error occurred during login. Please try again."
+                "error": "An error occurred during login. Please try again.",
+                "is_ios": is_ios
             }
         )
 
@@ -5691,7 +5717,8 @@ async def reset_password_page(request: Request, token: str, db: Session = Depend
             {
                 "request": request,
                 "page_title": "Login - SolaceSquad",
-                "error": "Invalid or expired reset link. Please request a new one."
+                "error": "Invalid or expired reset link. Please request a new one.",
+                "is_ios": is_ios_request(request)
             }
         )
     
@@ -5770,14 +5797,16 @@ import string
 
 @app.get("/signup", response_class=HTMLResponse)
 async def signup(request: Request):
-    """Signup page â€” 2-step: email OTP verification + account creation"""
+    """Signup page — 2-step: email OTP verification + account creation"""
     recaptcha_site_key = os.getenv("RECAPTCHA_SITE_KEY", "")
+    is_ios = is_ios_request(request)
     return templates.TemplateResponse(
         "pages/auth/signup_simple.html",
         {
             "request": request,
             "page_title": "Sign Up - SolaceSquad",
             "recaptcha_site_key": recaptcha_site_key,
+            "is_ios": is_ios,
         }
     )
 
@@ -8141,7 +8170,8 @@ async def reset_password_post(request: Request, token: str, db: Session = Depend
             {
                 "request": request,
                 "page_title": "Login - SolaceSquad",
-                "success": "Password reset successful! Please login with your new password."
+                "success": "Password reset successful! Please login with your new password.",
+                "is_ios": is_ios_request(request)
             }
         )
         

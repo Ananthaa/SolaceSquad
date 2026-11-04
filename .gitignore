@@ -73,6 +73,7 @@ backend/rebrand_*.py
 *.md
 !README.md
 !backend/README.md
+!release_checklist.md
 
 backend/service-account.json
 Info.txt

@@ -39,6 +39,7 @@
                         Mobile OTP
                     </span>
                 </button>
+                {% if not is_ios %}
                 <button type="button" id="tab-google-btn" onclick="switchLoginTab('google')"
                     class="flex-1 pb-3 text-center border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300 text-sm focus:outline-none transition-colors duration-200">
                     <span class="flex items-center justify-center gap-2">
@@ -46,6 +47,7 @@
                         Google Login
                     </span>
                 </button>
+                {% endif %}
             </div>
 
             <!-- Global Error / Success Messages (for Email) -->
@@ -150,6 +152,7 @@
                 </div>
             </div>
 
+            {% if not is_ios %}
             <!-- Panel 3: Google Login -->
             <div id="panel-google" class="hidden space-y-6 py-4 text-center">
                 <p class="text-sm text-gray-600 mb-4">
@@ -161,6 +164,7 @@
                     Continue with Google
                 </a>
             </div>
+            {% endif %}
 
             <div class="mt-6 text-center">
                 <p class="text-sm text-gray-600">
@@ -182,6 +186,22 @@
 </div>
 
 <script>
+    // Hide third-party login on iOS to satisfy Apple App Store Guideline 4.8 exemption
+    (function checkIOSLoginExemption() {
+        const isIOS = 
+            navigator.userAgent.includes('SolaceSquadApp/iOS') || 
+            (window.webkit && window.webkit.messageHandlers) ||
+            (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+            (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
+        if (isIOS) {
+            const googleBtn = document.getElementById('tab-google-btn');
+            const googlePanel = document.getElementById('panel-google');
+            if (googleBtn) googleBtn.remove();
+            if (googlePanel) googlePanel.remove();
+        }
+    })();
+
     function switchLoginTab(tab) {
         const emailBtn = document.getElementById('tab-email-btn');
         const phoneBtn = document.getElementById('tab-phone-btn');
@@ -191,28 +211,38 @@
         const phonePanel = document.getElementById('panel-phone');
         const googlePanel = document.getElementById('panel-google');
         
-        // Reset classes
+        // Reset classes safely (handling elements that may be absent on iOS)
         [emailBtn, phoneBtn, googleBtn].forEach(btn => {
-            btn.classList.remove('border-primary-600', 'text-primary-600', 'font-semibold');
-            btn.classList.add('border-transparent', 'text-gray-500', 'font-medium');
+            if (btn) {
+                btn.classList.remove('border-primary-600', 'text-primary-600', 'font-semibold');
+                btn.classList.add('border-transparent', 'text-gray-500', 'font-medium');
+            }
         });
         
         [emailPanel, phonePanel, googlePanel].forEach(panel => {
-            panel.classList.add('hidden');
+            if (panel) {
+                panel.classList.add('hidden');
+            }
         });
         
         if (tab === 'email') {
-            emailBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
-            emailBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
-            emailPanel.classList.remove('hidden');
+            if (emailBtn) {
+                emailBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
+                emailBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            }
+            if (emailPanel) emailPanel.classList.remove('hidden');
         } else if (tab === 'phone') {
-            phoneBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
-            phoneBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
-            phonePanel.classList.remove('hidden');
+            if (phoneBtn) {
+                phoneBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
+                phoneBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            }
+            if (phonePanel) phonePanel.classList.remove('hidden');
         } else if (tab === 'google') {
-            googleBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
-            googleBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
-            googlePanel.classList.remove('hidden');
+            if (googleBtn) {
+                googleBtn.classList.add('border-primary-600', 'text-primary-600', 'font-semibold');
+                googleBtn.classList.remove('border-transparent', 'text-gray-500', 'font-medium');
+            }
+            if (googlePanel) googlePanel.classList.remove('hidden');
         }
     }
 
