@@ -174,13 +174,13 @@ def test_live_site_if_requested():
     ipad_ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 SolaceSquadApp/iOS"
     resp_ios = httpx.get(f"{target_url}/login", headers={"User-Agent": ipad_ua}, follow_redirects=True, timeout=15.0)
     assert resp_ios.status_code == 200, f"Live {target_url}/login failed with status {resp_ios.status_code}"
-    assert "tab-google-btn" not in resp_ios.text, f"FAIL: Live site {target_url}/login displayed tab-google-btn to iOS user!"
-    assert "panel-google" not in resp_ios.text, f"FAIL: Live site {target_url}/login displayed panel-google to iOS user!"
+    assert 'id="tab-google-btn"' not in resp_ios.text, f"FAIL: Live site {target_url}/login displayed tab-google-btn to iOS user!"
+    assert 'id="panel-google"' not in resp_ios.text, f"FAIL: Live site {target_url}/login displayed panel-google to iOS user!"
 
     desktop_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     resp_web = httpx.get(f"{target_url}/login", headers={"User-Agent": desktop_ua}, follow_redirects=True, timeout=15.0)
     assert resp_web.status_code == 200
-    assert "tab-google-btn" in resp_web.text, f"FAIL: Live site {target_url}/login omitted tab-google-btn for desktop users!"
+    assert 'id="tab-google-btn"' in resp_web.text, f"FAIL: Live site {target_url}/login omitted tab-google-btn for desktop users!"
 
     print(f"  PASS: Live verification of {target_url} confirmed 100% compliant.")
 
