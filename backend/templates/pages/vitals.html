@@ -157,7 +157,6 @@
         </div>
     </div>
 </div>
-{% endif %}
 
 <!-- -- Liveness / Anti-Spoofing Failed Modal -- -->
 <div id="liveness-failed-modal" style="display:none;position:fixed;inset:0;z-index:99999;
@@ -201,7 +200,6 @@
     </div>
 </div>
 
-{% if environment == 'mirror' %}
 <!-- -- Biometrics Management Modal (DPDPA 2023 / GDPR Right to Erasure) -- -->
 <div id="biometrics-manage-modal" style="display:none;position:fixed;inset:0;z-index:99999;
            background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);
@@ -324,14 +322,16 @@
         }
     }
     function closeMismatchModal() {
-        document.getElementById('face-mismatch-modal').style.display = 'none';
+        const modal = document.getElementById('face-mismatch-modal');
+        if (modal) modal.style.display = 'none';
         document.body.style.overflow = '';
         if (window.scanner) {
             window.scanner._resetStartBtn();
         }
     }
     function closeLivenessModal() {
-        document.getElementById('liveness-failed-modal').style.display = 'none';
+        const modal = document.getElementById('liveness-failed-modal');
+        if (modal) modal.style.display = 'none';
         document.body.style.overflow = '';
         if (window.scanner) {
             window.scanner._resetStartBtn();
@@ -344,15 +344,20 @@
         }
     }
     function closeBiometricsModal() {
-        document.getElementById('biometrics-manage-modal').style.display = 'none';
+        const modal = document.getElementById('biometrics-manage-modal');
+        if (modal) modal.style.display = 'none';
         document.body.style.overflow = '';
     }
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
-            document.getElementById('scan-disclaimer-overlay').style.display = 'none';
-            document.getElementById('face-mismatch-modal').style.display = 'none';
-            document.getElementById('liveness-failed-modal').style.display = 'none';
-            document.getElementById('biometrics-manage-modal').style.display = 'none';
+            const overlay = document.getElementById('scan-disclaimer-overlay');
+            if (overlay) overlay.style.display = 'none';
+            const mismatch = document.getElementById('face-mismatch-modal');
+            if (mismatch) mismatch.style.display = 'none';
+            const liveness = document.getElementById('liveness-failed-modal');
+            if (liveness) liveness.style.display = 'none';
+            const bio = document.getElementById('biometrics-manage-modal');
+            if (bio) bio.style.display = 'none';
             document.body.style.overflow = '';
         }
     });
@@ -417,10 +422,12 @@
                         </span>
                         <span class="font-bold text-gray-900 text-sm font-['Outfit',sans-serif]">Analyzing Vitals...</span>
                         <!-- Liveness Badge -->
+                        {% if environment == 'mirror' %}
                         <div id="scan-liveness-badge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-300 transition-all">
                             <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-amber-600"></i>
                             <span id="scan-liveness-text">Verifying Liveness...</span>
                         </div>
+                        {% endif %}
                     </div>
                     <div class="text-right">
                         <span id="scan-progress-percent" class="text-sm font-bold text-teal-700 font-mono">0%</span>
@@ -444,10 +451,12 @@
                 </div>
 
                 <!-- Dynamic In-Scan Liveness Prompt (Triggers cleanly below progress bar if no blink by 5.5s) -->
+                {% if environment == 'mirror' %}
                 <div id="scan-blink-prompt" class="hidden mt-3 p-2.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-xl text-xs font-bold text-amber-900 animate-pulse flex items-center justify-center gap-2 shadow-sm">
                     <i data-lucide="eye" class="w-4 h-4 text-amber-600 flex-shrink-0"></i>
                     <span>Please blink naturally to confirm you are a live person</span>
                 </div>
+                {% endif %}
             </div>
 
             <!-- Scanner Status — Shown when NOT scanning (e.g. idle/ready/complete) -->
@@ -651,7 +660,7 @@
                         <span class="text-sm font-medium text-gray-700 flex items-center gap-1">
                             <i data-lucide="activity" class="w-4 h-4 text-green-500"></i> Health Score
                         </span>
-                        {% if entry.health_score %}
+                        {% if environment == 'mirror' and entry.health_score %}
                             {% if entry.health_score >= 80 %}
                                 <span class="text-[10px] font-semibold text-emerald-700">Optimal Wellness</span>
                             {% elif entry.health_score >= 65 %}
@@ -673,7 +682,7 @@
                             <span class="text-xs text-gray-600 flex items-center gap-1">
                                 <i data-lucide="heart" class="w-3 h-3 text-red-400"></i> Heart Rate
                             </span>
-                            {% if entry.heart_rate %}
+                            {% if environment == 'mirror' and entry.heart_rate %}
                                 {% if entry.heart_rate >= 55 and entry.heart_rate <= 85 %}
                                     <span class="text-[10px] font-medium text-emerald-700">Optimal</span>
                                 {% elif entry.heart_rate <= 100 %}
@@ -693,7 +702,7 @@
                             <span class="text-xs text-gray-600 flex items-center gap-1">
                                 <i data-lucide="droplet" class="w-3 h-3 text-blue-400"></i> SpO2
                             </span>
-                            {% if entry.spo2 %}
+                            {% if environment == 'mirror' and entry.spo2 %}
                                 {% if entry.spo2 >= 97 %}
                                     <span class="text-[10px] font-medium text-blue-700">Optimal</span>
                                 {% elif entry.spo2 >= 95 %}
@@ -713,7 +722,7 @@
                             <span class="text-xs text-gray-600 flex items-center gap-1">
                                 <i data-lucide="wind" class="w-3 h-3 text-teal-400"></i> Breathing
                             </span>
-                            {% if entry.respiratory_rate %}
+                            {% if environment == 'mirror' and entry.respiratory_rate %}
                                 {% if entry.respiratory_rate >= 12 and entry.respiratory_rate <= 18 %}
                                     <span class="text-[10px] font-medium text-teal-700">Optimal</span>
                                 {% elif entry.respiratory_rate <= 22 %}
@@ -733,7 +742,7 @@
                             <span class="text-xs text-gray-600 flex items-center gap-1">
                                 <i data-lucide="thermometer" class="w-3 h-3 text-orange-400"></i> Temp
                             </span>
-                            {% if entry.temperature %}
+                            {% if environment == 'mirror' and entry.temperature %}
                                 {% set tempF = (entry.temperature * 9/5) + 32 %}
                                 {% if tempF >= 97.2 and tempF <= 99.1 %}
                                     <span class="text-[10px] font-medium text-emerald-700">Normal</span>
@@ -801,7 +810,7 @@
                             <span class="text-xs text-gray-600 flex items-center gap-1">
                                 <i data-lucide="gauge" class="w-3 h-3 text-purple-400"></i> Blood Pressure
                             </span>
-                            {% if entry.blood_pressure_systolic and entry.blood_pressure_diastolic %}
+                            {% if environment == 'mirror' and entry.blood_pressure_systolic and entry.blood_pressure_diastolic %}
                                 {% if entry.blood_pressure_systolic <= 120 and entry.blood_pressure_diastolic <= 80 %}
                                     <span class="text-[10px] font-semibold text-emerald-700">Optimal</span>
                                 {% elif entry.blood_pressure_systolic <= 130 and entry.blood_pressure_diastolic <= 85 %}
@@ -2805,6 +2814,9 @@
         }
 
         _updateLivenessUI(status) {
+            const isMirror = {{ 'true' if environment == 'mirror' else 'false' }};
+            if (!isMirror) return;
+
             const badge = document.getElementById('scan-liveness-badge');
             const prompt = document.getElementById('scan-blink-prompt');
             const instruct = document.getElementById('scan-instruction-text');
@@ -3480,8 +3492,9 @@
             if (progressPercent) progressPercent.textContent = `${pct}%`;
             if (timerEl) timerEl.textContent = `${Math.floor(elapsed)}s / ${this.scanDuration}s`;
 
-            // Active in-scan randomized liveness challenge: trigger prompt if blink not yet confirmed
-            if (elapsed >= (this.blinkChallengeTime || 5) && !this.blinkChallengeCompleted) {
+            // Active in-scan randomized liveness challenge: trigger prompt if blink not yet confirmed (Mirror only)
+            const isMirror = {{ 'true' if environment == 'mirror' else 'false' }};
+            if (isMirror && elapsed >= (this.blinkChallengeTime || 5) && !this.blinkChallengeCompleted) {
                 this.blinkChallengeActive = true;
                 this._updateLivenessUI('challenge');
             }
@@ -3660,82 +3673,85 @@
             console.log(`[Liveness] Verified Blinks: ${verifiedBlinks} (score ${blinkScore}), PI: ${(piGreen*100).toFixed(3)}% (score ${piScore}), 3D Depth: ${avgDepthZ.toFixed(3)} (score ${depthScore}), SNR: ${snrVal} dB (score ${snrScore}) => Total Liveness Score: ${this.livenessScore}`);
 
             // ── Strict Anti-Spoofing & Liveness Gatekeeper (ISO/IEC 30107-3) ──
+            const isMirror = {{ 'true' if environment == 'mirror' else 'false' }};
             let livenessPassed = true;
             let failHeading = "";
             let failDetail = "";
             let isSpoofAttack = false;
 
-            // Multi-dimensional Physical Verification:
-            const hasLivingPulse = this.results.heartRate !== null;
-            // Mandatory physical barrier against presentation attacks: verified eye blink challenge response
-            const hasBlinked = (this.livenessChecks && (this.livenessChecks.verifiedBlinks || 0) >= 1) && this.blinkChallengeCompleted;
+            if (isMirror) {
+                // Multi-dimensional Physical Verification:
+                const hasLivingPulse = this.results.heartRate !== null;
+                // Mandatory physical barrier against presentation attacks: verified eye blink challenge response
+                const hasBlinked = (this.livenessChecks && (this.livenessChecks.verifiedBlinks || 0) >= 1) && this.blinkChallengeCompleted;
 
-            if (!hasBlinked) {
-                // Strict Gatekeeper: Zero blinks confirmed -> Static photo, digital screen, printed paper, or inanimate object
-                livenessPassed = false;
-                isSpoofAttack = true;
-                failHeading = "Static Photo or Presentation Attack Detected";
-                failDetail = "Zero physiological eye blinks were detected in response to the active liveness challenge. To ensure measurement accuracy, vitals cannot be measured from static photos, printed images, or digital screens. Please scan a live person and blink when prompted.";
-            } else if (piGreen < 0.0002) {
-                // Inanimate surface with absolutely zero hemoglobin pulsatility
-                livenessPassed = false;
-                isSpoofAttack = true;
-                failHeading = "Inanimate Surface Detected";
-                failDetail = "Zero capillary pulsatility detected. Inanimate objects, photos, or digital displays cannot produce living blood micro-circulation.";
-            } else if (!hasLivingPulse) {
-                // Live person confirmed (via blinks), but pulse wave was too faint
-                livenessPassed = false;
-                isSpoofAttack = false;
-                failHeading = "Low Lighting / Faint Pulse Signal";
-                failDetail = "Live person confirmed, but ambient lighting was too faint or uneven to extract clear cardiac pulse waves. Please turn on room lights facing your face, avoid backlighting, and remain still.";
-            } else if (this.livenessScore < 0.35) {
-                livenessPassed = false;
-                isSpoofAttack = true;
-                failHeading = "Anti-Spoofing Verification Failed";
-                failDetail = "Anti-spoofing verification could not verify a live subject. Please scan a living human.";
-            }
+                if (!hasBlinked) {
+                    // Strict Gatekeeper: Zero blinks confirmed -> Static photo, digital screen, printed paper, or inanimate object
+                    livenessPassed = false;
+                    isSpoofAttack = true;
+                    failHeading = "Static Photo or Presentation Attack Detected";
+                    failDetail = "Zero physiological eye blinks were detected in response to the active liveness challenge. To ensure measurement accuracy, vitals cannot be measured from static photos, printed images, or digital screens. Please scan a live person and blink when prompted.";
+                } else if (piGreen < 0.0002) {
+                    // Inanimate surface with absolutely zero hemoglobin pulsatility
+                    livenessPassed = false;
+                    isSpoofAttack = true;
+                    failHeading = "Inanimate Surface Detected";
+                    failDetail = "Zero capillary pulsatility detected. Inanimate objects, photos, or digital displays cannot produce living blood micro-circulation.";
+                } else if (!hasLivingPulse) {
+                    // Live person confirmed (via blinks), but pulse wave was too faint
+                    livenessPassed = false;
+                    isSpoofAttack = false;
+                    failHeading = "Low Lighting / Faint Pulse Signal";
+                    failDetail = "Live person confirmed, but ambient lighting was too faint or uneven to extract clear cardiac pulse waves. Please turn on room lights facing your face, avoid backlighting, and remain still.";
+                } else if (this.livenessScore < 0.35) {
+                    livenessPassed = false;
+                    isSpoofAttack = true;
+                    failHeading = "Anti-Spoofing Verification Failed";
+                    failDetail = "Anti-spoofing verification could not verify a live subject. Please scan a living human.";
+                }
 
-            if (!livenessPassed) {
-                console.warn("[Liveness] Gatekeeper triggered:", failHeading, failDetail);
-                this._resetResults();
-                const modal = document.getElementById('liveness-failed-modal');
-                const titleEl = document.getElementById('liveness-modal-title');
-                const subTitleEl = document.getElementById('liveness-modal-subtitle');
-                const headingEl = document.getElementById('liveness-error-heading');
-                const detailEl = document.getElementById('liveness-error-detail');
-                const headerBand = document.getElementById('liveness-modal-header-band');
-                const alertBox = document.getElementById('liveness-modal-alert-box');
+                if (!livenessPassed) {
+                    console.warn("[Liveness] Gatekeeper triggered:", failHeading, failDetail);
+                    this._resetResults();
+                    const modal = document.getElementById('liveness-failed-modal');
+                    const titleEl = document.getElementById('liveness-modal-title');
+                    const subTitleEl = document.getElementById('liveness-modal-subtitle');
+                    const headingEl = document.getElementById('liveness-error-heading');
+                    const detailEl = document.getElementById('liveness-error-detail');
+                    const headerBand = document.getElementById('liveness-modal-header-band');
+                    const alertBox = document.getElementById('liveness-modal-alert-box');
 
-                if (titleEl) {
-                    titleEl.textContent = isSpoofAttack ? "Anti-Spoofing Check Failed" : "Signal Quality Inconclusive";
+                    if (titleEl) {
+                        titleEl.textContent = isSpoofAttack ? "Anti-Spoofing Check Failed" : "Signal Quality Inconclusive";
+                    }
+                    if (subTitleEl) {
+                        subTitleEl.textContent = isSpoofAttack ? "Liveness Verification" : "Camera & Lighting Optimization";
+                    }
+                    if (headingEl) {
+                        headingEl.textContent = failHeading;
+                        headingEl.style.color = isSpoofAttack ? "#9f1239" : "#92400e";
+                    }
+                    if (detailEl) {
+                        detailEl.textContent = failDetail;
+                        detailEl.style.color = isSpoofAttack ? "#881337" : "#78350f";
+                    }
+                    if (alertBox) {
+                        alertBox.style.background = isSpoofAttack ? "#fff1f2" : "#fef3c7";
+                        alertBox.style.borderColor = isSpoofAttack ? "#fecdd3" : "#fde68a";
+                    }
+                    if (headerBand) {
+                        headerBand.style.background = isSpoofAttack 
+                            ? 'linear-gradient(135deg,#e11d48,#be123c)' 
+                            : 'linear-gradient(135deg,#d97706,#b45309)';
+                    }
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        document.body.style.overflow = 'hidden';
+                    }
+                    this.updateStatus(isSpoofAttack ? 'Scan rejected: Please scan a live person.' : 'Scan inconclusive: Please improve lighting and hold still.', 'error');
+                    this._resetStartBtn();
+                    return;
                 }
-                if (subTitleEl) {
-                    subTitleEl.textContent = isSpoofAttack ? "Liveness Verification" : "Camera & Lighting Optimization";
-                }
-                if (headingEl) {
-                    headingEl.textContent = failHeading;
-                    headingEl.style.color = isSpoofAttack ? "#9f1239" : "#92400e";
-                }
-                if (detailEl) {
-                    detailEl.textContent = failDetail;
-                    detailEl.style.color = isSpoofAttack ? "#881337" : "#78350f";
-                }
-                if (alertBox) {
-                    alertBox.style.background = isSpoofAttack ? "#fff1f2" : "#fef3c7";
-                    alertBox.style.borderColor = isSpoofAttack ? "#fecdd3" : "#fde68a";
-                }
-                if (headerBand) {
-                    headerBand.style.background = isSpoofAttack 
-                        ? 'linear-gradient(135deg,#e11d48,#be123c)' 
-                        : 'linear-gradient(135deg,#d97706,#b45309)';
-                }
-                if (modal) {
-                    modal.style.display = 'flex';
-                    document.body.style.overflow = 'hidden';
-                }
-                this.updateStatus(isSpoofAttack ? 'Scan rejected: Please scan a live person.' : 'Scan inconclusive: Please improve lighting and hold still.', 'error');
-                this._resetStartBtn();
-                return;
             }
 
             // Account Owner Identity Protection:
@@ -4412,6 +4428,7 @@
                 }
             }
 
+            const isMirror = {{ 'true' if environment == 'mirror' else 'false' }};
             const isGuest = !!this.isGuestScan;
             const tileClass = (bgActive, extra) => isGuest
                 ? `cursor-default opacity-80 border-dashed border-gray-300 text-center p-4 bg-gray-50/95 rounded-lg flex flex-col items-center justify-between shadow-none select-none ${extra || ''}`
@@ -4426,14 +4443,16 @@
 
             if (this.results.healthScore) {
                 let badge = '';
-                if (isGuest) {
-                    badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Score Deactivated</span>';
-                } else if (this.results.healthScore >= 80) {
-                    badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Optimal Wellness</span>';
-                } else if (this.results.healthScore >= 65) {
-                    badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-full">Good Composite</span>';
-                } else {
-                    badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">Attention Needed</span>';
+                if (isMirror) {
+                    if (isGuest) {
+                        badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Score Deactivated</span>';
+                    } else if (this.results.healthScore >= 80) {
+                        badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Optimal Wellness</span>';
+                    } else if (this.results.healthScore >= 65) {
+                        badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-full">Good Composite</span>';
+                    } else {
+                        badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">Attention Needed</span>';
+                    }
                 }
 
                 html += `
@@ -4450,9 +4469,11 @@
 
             if (this.results.heartRate) {
                 let hrBadge = '';
-                if (this.results.heartRate >= 55 && this.results.heartRate <= 85) hrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Optimal</span>';
-                else if (this.results.heartRate <= 100) hrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-700 bg-gray-100/70 px-2 py-0.5 rounded-full">Normal</span>';
-                else hrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">Elevated</span>';
+                if (isMirror) {
+                    if (this.results.heartRate >= 55 && this.results.heartRate <= 85) hrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Optimal</span>';
+                    else if (this.results.heartRate <= 100) hrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-700 bg-gray-100/70 px-2 py-0.5 rounded-full">Normal</span>';
+                    else hrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">Elevated</span>';
+                }
 
                 html += `
                 <div ${tileClick('hr')} class="${tileClass('bg-red-50')}" ${tileTitle('Heart Rate')}>
@@ -4461,16 +4482,18 @@
                         <div class="text-2xl font-bold ${isGuest ? 'text-gray-600' : 'text-gray-900'}">${this.results.heartRate}</div>
                         <div class="text-xs text-gray-600 flex items-center justify-center gap-1">BPM ${tileExpandIcon}</div>
                     </div>
-                    ${isGuest ? '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Guest Only</span>' : hrBadge}
+                    ${(isMirror && isGuest) ? '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Guest Only</span>' : hrBadge}
                 </div>
             `;
             }
 
             if (this.results.spo2) {
                 let spo2Badge = '';
-                if (this.results.spo2 >= 97) spo2Badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full">Optimal</span>';
-                else if (this.results.spo2 >= 95) spo2Badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Normal</span>';
-                else spo2Badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-rose-700 bg-rose-100/70 px-2 py-0.5 rounded-full">Low</span>';
+                if (isMirror) {
+                    if (this.results.spo2 >= 97) spo2Badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full">Optimal</span>';
+                    else if (this.results.spo2 >= 95) spo2Badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Normal</span>';
+                    else spo2Badge = '<span class="inline-block mt-1 text-[11px] font-semibold text-rose-700 bg-rose-100/70 px-2 py-0.5 rounded-full">Low</span>';
+                }
 
                 html += `
                 <div ${tileClick('spo2')} class="${tileClass('bg-blue-50')}" ${tileTitle('SpO2')}>
@@ -4479,16 +4502,18 @@
                         <div class="text-2xl font-bold ${isGuest ? 'text-gray-600' : 'text-gray-900'}">${this.results.spo2}%</div>
                         <div class="text-xs text-gray-600 flex items-center justify-center gap-1">SpO2 ${tileExpandIcon}</div>
                     </div>
-                    ${isGuest ? '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Guest Only</span>' : spo2Badge}
+                    ${(isMirror && isGuest) ? '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Guest Only</span>' : spo2Badge}
                 </div>
             `;
             }
 
             if (this.results.respiratoryRate) {
                 let rrBadge = '';
-                if (this.results.respiratoryRate >= 12 && this.results.respiratoryRate <= 18) rrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-full">Optimal</span>';
-                else if (this.results.respiratoryRate <= 22) rrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-700 bg-gray-100/70 px-2 py-0.5 rounded-full">Normal</span>';
-                else rrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">Elevated</span>';
+                if (isMirror) {
+                    if (this.results.respiratoryRate >= 12 && this.results.respiratoryRate <= 18) rrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-full">Optimal</span>';
+                    else if (this.results.respiratoryRate <= 22) rrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-700 bg-gray-100/70 px-2 py-0.5 rounded-full">Normal</span>';
+                    else rrBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">Elevated</span>';
+                }
 
                 html += `
                 <div ${tileClick('rr')} class="${tileClass('bg-teal-50')}" ${tileTitle('Breathing')}>
@@ -4497,7 +4522,7 @@
                         <div class="text-2xl font-bold ${isGuest ? 'text-gray-600' : 'text-gray-900'}">${this.results.respiratoryRate}</div>
                         <div class="text-xs text-gray-600 flex items-center justify-center gap-1">Breaths/min ${tileExpandIcon}</div>
                     </div>
-                    ${isGuest ? '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Guest Only</span>' : rrBadge}
+                    ${(isMirror && isGuest) ? '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Guest Only</span>' : rrBadge}
                 </div>
             `;
             }
@@ -4506,9 +4531,11 @@
                 // Convert Celsius to Fahrenheit for display
                 const tempFahrenheit = (this.results.temperature * 9 / 5) + 32;
                 let tempBadge = '';
-                if (tempFahrenheit >= 97.2 && tempFahrenheit <= 99.1) tempBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Normal</span>';
-                else if (tempFahrenheit > 99.1) tempBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">Warm</span>';
-                else tempBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full">Cool</span>';
+                if (isMirror) {
+                    if (tempFahrenheit >= 97.2 && tempFahrenheit <= 99.1) tempBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Normal</span>';
+                    else if (tempFahrenheit > 99.1) tempBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">Warm</span>';
+                    else tempBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full">Cool</span>';
+                }
 
                 html += `
                 <div ${tileClick('temp')} class="${tileClass('bg-orange-50')}" ${tileTitle('Temperature')}>
@@ -4517,20 +4544,20 @@
                         <div class="text-2xl font-bold ${isGuest ? 'text-gray-600' : 'text-gray-900'}">${tempFahrenheit.toFixed(1)}&deg;F</div>
                         <div class="text-xs text-gray-600 flex items-center justify-center gap-1">Temperature ${tileExpandIcon}</div>
                     </div>
-                    ${isGuest ? '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Guest Only</span>' : tempBadge}
+                    ${(isMirror && isGuest) ? '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Guest Only</span>' : tempBadge}
                 </div>
             `;
             }
-
-            const isMirror = {{ 'true' if environment == 'mirror' else 'false' }};
 
             if (this.results.bloodPressure && this.results.bloodPressure.systolic && this.results.bloodPressure.diastolic) {
                 const sys = this.results.bloodPressure.systolic;
                 const dia = this.results.bloodPressure.diastolic;
                 let bpBadge = '';
-                if (sys <= 120 && dia <= 80) bpBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Optimal</span>';
-                else if (sys <= 130 && dia <= 85) bpBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full">Normal</span>';
-                else bpBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">Elevated</span>';
+                if (isMirror) {
+                    if (sys <= 120 && dia <= 80) bpBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Optimal</span>';
+                    else if (sys <= 130 && dia <= 85) bpBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-full">Normal</span>';
+                    else bpBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">Elevated</span>';
+                }
 
                 html += `
                 <div ${tileClick('bp')} class="${tileClass('bg-purple-50', isMirror ? 'md:col-span-2' : '')}" ${tileTitle('Blood Pressure')}>
@@ -4539,7 +4566,7 @@
                         <div class="text-2xl font-bold ${isGuest ? 'text-gray-600' : 'text-gray-900'}">${sys}/${dia}</div>
                         <div class="text-xs text-gray-600 flex items-center justify-center gap-1">mmHg ${tileExpandIcon}</div>
                     </div>
-                    ${isGuest ? '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Guest Only</span>' : bpBadge}
+                    ${(isMirror && isGuest) ? '<span class="inline-block mt-1 text-[11px] font-semibold text-gray-500 bg-gray-200/80 px-2 py-0.5 rounded-full">Guest Only</span>' : bpBadge}
                 </div>
             `;
             }

@@ -159,7 +159,9 @@ def test_guideline_1_4_1_vitals_disclaimers():
     assert 'id="face-mismatch-modal"' not in rendered_prod, "FAIL: face-mismatch-modal rendered on production!"
     assert 'id="biometrics-manage-modal"' not in rendered_prod, "FAIL: biometrics-manage-modal rendered on production!"
     assert 'Face ID' not in rendered_prod, "FAIL: Apple trademark 'Face ID' found in production template!"
-    assert 'id="liveness-failed-modal"' in rendered_prod, "FAIL: liveness-failed-modal missing on production!"
+    assert 'id="liveness-failed-modal"' not in rendered_prod, "FAIL: liveness-failed-modal rendered on production!"
+    assert 'id="scan-blink-prompt"' not in rendered_prod, "FAIL: scan-blink-prompt rendered on production!"
+    assert 'id="scan-liveness-badge"' not in rendered_prod, "FAIL: scan-liveness-badge rendered on production!"
 
     # Mirror Mode: Must include extended biomarkers
     rendered_mirror = vitals_tmpl.render(
@@ -185,8 +187,10 @@ def test_guideline_1_4_1_vitals_disclaimers():
     assert 'id="face-mismatch-modal"' in rendered_mirror, "FAIL: face-mismatch-modal missing on mirror!"
     assert 'id="biometrics-manage-modal"' in rendered_mirror, "FAIL: biometrics-manage-modal missing on mirror!"
     assert 'id="liveness-failed-modal"' in rendered_mirror, "FAIL: liveness-failed-modal missing on mirror!"
+    assert 'id="scan-blink-prompt"' in rendered_mirror, "FAIL: scan-blink-prompt missing on mirror!"
+    assert 'id="scan-liveness-badge"' in rendered_mirror, "FAIL: scan-liveness-badge missing on mirror!"
 
-    print("  PASS: Guideline 1.4.1 is 100% compliant. Disclaimers verified, vitals isolation (Prod: 5 vs Mirror: 8), and Face ID protection validated.")
+    print("  PASS: Guideline 1.4.1 is 100% compliant. Disclaimers verified, vitals isolation (Prod: 5 vs Mirror: 8), badges removed on Prod, and Face ID protection validated.")
 
 
 def test_backend_integrity():
