@@ -572,6 +572,7 @@
                 <span
                     class="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
                         data-lucide="gauge" class="w-3 h-3"></i> Blood Pressure</span>
+                {% if environment == 'mirror' %}
                 <span
                     class="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
                         data-lucide="heart-pulse" class="w-3 h-3"></i> HRV</span>
@@ -581,6 +582,7 @@
                 <span
                     class="inline-flex items-center gap-1 bg-violet-50 text-violet-700 border border-violet-200 px-2.5 py-1 rounded-full text-xs font-medium"><i
                         data-lucide="shield-check" class="w-3 h-3"></i> Vascular Age</span>
+                {% endif %}
             </div>
 
             <div class="p-3.5 bg-amber-50/80 rounded-xl border border-amber-200 text-xs text-amber-900 leading-relaxed flex items-start gap-2.5">
@@ -631,7 +633,7 @@
                     <i data-lucide="clock" class="w-5 h-5 text-purple-500"></i>
                     Latest Reading
                 </h2>
-                <button type="button" onclick="openVitalsGuideModal('hrv')" class="text-xs font-medium text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-full flex items-center gap-1 transition-colors border border-purple-200" title="Wellness Guide & Reference Ranges">
+                <button type="button" onclick="openVitalsGuideModal('{% if environment == 'mirror' %}hrv{% else %}bp{% endif %}')" class="text-xs font-medium text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-full flex items-center gap-1 transition-colors border border-purple-200" title="Wellness Guide & Reference Ranges">
                     <i data-lucide="info" class="w-3.5 h-3.5 text-purple-500"></i> Wellness Guide
                 </button>
             </div>
@@ -743,6 +745,7 @@
                         </span>
                     </div>
 
+                    {% if environment == 'mirror' %}
                     <div onclick="maximizeChart('hrv')" class="cursor-pointer hover:shadow-sm transition-all hover:scale-[1.02] flex items-center justify-between p-2 bg-indigo-50 hover:bg-indigo-100/60 rounded-lg" title="Click to view HRV trend chart">
                         <div class="flex flex-col">
                             <span class="text-xs text-gray-600 flex items-center gap-1">
@@ -787,8 +790,9 @@
                             {% if entry.stress_index is not none %}{{ entry.stress_index }}<span class="text-xs font-normal">/100</span>{% else %}<span class="text-gray-400 font-normal">--</span>{% endif %}
                         </span>
                     </div>
+                    {% endif %}
 
-                    <div onclick="maximizeChart('bp')" class="cursor-pointer hover:shadow-sm transition-all hover:scale-[1.02] flex items-center justify-between p-2 bg-purple-50 hover:bg-purple-100/60 rounded-lg col-span-2 sm:col-span-1" title="Click to view Blood Pressure trend chart">
+                    <div onclick="maximizeChart('bp')" class="cursor-pointer hover:shadow-sm transition-all hover:scale-[1.02] flex items-center justify-between p-2 bg-purple-50 hover:bg-purple-100/60 rounded-lg col-span-2 {% if environment == 'mirror' %}sm:col-span-1{% endif %}" title="Click to view Blood Pressure trend chart">
                         <div class="flex flex-col">
                             <span class="text-xs text-gray-600 flex items-center gap-1">
                                 <i data-lucide="gauge" class="w-3 h-3 text-purple-400"></i> Blood Pressure
@@ -808,6 +812,7 @@
                         </span>
                     </div>
 
+                    {% if environment == 'mirror' %}
                     <div onclick="maximizeChart('vascularAge')" class="cursor-pointer hover:shadow-sm transition-all hover:scale-[1.02] flex items-center justify-between p-2 bg-violet-50 hover:bg-violet-100/60 rounded-lg col-span-2 sm:col-span-1" title="Click to view Vascular Age trend chart">
                         <div class="flex flex-col">
                             <span class="text-xs text-gray-600 flex items-center gap-1">
@@ -829,8 +834,10 @@
                             {% if entry.vascular_age %}{{ entry.vascular_age }} <span class="text-xs font-normal">yrs</span>{% else %}<span class="text-gray-400 font-normal">--</span>{% endif %}
                         </span>
                     </div>
+                    {% endif %}
                 </div>
 
+                {% if environment == 'mirror' %}
                 <!-- Personalized Wellness Synthesis Card -->
                 <div class="mt-3 p-3 bg-gradient-to-r from-purple-50/90 to-indigo-50/90 border border-purple-200/80 rounded-xl text-purple-900 shadow-sm">
                     <div class="flex items-start gap-2.5">
@@ -865,6 +872,7 @@
                         </div>
                     </div>
                 </div>
+                {% endif %}
 
                 <div class="text-xs text-gray-400 text-center mt-3 flex items-center justify-center gap-1">
                     <i data-lucide="calendar" class="w-3 h-3"></i>
@@ -1598,6 +1606,7 @@
 
         <!-- Navigation Tabs -->
         <div class="px-6 pt-3 pb-2 border-b border-gray-100 bg-gray-50 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+            {% if environment == 'mirror' %}
             <button id="guide-tab-btn-hrv" onclick="switchGuideTab('hrv')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-600 text-white shadow-sm transition-all whitespace-nowrap">
                 HRV (RMSSD)
             </button>
@@ -1607,7 +1616,8 @@
             <button id="guide-tab-btn-vascular" onclick="switchGuideTab('vascular')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all whitespace-nowrap">
                 Vascular Age
             </button>
-            <button id="guide-tab-btn-bp" onclick="switchGuideTab('bp')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all whitespace-nowrap">
+            {% endif %}
+            <button id="guide-tab-btn-bp" onclick="switchGuideTab('bp')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium {% if environment != 'mirror' %}font-semibold bg-purple-600 text-white shadow-sm{% else %}text-gray-600 hover:text-gray-900 hover:bg-gray-100{% endif %} transition-all whitespace-nowrap">
                 Blood Pressure
             </button>
             <button id="guide-tab-btn-spo2" onclick="switchGuideTab('spo2')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all whitespace-nowrap">
@@ -1625,6 +1635,7 @@
                 </div>
             </div>
 
+            {% if environment == 'mirror' %}
             <!-- HRV Pane -->
             <div id="guide-tab-pane-hrv" class="space-y-4">
                 <div class="p-4 bg-indigo-50/70 border border-indigo-100 rounded-xl">
@@ -1830,9 +1841,10 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Blood Pressure Pane -->
-            <div id="guide-tab-pane-bp" class="space-y-4 hidden">
+            <div id="guide-tab-pane-bp" class="space-y-4 {% if environment == 'mirror' %}hidden{% endif %}">
                 <div class="p-4 bg-purple-50/70 border border-purple-100 rounded-xl">
                     <div class="flex items-center gap-2 mb-1.5">
                         <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-600 text-white">Hemodynamics</span>
@@ -1948,11 +1960,16 @@
 <script>
     // ── Clinical Vitals Interpretation Guide Modal Controller ──
     window.openVitalsGuideModal = function(tabKey) {
+        const isMirror = {{ 'true' if environment == 'mirror' else 'false' }};
+        const defaultTab = isMirror ? 'hrv' : 'bp';
+        if (!isMirror && (tabKey === 'hrv' || tabKey === 'stress' || tabKey === 'vascular')) {
+            tabKey = 'bp';
+        }
         const modal = document.getElementById('vitals-guide-modal');
         if (!modal) return;
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
-        switchGuideTab(tabKey || 'hrv');
+        switchGuideTab(tabKey || defaultTab);
     };
 
     window.closeVitalsGuideModal = function() {
@@ -4496,6 +4513,8 @@
             `;
             }
 
+            const isMirror = {{ 'true' if environment == 'mirror' else 'false' }};
+
             if (this.results.bloodPressure && this.results.bloodPressure.systolic && this.results.bloodPressure.diastolic) {
                 const sys = this.results.bloodPressure.systolic;
                 const dia = this.results.bloodPressure.diastolic;
@@ -4505,7 +4524,7 @@
                 else bpBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full">Elevated</span>';
 
                 html += `
-                <div ${tileClick('bp')} class="${tileClass('bg-purple-50', 'md:col-span-2')}" ${tileTitle('Blood Pressure')}>
+                <div ${tileClick('bp')} class="${tileClass('bg-purple-50', isMirror ? 'md:col-span-2' : '')}" ${tileTitle('Blood Pressure')}>
                     <div>
                         <i data-lucide="gauge" class="w-8 h-8 mx-auto mb-2 ${isGuest ? 'text-gray-400' : 'text-purple-500'}"></i>
                         <div class="text-2xl font-bold ${isGuest ? 'text-gray-600' : 'text-gray-900'}">${sys}/${dia}</div>
@@ -4516,7 +4535,7 @@
             `;
             }
 
-            if (this.results.hrvSdnn || this.results.hrvRmssd) {
+            if (isMirror && (this.results.hrvSdnn || this.results.hrvRmssd)) {
                 const hrvVal = this.results.hrvRmssd || this.results.hrvSdnn;
                 let hrvBadge = '';
                 if (hrvVal >= 60) hrvBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Optimal</span>';
@@ -4536,7 +4555,7 @@
                 `;
             }
 
-            if (this.results.stressIndex !== undefined && this.results.stressIndex !== null) {
+            if (isMirror && this.results.stressIndex !== undefined && this.results.stressIndex !== null) {
                 const si = this.results.stressIndex;
                 let siBadge = '';
                 if (si <= 25) siBadge = '<span class="inline-block mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">Calm</span>';
@@ -4556,7 +4575,7 @@
                 `;
             }
 
-            if (this.results.vascularAge) {
+            if (isMirror && this.results.vascularAge) {
                 const profileEl = document.getElementById('user-profile-data');
                 const chrono = parseInt(profileEl ? profileEl.dataset.age : '0') || 35;
                 const diff = this.results.vascularAge - chrono;
@@ -4578,71 +4597,73 @@
             }
 
             // Clinical Synthesis Card
-            let synthesisParts = [];
-            const hrvSynthesisVal = this.results.hrvRmssd || this.results.hrvSdnn;
-            if (hrvSynthesisVal) {
-                if (hrvSynthesisVal >= 50) {
-                    synthesisParts.push(`HRV of <strong>${hrvSynthesisVal} ms</strong> demonstrates strong vagal recovery and high autonomic adaptability.`);
-                } else if (hrvSynthesisVal >= 35) {
-                    synthesisParts.push(`HRV of <strong>${hrvSynthesisVal} ms</strong> indicates steady autonomic balance.`);
-                } else {
-                    synthesisParts.push(`HRV of <strong>${hrvSynthesisVal} ms</strong> suggests sympathetic strain or accumulated fatigue.`);
+            if (isMirror) {
+                let synthesisParts = [];
+                const hrvSynthesisVal = this.results.hrvRmssd || this.results.hrvSdnn;
+                if (hrvSynthesisVal) {
+                    if (hrvSynthesisVal >= 50) {
+                        synthesisParts.push(`HRV of <strong>${hrvSynthesisVal} ms</strong> demonstrates strong vagal recovery and high autonomic adaptability.`);
+                    } else if (hrvSynthesisVal >= 35) {
+                        synthesisParts.push(`HRV of <strong>${hrvSynthesisVal} ms</strong> indicates steady autonomic balance.`);
+                    } else {
+                        synthesisParts.push(`HRV of <strong>${hrvSynthesisVal} ms</strong> suggests sympathetic strain or accumulated fatigue.`);
+                    }
                 }
-            }
-            if (this.results.stressIndex !== undefined && this.results.stressIndex !== null) {
-                if (this.results.stressIndex <= 30) {
-                    synthesisParts.push(`Autonomic stress is <strong>calm and relaxed</strong> (${this.results.stressIndex}/100).`);
-                } else if (this.results.stressIndex <= 60) {
-                    synthesisParts.push(`Stress is in a <strong>healthy active balance</strong> (${this.results.stressIndex}/100).`);
-                } else {
-                    synthesisParts.push(`Elevated sympathetic tone observed (${this.results.stressIndex}/100).`);
+                if (this.results.stressIndex !== undefined && this.results.stressIndex !== null) {
+                    if (this.results.stressIndex <= 30) {
+                        synthesisParts.push(`Autonomic stress is <strong>calm and relaxed</strong> (${this.results.stressIndex}/100).`);
+                    } else if (this.results.stressIndex <= 60) {
+                        synthesisParts.push(`Stress is in a <strong>healthy active balance</strong> (${this.results.stressIndex}/100).`);
+                    } else {
+                        synthesisParts.push(`Elevated sympathetic tone observed (${this.results.stressIndex}/100).`);
+                    }
                 }
-            }
-            if (this.results.vascularAge) {
-                synthesisParts.push(`Arterial compliance reflects an estimated vascular age of <strong>${this.results.vascularAge} yrs</strong>.`);
-            }
+                if (this.results.vascularAge) {
+                    synthesisParts.push(`Arterial compliance reflects an estimated vascular age of <strong>${this.results.vascularAge} yrs</strong>.`);
+                }
 
-            if (synthesisParts.length > 0) {
-                if (isGuest) {
-                    html += `
-                    <div class="col-span-full mt-3 p-4 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-gray-700 shadow-none">
-                        <div class="flex items-start gap-3">
-                            <div class="w-7 h-7 rounded-lg bg-gray-400 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
-                                <i data-lucide="shield-alert" class="w-4 h-4"></i>
-                            </div>
-                            <div class="flex-1 text-xs sm:text-sm leading-relaxed">
-                                <div class="font-semibold text-gray-900 flex items-center justify-between">
-                                    <span>Guest Consultation Reading (Deactivated)</span>
-                                    <span class="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Not Saved to Profile</span>
+                if (synthesisParts.length > 0) {
+                    if (isGuest) {
+                        html += `
+                        <div class="col-span-full mt-3 p-4 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-gray-700 shadow-none">
+                            <div class="flex items-start gap-3">
+                                <div class="w-7 h-7 rounded-lg bg-gray-400 text-white flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <i data-lucide="shield-alert" class="w-4 h-4"></i>
                                 </div>
-                                <p class="text-gray-600 mt-1">
-                                    ${synthesisParts.join(' ')}
-                                </p>
+                                <div class="flex-1 text-xs sm:text-sm leading-relaxed">
+                                    <div class="font-semibold text-gray-900 flex items-center justify-between">
+                                        <span>Guest Consultation Reading (Deactivated)</span>
+                                        <span class="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Not Saved to Profile</span>
+                                    </div>
+                                    <p class="text-gray-600 mt-1">
+                                        ${synthesisParts.join(' ')}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    `;
-                } else {
-                    html += `
-                    <div class="col-span-full mt-3 p-4 bg-gradient-to-r from-purple-50/90 to-indigo-50/90 border border-purple-200 rounded-xl text-purple-900 shadow-sm">
-                        <div class="flex items-start gap-3">
-                            <div class="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-                                <i data-lucide="sparkles" class="w-4 h-4"></i>
-                            </div>
-                            <div class="flex-1 text-xs sm:text-sm leading-relaxed">
-                                <div class="font-semibold text-purple-950 flex items-center justify-between">
-                                    <span>Wellness Synthesis & Physiological Recovery</span>
-                                    <button type="button" onclick="openVitalsGuideModal('hrv')" class="text-xs font-semibold text-purple-700 hover:text-purple-900 underline flex items-center gap-1">
-                                        Wellness Guide &rarr;
-                                    </button>
+                        `;
+                    } else {
+                        html += `
+                        <div class="col-span-full mt-3 p-4 bg-gradient-to-r from-purple-50/90 to-indigo-50/90 border border-purple-200 rounded-xl text-purple-900 shadow-sm">
+                            <div class="flex items-start gap-3">
+                                <div class="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                                    <i data-lucide="sparkles" class="w-4 h-4"></i>
                                 </div>
-                                <p class="text-purple-900/90 mt-1">
-                                    ${synthesisParts.join(' ')}
-                                </p>
+                                <div class="flex-1 text-xs sm:text-sm leading-relaxed">
+                                    <div class="font-semibold text-purple-950 flex items-center justify-between">
+                                        <span>Wellness Synthesis & Physiological Recovery</span>
+                                        <button type="button" onclick="openVitalsGuideModal('hrv')" class="text-xs font-semibold text-purple-700 hover:text-purple-900 underline flex items-center gap-1">
+                                            Wellness Guide &rarr;
+                                        </button>
+                                    </div>
+                                    <p class="text-purple-900/90 mt-1">
+                                        ${synthesisParts.join(' ')}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    `;
+                        `;
+                    }
                 }
             }
 

@@ -84,7 +84,9 @@ def test_guideline_4_8_template_rendering():
 
 
 def test_guideline_1_4_1_vitals_disclaimers():
-    print("[2/4] Testing Guideline 1.4.1 Compliance (Medical Disclaimers in Vitals)...")
+    print("[2/4] Testing Guideline 1.4.1 Compliance (Medical Disclaimers & Vitals Isolation)...")
+    import jinja2
+
     vitals_file = os.path.join(templates_dir, "pages", "vitals.html")
     assert os.path.exists(vitals_file), f"FAIL: vitals.html not found at {vitals_file}"
 
@@ -115,7 +117,69 @@ def test_guideline_1_4_1_vitals_disclaimers():
     for forbidden in forbidden_terms:
         assert forbidden not in vitals_content, f"FAIL: Prohibited clinical claim '{forbidden}' found in vitals.html!"
 
-    print("  PASS: Guideline 1.4.1 is 100% compliant. Disclaimers verified on pre-scan and results card.")
+    # Template Rendering Isolation Test (Production vs Mirror)
+    loader = jinja2.FileSystemLoader(templates_dir)
+    env = jinja2.Environment(loader=loader, autoescape=True)
+    env.globals["get_flashed_messages"] = lambda: []
+    env.globals["get_nav_items"] = lambda user_type: []
+    env.globals["get_initials"] = lambda name: "TU"
+
+    class MockURL:
+        path = "/app/vitals"
+
+    class MockRequest:
+        url = MockURL()
+        query_params = {}
+        session = {}
+
+    req = MockRequest()
+    vitals_tmpl = env.get_template("pages/vitals.html")
+
+    # Production Mode: Must strictly show ONLY the 5 base vitals
+    rendered_prod = vitals_tmpl.render(
+        request=req,
+        environment="production",
+        latest_reading=None,
+        vitals_history=[],
+        user_age=30,
+        user_gender="female",
+        user_name="Test User",
+        user_initials="TU",
+        user_type="user",
+        active_page="vitals",
+        nav_items=[],
+        user_plan="free",
+        page_title="Vitals Scanner"
+    )
+    assert 'id="guide-tab-btn-hrv"' not in rendered_prod, "FAIL: guide-tab-btn-hrv rendered on production!"
+    assert 'id="guide-tab-btn-stress"' not in rendered_prod, "FAIL: guide-tab-btn-stress rendered on production!"
+    assert 'id="guide-tab-btn-vascular"' not in rendered_prod, "FAIL: guide-tab-btn-vascular rendered on production!"
+    assert 'guide-tab-pane-vascular' not in rendered_prod, "FAIL: guide-tab-pane-vascular rendered on production!"
+    assert 'const isMirror = false;' in rendered_prod, "FAIL: isMirror is not false in JS on production!"
+
+    # Mirror Mode: Must include extended biomarkers
+    rendered_mirror = vitals_tmpl.render(
+        request=req,
+        environment="mirror",
+        latest_reading=None,
+        vitals_history=[],
+        user_age=30,
+        user_gender="female",
+        user_name="Test User",
+        user_initials="TU",
+        user_type="user",
+        active_page="vitals",
+        nav_items=[],
+        user_plan="free",
+        page_title="Vitals Scanner"
+    )
+    assert 'id="guide-tab-btn-hrv"' in rendered_mirror, "FAIL: guide-tab-btn-hrv missing on mirror!"
+    assert 'id="guide-tab-btn-stress"' in rendered_mirror, "FAIL: guide-tab-btn-stress missing on mirror!"
+    assert 'id="guide-tab-btn-vascular"' in rendered_mirror, "FAIL: guide-tab-btn-vascular missing on mirror!"
+    assert 'guide-tab-pane-vascular' in rendered_mirror, "FAIL: guide-tab-pane-vascular missing on mirror!"
+    assert 'const isMirror = true;' in rendered_mirror, "FAIL: isMirror is not true in JS on mirror!"
+
+    print("  PASS: Guideline 1.4.1 is 100% compliant. Disclaimers verified and vitals isolation (Prod: 5 vs Mirror: 8) validated.")
 
 
 def test_backend_integrity():
