@@ -19,11 +19,14 @@ def derive_effective_duration(duration_min: int, step_count: int, workout_type: 
     Ensure steps contribute to active workout minutes when background
     sync provides 0 duration. Standard brisk walking cadence: ~100 steps/min.
     """
-    d = duration_min or 0
-    s = step_count or 0
-    if d <= 0 and s > 0 and any(w in (workout_type or "").lower() for w in ["walk", "step"]):
-        return max(1, round(s / 100.0))
+    d = int(duration_min or 0)
+    s = int(step_count or 0)
+    if s > 0:
+        step_mins = max(1, round(s / 100.0))
+        if d <= 0 or d < step_mins:
+            return step_mins
     return d
+
 
 
 def detect_and_merge_workout(
@@ -81,7 +84,7 @@ def detect_and_merge_workout(
         candidates = db.query(WorkoutLog).filter(
             WorkoutLog.user_id == user_id,
             WorkoutLog.log_date == log_date,
-            WorkoutLog.is_duplicate == False,
+            WorkoutLog.is_duplicate.isnot(True),
             WorkoutLog.start_time.isnot(None),
             WorkoutLog.end_time.isnot(None),
         ).all()
@@ -147,7 +150,7 @@ def detect_and_merge_workout(
         existing_step_summary = db.query(WorkoutLog).filter(
             WorkoutLog.user_id == user_id,
             WorkoutLog.log_date == log_date,
-            WorkoutLog.is_duplicate == False,
+            WorkoutLog.is_duplicate.isnot(True),
             WorkoutLog.notes.like("%daily steps%"),
         ).first()
 
@@ -190,7 +193,7 @@ def calculate_daily_active_minutes(db: Session, user_id: int, log_date: date) ->
     workouts = db.query(WorkoutLog).filter(
         WorkoutLog.user_id == user_id,
         WorkoutLog.log_date == log_date,
-        WorkoutLog.is_duplicate == False,
+        WorkoutLog.is_duplicate.isnot(True),
     ).all()
 
     if not workouts:
@@ -204,10 +207,12 @@ def calculate_daily_active_minutes(db: Session, user_id: int, log_date: date) ->
         if w.step_count and w.step_count > max_steps:
             max_steps = w.step_count
 
+        eff_d = derive_effective_duration(w.duration_min, w.step_count, w.workout_type)
+
         if w.start_time and w.end_time and w.end_time > w.start_time:
             timed_intervals.append((w.start_time, w.end_time))
-        elif w.duration_min and w.duration_min > 0:
-            untimed_mins += w.duration_min
+        elif eff_d > 0:
+            untimed_mins += eff_d
 
     # Disjoint interval union
     merged_timed_seconds = 0

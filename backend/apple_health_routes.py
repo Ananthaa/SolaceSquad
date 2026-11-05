@@ -182,6 +182,7 @@ async def import_apple_health(
 
     # Insert into DB — skip duplicates
     imported = 0
+    from workout_overlap_utils import derive_effective_duration
     for e in entries:
         existing = db.query(WorkoutLog).filter(
             WorkoutLog.user_id      == user_id,
@@ -190,18 +191,29 @@ async def import_apple_health(
             WorkoutLog.notes.like("%Apple Health%"),
         ).first()
 
+        eff_dur = derive_effective_duration(e.get("duration_min", 0), e.get("step_count", 0), e.get("workout_type", "Walking"))
+
         if not existing:
             wl = WorkoutLog(
                 user_id=user_id,
                 log_date=e["log_date"],
                 workout_type=e["workout_type"],
-                duration_min=e["duration_min"],
+                duration_min=eff_dur,
                 calories=e["calories"],
                 step_count=e["step_count"],
                 notes="Apple Health import",
+                is_duplicate=False,
             )
             db.add(wl)
             imported += 1
+        else:
+            if e.get("step_count", 0) > (existing.step_count or 0):
+                existing.step_count = e["step_count"]
+            if eff_dur > (existing.duration_min or 0):
+                existing.duration_min = eff_dur
+            if e.get("calories", 0) > (existing.calories or 0):
+                existing.calories = e["calories"]
+            existing.is_duplicate = False
 
     db.commit()
     print(f"[AppleHealth] Imported {imported}/{len(entries)} entries for user {user_id}")

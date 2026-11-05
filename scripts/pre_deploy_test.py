@@ -230,9 +230,59 @@ def test_backend_integrity():
 
     print("  PASS: Backend integrity and UA detection logic validated.")
 
+def test_syncx_lifestyle_pipeline():
+    print("[4/5] Testing Sync-X Lifestyle & Step Ingestion Pipeline...")
+    sys.path.insert(0, backend_dir)
+    from workout_overlap_utils import derive_effective_duration, calculate_daily_active_minutes
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from models import Base, User, WorkoutLog
+    from datetime import date
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    u = User(email="test_sync@solacesquad.com", name="Sync Tester", timezone="UTC")
+    db.add(u)
+    db.commit()
+    today = date.today()
+
+    # 1. Effective duration for 6,000 steps with 0 duration => 60 mins
+    assert derive_effective_duration(0, 6000, "Walking") == 60
+    assert derive_effective_duration(0, 4000, "Other") == 40
+
+    # 2. Ingest step workout
+    w = WorkoutLog(
+        user_id=u.id,
+        log_date=today,
+        workout_type="Walking",
+        duration_min=derive_effective_duration(0, 6000, "Walking"),
+        step_count=6000,
+        calories=210,
+        source="apple_health",
+        external_id="ext_step_test",
+        is_duplicate=False
+    )
+    db.add(w)
+    db.commit()
+
+    active_mins = calculate_daily_active_minutes(db, u.id, today)
+    assert active_mins == 60, f"Expected 60 mins, got {active_mins}"
+
+    # 3. Simulate subsequent push with 10,000 steps
+    w.step_count = 10000
+    w.duration_min = derive_effective_duration(0, 10000, "Walking")
+    db.commit()
+    active_mins_2 = calculate_daily_active_minutes(db, u.id, today)
+    assert active_mins_2 == 100, f"Expected 100 mins, got {active_mins_2}"
+
+    print("  PASS: Sync-X step derivation, telemetry update, and active minutes verified.")
+
 
 def test_live_site_if_requested():
-    print("[4/4] Live Production/Staging Verification...")
+    print("[5/5] Live Production/Staging Verification...")
     target_url = None
     for arg in sys.argv[1:]:
         if arg.startswith("--url="):
@@ -268,6 +318,7 @@ if __name__ == "__main__":
         test_guideline_4_8_template_rendering()
         test_guideline_1_4_1_vitals_disclaimers()
         test_backend_integrity()
+        test_syncx_lifestyle_pipeline()
         test_live_site_if_requested()
         print("=" * 60)
         print(">>> ALL PRE-DEPLOYMENT CHECKS PASSED SUCCESSFULLY! <<<")

@@ -42,12 +42,26 @@ class PluginRegistry:
             except Exception as e:
                 print(f"[Sync-X] Router error for {plugin.provider_id}: {e}")
 
+        def _extract_user_id(req: Request) -> Optional[int]:
+            uid = req.session.get("user_id")
+            if uid:
+                try:
+                    return int(str(uid))
+                except (ValueError, TypeError):
+                    pass
+            try:
+                from main import get_auth_user_id
+                return get_auth_user_id(req)
+            except Exception:
+                pass
+            return None
+
         # ── Sync-X Hub API ────────────────────────────────────────────────────
 
         @router.get("/api/sync-x/providers")
         def list_providers(request: Request, db: Session = Depends(get_db)):
             """List all providers with connection status for the logged-in user."""
-            user_id = request.session.get("user_id")
+            user_id = _extract_user_id(request)
             return {
                 "providers": [
                     p.get_card_data(user_id, db)
@@ -58,7 +72,7 @@ class PluginRegistry:
         @router.post("/api/sync-x/sync/{provider_id}")
         def trigger_sync(provider_id: str, request: Request, db: Session = Depends(get_db)):
             """Trigger a manual sync for a specific provider."""
-            user_id = request.session.get("user_id")
+            user_id = _extract_user_id(request)
             if not user_id:
                 return {"success": False, "error": "Not logged in"}
             plugin = cls.get(provider_id)
@@ -72,7 +86,7 @@ class PluginRegistry:
         @router.post("/api/sync-x/disconnect/{provider_id}")
         def disconnect_provider(provider_id: str, request: Request, db: Session = Depends(get_db)):
             """Disconnect a provider for the logged-in user."""
-            user_id = request.session.get("user_id")
+            user_id = _extract_user_id(request)
             if not user_id:
                 return {"success": False, "error": "Not logged in"}
             plugin = cls.get(provider_id)
@@ -88,7 +102,7 @@ class PluginRegistry:
             Android/iOS apps post health data here after reading from
             Samsung Health SDK or Apple HealthKit.
             """
-            user_id = request.session.get("user_id")
+            user_id = _extract_user_id(request)
             if not user_id:
                 return {"success": False, "error": "Not logged in"}
 
@@ -99,31 +113,74 @@ class PluginRegistry:
 
             from models import WorkoutLog, VitalsRecord
             from datetime import date, datetime
+            from workout_overlap_utils import derive_effective_duration
             saved = 0
+            affected_dates = set()
 
             for w in workouts:
-                ext_id = w.get("external_id", "")
-                # Dedup check
-                existing = db.query(WorkoutLog).filter(
-                    WorkoutLog.user_id == user_id,
-                    WorkoutLog.external_id == ext_id,
-                    WorkoutLog.source == source,
-                ).first() if ext_id else None
+                ext_id = str(w.get("external_id", "") or "").strip()
+                sync_date_str = w.get("sync_date")
+                try:
+                    log_date = date.fromisoformat(sync_date_str) if sync_date_str else date.today()
+                except Exception:
+                    log_date = date.today()
 
-                if not existing:
+                raw_dur = int(w.get("duration_min", 0) or 0)
+                raw_steps = int(w.get("step_count", 0) or 0)
+                raw_cals = int(w.get("calories", 0) or 0)
+                w_type = w.get("workout_type", "Walking" if raw_steps > 0 else "Other")
+                notes = w.get("notes", "")
+
+                eff_duration = derive_effective_duration(raw_dur, raw_steps, w_type)
+                if raw_cals <= 0 and eff_duration > 0:
+                    raw_cals = round(3.5 * 70.0 * (eff_duration / 60.0))
+
+                # Dedup check
+                existing = None
+                if ext_id:
+                    existing = db.query(WorkoutLog).filter(
+                        WorkoutLog.user_id == user_id,
+                        WorkoutLog.external_id == ext_id,
+                        WorkoutLog.source == source,
+                    ).first()
+
+                if not existing and ("daily steps" in (w_type or "").lower() or "daily steps" in (notes or "").lower()):
+                    existing = db.query(WorkoutLog).filter(
+                        WorkoutLog.user_id == user_id,
+                        WorkoutLog.log_date == log_date,
+                        WorkoutLog.source == source,
+                        WorkoutLog.notes.like("%daily steps%"),
+                    ).first()
+
+                if existing:
+                    # Update with higher telemetry
+                    if raw_steps > (existing.step_count or 0):
+                        existing.step_count = raw_steps
+                    if eff_duration > (existing.duration_min or 0):
+                        existing.duration_min = eff_duration
+                    if raw_cals > (existing.calories or 0):
+                        existing.calories = raw_cals
+                    if notes and not existing.notes:
+                        existing.notes = notes
+                    existing.is_duplicate = False
+                    saved += 1
+                else:
                     entry = WorkoutLog(
                         user_id=user_id,
-                        log_date=date.fromisoformat(w.get("sync_date", date.today().isoformat())),
-                        workout_type=w.get("workout_type", "Other"),
-                        duration_min=w.get("duration_min", 0),
-                        step_count=w.get("step_count", 0),
-                        calories=w.get("calories", 0),
-                        notes=w.get("notes", ""),
+                        log_date=log_date,
+                        workout_type=w_type,
+                        duration_min=eff_duration,
+                        step_count=raw_steps,
+                        calories=raw_cals,
+                        notes=notes,
                         source=source,
-                        external_id=ext_id,
+                        external_id=ext_id if ext_id else None,
+                        is_duplicate=False,
                     )
                     db.add(entry)
                     saved += 1
+
+                affected_dates.add(log_date)
 
             if vitals:
                 v = VitalsRecord(
@@ -134,8 +191,18 @@ class PluginRegistry:
                     source=source,
                 )
                 db.add(v)
+                affected_dates.add(date.today())
 
             db.commit()
+
+            # Recalculate daily wellness / lifestyle score for all affected dates
+            try:
+                from main import compute_and_save_wellness
+                for d in affected_dates:
+                    compute_and_save_wellness(user_id, db, for_date=d)
+            except Exception as _we:
+                print(f"[Sync-X] Wellness score computation error: {_we}")
+
             return {
                 "success": True,
                 "workouts_saved": saved,

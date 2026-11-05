@@ -108,6 +108,8 @@ class GoogleHealthPlugin(FitnessPlugin):
                 print(f"[GoogleHealth] Session aggregate failed: {e}")
                 session_buckets = []
 
+            affected_dates = set()
+
             for bucket in session_buckets:
                 s           = bucket.get("session", {})
                 act_type    = s.get("activityType", 4)
@@ -155,8 +157,10 @@ class GoogleHealthPlugin(FitnessPlugin):
                     source       = "google_health",
                     external_id  = external_id,
                     notes        = f"Synced from Google Fit: {s.get('name', workout_type)}",
+                    is_duplicate = False,
                 ))
                 saved += 1
+                affected_dates.add(act_date)
 
             # ── 2. Daily total steps (sync all days in range) ────────────────────
             try:
@@ -198,8 +202,10 @@ class GoogleHealthPlugin(FitnessPlugin):
                             existing.step_count = steps
                             existing.calories = step_calories
                             existing.duration_min = duration_min
+                            existing.is_duplicate = False
                             if b_date == datetime.now(user_tz).date():
                                 saved += 1
+                        affected_dates.add(b_date)
                     else:
                         db.add(WorkoutLog(
                             user_id      = user_id,
@@ -210,8 +216,10 @@ class GoogleHealthPlugin(FitnessPlugin):
                             calories     = step_calories,
                             source       = "google_health",
                             notes        = f"Google Fit daily steps: {steps:,} steps synced",
+                            is_duplicate = False,
                         ))
                         saved += 1
+                        affected_dates.add(b_date)
             except Exception as e:
                 print(f"[GoogleHealth] Step aggregate error: {e}")
 
@@ -225,10 +233,12 @@ class GoogleHealthPlugin(FitnessPlugin):
             except Exception:
                 pass
 
-            # Recalculate wellness score
+            # Recalculate wellness score for all affected dates
             try:
                 from main import compute_and_save_wellness
-                compute_and_save_wellness(user_id, db, for_date=date.today())
+                recalc_dates = affected_dates if affected_dates else {datetime.now(user_tz).date()}
+                for d in recalc_dates:
+                    compute_and_save_wellness(user_id, db, for_date=d)
             except Exception as e:
                 print(f"[GoogleHealth] Wellness recalc failed: {e}")
 

@@ -2914,7 +2914,7 @@ def compute_and_save_wellness(user_id: int, db, for_date: date = None) -> float:
         print(f"[WARN] calculate_daily_active_minutes fallback: {_ce}")
         today_mins = (
             db.query(func.coalesce(func.sum(WorkoutLog.duration_min), 0))
-            .filter(WorkoutLog.user_id == user_id, WorkoutLog.log_date == today, WorkoutLog.is_duplicate == False)
+            .filter(WorkoutLog.user_id == user_id, WorkoutLog.log_date == today, WorkoutLog.is_duplicate.isnot(True))
             .scalar() or 0
         )
     ls = rate_workout(int(today_mins))
@@ -17260,24 +17260,17 @@ async def get_wellness_detail(request: Request, db: Session = Depends(get_db)):
         else:
             today = datetime.utcnow().date()
 
+        try:
+            compute_and_save_wellness(user_id, db, for_date=today)
+        except Exception as _ce:
+            print(f"[WELLNESS] Auto-recompute error in /detail: {_ce}")
+
         row = (
             db.query(DailyWellnessScore)
             .filter(DailyWellnessScore.user_id == user_id,
                     DailyWellnessScore.score_date == today)
             .first()
         )
-        if not row:
-            # Try to compute on the fly
-            try:
-                compute_and_save_wellness(user_id, db, for_date=today)
-                row = (
-                    db.query(DailyWellnessScore)
-                    .filter(DailyWellnessScore.user_id == user_id,
-                            DailyWellnessScore.score_date == today)
-                    .first()
-                )
-            except Exception:
-                pass
 
         if row:
             return JSONResponse(

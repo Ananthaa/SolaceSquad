@@ -318,14 +318,18 @@ def sync_google_health(request: Request, db: Session = Depends(get_db)):
             ).first()
             if existing:
                 existing.step_count = steps
+                existing.duration_min = max(existing.duration_min or 0, round(steps / 100.0))
+                existing.is_duplicate = False
             else:
                 db.add(WorkoutLog(
                     user_id      = user_id,
                     log_date     = date.today(),
                     workout_type = "Walking",
+                    duration_min = round(steps / 100.0),
                     step_count   = steps,
                     source       = "google_health",
                     notes        = f"Google Fit daily steps: {steps:,} steps synced",
+                    is_duplicate = False,
                 ))
                 saved += 1
     except Exception as e:
