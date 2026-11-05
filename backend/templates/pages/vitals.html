@@ -112,6 +112,7 @@
 </div>
 </div>
 
+{% if environment == 'mirror' %}
 <!-- -- Face Identity Mismatch Modal -- -->
 <div id="face-mismatch-modal" style="display:none;position:fixed;inset:0;z-index:99999;
            background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);
@@ -156,6 +157,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <!-- -- Liveness / Anti-Spoofing Failed Modal -- -->
 <div id="liveness-failed-modal" style="display:none;position:fixed;inset:0;z-index:99999;
@@ -199,6 +201,7 @@
     </div>
 </div>
 
+{% if environment == 'mirror' %}
 <!-- -- Biometrics Management Modal (DPDPA 2023 / GDPR Right to Erasure) -- -->
 <div id="biometrics-manage-modal" style="display:none;position:fixed;inset:0;z-index:99999;
            background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);
@@ -229,7 +232,7 @@
                                background:#f0fdfa;color:#0f766e;font-size:.875rem;font-weight:700;
                                display:flex;align-items:center;justify-content:center;gap:.5rem;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-                    Re-Enroll / Update Face ID
+                    Re-Enroll / Update Face Profile
                 </button>
                 <button type="button" onclick="eraseBiometricProfile()" style="width:100%;padding:.75rem;border:1.5px solid #ef4444;border-radius:9999px;cursor:pointer;
                                background:#fef2f2;color:#b91c1c;font-size:.875rem;font-weight:700;
@@ -245,6 +248,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <style>
     @keyframes disclaimerPop {
@@ -2714,6 +2718,8 @@
         }
 
         async checkFaceStatus() {
+            const isMirror = {{ 'true' if environment == 'mirror' else 'false' }};
+            if (!isMirror) return;
             try {
                 const res = await fetch('/api/vitals/face-status');
                 if (res.ok) {
@@ -2739,6 +2745,9 @@
         }
 
         _updateFaceIdentityBadge(status) {
+            const isMirror = {{ 'true' if environment == 'mirror' else 'false' }};
+            if (!isMirror) return;
+
             let badge = document.getElementById('face-id-indicator');
             if (!badge) {
                 badge = document.createElement('div');
@@ -2772,25 +2781,25 @@
                 badge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;box-shadow:0 0 6px #f59e0b;display:inline-block"></span>Guest &bull; Tap to Calibrate`;
                 badge.style.borderColor = 'rgba(245,158,11,0.5)';
                 badge.style.background = 'rgba(120,53,15,0.85)';
-                badge.title = `Different person or uncalibrated screen detected (${score}% match). Tap to calibrate Face ID for this device.`;
+                badge.title = `Different person or uncalibrated screen detected (${score}% match). Tap to calibrate face profile for this device.`;
                 badge.onclick = () => this.promptEnrollFace();
             } else if (status === 'waiting' || status === 'searching') {
-                badge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#94a3b8;display:inline-block"></span>Face ID Enrolled`;
+                badge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#94a3b8;display:inline-block"></span>Face Profile Enrolled`;
                 badge.style.borderColor = 'rgba(148,163,184,0.3)';
                 badge.style.background = 'rgba(30,41,59,0.85)';
                 badge.title = `Enrolled for ${this.enrolledName || 'You'}. Looking for face in frame...`;
                 badge.onclick = () => this.promptManageBiometrics();
             } else if (status === 'needs_calibration') {
-                badge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 8px #3b82f6;display:inline-block"></span>+ Calibrate Face ID`;
+                badge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 8px #3b82f6;display:inline-block"></span>+ Calibrate Face Profile`;
                 badge.style.borderColor = 'rgba(59,130,246,0.6)';
                 badge.style.background = 'rgba(30,58,138,0.85)';
-                badge.title = "Click to calibrate high-precision Face ID for your account.";
+                badge.title = "Click to calibrate high-precision face profile for your account.";
                 badge.onclick = () => this.promptEnrollFace();
             } else {
-                badge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block"></span>+ Enroll Face ID`;
+                badge.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block"></span>+ Enroll Face Profile`;
                 badge.style.borderColor = 'rgba(245,158,11,0.4)';
                 badge.style.background = 'rgba(0,0,0,0.65)';
-                badge.title = "Click to enroll your Face ID and protect your ThrYveQ wellness score.";
+                badge.title = "Click to enroll your face profile and protect your ThrYveQ wellness score.";
                 badge.onclick = () => this.promptEnrollFace();
             }
         }
@@ -4385,7 +4394,7 @@
                         <div><strong>Guest Mode Active:</strong> Results are displayed for on-screen consultation only. Saving to your account is disabled to protect your personal ThrYveQ wellness score.</div>
                     </div>
                     <button type="button" onclick="if (window.scanner) window.scanner.promptEnrollFace();" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-xs whitespace-nowrap transition flex-shrink-0 shadow-sm flex items-center gap-1.5">
-                        <i data-lucide="camera" class="w-3.5 h-3.5"></i> Calibrate Face ID
+                        <i data-lucide="camera" class="w-3.5 h-3.5"></i> Calibrate Face Profile
                     </button>
                 </div>
                 `;
@@ -4667,15 +4676,15 @@
                 }
             }
 
-            if (!this.enrolledFace && !this.isGuestScan) {
+            if (isMirror && !this.enrolledFace && !this.isGuestScan) {
                 html += `
                 <div class="col-span-full mt-2 p-3 bg-teal-50 border border-teal-200 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-teal-800 text-sm">
                     <div class="flex items-center gap-2">
                         <i data-lucide="shield" class="w-5 h-5 flex-shrink-0 text-teal-600"></i>
-                        <div><strong>Lock Scans to Your Identity:</strong> Enroll your Face ID so only your scans are recorded to your ThrYveQ score.</div>
+                        <div><strong>Lock Scans to Your Identity:</strong> Enroll your face profile so only your scans are recorded to your ThrYveQ score.</div>
                     </div>
                     <button type="button" onclick="if (window.scanner) window.scanner.promptEnrollFace();" class="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-md font-semibold text-xs transition flex-shrink-0">
-                        Enroll Face ID
+                        Enroll Face Profile
                     </button>
                 </div>
                 `;

@@ -156,6 +156,10 @@ def test_guideline_1_4_1_vitals_disclaimers():
     assert 'id="guide-tab-btn-vascular"' not in rendered_prod, "FAIL: guide-tab-btn-vascular rendered on production!"
     assert 'guide-tab-pane-vascular' not in rendered_prod, "FAIL: guide-tab-pane-vascular rendered on production!"
     assert 'const isMirror = false;' in rendered_prod, "FAIL: isMirror is not false in JS on production!"
+    assert 'id="face-mismatch-modal"' not in rendered_prod, "FAIL: face-mismatch-modal rendered on production!"
+    assert 'id="biometrics-manage-modal"' not in rendered_prod, "FAIL: biometrics-manage-modal rendered on production!"
+    assert 'Face ID' not in rendered_prod, "FAIL: Apple trademark 'Face ID' found in production template!"
+    assert 'id="liveness-failed-modal"' in rendered_prod, "FAIL: liveness-failed-modal missing on production!"
 
     # Mirror Mode: Must include extended biomarkers
     rendered_mirror = vitals_tmpl.render(
@@ -178,8 +182,11 @@ def test_guideline_1_4_1_vitals_disclaimers():
     assert 'id="guide-tab-btn-vascular"' in rendered_mirror, "FAIL: guide-tab-btn-vascular missing on mirror!"
     assert 'guide-tab-pane-vascular' in rendered_mirror, "FAIL: guide-tab-pane-vascular missing on mirror!"
     assert 'const isMirror = true;' in rendered_mirror, "FAIL: isMirror is not true in JS on mirror!"
+    assert 'id="face-mismatch-modal"' in rendered_mirror, "FAIL: face-mismatch-modal missing on mirror!"
+    assert 'id="biometrics-manage-modal"' in rendered_mirror, "FAIL: biometrics-manage-modal missing on mirror!"
+    assert 'id="liveness-failed-modal"' in rendered_mirror, "FAIL: liveness-failed-modal missing on mirror!"
 
-    print("  PASS: Guideline 1.4.1 is 100% compliant. Disclaimers verified and vitals isolation (Prod: 5 vs Mirror: 8) validated.")
+    print("  PASS: Guideline 1.4.1 is 100% compliant. Disclaimers verified, vitals isolation (Prod: 5 vs Mirror: 8), and Face ID protection validated.")
 
 
 def test_backend_integrity():
